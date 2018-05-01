@@ -136,7 +136,7 @@ public class TrackCoaster {
     }
 
     /**
-     * Deletes all nodes and connections of this coaster
+     * Removes all nodes and connections of this coaster
      */
     public void clear() {
         for (TrackNode node : this._nodes) {

@@ -26,6 +26,7 @@ import com.bergerkiller.bukkit.tc.rails.type.RailType;
 
 public class TCCoasters extends JavaPlugin {
     private Task updateTask;
+    private Task autosaveTask;
     private final TCCoastersListener listener = new TCCoastersListener(this);
     private final Map<Player, TrackEditState> editStates = new HashMap<Player, TrackEditState>();
     private final Map<World, TrackParticleWorld> particleWorlds = new HashMap<World, TrackParticleWorld>();
@@ -144,6 +145,9 @@ public class TCCoasters extends JavaPlugin {
             }
         }.start(1, 1);
 
+        // Autosave every 30 seconds approximately
+        this.autosaveTask = new AutosaveTask(this).start(30*20, 30*20);
+
         // Magic!
         RailType.register(new CoasterRailType(this), false);
 
@@ -160,6 +164,7 @@ public class TCCoasters extends JavaPlugin {
     public void onDisable() {
         this.listener.disable();
         this.updateTask.stop();
+        this.autosaveTask.stop();
 
         // Clean up when disabling (save dirty coasters + despawn particles)
         for (World world : Bukkit.getWorlds()) {
@@ -234,4 +239,17 @@ public class TCCoasters extends JavaPlugin {
         return MapDisplay.getHeldDisplay(player) instanceof TCCoastersDisplay;
     }
 
+    private static class AutosaveTask extends Task {
+
+        public AutosaveTask(JavaPlugin plugin) {
+            super(plugin);
+        }
+
+        @Override
+        public void run() {
+            for (TrackWorldStorage world : ((TCCoasters) this.getPlugin()).trackWorlds.values()) {
+                world.save(true);
+            }
+        }
+    }
 }

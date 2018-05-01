@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -334,8 +335,27 @@ public class TrackWorldStorage {
      * @param autosave whether to save only when changes occurred (true), or all the time (false)
      */
     public void save(boolean autosave) {
-        for (TrackCoaster coaster : this._coasters) {
-            coaster.save(autosave);
+        Iterator<TrackCoaster> iter = this._coasters.iterator();
+        while (iter.hasNext()) {
+            TrackCoaster coaster = iter.next();
+            if (coaster.getNodes().isEmpty()) {
+                coaster.clear();
+                iter.remove();
+
+                // Deletes the physical saved files of the coasters
+                String baseName = TrackCoaster.escapeName(coaster.getName());
+                File folder = getConfigFolder();
+                File tmpFile = new File(folder, baseName + ".csv.tmp");
+                File realFile = new File(folder, baseName + ".csv");
+                if (tmpFile.exists()) {
+                    tmpFile.delete();
+                }
+                if (realFile.exists()) {
+                    realFile.delete();
+                }
+            } else {
+                coaster.save(autosave);
+            }
         }
     }
 
