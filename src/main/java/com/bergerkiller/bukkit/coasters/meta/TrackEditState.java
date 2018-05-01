@@ -430,7 +430,7 @@ public class TrackEditState {
     }
 
     public static enum Mode {
-        DISABLED("Disabled (hidden)", 0, 0),
+        DISABLED("Disabled (hidden)", 0, 1),
         CREATE("Create Track", 10, 3),
         DELETE("Delete Track", 10, 6),
         POSITION("Change Position", 0, 1),
@@ -451,7 +451,7 @@ public class TrackEditState {
 
         public boolean autoActivate(int tick) {
             tick -= this._autoDelay;
-            return tick >= 0 && (tick % _autoInterval) == 0;
+            return tick >= 0 && (_autoInterval <= 0 || (tick % _autoInterval) == 0);
         }
 
         public String getName() {
