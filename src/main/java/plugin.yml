@@ -1,0 +1,18 @@
+name: TCCoasters
+main: com.bergerkiller.bukkit.coasters.TCCoasters
+version: ${project.version}
+authors: [bergerkiller]
+description: Add-on for TrainCarts that adds free-form rollercoaster track
+depend: [Train_Carts]
+dev-url: ${project.url}
+commands:
+    tccoasters:
+        aliases: [coaster, tcc]
+        description: Add and remove coasters
+        usage: TBD
+        permission: train.coasters.use
+permissions:
+    train.coasters.use:
+        description: Allows players to use the TC Coasters commands
+        default: op
+        
