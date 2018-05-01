@@ -60,6 +60,11 @@ public class TrackRailsWorld {
     }
 
     public void store(TrackNode node) {
+        // If no connections, don't map it in the world at all - it does nothing
+        if (node.getConnections().isEmpty()) {
+            return;
+        }
+
         RailPath movePath = node.buildPath();
         RailPath registerPath = movePath; //node.buildPath(0.5);
         TrackRailsSection section = new TrackRailsSection(node, movePath);
