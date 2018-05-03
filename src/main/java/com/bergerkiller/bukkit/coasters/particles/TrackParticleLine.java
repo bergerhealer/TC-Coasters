@@ -9,6 +9,7 @@ import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
+import com.bergerkiller.generated.net.minecraft.server.EntityBatHandle;
 import com.bergerkiller.generated.net.minecraft.server.EntityHandle;
 import com.bergerkiller.generated.net.minecraft.server.EntityInsentientHandle;
 import com.bergerkiller.generated.net.minecraft.server.EntityLivingHandle;
@@ -20,7 +21,7 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityL
  * A particle consisting of a line created using a leash between two invisible entities
  */
 public class TrackParticleLine extends TrackParticle {
-    private static final Vector OFFSET1 = new Vector(0.7, 0.1, -0.5);
+    private static final Vector OFFSET1 = new Vector(0.7, 0.16, -0.5);
     private static final Vector OFFSET2 = new Vector(0.0, -1.1, -0.2);
     private static final double VIEW_RADIUS = 128.0;
     private Vector p1 = null, p2 = null;
@@ -117,12 +118,13 @@ public class TrackParticleLine extends TrackParticle {
         p1.setPosX(this.p1.getX() + OFFSET1.getX());
         p1.setPosY(this.p1.getY() + OFFSET1.getY());
         p1.setPosZ(this.p1.getZ() + OFFSET1.getZ());
-        p1.setEntityTypeId(105); // bat
+        p1.setEntityTypeId(65); // bat
         p1.setDataWatcher(new DataWatcher());
-        p1.getDataWatcher().set(EntityHandle.DATA_FLAGS, (byte) EntityHandle.DATA_FLAG_INVISIBLE);
+        p1.getDataWatcher().set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
         p1.getDataWatcher().set(EntityHandle.DATA_SILENT, true);
-        p1.getDataWatcher().set(EntityInsentientHandle.DATA_INSENTIENT_FLAGS, (byte) 0x1);
+        p1.getDataWatcher().set(EntityInsentientHandle.DATA_INSENTIENT_FLAGS, (byte) EntityInsentientHandle.DATA_INSENTIENT_FLAG_NOAI);
         p1.getDataWatcher().set(EntityLivingHandle.DATA_NO_GRAVITY, true);
+        p1.getDataWatcher().set(EntityBatHandle.DATA_BAT_FLAGS, (byte) 0);
 
         PacketPlayOutSpawnEntityLivingHandle p2 = PacketPlayOutSpawnEntityLivingHandle.createNew();
         p2.setEntityId(this.e2);
@@ -130,12 +132,13 @@ public class TrackParticleLine extends TrackParticle {
         p2.setPosX(this.p2.getX() + OFFSET2.getX());
         p2.setPosY(this.p2.getY() + OFFSET2.getY());
         p2.setPosZ(this.p2.getZ() + OFFSET2.getZ());
-        p2.setEntityTypeId(105); // bat
+        p2.setEntityTypeId(65); // bat
         p2.setDataWatcher(new DataWatcher());
-        p2.getDataWatcher().set(EntityHandle.DATA_FLAGS, (byte) EntityHandle.DATA_FLAG_INVISIBLE);
+        p2.getDataWatcher().set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
         p2.getDataWatcher().set(EntityHandle.DATA_SILENT, true);
-        p2.getDataWatcher().set(EntityInsentientHandle.DATA_INSENTIENT_FLAGS, (byte) 0x1);
+        p2.getDataWatcher().set(EntityInsentientHandle.DATA_INSENTIENT_FLAGS, (byte) EntityInsentientHandle.DATA_INSENTIENT_FLAG_NOAI);
         p2.getDataWatcher().set(EntityLivingHandle.DATA_NO_GRAVITY, true);
+        p2.getDataWatcher().set(EntityBatHandle.DATA_BAT_FLAGS, (byte) 0);
 
         PacketUtil.sendPacket(viewer, p1);
         PacketUtil.sendPacket(viewer, p2);
