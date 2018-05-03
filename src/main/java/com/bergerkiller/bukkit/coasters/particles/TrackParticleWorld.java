@@ -10,6 +10,7 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.meta.TrackEditState;
+import com.bergerkiller.bukkit.common.math.Quaternion;
 
 /**
  * Tracks and updates all the particle items on a single world
@@ -41,8 +42,12 @@ public class TrackParticleWorld {
         return addParticle(new TrackParticleItem(this, position));
     }
 
-    public TrackParticleArrow addParticleArrow(Vector position, Vector direction) {
-        return addParticle(new TrackParticleArrow(this, position, direction));
+    public TrackParticleArrow addParticleArrow(Vector position, Vector direction, Vector up) {
+        return addParticle(new TrackParticleArrow(this, position, Quaternion.fromLookDirection(direction, up)));
+    }
+
+    public TrackParticleArrow addParticleArrow(Vector position, Quaternion orientation) {
+        return addParticle(new TrackParticleArrow(this, position, orientation));
     }
 
     protected <T extends TrackParticle> T addParticle(T particle) {

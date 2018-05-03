@@ -1,7 +1,6 @@
 package com.bergerkiller.bukkit.coasters.meta;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import org.bukkit.Location;
@@ -53,7 +52,7 @@ public class TrackNode {
         });
         */
 
-        this._upParticleArrow = group.getParticles().addParticleArrow(this._pos, this._up_visual);
+        this._upParticleArrow = group.getParticles().addParticleArrow(this._pos, this._dir, this._up_visual);
         this._upParticleArrow.setStateSource(new TrackParticleState.Source() {
             @Override
             public TrackParticleState getState(Player viewer) {
@@ -142,7 +141,7 @@ public class TrackNode {
         } else {
             this._up_visual.multiply(n);
         }
-        this._upParticleArrow.setDirection(this._up_visual);
+        this._upParticleArrow.setDirection(this._dir, this._up_visual);
         this.markChanged();
     }
 

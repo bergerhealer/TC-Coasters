@@ -11,6 +11,7 @@ import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
+import com.bergerkiller.bukkit.tc.Util;
 import com.bergerkiller.generated.net.minecraft.server.EntityArmorStandHandle;
 import com.bergerkiller.generated.net.minecraft.server.EntityHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityEquipmentHandle;
@@ -20,21 +21,23 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityH
 
 /**
  * A particle consisting of a floating arrow pointing into a certain direction.
- * Uses an armor stand with a lever item rotated into the direction.
+ * Uses an armor stand with a lever item rotated into the direction. The direction
+ * is along which is rotated, the up vector indicates the roll around this vector.
  */
 public class TrackParticleArrow extends TrackParticle {
     private static final double VIEW_RADIUS = 64.0;
     private final ProtocolPosition prot = new ProtocolPosition();
     private TrackParticleItemType itemType = TrackParticleItemType.LEVER;
-    private Vector position, direction;
+    private Vector position;
+    private Quaternion orientation;
     private boolean positionChanged = false;
     private boolean itemChanged = false;
     private int entityId = -1;
 
-    public TrackParticleArrow(TrackParticleWorld world, Vector position, Vector direction) {
+    protected TrackParticleArrow(TrackParticleWorld world, Vector position, Quaternion orientation) {
         super(world);
         this.position = position.clone();
-        this.direction = direction.clone();
+        this.orientation = orientation.clone();
     }
 
     public void setPosition(Vector position) {
@@ -44,9 +47,13 @@ public class TrackParticleArrow extends TrackParticle {
         }
     }
 
-    public void setDirection(Vector direction) {
-        if (!direction.equals(this.direction)) {
-            this.direction = direction.clone();
+    public void setDirection(Vector direction, Vector up) {
+        this.setOrientation(Quaternion.fromLookDirection(direction, up));
+    }
+
+    public void setOrientation(Quaternion orientation) {
+        if (!orientation.equals(this.orientation)) {
+            this.orientation = orientation.clone();
             this.positionChanged = true;
         }
     }
@@ -69,7 +76,7 @@ public class TrackParticleArrow extends TrackParticle {
             this.positionChanged = false;
 
             if (this.entityId != -1) {
-                this.prot.calculate(this.position, this.direction);
+                this.prot.calculate(this.position, this.orientation);
 
                 PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
                         this.entityId,
@@ -78,7 +85,7 @@ public class TrackParticleArrow extends TrackParticle {
                 this.broadcastPacket(tpPacket);
 
                 DataWatcher metadata = new DataWatcher();
-                metadata.set(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, new Vector(prot.rotX, prot.rotY, prot.rotZ));
+                metadata.set(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, prot.rotation);
                 PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
                 this.broadcastPacket(metaPacket);
             }
@@ -116,7 +123,7 @@ public class TrackParticleArrow extends TrackParticle {
             this.entityId = EntityUtil.getUniqueEntityId();
         }
 
-        prot.calculate(this.position, this.direction);
+        prot.calculate(this.position, this.orientation);
 
         PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.T.newHandleNull();
         spawnPacket.setEntityId(this.entityId);
@@ -131,7 +138,7 @@ public class TrackParticleArrow extends TrackParticle {
         metadata.set(EntityHandle.DATA_NO_GRAVITY, true);
         metadata.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE));
         metadata.set(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, (byte) EntityArmorStandHandle.DATA_FLAG_HAS_ARMS);
-        metadata.set(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, new Vector(prot.rotX, prot.rotY, prot.rotZ));
+        metadata.set(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, prot.rotation);
         PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
         PacketUtil.sendPacket(viewer, metaPacket);
 
@@ -142,29 +149,26 @@ public class TrackParticleArrow extends TrackParticle {
 
     private static class ProtocolPosition {
         public double posX, posY, posZ;
-        public double rotX, rotY, rotZ;
+        public Vector rotation;
 
-        public void calculate(Vector position, Vector direction) {
-            Quaternion orientation = Quaternion.fromLookDirection(direction, new Vector(0, 1, 0));
-            Vector ypr = orientation.getYawPitchRoll();
-            this.rotX = ypr.getX();
-            this.rotY = ypr.getY();
-            this.rotZ = ypr.getZ();
+        public void calculate(Vector position, Quaternion orientation) {
+            // Use direction for rotX/rotZ, and up vector for rotY rotation around it
+            // This creates an arrow that smoothly rotates around its center point using rotY
+            this.rotation = Util.getArmorStandPose(orientation);
+            this.rotation.setX(this.rotation.getX() - 90.0);
 
+            // Absolute position
             this.posX = position.getX() + 0.315;
             this.posY = position.getY() - 1.35;
             this.posZ = position.getZ();
 
-            // Cancel the offset of the arm relative to the yaw rotation point (ypr.y)
-            this.posX += 0.06 * Math.cos(Math.toRadians(ypr.getY()));
-            this.posZ += 0.06 * Math.sin(Math.toRadians(ypr.getY()));
-
             // Cancel relative positioning of the item itself
-            Vector upVector =  new Vector(0.0, 0.56, -0.05);
+            Vector upVector =  new Vector(0.05, -0.05, -0.56);
             orientation.transformPoint(upVector);
             this.posX += upVector.getX();
             this.posY += upVector.getY();
             this.posZ += upVector.getZ();
         }
+
     }
 }
