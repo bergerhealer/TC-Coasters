@@ -156,6 +156,10 @@ public class TrackWorldStorage {
      * @return connection
      */
     public TrackConnection connect(TrackNode nodeA, TrackNode nodeB) {
+        // Let's not do this
+        if (nodeA == nodeB) {
+            throw new IllegalArgumentException("Input nodeA and nodeB are the same nodes!");
+        }
         // Verify no such connection exists yet
         for (TrackConnection connection : nodeA._connections) {
             if (connection.isConnected(nodeB)) {

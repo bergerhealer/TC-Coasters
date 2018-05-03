@@ -131,6 +131,18 @@ public class TrackEditState {
     }
 
     public boolean onLeftClick() {
+        // When holding right-click and clicking left-click in position mode, create a new node and drag that
+        if (this.getMode() == Mode.POSITION && this.isHoldingRightClick()) {
+            Vector pos;
+            if (this.getEditedNodes().size() == 1) {
+                pos = this.getEditedNodes().iterator().next().getPosition();
+            } else {
+                pos = this.getNewNodePos();
+            }
+            this.createNewNode(pos);
+            return true;
+        }
+
         // Create an inverted camera transformation of the player's view direction
         Matrix4x4 cameraTransform = new Matrix4x4();
         cameraTransform.translateRotate(player.getEyeLocation());
@@ -228,8 +240,12 @@ public class TrackEditState {
         return true;
     }
 
+    public boolean isHoldingRightClick() {
+        return editTimeoutCtr > 0 && this.plugin.isHoldingEditTool(this.player);
+    }
+
     public void update() {
-        if (this.editTimeoutCtr > 0 && this.plugin.isHoldingEditTool(this.player)) {
+        if (this.isHoldingRightClick()) {
             this.editTimeoutCtr--;
             if (this.editTimeoutCtr >= EDIT_AUTO_TIMEOUT) {
                 if (this.heldDownTicks == 0 || this.editMode.autoActivate(this.heldDownTicks)) {
@@ -294,10 +310,10 @@ public class TrackEditState {
             if (droppedNode != null) {
                 List<TrackNode> connectedNodes = draggedNode.getNeighbours();
 
-                // Check not already connected to the node
-                if (!connectedNodes.contains(droppedNode)) {
-                    draggedNode.remove();
-                    for (TrackNode connected : connectedNodes) {
+                // Delete dragged node and connect all that was connected to it, with the one dropped on
+                draggedNode.remove();
+                for (TrackNode connected : connectedNodes) {
+                    if (connected != droppedNode) {
                         tracks.connect(droppedNode, connected);
                     }
                 }
@@ -360,6 +376,25 @@ public class TrackEditState {
         }
 
         // Create the node and set as editing
+        createNewNode(pos);
+
+        // If drag mode, switch to POSITION mode and initiate the drag
+        if (dragAfterCreate) {
+            this.setMode(Mode.POSITION);
+            this.editStartPos = eyeLoc;
+            this.editRotInfo = this.editStartPos.toVector();
+            this.setAfterEditMode(Mode.CREATE);
+        }
+    }
+
+    private Vector getNewNodePos() {
+        Location eyeLoc = getPlayer().getEyeLocation();
+        return eyeLoc.toVector().add(eyeLoc.getDirection().multiply(0.5));
+    }
+
+    private void createNewNode(Vector pos) {
+        // Create the node and set as editing
+        TrackWorldStorage tracks = this.plugin.getTracks(this.player.getWorld());
         TrackNode newNode = null;
         if (hasEditedNodes()) {
             for (TrackNode node : getEditedNodes()) {
@@ -374,14 +409,6 @@ public class TrackEditState {
         }
         clearEditedNodes();
         setEditing(newNode, true);
-
-        // If drag mode, switch to POSITION mode and initiate the drag
-        if (dragAfterCreate) {
-            this.setMode(Mode.POSITION);
-            this.editStartPos = eyeLoc;
-            this.editRotInfo = this.editStartPos.toVector();
-            this.setAfterEditMode(Mode.CREATE);
-        }
     }
 
     public void changePositionOrientation() {
@@ -432,9 +459,9 @@ public class TrackEditState {
     public static enum Mode {
         DISABLED("Disabled (hidden)", 0, 1),
         CREATE("Create Track", 10, 3),
-        DELETE("Delete Track", 10, 6),
         POSITION("Change Position", 0, 1),
-        ORIENTATION("Change Orientation", 0, 1);
+        ORIENTATION("Change Orientation", 0, 1),
+        DELETE("Delete Track", 10, 6);
 
         private final int _autoInterval;
         private final int _autoDelay;
