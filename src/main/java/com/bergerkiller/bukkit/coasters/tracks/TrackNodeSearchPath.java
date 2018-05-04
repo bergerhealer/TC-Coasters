@@ -1,4 +1,4 @@
-package com.bergerkiller.bukkit.coasters.meta;
+package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.util.ArrayList;
 import java.util.HashSet;

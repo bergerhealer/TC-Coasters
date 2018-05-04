@@ -1,11 +1,10 @@
-package com.bergerkiller.bukkit.coasters.map;
+package com.bergerkiller.bukkit.coasters.editor;
 
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
-import com.bergerkiller.bukkit.coasters.meta.TrackEditState;
-import com.bergerkiller.bukkit.coasters.meta.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
@@ -19,7 +18,7 @@ public class TCCoastersDisplay extends MapDisplay {
     private final MapWidgetTabView tabView = new MapWidgetTabView() {
         @Override
         public void onAttached() {
-            for (TrackEditState.Mode mode : TrackEditState.Mode.values()) {
+            for (PlayerEditState.Mode mode : PlayerEditState.Mode.values()) {
                 MapWidgetTabView.Tab tab = this.addTab();
                 switch (mode) {
                 case POSITION:
@@ -43,7 +42,7 @@ public class TCCoastersDisplay extends MapDisplay {
         this.addWidget(new MapWidgetSelectionBox() {
             @Override
             public void onAttached() {
-                for (TrackEditState.Mode mode : TrackEditState.Mode.values()) {
+                for (PlayerEditState.Mode mode : PlayerEditState.Mode.values()) {
                     this.addItem(mode.getName());
                 }
                 this.setSelectedItem(getState().getMode().getName());
@@ -53,7 +52,7 @@ public class TCCoastersDisplay extends MapDisplay {
 
             @Override
             public void onSelectedItemChanged() {
-                getState().setMode(TrackEditState.Mode.fromName(this.getSelectedItem()));
+                getState().setMode(PlayerEditState.Mode.fromName(this.getSelectedItem()));
                 tabView.setSelectedIndex(getState().getMode().ordinal());
             }
         });
@@ -167,7 +166,7 @@ public class TCCoastersDisplay extends MapDisplay {
         }
     }
 
-    public TrackEditState getState() {
+    public PlayerEditState getState() {
         return getPlugin().getEditState(getPlayer());
     }
     

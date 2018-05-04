@@ -3,9 +3,9 @@ package com.bergerkiller.bukkit.coasters.world;
 import org.bukkit.World;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
-import com.bergerkiller.bukkit.coasters.meta.TrackWorld;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
+import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 
 /**
  * Everything from TC Coasters that is accessible for a single World

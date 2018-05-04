@@ -1,4 +1,4 @@
-package com.bergerkiller.bukkit.coasters.meta;
+package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.io.File;
 import java.io.FileReader;
@@ -13,8 +13,8 @@ import java.util.logging.Level;
 import org.bukkit.util.FileUtil;
 import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.coasters.meta.csv.TrackCoasterCSVReader;
-import com.bergerkiller.bukkit.coasters.meta.csv.TrackCoasterCSVWriter;
+import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVReader;
+import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVWriter;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;

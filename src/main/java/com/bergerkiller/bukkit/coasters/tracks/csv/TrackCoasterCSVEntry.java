@@ -1,4 +1,4 @@
-package com.bergerkiller.bukkit.coasters.meta.csv;
+package com.bergerkiller.bukkit.coasters.tracks.csv;
 
 import java.io.IOException;
 import java.util.Arrays;

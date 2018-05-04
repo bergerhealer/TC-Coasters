@@ -1,4 +1,4 @@
-package com.bergerkiller.bukkit.coasters.meta;
+package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.util.Arrays;
 import java.util.List;
@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleArrow;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
@@ -59,7 +60,7 @@ public class TrackNode implements CoasterWorldAccess {
         this._upParticleArrow.setStateSource(new TrackParticleState.Source() {
             @Override
             public TrackParticleState getState(Player viewer) {
-                TrackEditState editState = getPlugin().getEditState(viewer);
+                PlayerEditState editState = getPlugin().getEditState(viewer);
                 return editState.isEditing(TrackNode.this) ? 
                         TrackParticleState.SELECTED : TrackParticleState.DEFAULT;
             }

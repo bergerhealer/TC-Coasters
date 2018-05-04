@@ -1,4 +1,4 @@
-package com.bergerkiller.bukkit.coasters.meta;
+package com.bergerkiller.bukkit.coasters.editor;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,6 +15,10 @@ import org.bukkit.util.Vector;
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
+import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
+import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
@@ -24,7 +28,7 @@ import com.bergerkiller.bukkit.common.utils.LogicUtil;
  * Note that this state is only ever valid for the World the player is on.
  * When the player changed world, any edited nodes are automatically cleared.
  */
-public class TrackEditState implements CoasterWorldAccess {
+public class PlayerEditState implements CoasterWorldAccess {
     private static final int EDIT_AUTO_TIMEOUT = 5;
     private static final int EDIT_CANCEL_TIMEOUT = 8;
     private final TCCoasters plugin;
@@ -40,7 +44,7 @@ public class TrackEditState implements CoasterWorldAccess {
     private Location editStartPos = null;
     private Vector editRotInfo = new Vector(); // virtual coordinate of the vector
 
-    public TrackEditState(TCCoasters plugin, Player player) {
+    public PlayerEditState(TCCoasters plugin, Player player) {
         this.plugin = plugin;
         this.player = player;
     }

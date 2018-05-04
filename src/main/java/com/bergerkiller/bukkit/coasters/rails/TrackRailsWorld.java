@@ -10,8 +10,8 @@ import java.util.Map;
 
 import org.bukkit.block.Block;
 
-import com.bergerkiller.bukkit.coasters.meta.TrackCoaster;
-import com.bergerkiller.bukkit.coasters.meta.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;

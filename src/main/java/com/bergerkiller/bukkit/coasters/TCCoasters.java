@@ -13,11 +13,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.coasters.map.TCCoastersDisplay;
-import com.bergerkiller.bukkit.coasters.meta.TrackCoaster;
-import com.bergerkiller.bukkit.coasters.meta.TrackEditState;
-import com.bergerkiller.bukkit.coasters.meta.TrackNode;
-import com.bergerkiller.bukkit.coasters.meta.TrackWorld;
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
+import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldImpl;
 import com.bergerkiller.bukkit.common.Task;
@@ -30,7 +30,7 @@ public class TCCoasters extends JavaPlugin {
     private Task updateTask;
     private Task autosaveTask;
     private final TCCoastersListener listener = new TCCoastersListener(this);
-    private final Map<Player, TrackEditState> editStates = new HashMap<Player, TrackEditState>();
+    private final Map<Player, PlayerEditState> editStates = new HashMap<Player, PlayerEditState>();
     private final Map<World, CoasterWorldImpl> worlds = new HashMap<World, CoasterWorldImpl>();
 
     //private final Map<World, TrackParticleWorld> particleWorlds = new HashMap<World, TrackParticleWorld>();
@@ -71,14 +71,14 @@ public class TCCoasters extends JavaPlugin {
     }
 
     public boolean isTracksVisible(Player player) {
-        TrackEditState state = editStates.get(player);
-        return state != null && state.getMode() != TrackEditState.Mode.DISABLED;
+        PlayerEditState state = editStates.get(player);
+        return state != null && state.getMode() != PlayerEditState.Mode.DISABLED;
     }
 
-    public TrackEditState getEditState(Player player) {
-        TrackEditState state = editStates.get(player);
+    public PlayerEditState getEditState(Player player) {
+        PlayerEditState state = editStates.get(player);
         if (state == null) {
-            state = new TrackEditState(this, player);
+            state = new PlayerEditState(this, player);
             editStates.put(player, state);
         }
         return state;
@@ -124,9 +124,9 @@ public class TCCoasters extends JavaPlugin {
                     coasterWorld.updateAll();
                 }
 
-                Iterator<TrackEditState> iter = editStates.values().iterator();
+                Iterator<PlayerEditState> iter = editStates.values().iterator();
                 while (iter.hasNext()) {
-                    TrackEditState state = iter.next();
+                    PlayerEditState state = iter.next();
                     if (!state.getPlayer().isOnline()) {
                         iter.remove();
                     } else {
