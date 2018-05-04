@@ -38,7 +38,7 @@ public class TrackCoasterCSVReader {
                 Vector orientation = entry.getOrientation();
                 TrackNode node = this.coaster.createNewNode(position, orientation);
                 if (prevNode != null && type == TrackCoasterCSVEntry.Type.NODE) {
-                    this.coaster.getStorage().connect(prevNode, node);
+                    this.coaster.getTracks().connect(prevNode, node);
                 }
                 prevNode = node;
             } else if (type == TrackCoasterCSVEntry.Type.LINK && prevNode != null) {
@@ -50,9 +50,9 @@ public class TrackCoasterCSVReader {
 
     public void createPendingLinks() {
         for (PendingLink link : this.pendingLinks) {
-            TrackNode target = this.coaster.getStorage().findNodeExact(link.targetNodePos);
+            TrackNode target = this.coaster.getTracks().findNodeExact(link.targetNodePos);
             if (target != null) {
-                this.coaster.getStorage().connect(link.node, target);
+                this.coaster.getTracks().connect(link.node, target);
                 continue;
             }
 

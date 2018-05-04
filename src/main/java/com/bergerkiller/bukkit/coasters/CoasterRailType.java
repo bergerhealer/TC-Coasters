@@ -11,6 +11,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsSection;
+import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
@@ -36,7 +37,7 @@ public class CoasterRailType extends RailType {
 
     @Override
     public boolean isRail(World world, int x, int y, int z) {
-        return !this.plugin.getRails(world).findAtRails(x, y, z).isEmpty();
+        return !getRails(world).findAtRails(x, y, z).isEmpty();
     }
 
     @Override
@@ -46,7 +47,7 @@ public class CoasterRailType extends RailType {
 
     @Override
     public List<Block> findRails(Block pos) {
-        List<TrackRailsSection> rails = this.plugin.getRails(pos.getWorld()).findAtBlock(pos);
+        List<TrackRailsSection> rails = getRails(pos.getWorld()).findAtBlock(pos);
         if (rails.isEmpty()) {
             return Collections.emptyList();
         } else {
@@ -60,7 +61,7 @@ public class CoasterRailType extends RailType {
 
     @Override
     public Block findMinecartPos(Block trackBlock) {
-        List<TrackRailsSection> rails = this.plugin.getRails(trackBlock.getWorld()).findAtRails(trackBlock);
+        List<TrackRailsSection> rails = getRails(trackBlock.getWorld()).findAtRails(trackBlock);
         if (!rails.isEmpty()) {
             RailPath.Point[] points = rails.get(0).path.getPoints();
             RailPath.Point mid = null;
@@ -79,7 +80,7 @@ public class CoasterRailType extends RailType {
 
     @Override
     public BlockFace[] getPossibleDirections(Block trackBlock) {
-        List<TrackRailsSection> rails = this.plugin.getRails(trackBlock.getWorld()).findAtRails(trackBlock);
+        List<TrackRailsSection> rails = getRails(trackBlock.getWorld()).findAtRails(trackBlock);
         if (!rails.isEmpty()) {
             RailPath.Point[] points = rails.get(0).path.getPoints();
             if (points.length >= 2) {
@@ -102,7 +103,7 @@ public class CoasterRailType extends RailType {
 
     @Override
     public BlockFace getDirection(Block railsBlock) {
-        List<TrackRailsSection> rails = this.plugin.getRails(railsBlock.getWorld()).findAtRails(railsBlock);
+        List<TrackRailsSection> rails = getRails(railsBlock.getWorld()).findAtRails(railsBlock);
         if (!rails.isEmpty()) {
             return rails.get(0).getMovementDirection();
         }
@@ -116,7 +117,7 @@ public class CoasterRailType extends RailType {
 
     @Override
     public RailLogic getLogic(RailLogicState state) {
-        List<TrackRailsSection> rails = this.plugin.getRails(state.getRailsBlock().getWorld()).findAtRails(state.getRailsBlock());
+        List<TrackRailsSection> rails = getRails(state.getRailsBlock().getWorld()).findAtRails(state.getRailsBlock());
         if (rails.size() >= 1) {
             TrackRailsSection section = rails.get(0);
             if (rails.size() >= 2) {
@@ -138,11 +139,15 @@ public class CoasterRailType extends RailType {
 
     @Override
     public Location getSpawnLocation(Block railsBlock, BlockFace orientation) {
-        List<TrackRailsSection> rails = this.plugin.getRails(railsBlock.getWorld()).findAtRails(railsBlock);
+        List<TrackRailsSection> rails = getRails(railsBlock.getWorld()).findAtRails(railsBlock);
         if (rails.isEmpty()) {
             return super.getSpawnLocation(railsBlock, orientation);
         } else {
             return rails.get(0).node.getSpawnLocation(FaceUtil.faceToVector(orientation));
         }
+    }
+
+    private final TrackRailsWorld getRails(World world) {
+        return this.plugin.getCoasterWorld(world).getRails();
     }
 }

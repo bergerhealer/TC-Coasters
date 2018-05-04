@@ -12,39 +12,22 @@ import java.util.Set;
 import org.bukkit.World;
 import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.coasters.TCCoasters;
-import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
-import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 
 /**
  * Stores all the track groups and the special connections between track nodes.
  * There is one storage per world.
  */
-public class TrackWorldStorage {
-    private final TCCoasters _plugin;
-    private final TrackParticleWorld _world;
+public class TrackWorld extends CoasterWorldAccess.Component {
     private final List<TrackCoaster> _coasters;
     private final Set<TrackNode> _changedNodes;
     private boolean _is_loading;
 
-    public TrackWorldStorage(TCCoasters plugin, World world) {
-        this._plugin = plugin;
-        this._world = plugin.getParticles(world);
+    public TrackWorld(CoasterWorldAccess world) {
+        super(world);
         this._coasters = new ArrayList<TrackCoaster>();
         this._changedNodes = new HashSet<TrackNode>();
         this._is_loading = false;
-    }
-
-    public TCCoasters getPlugin() {
-        return this._plugin;
-    }
-
-    public TrackParticleWorld getParticles() {
-        return this._world;
-    }
-
-    public World getWorld() {
-        return this._world.getWorld();
     }
 
     /**
@@ -55,7 +38,7 @@ public class TrackWorldStorage {
      */
     public File getConfigFolder() {
         World w = this.getWorld();
-        File f = new File(this._plugin.getDataFolder(), w.getName() + "_" + w.getUID());
+        File f = new File(this.getPlugin().getDataFolder(), w.getName() + "_" + w.getUID());
         f.mkdirs();
         return f;
     }
@@ -229,7 +212,8 @@ public class TrackWorldStorage {
         }
         this._coasters.clear();
         this._changedNodes.clear();
-        this.getPlugin().getRails(this.getWorld()).clear();
+
+        this.getRails().clear();
 
         // Done.
         this._is_loading = false;
@@ -290,12 +274,11 @@ public class TrackWorldStorage {
             }
 
             // Purge all cached rail information for the changed nodes
-            TrackRailsWorld railsWorld = this.getPlugin().getRails(this.getWorld());
-            railsWorld.purge(this._changedNodes);
+            this.getRails().purge(this._changedNodes);
 
             // Re-create all the cached rail information for the changed nodes
             for (TrackNode changedNode : this._changedNodes) {
-                railsWorld.store(changedNode);
+                this.getRails().store(changedNode);
             }
             this._changedNodes.clear();
         }

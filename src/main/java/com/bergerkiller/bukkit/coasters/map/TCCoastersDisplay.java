@@ -1,14 +1,12 @@
 package com.bergerkiller.bukkit.coasters.map;
 
-import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
-import com.bergerkiller.bukkit.coasters.meta.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.meta.TrackEditState;
 import com.bergerkiller.bukkit.coasters.meta.TrackNode;
-import com.bergerkiller.bukkit.coasters.meta.TrackWorldStorage;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetButton;
@@ -177,8 +175,8 @@ public class TCCoastersDisplay extends MapDisplay {
         return this.getOwners().get(0);
     }
 
-    public TrackWorldStorage getTracks() {
-        return getPlugin().getTracks(getPlayer().getWorld());
+    public CoasterWorldAccess getCoasterWorld() {
+        return getState().getCoasterWorld();
     }
 
     @Override

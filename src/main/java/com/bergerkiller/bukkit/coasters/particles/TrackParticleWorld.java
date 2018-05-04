@@ -4,34 +4,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.bukkit.Bukkit;
-import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.coasters.TCCoasters;
-import com.bergerkiller.bukkit.coasters.meta.TrackEditState;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 
 /**
  * Tracks and updates all the particle items on a single world
  */
-public class TrackParticleWorld {
-    private final TCCoasters plugin;
-    private final World world;
+public class TrackParticleWorld extends CoasterWorldAccess.Component {
     public List<TrackParticle> particles = new ArrayList<TrackParticle>();
     private List<Player> players = new ArrayList<Player>();
 
-    public TrackParticleWorld(TCCoasters plugin, World world) {
-        this.plugin = plugin;
-        this.world = world;
-    }
-
-    public final TCCoasters getPlugin() {
-        return this.plugin;
-    }
-
-    public final World getWorld() {
-        return this.world;
+    public TrackParticleWorld(CoasterWorldAccess world) {
+        super(world);
     }
 
     public TrackParticleLine addParticleLine(Vector p1, Vector p2) {
@@ -78,7 +65,7 @@ public class TrackParticleWorld {
 
     public void update(Player viewer) {
         Vector pos = viewer.getEyeLocation().toVector();
-        if (viewer.getWorld() != this.world || !this.plugin.isTracksVisible(viewer)) {
+        if (viewer.getWorld() != this.getWorld() || !this.getPlugin().isTracksVisible(viewer)) {
             if (this.players.contains(viewer)) {
                 this.players.remove(viewer);
                 for (TrackParticle particle : this.particles) {

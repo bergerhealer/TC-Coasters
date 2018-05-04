@@ -8,22 +8,29 @@ import java.util.List;
 import java.util.Set;
 
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
+import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 
 /**
- * The track editing state of a single player
+ * The track editing state of a single player.
+ * Note that this state is only ever valid for the World the player is on.
+ * When the player changed world, any edited nodes are automatically cleared.
  */
-public class TrackEditState {
+public class TrackEditState implements CoasterWorldAccess {
     private static final int EDIT_AUTO_TIMEOUT = 5;
     private static final int EDIT_CANCEL_TIMEOUT = 8;
     private final TCCoasters plugin;
     private final Player player;
     private final Set<TrackNode> editedNodes = new HashSet<TrackNode>();
+    private CoasterWorldAccess cachedCoasterWorld = null;
     private TrackNode lastEdited = null;
     private long lastEditTime = System.currentTimeMillis();
     private Mode editMode = Mode.DISABLED;
@@ -154,7 +161,7 @@ public class TrackEditState {
         TrackNode bestNode = null;
         double bestDistance = Double.MAX_VALUE;
 
-        for (TrackCoaster coaster : plugin.getTracks(player.getWorld()).getCoasters()) {
+        for (TrackCoaster coaster : getCoasterWorld().getTracks().getCoasters()) {
             for (TrackNode node : coaster.getNodes()) {
                 double distance = node.getViewDistance(cameraTransform);
                 if (distance < bestDistance) {
@@ -283,7 +290,7 @@ public class TrackEditState {
         // When drag-dropping a node onto a node, 'merge' the two
         // Do so by connecting all other neighbours of the dragged node to the node
         if (this.getMode() == Mode.POSITION && this.getEditedNodes().size() == 1) {
-            TrackWorldStorage tracks = this.plugin.getTracks(this.player.getWorld());
+            TrackWorld tracks = this.getTracks();
             TrackNode draggedNode = this.getEditedNodes().iterator().next();
             TrackNode droppedNode = null;
 
@@ -353,7 +360,7 @@ public class TrackEditState {
         // This allows for a kind of click-drag creation design
         // TODO: Find connection
         Location eyeLoc = getPlayer().getEyeLocation();
-        TrackWorldStorage tracks = this.plugin.getTracks(this.player.getWorld());
+        TrackWorld tracks = getTracks();
         boolean dragAfterCreate = false;
         Vector pos = null;
         if (this.heldDownTicks == 0) {
@@ -394,7 +401,7 @@ public class TrackEditState {
 
     private void createNewNode(Vector pos) {
         // Create the node and set as editing
-        TrackWorldStorage tracks = this.plugin.getTracks(this.player.getWorld());
+        TrackWorld tracks = getTracks();
         TrackNode newNode = null;
         if (hasEditedNodes()) {
             for (TrackNode node : getEditedNodes()) {
@@ -493,5 +500,45 @@ public class TrackEditState {
             }
             return CREATE;
         }
+    }
+
+    // CoasterWorldAccess
+
+    /**
+     * Gets the coaster world the player is currently on
+     * 
+     * @return coaster world
+     */
+    public CoasterWorldAccess getCoasterWorld() {
+        World bukkitWorld = this.player.getWorld();
+        if (this.cachedCoasterWorld == null || this.cachedCoasterWorld.getWorld() != bukkitWorld) {
+            this.cachedCoasterWorld = this.plugin.getCoasterWorld(bukkitWorld);
+        }
+        return this.cachedCoasterWorld;
+    }
+
+    @Override
+    public TCCoasters getPlugin() {
+        return this.plugin;
+    }
+
+    @Override
+    public World getWorld() {
+        return this.player.getWorld();
+    }
+
+    @Override
+    public TrackWorld getTracks() {
+        return this.getCoasterWorld().getTracks();
+    }
+
+    @Override
+    public TrackParticleWorld getParticles() {
+        return this.getCoasterWorld().getParticles();
+    }
+
+    @Override
+    public TrackRailsWorld getRails() {
+        return this.getCoasterWorld().getRails();
     }
 }

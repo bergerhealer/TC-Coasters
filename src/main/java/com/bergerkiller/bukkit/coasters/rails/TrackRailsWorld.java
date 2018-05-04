@@ -10,7 +10,9 @@ import java.util.Map;
 
 import org.bukkit.block.Block;
 
+import com.bergerkiller.bukkit.coasters.meta.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.meta.TrackNode;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
@@ -19,9 +21,13 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 /**
  * Tracks the lookup of rails information from block positions on a single world
  */
-public class TrackRailsWorld {
+public class TrackRailsWorld extends CoasterWorldAccess.Component {
     private final Map<IntVector3, List<TrackRailsSection>> sectionsByRails = new HashMap<IntVector3, List<TrackRailsSection>>();
     private final Map<IntVector3, List<TrackRailsSection>> sectionsByBlock = new HashMap<IntVector3, List<TrackRailsSection>>();
+
+    public TrackRailsWorld(CoasterWorldAccess world) {
+        super(world);
+    }
 
     public void clear() {
         this.sectionsByBlock.clear();
@@ -38,6 +44,18 @@ public class TrackRailsWorld {
 
     public List<TrackRailsSection> findAtRails(int x, int y, int z) {
         return LogicUtil.fixNull(sectionsByRails.get(new IntVector3(x, y, z)), Collections.<TrackRailsSection>emptyList());
+    }
+
+    /**
+     * Rebuilds all the rail information
+     */
+    public void rebuild() {
+        clear();
+        for (TrackCoaster coaster : getTracks().getCoasters()) {
+            for (TrackNode node : coaster.getNodes()) {
+                store(node);
+            }
+        }
     }
 
     /**

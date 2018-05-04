@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -16,11 +17,12 @@ import com.bergerkiller.bukkit.coasters.map.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.meta.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.meta.TrackEditState;
 import com.bergerkiller.bukkit.coasters.meta.TrackNode;
-import com.bergerkiller.bukkit.coasters.meta.TrackWorldStorage;
-import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
-import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
+import com.bergerkiller.bukkit.coasters.meta.TrackWorld;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldImpl;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
+import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
 
@@ -29,52 +31,43 @@ public class TCCoasters extends JavaPlugin {
     private Task autosaveTask;
     private final TCCoastersListener listener = new TCCoastersListener(this);
     private final Map<Player, TrackEditState> editStates = new HashMap<Player, TrackEditState>();
-    private final Map<World, TrackParticleWorld> particleWorlds = new HashMap<World, TrackParticleWorld>();
-    private final Map<World, TrackWorldStorage> trackWorlds = new HashMap<World, TrackWorldStorage>();
-    private final Map<World, TrackRailsWorld> railsWorlds = new HashMap<World, TrackRailsWorld>();
+    private final Map<World, CoasterWorldImpl> worlds = new HashMap<World, CoasterWorldImpl>();
+
+    //private final Map<World, TrackParticleWorld> particleWorlds = new HashMap<World, TrackParticleWorld>();
+    //private final Map<World, TrackWorld> trackWorlds = new HashMap<World, TrackWorld>();
+    //private final Map<World, TrackRailsWorld> railsWorlds = new HashMap<World, TrackRailsWorld>();
 
     public void unloadWorld(World world) {
-        {
-            TrackWorldStorage tracks = getTracks(world);
-            tracks.save(true);
-            tracks.clear();
-            trackWorlds.remove(world);
-        }
-        {
-            TrackParticleWorld particles = getParticles(world);
-            particles.removeAll();
-            particleWorlds.remove(world);
-        }
-        {
-            railsWorlds.remove(world);
+        CoasterWorldImpl coasterWorld = worlds.get(world);
+        if (coasterWorld != null) {
+            coasterWorld.unload();
+            worlds.remove(world);
         }
     }
 
-    public TrackRailsWorld getRails(World world) {
-        TrackRailsWorld railsWorld = railsWorlds.get(world);
-        if (railsWorld == null) {
-            railsWorld = new TrackRailsWorld();
-            railsWorlds.put(world, railsWorld);
+    /**
+     * Gets all the coaster information stored for a particular World
+     * 
+     * @param world
+     * @return world coaster information
+     */
+    public CoasterWorldAccess getCoasterWorld(World world) {
+        CoasterWorldImpl coasterWorld = this.worlds.get(world);
+        if (coasterWorld == null) {
+            coasterWorld = new CoasterWorldImpl(this, world);
+            this.worlds.put(world, coasterWorld);
+            coasterWorld.load();
         }
-        return railsWorld;
+        return coasterWorld;
     }
 
-    public TrackWorldStorage getTracks(World world) {
-        TrackWorldStorage worldStorage = trackWorlds.get(world);
-        if (worldStorage == null) {
-            worldStorage = new TrackWorldStorage(this, world);
-            trackWorlds.put(world, worldStorage);
-        }
-        return worldStorage;
-    }
-
-    public TrackParticleWorld getParticles(World world) {
-        TrackParticleWorld particleWorld = particleWorlds.get(world);
-        if (particleWorld == null) {
-            particleWorld = new TrackParticleWorld(this, world);
-            this.particleWorlds.put(world, particleWorld);
-        }
-        return particleWorld;
+    /**
+     * Gets all the coaster worlds on which coaster information is stored
+     * 
+     * @return coaster worlds
+     */
+    public Collection<CoasterWorldAccess> getCoasterWorlds() {
+        return CommonUtil.unsafeCast(this.worlds.values());
     }
 
     public boolean isTracksVisible(Player player) {
@@ -98,8 +91,8 @@ public class TCCoasters extends JavaPlugin {
      * @return coaster
      */
     public TrackCoaster findCoaster(String name) {
-        for (TrackWorldStorage storage : this.trackWorlds.values()) {
-            TrackCoaster coaster = storage.findCoaster(name);
+        for (CoasterWorldAccess world : this.worlds.values()) {
+            TrackCoaster coaster = world.getTracks().findCoaster(name);
             if (coaster != null) {
                 return coaster;
             }
@@ -127,12 +120,10 @@ public class TCCoasters extends JavaPlugin {
         this.updateTask = new Task(this) {
             @Override
             public void run() {
-                for (TrackWorldStorage world : trackWorlds.values()) {
-                    world.updateAll();
+                for (CoasterWorldImpl coasterWorld : worlds.values()) {
+                    coasterWorld.updateAll();
                 }
-                for (TrackParticleWorld world : particleWorlds.values()) {
-                    world.updateAll();
-                }
+
                 Iterator<TrackEditState> iter = editStates.values().iterator();
                 while (iter.hasNext()) {
                     TrackEditState state = iter.next();
@@ -153,7 +144,7 @@ public class TCCoasters extends JavaPlugin {
 
         // Load all coasters from csv
         for (World world : Bukkit.getWorlds()) {
-            this.getTracks(world).load();
+            this.getCoasterWorld(world).getTracks().load();
         }
 
         // Update right away
@@ -185,7 +176,7 @@ public class TCCoasters extends JavaPlugin {
 
         if (args.length > 0 && args[0].equals("create")) {
             sender.sendMessage("Creating a new track node at your position");
-            TrackWorldStorage tracks = this.getTracks(p.getWorld());
+            TrackWorld tracks = this.getCoasterWorld(p.getWorld()).getTracks();
             if (tracks.getCoasters().isEmpty()) {
                 pos.add(new Vector(0.0, -2.0, 0.0));
                 
@@ -203,8 +194,8 @@ public class TCCoasters extends JavaPlugin {
             p.getInventory().addItem(MapDisplay.createMapItem(TCCoastersDisplay.class));
         } else if (args.length > 0 && args[0].equals("save")) {
             sender.sendMessage("Saving all tracks to disk now");
-            for (TrackWorldStorage world : this.trackWorlds.values()) {
-                world.save(false);
+            for (CoasterWorldAccess coasterWorld : this.getCoasterWorlds()) {
+                coasterWorld.getTracks().save(false);
             }
         } else if (args.length > 0 && args[0].equals("path")) {
             sender.sendMessage("Logging paths of all selected nodes");
@@ -224,14 +215,8 @@ public class TCCoasters extends JavaPlugin {
     }
 
     public void buildAll() {
-        for (World world : Bukkit.getWorlds()) {
-            TrackRailsWorld railsWorld = getRails(world);
-            railsWorld.clear();
-            for (TrackCoaster coaster : getTracks(world).getCoasters()) {
-                for (TrackNode node : coaster.getNodes()) {
-                    railsWorld.store(node);
-                }
-            }
+        for (CoasterWorldAccess coasterWorld : this.getCoasterWorlds()) {
+            coasterWorld.getRails().rebuild();
         }
     }
 
@@ -247,8 +232,8 @@ public class TCCoasters extends JavaPlugin {
 
         @Override
         public void run() {
-            for (TrackWorldStorage world : ((TCCoasters) this.getPlugin()).trackWorlds.values()) {
-                world.save(true);
+            for (CoasterWorldImpl coasterWorld : ((TCCoasters) this.getPlugin()).worlds.values()) {
+                coasterWorld.save(true);
             }
         }
     }

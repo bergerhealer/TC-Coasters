@@ -6,11 +6,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 
-import com.bergerkiller.bukkit.coasters.meta.TrackWorldStorage;
 import com.bergerkiller.bukkit.common.events.PacketReceiveEvent;
 import com.bergerkiller.bukkit.common.events.PacketSendEvent;
 import com.bergerkiller.bukkit.common.protocol.PacketListener;
@@ -49,12 +49,19 @@ public class TCCoastersListener implements Listener, PacketListener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onWorldLoad(WorldLoadEvent event) {
-        this.plugin.getTracks(event.getWorld()).load();
+        // This implicitly loads it, if it wasn't already
+        this.plugin.getCoasterWorld(event.getWorld());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onWorldUnload(WorldUnloadEvent event) {
         this.plugin.unloadWorld(event.getWorld());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerWorldChange(PlayerChangedWorldEvent event) {
+        // Do this otherwise funky things can happen!
+        this.plugin.getEditState(event.getPlayer()).clearEditedNodes();
     }
 
     public boolean onRightClick(Player player) {

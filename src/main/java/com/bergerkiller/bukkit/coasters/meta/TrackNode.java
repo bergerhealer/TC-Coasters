@@ -11,6 +11,9 @@ import org.bukkit.util.Vector;
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleArrow;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
+import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
+import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
@@ -20,7 +23,7 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
  * A single node of track of a rollercoaster. Stores the 3D position
  * and the 'up' vector.
  */
-public class TrackNode {
+public class TrackNode implements CoasterWorldAccess {
     private TrackCoaster _coaster;
     private Vector _pos, _up, _up_visual, _dir;
     //private TrackParticleItem _particle;
@@ -61,14 +64,6 @@ public class TrackNode {
                         TrackParticleState.SELECTED : TrackParticleState.DEFAULT;
             }
         });
-    }
-
-    private final TCCoasters getPlugin() {
-        return getCoaster().getStorage().getPlugin();
-    }
-
-    public World getWorld() {
-        return this._coaster.getWorld();
     }
 
     public TrackCoaster getCoaster() {
@@ -331,7 +326,34 @@ public class TrackNode {
     }
 
     private void scheduleRefresh() {
-        this.getCoaster().getStorage().scheduleNodeRefresh(this);
+        this.getTracks().scheduleNodeRefresh(this);
+    }
+
+    // CoasterWorldAccess
+
+    @Override
+    public TCCoasters getPlugin() {
+        return this._coaster.getPlugin();
+    }
+
+    @Override
+    public World getWorld() {
+        return this._coaster.getWorld();
+    }
+
+    @Override
+    public TrackWorld getTracks() {
+        return this._coaster.getTracks();
+    }
+
+    @Override
+    public TrackParticleWorld getParticles() {
+        return this._coaster.getParticles();
+    }
+
+    @Override
+    public TrackRailsWorld getRails() {
+        return this._coaster.getRails();
     }
 
 }
