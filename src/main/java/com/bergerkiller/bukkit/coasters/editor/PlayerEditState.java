@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.editor;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -20,6 +21,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 
@@ -41,12 +43,58 @@ public class PlayerEditState implements CoasterWorldAccess {
     private Mode afterEditMode = null;
     private int editTimeoutCtr = 0;
     private int heldDownTicks = 0;
+    private boolean changed = false;
     private Location editStartPos = null;
     private Vector editRotInfo = new Vector(); // virtual coordinate of the vector
 
     public PlayerEditState(TCCoasters plugin, Player player) {
         this.plugin = plugin;
         this.player = player;
+    }
+
+    public void load() {
+        FileConfiguration config = this.plugin.getPlayerConfig(this.player);
+        if (config.exists()) {
+            config.load();
+
+            this.editMode = config.get("mode", Mode.DISABLED);
+            this.editedNodes.clear();
+            List<String> editNodePositions = config.getList("editedNodes", String.class);
+            if (editNodePositions != null && !editNodePositions.isEmpty()) {
+                for (String nodeStr : editNodePositions) {
+                    String[] coords = nodeStr.split("_");
+                    if (coords.length == 3) {
+                        try {
+                            double x, y, z;
+                            x = Double.parseDouble(coords[0]);
+                            y = Double.parseDouble(coords[1]);
+                            z = Double.parseDouble(coords[2]);
+                            TrackNode node = getTracks().findNodeExact(new Vector(x, y, z));
+                            if (node != null) {
+                                this.editedNodes.add(node);
+                            }
+                        } catch (NumberFormatException ex) {}
+                    }
+                }
+            }
+        }
+        this.changed = false;
+    }
+
+    public void save() {
+        if (!this.changed) {
+            return;
+        }
+        this.changed = false;
+        FileConfiguration config = this.plugin.getPlayerConfig(this.player);
+        config.set("mode", this.editMode);
+        List<String> editedNodeNames = new ArrayList<String>(this.editedNodes.size());
+        for (TrackNode node : this.editedNodes) {
+            Vector p = node.getPosition();
+            editedNodeNames.add(p.getX() + "_" + p.getY() + "_" + p.getZ());
+        }
+        config.set("editedNodes", editedNodeNames);
+        config.save();
     }
 
     public Player getPlayer() {
@@ -66,6 +114,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             ArrayList<TrackNode> oldNodes = new ArrayList<TrackNode>(this.editedNodes);
             this.editedNodes.clear();
             this.lastEdited = null;
+            this.changed = true;
             for (TrackNode oldNode : oldNodes) {
                 oldNode.onStateUpdated(this.player);
             }
@@ -114,6 +163,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         this.afterEditMode = null;
         if (this.editMode != mode) {
             this.editMode = mode;
+            this.changed = true;
             for (TrackNode node : this.editedNodes) {
                 node.onStateUpdated(this.player);
             }
@@ -134,6 +184,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             node.onStateUpdated(this.player);
             this.lastEdited = node;
             this.lastEditTime = System.currentTimeMillis();
+            this.changed = true;
         }
     }
 
@@ -258,6 +309,7 @@ public class PlayerEditState implements CoasterWorldAccess {
     public void update() {
         if (this.isHoldingRightClick()) {
             this.editTimeoutCtr--;
+            this.changed = true;
             if (this.editTimeoutCtr >= EDIT_AUTO_TIMEOUT) {
                 if (this.heldDownTicks == 0 || this.editMode.autoActivate(this.heldDownTicks)) {
                     this.updateEditing();

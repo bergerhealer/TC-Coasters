@@ -8,6 +8,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 
@@ -32,6 +33,36 @@ public class TCCoastersListener implements Listener, PacketListener {
 
     public void disable() {
         PacketUtil.removePacketListener(this);
+    }
+
+    @Override
+    public void onPacketReceive(PacketReceiveEvent event) {
+        // Only check anything at all ever when holding the expected tool in the left hand
+        if (!this.plugin.isHoldingEditTool(event.getPlayer())) {
+            return;
+        }
+
+        if (event.getType() == PacketType.IN_USE_ENTITY) {
+            UseAction action = event.getPacket().read(PacketType.IN_USE_ENTITY.useAction);
+            if (action == UseAction.ATTACK) {
+                event.setCancelled(true);
+            } else if (action == UseAction.INTERACT || action == UseAction.INTERACT_AT) {
+                event.setCancelled(onRightClick(event.getPlayer()));
+            }
+            event.setCancelled(true);
+        }
+    }
+
+    public boolean onRightClick(Player player) {
+        return this.plugin.getEditState(player).onRightClick();
+    }
+
+    public boolean onLeftClick(Player player) {
+        return this.plugin.getEditState(player).onLeftClick();
+    }
+
+    @Override
+    public void onPacketSend(PacketSendEvent event) {
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -64,34 +95,8 @@ public class TCCoastersListener implements Listener, PacketListener {
         this.plugin.getEditState(event.getPlayer()).clearEditedNodes();
     }
 
-    public boolean onRightClick(Player player) {
-        return this.plugin.getEditState(player).onRightClick();
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        this.plugin.logoutPlayer(event.getPlayer());
     }
-
-    public boolean onLeftClick(Player player) {
-        return this.plugin.getEditState(player).onLeftClick();
-    }
-
-    @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        // Only check anything at all ever when holding the expected tool in the left hand
-        if (!this.plugin.isHoldingEditTool(event.getPlayer())) {
-            return;
-        }
-
-        if (event.getType() == PacketType.IN_USE_ENTITY) {
-            UseAction action = event.getPacket().read(PacketType.IN_USE_ENTITY.useAction);
-            if (action == UseAction.ATTACK) {
-                event.setCancelled(true);
-            } else if (action == UseAction.INTERACT || action == UseAction.INTERACT_AT) {
-                event.setCancelled(onRightClick(event.getPlayer()));
-            }
-            event.setCancelled(true);
-        }
-    }
-
-    @Override
-    public void onPacketSend(PacketSendEvent event) {
-    }
-
 }

@@ -13,6 +13,7 @@ import java.util.logging.Level;
 import org.bukkit.util.FileUtil;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVReader;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVWriter;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
@@ -134,7 +135,7 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
         // Load the save file. If the save file is not found, but a .tmp file version of it does exist,
         // this indicates saving failed previously inbetween deleting and renaming the .tmp to .csv.
         // We must load the .tmp file instead, then, but also log a warning about this!
-        String baseName = escapeName(this.getName());
+        String baseName = TCCoasters.escapeName(this.getName());
         File folder = this.getTracks().getConfigFolder();
         File tmpFile = new File(folder, baseName + ".csv.tmp");
         File realFile = new File(folder, baseName + ".csv");
@@ -183,7 +184,7 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
 
         // Save coaster information to a tmp file first
         boolean success = false;
-        String baseName = escapeName(this.getName());
+        String baseName = TCCoasters.escapeName(this.getName());
         File folder = this.getTracks().getConfigFolder();
         File tmpFile = new File(folder, baseName + ".csv.tmp");
         File realFile = new File(folder, baseName + ".csv");
@@ -237,27 +238,4 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
         }
     }
 
-    public static String escapeName(String name) {
-        final char[] illegalChars = {'%', '\\', '/', ':', '"', '*', '?', '<', '>', '|'};
-        for (char illegal : illegalChars) {
-            int idx = 0;
-            String repl = null;
-            while ((idx = name.indexOf(illegal, idx)) != -1) {
-                if (repl == null) {
-                    repl = String.format("%%%02X", (int) illegal);
-                }
-                name = name.substring(0, idx) + repl + name.substring(idx + 1);
-                idx += repl.length() - 1;
-            }
-        }
-        return name;
-    }
-
-    public static String unescapeName(String escapedName) {
-        try {
-            return URLDecoder.decode(escapedName, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            return escapedName;
-        }
-    }
 }

@@ -7,6 +7,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 
@@ -64,8 +65,7 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
     }
 
     public void update(Player viewer) {
-        Vector pos = viewer.getEyeLocation().toVector();
-        if (viewer.getWorld() != this.getWorld() || !this.getPlugin().isTracksVisible(viewer)) {
+        if (viewer.getWorld() != this.getWorld() || this.getPlugin().getEditState(viewer).getMode() == PlayerEditState.Mode.DISABLED) {
             if (this.players.contains(viewer)) {
                 this.players.remove(viewer);
                 for (TrackParticle particle : this.particles) {
@@ -76,6 +76,8 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
             if (!this.players.contains(viewer)) {
                 this.players.add(viewer);
             }
+
+            Vector pos = viewer.getEyeLocation().toVector();
             for (TrackParticle particle : this.particles) {
                 particle.updateFor(viewer, pos);
             }

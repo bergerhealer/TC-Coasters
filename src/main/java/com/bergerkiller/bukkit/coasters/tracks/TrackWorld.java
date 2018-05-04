@@ -12,6 +12,7 @@ import java.util.Set;
 import org.bukkit.World;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 
 /**
@@ -233,9 +234,9 @@ public class TrackWorld extends CoasterWorldAccess.Component {
         for (File coasterFile : this.getConfigFolder().listFiles()) {
             String name = coasterFile.getName().toLowerCase(Locale.ENGLISH);
             if (name.endsWith(".csv.tmp")) {
-                coasterNames.add(TrackCoaster.unescapeName(name.substring(0, name.length() - 8)));
+                coasterNames.add(TCCoasters.unescapeName(name.substring(0, name.length() - 8)));
             } else if (name.endsWith(".csv")) {
-                coasterNames.add(TrackCoaster.unescapeName(name.substring(0, name.length() - 4)));
+                coasterNames.add(TCCoasters.unescapeName(name.substring(0, name.length() - 4)));
             }
         }
 
@@ -330,7 +331,7 @@ public class TrackWorld extends CoasterWorldAccess.Component {
                 iter.remove();
 
                 // Deletes the physical saved files of the coasters
-                String baseName = TrackCoaster.escapeName(coaster.getName());
+                String baseName = TCCoasters.escapeName(coaster.getName());
                 File folder = getConfigFolder();
                 File tmpFile = new File(folder, baseName + ".csv.tmp");
                 File realFile = new File(folder, baseName + ".csv");

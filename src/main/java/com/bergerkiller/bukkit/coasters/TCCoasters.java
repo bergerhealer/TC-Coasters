@@ -1,5 +1,8 @@
 package com.bergerkiller.bukkit.coasters;
 
+import java.io.File;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -21,6 +24,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldImpl;
 import com.bergerkiller.bukkit.common.Task;
+import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
@@ -70,18 +74,30 @@ public class TCCoasters extends JavaPlugin {
         return CommonUtil.unsafeCast(this.worlds.values());
     }
 
-    public boolean isTracksVisible(Player player) {
-        PlayerEditState state = editStates.get(player);
-        return state != null && state.getMode() != PlayerEditState.Mode.DISABLED;
-    }
-
     public PlayerEditState getEditState(Player player) {
         PlayerEditState state = editStates.get(player);
         if (state == null) {
             state = new PlayerEditState(this, player);
             editStates.put(player, state);
+            state.load();
         }
         return state;
+    }
+
+    public void logoutPlayer(Player player) {
+        PlayerEditState state = editStates.get(player);
+        if (state != null) {
+            state.save();
+            editStates.remove(player);
+        }
+    }
+
+    public FileConfiguration getPlayerConfig(Player player) {
+        File folder = new File(this.getDataFolder(), "players");
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
+        return new FileConfiguration(new File(folder, player.getUniqueId().toString() + ".yml"));
     }
 
     /**
@@ -235,6 +251,51 @@ public class TCCoasters extends JavaPlugin {
             for (CoasterWorldImpl coasterWorld : ((TCCoasters) this.getPlugin()).worlds.values()) {
                 coasterWorld.save(true);
             }
+
+            Iterator<PlayerEditState> iter = ((TCCoasters) this.getPlugin()).editStates.values().iterator();
+            while (iter.hasNext()) {
+                PlayerEditState state = iter.next();
+                state.save();
+                if (!state.getPlayer().isOnline()) {
+                    iter.remove();
+                }
+            }
+        }
+    }
+
+    /**
+     * Escapes a name so it is suitable for saving as a file name
+     * 
+     * @param name to escape
+     * @return escaped name
+     */
+    public static String escapeName(String name) {
+        final char[] illegalChars = {'%', '\\', '/', ':', '"', '*', '?', '<', '>', '|'};
+        for (char illegal : illegalChars) {
+            int idx = 0;
+            String repl = null;
+            while ((idx = name.indexOf(illegal, idx)) != -1) {
+                if (repl == null) {
+                    repl = String.format("%%%02X", (int) illegal);
+                }
+                name = name.substring(0, idx) + repl + name.substring(idx + 1);
+                idx += repl.length() - 1;
+            }
+        }
+        return name;
+    }
+
+    /**
+     * Undoes escaping of a file name, returning the original name it was saved as
+     * 
+     * @param escapedName
+     * @return un-escaped escapedName
+     */
+    public static String unescapeName(String escapedName) {
+        try {
+            return URLDecoder.decode(escapedName, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            return escapedName;
         }
     }
 }
