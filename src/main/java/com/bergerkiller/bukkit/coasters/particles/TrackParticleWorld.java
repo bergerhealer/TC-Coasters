@@ -9,6 +9,7 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.common.collections.ImmutablePlayerSet;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 
 /**
@@ -16,7 +17,7 @@ import com.bergerkiller.bukkit.common.math.Quaternion;
  */
 public class TrackParticleWorld extends CoasterWorldAccess.Component {
     public List<TrackParticle> particles = new ArrayList<TrackParticle>();
-    private List<Player> players = new ArrayList<Player>();
+    private ImmutablePlayerSet players = ImmutablePlayerSet.EMPTY;
 
     public TrackParticleWorld(CoasterWorldAccess world) {
         super(world);
@@ -65,21 +66,21 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
     }
 
     public void update(Player viewer) {
-        if (viewer.getWorld() != this.getWorld() || this.getPlugin().getEditState(viewer).getMode() == PlayerEditState.Mode.DISABLED) {
-            if (this.players.contains(viewer)) {
-                this.players.remove(viewer);
-                for (TrackParticle particle : this.particles) {
-                    particle.updateFor(viewer, null);
-                }
-            }
-        } else {
-            if (!this.players.contains(viewer)) {
-                this.players.add(viewer);
-            }
+        boolean viewerSeesWorld = (viewer.getWorld() == this.getWorld() &&
+                this.getPlugin().getEditState(viewer).getMode() != PlayerEditState.Mode.DISABLED);
+
+        if (viewerSeesWorld) {
+            this.players = this.players.add(viewer);
 
             Vector pos = viewer.getEyeLocation().toVector();
             for (TrackParticle particle : this.particles) {
                 particle.updateFor(viewer, pos);
+            }
+        } else if (this.players.contains(viewer)) {
+            this.players = this.players.remove(viewer);
+
+            for (TrackParticle particle : this.particles) {
+                particle.updateFor(viewer, null);
             }
         }
     }

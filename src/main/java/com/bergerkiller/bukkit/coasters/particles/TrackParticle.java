@@ -1,12 +1,9 @@
 package com.bergerkiller.bukkit.coasters.particles;
 
-import java.util.ArrayList;
-import java.util.Collection;
-
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.common.utils.LogicUtil;
+import com.bergerkiller.bukkit.common.collections.ImmutablePlayerSet;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.generated.net.minecraft.server.PacketHandle;
 
@@ -16,7 +13,7 @@ import com.bergerkiller.generated.net.minecraft.server.PacketHandle;
  * particle is spawned and kept updated for the player.
  */
 public abstract class TrackParticle {
-    private final ArrayList<Player> viewers = new ArrayList<Player>();
+    private ImmutablePlayerSet viewers = ImmutablePlayerSet.EMPTY;
     private final TrackParticleWorld world;
     private TrackParticleState.Source stateSource = TrackParticleState.SOURCE_NONE;
 
@@ -40,18 +37,18 @@ public abstract class TrackParticle {
      */
     public final void updateFor(Player viewer, Vector viewerPosition) {
         boolean visible = (viewer.getWorld() == this.world.getWorld()) && viewerPosition != null && isVisible(viewerPosition);
-        if (visible == this.viewers.contains(viewer)) {
-            return;
-        }
-        LogicUtil.addOrRemove(this.viewers, viewer, visible);
-        if (visible) {
-            makeVisibleFor(viewer);
-        } else {
-            makeHiddenFor(viewer);
+        ImmutablePlayerSet new_viewers = this.viewers.addOrRemove(viewer, visible);
+        if (this.viewers != new_viewers) {
+            this.viewers = new_viewers;
+            if (visible) {
+                makeVisibleFor(viewer);
+            } else {
+                makeHiddenFor(viewer);
+            }
         }
     }
 
-    public Collection<Player> getViewers() {
+    public ImmutablePlayerSet getViewers() {
         return this.viewers;
     }
 
@@ -59,7 +56,7 @@ public abstract class TrackParticle {
         for (Player viewer : this.viewers) {
             this.makeHiddenFor(viewer);
         }
-        this.viewers.clear();
+        this.viewers = this.viewers.clear();
     }
 
     public void broadcastPacket(PacketHandle packet) {
