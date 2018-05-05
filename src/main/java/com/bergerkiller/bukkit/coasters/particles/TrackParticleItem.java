@@ -57,17 +57,15 @@ public class TrackParticleItem extends TrackParticle {
     public void updateAppearance() {
         if (this.positionChanged) {
             this.positionChanged = false;
-            if (this.entityId == -1) {
-                return;
+            if (this.entityId != -1) {
+                PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+                        this.entityId,
+                        this.position.getX() + OFFSET.getX(),
+                        this.position.getY() + OFFSET.getY(),
+                        this.position.getZ() + OFFSET.getZ(),
+                        0.0f, 0.0f, false);
+                broadcastPacket(tpPacket);
             }
-
-            PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
-                    this.entityId,
-                    this.position.getX() + OFFSET.getX(),
-                    this.position.getY() + OFFSET.getY(),
-                    this.position.getZ() + OFFSET.getZ(),
-                    0.0f, 0.0f, false);
-            broadcastPacket(tpPacket);
         }
         if (this.itemChanged) {
             this.itemChanged = false;

@@ -13,8 +13,8 @@ import com.bergerkiller.generated.net.minecraft.server.PacketHandle;
  * particle is spawned and kept updated for the player.
  */
 public abstract class TrackParticle {
-    private ImmutablePlayerSet viewers = ImmutablePlayerSet.EMPTY;
     private final TrackParticleWorld world;
+    private ImmutablePlayerSet viewers = ImmutablePlayerSet.EMPTY;
     private TrackParticleState.Source stateSource = TrackParticleState.SOURCE_NONE;
 
     public TrackParticle(TrackParticleWorld world) {

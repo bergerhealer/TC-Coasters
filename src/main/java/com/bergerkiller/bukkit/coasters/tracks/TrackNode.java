@@ -1,6 +1,8 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.bukkit.Location;
@@ -10,8 +12,10 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleArrow;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
+import com.bergerkiller.bukkit.coasters.particles.TrackParticleText;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
@@ -29,6 +33,7 @@ public class TrackNode implements CoasterWorldAccess {
     private Vector _pos, _up, _up_visual, _dir;
     //private TrackParticleItem _particle;
     private TrackParticleArrow _upParticleArrow;
+    private List<TrackParticleText> _junctionParticles;
     // Connections are automatically updated when connecting/disconnecting
     protected TrackConnection[] _connections;
 
@@ -65,6 +70,8 @@ public class TrackNode implements CoasterWorldAccess {
                         TrackParticleState.SELECTED : TrackParticleState.DEFAULT;
             }
         });
+
+        this._junctionParticles = Collections.emptyList();
     }
 
     public TrackCoaster getCoaster() {
@@ -212,6 +219,37 @@ public class TrackNode implements CoasterWorldAccess {
                 end.initInverted();
             }
         }
+
+        // If more than 2 connections are added to this node, display junction labels
+        if (connections.size() > 2) {
+            // Initialize or shrink list of particles as required
+            if (this._junctionParticles.isEmpty()) {
+                this._junctionParticles = new ArrayList<TrackParticleText>(connections.size());
+            } else {
+                while (this._junctionParticles.size() > connections.size()) {
+                    this._junctionParticles.remove(this._junctionParticles.size() - 1).remove();
+                }
+            }
+
+            // Refresh the particles
+            for (int i = 0; i < connections.size(); i++) {
+                Vector pos = connections.get(i).getPosition(0.5);
+                String text = TrackParticleText.getOrdinalText(i, "#" + i);
+                if (i >= this._junctionParticles.size()) {
+                    this._junctionParticles.add(getParticles().addParticleText(pos, text));
+                } else {
+                    TrackParticleText particle = this._junctionParticles.get(i);
+                    particle.setPosition(pos);
+                    particle.setText(text);
+                }
+            }
+
+        } else {
+            for (TrackParticle particle : this._junctionParticles) {
+                particle.remove();
+            }
+            this._junctionParticles = Collections.emptyList();
+        }
     }
 
     public void onStateUpdated(Player viewer) {
@@ -257,6 +295,10 @@ public class TrackNode implements CoasterWorldAccess {
 
     public void destroyParticles() {
         this._upParticleArrow.remove();
+        for (TrackParticle particle : this._junctionParticles) {
+            particle.remove();
+        }
+        this._junctionParticles = Collections.emptyList();
     }
 
     public IntVector3 getRailsBlock() {
