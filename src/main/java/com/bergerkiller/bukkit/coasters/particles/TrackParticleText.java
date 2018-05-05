@@ -12,6 +12,7 @@ import org.bukkit.material.Colorable;
 import org.bukkit.material.MaterialData;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
@@ -105,8 +106,9 @@ public class TrackParticleText extends TrackParticle {
 
     @Override
     public void makeHiddenFor(Player viewer) {
-        // TODO Auto-generated method stub
-        
+        if (this.entityId == -1) {
+            PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.entityId));
+        }
     }
 
     @Override
