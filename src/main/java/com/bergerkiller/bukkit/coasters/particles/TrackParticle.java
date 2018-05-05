@@ -69,6 +69,10 @@ public abstract class TrackParticle {
         this.stateSource = stateSource;
     }
 
+    public final TrackParticleState.Source getStateSource() {
+        return this.stateSource;
+    }
+
     public final TrackParticleState getState(Player viewer) {
         return this.stateSource.getState(viewer);
     }

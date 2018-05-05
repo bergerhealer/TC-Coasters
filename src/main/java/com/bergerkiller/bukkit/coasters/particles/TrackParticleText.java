@@ -106,7 +106,7 @@ public class TrackParticleText extends TrackParticle {
 
     @Override
     public void makeHiddenFor(Player viewer) {
-        if (this.entityId == -1) {
+        if (this.entityId != -1) {
             PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.entityId));
         }
     }
