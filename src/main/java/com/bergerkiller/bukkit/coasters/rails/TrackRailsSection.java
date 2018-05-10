@@ -7,7 +7,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
-import com.bergerkiller.bukkit.tc.controller.components.RailLogicState;
+import com.bergerkiller.bukkit.tc.controller.components.RailState;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 
 /**
@@ -48,10 +48,10 @@ public class TrackRailsSection {
         return "[" + x1 + "/" + y1 + "/" + z1 + "      " + x2 + "/" + y2 + "/" + z2 + "]";
     }
     
-    public void test(RailLogicState state) {
+    public void test(RailState state) {
         CommonUtil.broadcast("ON RAIL " + this.rails);
         
-        Vector v = state.getRailsPosition();
+        Vector v = state.railPosition();
         RailPath.Position pos = new RailPath.Position();
         pos.posX = v.getX();
         pos.posY = v.getY();
@@ -62,8 +62,8 @@ public class TrackRailsSection {
         //                   pos.motX + "/" + pos.motY + "/" + pos.motZ);
     }
 
-    public double calcCost(RailLogicState state) {
-        Vector v = state.getRailsPosition();
+    public double calcCost(RailState state) {
+        Vector v = state.railPosition();
         RailPath.Position pos = new RailPath.Position();
         pos.posX = v.getX();
         pos.posY = v.getY();

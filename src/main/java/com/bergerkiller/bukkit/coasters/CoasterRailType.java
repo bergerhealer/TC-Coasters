@@ -8,7 +8,6 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsSection;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
@@ -17,7 +16,7 @@ import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.tc.controller.MinecartMember;
-import com.bergerkiller.bukkit.tc.controller.components.RailLogicState;
+import com.bergerkiller.bukkit.tc.controller.components.RailState;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogic;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogicAir;
@@ -97,11 +96,6 @@ public class CoasterRailType extends RailType {
     }
 
     @Override
-    public Block getNextPos(Block currentTrack, BlockFace currentDirection) {
-        return null;
-    }
-
-    @Override
     public BlockFace getDirection(Block railsBlock) {
         List<TrackRailsSection> rails = getRails(railsBlock.getWorld()).findAtRails(railsBlock);
         if (!rails.isEmpty()) {
@@ -116,8 +110,8 @@ public class CoasterRailType extends RailType {
     }
 
     @Override
-    public RailLogic getLogic(RailLogicState state) {
-        List<TrackRailsSection> rails = getRails(state.getRailsBlock().getWorld()).findAtRails(state.getRailsBlock());
+    public RailLogic getLogic(RailState state) {
+        List<TrackRailsSection> rails = getRails(state.railBlock().getWorld()).findAtRails(state.railBlock());
         if (rails.size() >= 1) {
             TrackRailsSection section = rails.get(0);
             if (rails.size() >= 2) {
