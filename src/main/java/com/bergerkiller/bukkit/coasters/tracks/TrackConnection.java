@@ -3,7 +3,6 @@ package com.bergerkiller.bukkit.coasters.tracks;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.bukkit.block.Block;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleLine;
@@ -59,6 +58,37 @@ public class TrackConnection {
     }
 
     /**
+     * Gets the number of points needed to display this track connection in the world.
+     * 
+     * @return number of points, minimally 2
+     */
+    public int getPointCount() {
+        int n = MathUtil.ceil(this._endA.node.getPosition().distance(this._endB.node.getPosition()) / 1.0);
+        if (n < 2) {
+            n = 2;
+        }
+        return n;
+    }
+
+    /**
+     * Gets the position near the end of the connection, where extra labels
+     * can be displayed.
+     * 
+     * @param endNode
+     * @return position
+     */
+    public Vector getNearEndPosition(TrackNode endNode) {
+        int n = this.getPointCount();
+        if (n <= 2) {
+            return this.getPosition(0.5);
+        } else if (endNode == this.getNodeA()) {
+            return getPosition((double) 1 / (double) (n-1));
+        } else {
+            return getPosition((double) (n-2) / (double) (n-1));
+        }
+    }
+
+    /**
      * Called when the shape of the track connection has been changed.
      * This can happen as a result of position changes of the nodes themselves,
      * or one of its connected neighbours.
@@ -71,10 +101,7 @@ public class TrackConnection {
         
 
         // Calculate the points forming the line
-        int n = MathUtil.ceil(this._endA.node.getPosition().distance(this._endB.node.getPosition()) / 1.0);
-        if (n < 2) {
-            n = 2;
-        }
+        int n = this.getPointCount();
         Vector[] points = new Vector[n];
         points[0] = this._endA.node.getPosition();
         points[n-1] = this._endB.node.getPosition();
@@ -181,14 +208,9 @@ public class TrackConnection {
         }
 
         public void initAuto() {
-            double d = this.calcDistance();
-            Vector p3_a = node.getPosition().clone().add(node.getDirection().clone().multiply(d));
-            Vector p3_b = node.getPosition().clone().add(node.getDirection().clone().multiply(-d));
-            if (p3_a.distanceSquared(other.getPosition()) < p3_b.distanceSquared(other.getPosition())) {
-                this.delta = node.getDirection().clone().multiply(d);
-            } else {
-                this.delta = node.getDirection().clone().multiply(-d);
-            }
+            this.delta = other.getPosition().clone()
+                    .subtract(node.getPosition())
+                    .normalize().multiply(this.calcDistance());
         }
 
         public void initNormal() {

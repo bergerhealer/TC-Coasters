@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.tracks;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.bukkit.Location;
@@ -158,6 +159,9 @@ public class TrackNode implements CoasterWorldAccess {
      * or one of its connected neighbours.
      */
     public void onShapeUpdated() {
+        // Sort before continueing
+        this.sortConnections();
+
         // Refresh dir
         this._dir = new Vector();
         List<TrackConnection> connections = this.getConnections();
@@ -233,8 +237,8 @@ public class TrackNode implements CoasterWorldAccess {
 
             // Refresh the particles
             for (int i = 0; i < connections.size(); i++) {
-                Vector pos = connections.get(i).getPosition(0.5);
-                String text = TrackParticleText.getOrdinalText(i, "#" + i);
+                Vector pos = connections.get(i).getNearEndPosition(this);
+                String text = TrackParticleText.getOrdinalText(i, Integer.toString(i+1));
                 if (i >= this._junctionParticles.size()) {
                     this._junctionParticles.add(getParticles().addParticleText(pos, text));
                 } else {
@@ -252,9 +256,48 @@ public class TrackNode implements CoasterWorldAccess {
         }
     }
 
+    private final void sortConnections() {
+        // Sorting only required when count > 2
+        if (this._connections.length <= 2) {
+            return;
+        }
+
+        // Sort connections as required on the horizontal plane
+        // Use the first connection as a base angle
+        ArrayList<TrackConnection> tmp = new ArrayList<TrackConnection>(this.getConnections());
+        int baseIndex = 0; //TODO: Compute for T-splits
+
+        // Perform the sorting logic based on yaw
+        TrackConnection base = tmp.remove(baseIndex);
+        Vector bp = base.getOtherNode(this).getPosition();
+        final Vector p = this.getPosition();
+        final float base_yaw = MathUtil.getLookAtYaw(bp.getX()-p.getX(), bp.getZ()-p.getZ());
+        Collections.sort(tmp, new Comparator<TrackConnection>() {
+            @Override
+            public int compare(TrackConnection o1, TrackConnection o2) {
+                Vector p1 = o1.getOtherNode(TrackNode.this).getPosition();
+                Vector p2 = o2.getOtherNode(TrackNode.this).getPosition();
+                float y1 = MathUtil.getLookAtYaw(p1.getX()-p.getX(), p1.getZ()-p.getZ()) - base_yaw;
+                float y2 = MathUtil.getLookAtYaw(p2.getX()-p.getX(), p2.getZ()-p.getZ()) - base_yaw;
+                while (y1 < 0.0f) y1 += 360.0f;
+                while (y2 < 0.0f) y2 += 360.0f;
+                return Float.compare(y1, y2);
+            }
+        });
+        tmp.add(baseIndex, base);
+
+        // Apply
+        for (int i = 0; i < tmp.size(); i++) {
+            this._connections[i] = tmp.get(i);
+        }
+    }
+    
     public void onStateUpdated(Player viewer) {
         //this._particle.onStateUpdated(viewer);
         this._upParticleArrow.onStateUpdated(viewer);
+        for (TrackParticle juncParticle : this._junctionParticles) {
+            juncParticle.onStateUpdated(viewer);
+        }
     }
 
     public List<TrackConnection> getConnections() {

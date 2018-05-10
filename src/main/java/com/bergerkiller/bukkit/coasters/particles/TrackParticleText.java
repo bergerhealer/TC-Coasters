@@ -172,7 +172,7 @@ public class TrackParticleText extends TrackParticle {
         if (item == null) {
             // Attempts to use concrete if it exists, otherwise falls back to WOOL
             item = ItemUtil.createItem(
-                    ParseUtil.parseEnum("CONCRETE", Material.WOOL),
+                    ParseUtil.parseEnum("CONCRETE_POWDER", Material.WOOL),
                     toDyeColor(color).getWoolData(), 1);
 
             // Store
@@ -223,10 +223,12 @@ public class TrackParticleText extends TrackParticle {
     }
 
     // cyclical array of chat colors used to turn an index into a color
+    // there is a clear red/green/blue/cyan/magenta/yellow repeating pattern
     private static final ChatColor[] color_wheel_values = {
-            ChatColor.BLACK, ChatColor.DARK_BLUE, ChatColor.DARK_GREEN, ChatColor.DARK_AQUA,
-            ChatColor.DARK_RED, ChatColor.DARK_PURPLE, ChatColor.GOLD, ChatColor.GRAY,
-            ChatColor.DARK_GRAY, ChatColor.BLUE, ChatColor.GREEN, ChatColor.AQUA,
-            ChatColor.RED, ChatColor.LIGHT_PURPLE, ChatColor.YELLOW, ChatColor.WHITE
+            ChatColor.DARK_RED, ChatColor.DARK_GREEN, ChatColor.DARK_BLUE,
+            ChatColor.DARK_AQUA, ChatColor.DARK_PURPLE, ChatColor.YELLOW,
+            ChatColor.RED, ChatColor.GREEN, ChatColor.BLUE,
+            ChatColor.AQUA, ChatColor.LIGHT_PURPLE, ChatColor.GOLD,
+            ChatColor.BLACK, ChatColor.DARK_GRAY, ChatColor.GRAY, ChatColor.WHITE
     };
 }
