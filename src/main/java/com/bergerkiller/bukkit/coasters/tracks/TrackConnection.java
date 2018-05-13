@@ -30,14 +30,30 @@ public class TrackConnection {
         //        this._endA.node.getPosition(), this._endB.node.getPosition());
     }
 
+    /**
+     * Gets node A making up this connection pair
+     * 
+     * @return node A
+     */
     public TrackNode getNodeA() {
         return this._endA.node;
     }
 
+    /**
+     * Gets node B making up this connection pair
+     * 
+     * @return node B
+     */
     public TrackNode getNodeB() {
         return this._endB.node;
     }
 
+    /**
+     * Gets the other end of the connection, given a node
+     * 
+     * @param node
+     * @return other node
+     */
     public TrackNode getOtherNode(TrackNode node) {
         return (this._endA.node == node) ? this._endB.node : this._endA.node;
     }

@@ -149,6 +149,66 @@ public class TrackNode implements CoasterWorldAccess {
         this.markChanged();
     }
 
+    /**
+     * Pushes a junction connection to the end of the list of connections,
+     * in essence disabling the junction
+     * 
+     * @param connection to push back
+     */
+    public void pushBackJunction(TrackConnection connection) {
+        // Nothing to sort here
+        if (this._connections.length <= 1 || this._connections[this._connections.length - 1] == connection) {
+            return;
+        }
+
+        // Find the junction and push it to the back of the array
+        for (int i = 0; i < this._connections.length - 1; i++) {
+            if (this._connections[i] == connection) {
+                System.arraycopy(this._connections, i+1, this._connections, i, this._connections.length-i-1);
+                this._connections[this._connections.length - 1] = connection;
+                this.scheduleRefresh();
+                this.markChanged();
+                return;
+            }
+        }
+    }
+
+    /**
+     * Ensures a particular connection is switched and made active.
+     * This method guarantees that the previously switched connection stays
+     * switch when invoked a second time
+     * 
+     * @param connection to switch
+     */
+    public void switchJunction(TrackConnection connection) {
+        // With 2 or less connections, the same 2 are always switched
+        // This method does nothing in those cases
+        if (this._connections.length <= 2) {
+            return;
+        }
+
+        // Check not already switched, or switched 1 time ago
+        if (this._connections[0] == connection) {
+            return;
+        }
+        if (this._connections[1] == connection) {
+            this._connections[1] = this._connections[0];
+            this._connections[0] = connection;
+            return;
+        }
+
+        // Find the connection in the array and shift it to the start of the array
+        for (int i = 0; i < this._connections.length; i++) {
+            if (this._connections[i] == connection) {
+                System.arraycopy(this._connections, 0, this._connections, 1, i);
+                this._connections[0] = connection;
+                this.scheduleRefresh();
+                this.markChanged();
+                return;
+            }
+        }
+    }
+
     public Vector getOrientation() {
         return this._up;
     }
@@ -159,16 +219,13 @@ public class TrackNode implements CoasterWorldAccess {
      * or one of its connected neighbours.
      */
     public void onShapeUpdated() {
-        // Sort before continueing
-        this.sortConnections();
-
         // Refresh dir
         this._dir = new Vector();
-        List<TrackConnection> connections = this.getConnections();
+        List<TrackConnection> connections = this.getSortedConnections();
         for (int i = 0; i < connections.size(); i++) {
             TrackConnection conn = connections.get(i);
             TrackNode neighbour = conn.getOtherNode(this);
-            
+
             Vector v = neighbour.getPosition().clone().subtract(this.getPosition());
             double n = MathUtil.getNormalizationFactor(v);
             if (!Double.isInfinite(n)) {
@@ -237,8 +294,13 @@ public class TrackNode implements CoasterWorldAccess {
 
             // Refresh the particles
             for (int i = 0; i < connections.size(); i++) {
-                Vector pos = connections.get(i).getNearEndPosition(this);
+                TrackConnection conn = connections.get(i);
+                boolean active = (conn == this._connections[0] || conn == this._connections[1]);
+                Vector pos = conn.getNearEndPosition(this);
                 String text = TrackParticleText.getOrdinalText(i, Integer.toString(i+1));
+                if (active) {
+                    text += "#";
+                }
                 if (i >= this._junctionParticles.size()) {
                     this._junctionParticles.add(getParticles().addParticleText(pos, text));
                 } else {
@@ -256,16 +318,51 @@ public class TrackNode implements CoasterWorldAccess {
         }
     }
 
-    private final void sortConnections() {
+    public void onStateUpdated(Player viewer) {
+        //this._particle.onStateUpdated(viewer);
+        this._upParticleArrow.onStateUpdated(viewer);
+        for (TrackParticle juncParticle : this._junctionParticles) {
+            juncParticle.onStateUpdated(viewer);
+        }
+    }
+
+    public final List<TrackConnection> getConnections() {
+        return Arrays.asList(this._connections);
+    }
+
+    public final List<TrackConnection> getSortedConnections() {
         // Sorting only required when count > 2
         if (this._connections.length <= 2) {
-            return;
+            return this.getConnections();
         }
 
-        // Sort connections as required on the horizontal plane
-        // Use the first connection as a base angle
+        // Create a sorted list of connections, and pre-compute the quaternion facing angles of all connections
         ArrayList<TrackConnection> tmp = new ArrayList<TrackConnection>(this.getConnections());
-        int baseIndex = 0; //TODO: Compute for T-splits
+        Vector[] tmp_vectors = new Vector[tmp.size()];
+        for (int i = 0; i < tmp_vectors.length; i++) {
+            Vector tmp_pos = tmp.get(i).getOtherNode(this).getPosition();
+            tmp_vectors[i] = tmp_pos.clone().subtract(this.getPosition()).normalize();
+        }
+
+        // Use the connection with largest difference with the other connections as the base
+        int baseIndex = 0;
+        double max_angle_diff = 0.0;
+        for (int i = 0; i < tmp_vectors.length; i++) {
+            Vector base = tmp_vectors[i];
+            double min_angle = 360.0;
+            for (int j = 0; j < tmp_vectors.length; j++) {
+                if (i != j) {
+                    double a = MathUtil.getAngleDifference(base, tmp_vectors[j]);
+                    if (a < min_angle) {
+                        min_angle = a;
+                    }
+                }
+            }
+            if (min_angle > max_angle_diff) {
+                max_angle_diff = min_angle;
+                baseIndex = i;
+            }
+        }
 
         // Perform the sorting logic based on yaw
         TrackConnection base = tmp.remove(baseIndex);
@@ -284,24 +381,8 @@ public class TrackNode implements CoasterWorldAccess {
                 return Float.compare(y1, y2);
             }
         });
-        tmp.add(baseIndex, base);
-
-        // Apply
-        for (int i = 0; i < tmp.size(); i++) {
-            this._connections[i] = tmp.get(i);
-        }
-    }
-    
-    public void onStateUpdated(Player viewer) {
-        //this._particle.onStateUpdated(viewer);
-        this._upParticleArrow.onStateUpdated(viewer);
-        for (TrackParticle juncParticle : this._junctionParticles) {
-            juncParticle.onStateUpdated(viewer);
-        }
-    }
-
-    public List<TrackConnection> getConnections() {
-        return Arrays.asList(this._connections);
+        tmp.add(0, base);
+        return tmp;
     }
 
     public List<TrackNode> getNeighbours() {
@@ -310,6 +391,10 @@ public class TrackNode implements CoasterWorldAccess {
             result[i] = this._connections[i].getOtherNode(this);
         }
         return Arrays.asList(result);
+    }
+
+    public double getJunctionViewDistance(Matrix4x4 cameraTransform, TrackConnection connection) {
+        return getViewDistance(cameraTransform, connection.getNearEndPosition(this));
     }
 
     public double getViewDistance(Matrix4x4 cameraTransform) {
@@ -347,15 +432,32 @@ public class TrackNode implements CoasterWorldAccess {
     public IntVector3 getRailsBlock() {
         return new IntVector3(getPosition().getX(), getPosition().getY(), getPosition().getZ());
     }
-
+    
     /**
      * Builds a rail path for this track node, covering half of the connections connecting to this node.
+     * The first two connections, if available, are used for the path.
      * 
      * @return rail path
      */
     public RailPath buildPath() {
-        List<TrackConnection> connections = this.getConnections();
-        if (connections.isEmpty()) {
+        if (this._connections.length == 0) {
+            return buildPath(null, null);
+        } else if (this._connections.length == 1) {
+            return buildPath(this._connections[0], null);
+        } else {
+            return buildPath(this._connections[0], this._connections[1]);
+        }
+    }
+
+    /**
+     * Builds a rail path for this track node, covering half of the connections connecting to this node.
+     * 
+     * @param connection_a first connection to include in the path, null to ignore
+     * @param connection_b second connection to include in the path, null to ignore
+     * @return rail path
+     */
+    public RailPath buildPath(TrackConnection connection_a, TrackConnection connection_b) {
+        if (connection_a == null && connection_b == null) {
             return RailPath.EMPTY;
         }
 
@@ -363,17 +465,17 @@ public class TrackNode implements CoasterWorldAccess {
         /*
         IntVector3 railsPos = getRailsBlock();
         RailPath.Builder builder = new RailPath.Builder();
-        TrackConnection first = connections.get(0);
-        if (first.getNodeA() == this) {
-            builder.add(first.getPathPoint(railsPos, 0.5));
-            builder.add(first.getPathPoint(railsPos, 0.0));
-        } else {
-            builder.add(first.getPathPoint(railsPos, 0.5));
-            builder.add(first.getPathPoint(railsPos, 1.0));
+        if (connection_a != null) {
+            if (connection_a.getNodeA() == this) {
+                builder.add(connection_a.getPathPoint(railsPos, 0.5));
+                builder.add(connection_a.getPathPoint(railsPos, 0.0));
+            } else {
+                builder.add(connection_a.getPathPoint(railsPos, 0.5));
+                builder.add(connection_a.getPathPoint(railsPos, 1.0));
+            }
         }
-        if (connections.size() >= 2) {
-            TrackConnection second = connections.get(1);
-            builder.add(second.getPathPoint(railsPos, 0.5));
+        if (connection_b != null) {
+            builder.add(connection_b.getPathPoint(railsPos, 0.5));
         }
         return builder.build();
         */
@@ -382,29 +484,29 @@ public class TrackNode implements CoasterWorldAccess {
         // This would help performance a lot!
         IntVector3 railsPos = getRailsBlock();
         RailPath.Builder builder = new RailPath.Builder();
-        TrackConnection first = connections.get(0);
-        if (first.getNodeA() == this) {
-            for (int n = 50; n >= 0; --n) {
-                double t = 0.01 * n;
-                builder.add(first.getPathPoint(railsPos, t));
-            }
-        } else {
-            for (int n = 50; n <= 100; n++) {
-                double t = 0.01 * n;
-                builder.add(first.getPathPoint(railsPos, t));
+        if (connection_a != null) {
+            if (connection_a.getNodeA() == this) {
+                for (int n = 50; n >= 0; --n) {
+                    double t = 0.01 * n;
+                    builder.add(connection_a.getPathPoint(railsPos, t));
+                }
+            } else {
+                for (int n = 50; n <= 100; n++) {
+                    double t = 0.01 * n;
+                    builder.add(connection_a.getPathPoint(railsPos, t));
+                }
             }
         }
-        if (connections.size() >= 2) {
-            TrackConnection second = connections.get(1);
-            if (second.getNodeA() == this) {
+        if (connection_b != null) {
+            if (connection_b.getNodeA() == this) {
                 for (int n = 1; n <= 50; n++) {
                     double t = 0.01 * n;
-                    builder.add(second.getPathPoint(railsPos, t));
+                    builder.add(connection_b.getPathPoint(railsPos, t));
                 }
             } else {
                 for (int n = 100-1; n >= 50; --n) {
                     double t = 0.01 * n;
-                    builder.add(second.getPathPoint(railsPos, t));
+                    builder.add(connection_b.getPathPoint(railsPos, t));
                 }
             }
         }

@@ -7,6 +7,7 @@ import java.util.List;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.opencsv.CSVReader;
 
@@ -52,7 +53,8 @@ public class TrackCoasterCSVReader {
         for (PendingLink link : this.pendingLinks) {
             TrackNode target = this.coaster.getTracks().findNodeExact(link.targetNodePos);
             if (target != null) {
-                this.coaster.getTracks().connect(link.node, target);
+                TrackConnection conn = this.coaster.getTracks().connect(link.node, target);
+                link.node.pushBackJunction(conn); // Ensures preserved order of connections
                 continue;
             }
 

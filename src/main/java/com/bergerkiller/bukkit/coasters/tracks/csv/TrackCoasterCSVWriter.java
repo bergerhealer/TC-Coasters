@@ -19,6 +19,7 @@ public class TrackCoasterCSVWriter {
     private final CSVWriter writer;
     private final Set<TrackNode> writtenNodes = new HashSet<TrackNode>();
     private final Set<TrackConnection> writtenConnections = new HashSet<TrackConnection>();
+    private final TrackCoasterCSVEntry entry = new TrackCoasterCSVEntry();
 
     public TrackCoasterCSVWriter(TrackCoaster coaster, CSVWriter writer) {
         this.coaster = coaster;
@@ -31,14 +32,44 @@ public class TrackCoasterCSVWriter {
      * @param startNode
      * @param rootsOnly whether to only write out nodes with one or less neighbours
      */
-    public void writeFrom(TrackNode startNode, boolean rootsOnly) throws IOException {
+    public void writeFrom(TrackNode startNode, Mode mode) throws IOException {
+        // Junctions only mode: verify there indeed are more than 2 connections, making it a junction
+        if (mode == Mode.JUNCTIONS_ONLY) {
+            List<TrackConnection> connections = startNode.getConnections();
+            if (connections.size() <= 2) {
+                return;
+            }
+
+            // Add and mark written. If already added, do nothing.
+            if (!this.writtenNodes.add(startNode)) {
+                return;
+            }
+
+            // Write out the ROOT node
+            entry.setType(TrackCoasterCSVEntry.Type.ROOT);
+            entry.setPosition(startNode.getPosition());
+            entry.setOrientation(startNode.getOrientation());
+            entry.writeTo(this.writer);
+
+            // Write out all the links - in order
+            for (TrackConnection conn : connections) {
+                this.writeLink(conn.getOtherNode(startNode));
+            }
+
+            // Mark all connections as written
+            this.writtenConnections.addAll(connections);
+
+            // Stop
+            return;
+        }
+
         // Check if start node already traversed. If so, don't do anything!
         if (this.writtenNodes.contains(startNode)) {
             return;
         }
 
+        boolean waitForRoot = (mode == Mode.ROOTS_ONLY);
         TrackNode previous = null;
-        TrackCoasterCSVEntry entry = new TrackCoasterCSVEntry();
         while (true) {
             // Retrieve all connections not yet written out for this node
             List<TrackConnection> connections = new ArrayList<TrackConnection>(startNode.getConnections());
@@ -49,12 +80,12 @@ public class TrackCoasterCSVWriter {
             }
 
             // Disable rootsOnly flag when encountering a node with 1 or less connections
-            if (rootsOnly) {
+            if (waitForRoot) {
                 if (connections.size() >= 2) {
                     // Deny.
                     break;
                 } else {
-                    rootsOnly = false;
+                    waitForRoot = false;
                 }
             }
 
@@ -78,10 +109,7 @@ public class TrackCoasterCSVWriter {
                 TrackNode node = conn.getOtherNode(startNode);
                 if (node.getCoaster() != this.coaster || this.writtenNodes.contains(node)) {
                     this.writtenConnections.add(conn); // LINK connects the nodes
-                    entry.setType(TrackCoasterCSVEntry.Type.LINK);
-                    entry.setPosition(node.getPosition());
-                    entry.setOrientation(node.getOrientation());
-                    entry.writeTo(this.writer);
+                    this.writeLink(node);
                     connections.remove(i);
                 }
             }
@@ -98,5 +126,18 @@ public class TrackCoasterCSVWriter {
             previous = startNode;
             startNode = nextConn.getOtherNode(previous);            
         }
+    }
+
+    private final void writeLink(TrackNode node) throws IOException {
+        entry.setType(TrackCoasterCSVEntry.Type.LINK);
+        entry.setPosition(node.getPosition());
+        entry.setOrientation(node.getOrientation());
+        entry.writeTo(this.writer);
+    }
+
+    public static enum Mode {
+        JUNCTIONS_ONLY,
+        ROOTS_ONLY,
+        NORMAL
     }
 }

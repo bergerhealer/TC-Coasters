@@ -1,10 +1,10 @@
 package com.bergerkiller.bukkit.coasters.editor;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -17,6 +17,7 @@ import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
@@ -214,20 +215,44 @@ public class PlayerEditState implements CoasterWorldAccess {
         // The transformed point is a projective view of the Minecart in the player's vision
         // X/Y is left-right/up-down and Z is depth after the transformation is applied
         TrackNode bestNode = null;
+        TrackConnection bestJunction = null;
         double bestDistance = Double.MAX_VALUE;
 
         for (TrackCoaster coaster : getCoasterWorld().getTracks().getCoasters()) {
             for (TrackNode node : coaster.getNodes()) {
-                double distance = node.getViewDistance(cameraTransform);
-                if (distance < bestDistance) {
-                    bestDistance = distance;
-                    bestNode = node;
+                // Node itself
+                {
+                    double distance = node.getViewDistance(cameraTransform);
+                    if (distance < bestDistance) {
+                        bestDistance = distance;
+                        bestNode = node;
+                        bestJunction = null;
+                    }
+                }
+
+                // If node has multiple junctions, check if the player is clicking on any of the junction nodes
+                // This follows very precise rules
+                if (node.getConnections().size() > 2) {
+                    for (TrackConnection conn : node.getConnections()) {
+                        double distance = node.getJunctionViewDistance(cameraTransform, conn);
+                        if (distance < bestDistance) {
+                            bestDistance = distance;
+                            bestNode = node;
+                            bestJunction = conn;
+                        }
+                    }
                 }
             }
         }
 
         if (bestNode == null) {
             return false;
+        }
+
+        // Switch junction when clicking on one
+        if (bestJunction != null) {
+            bestNode.switchJunction(bestJunction);
+            return true;
         }
 
         long lastEditTime = getLastEditTime(bestNode);
@@ -389,8 +414,31 @@ public class PlayerEditState implements CoasterWorldAccess {
      * to the now-deleted tracks. This allows repeated deletion to 'walk' and delete.
      */
     public void deleteTrack() {
-        // Backup all nodes to delete, then select all unselected neighbours of those nodes
+        // Defensive copy
         HashSet<TrackNode> toDelete = new HashSet<TrackNode>(this.getEditedNodes());
+
+        // Disconnect nodes when adjacent nodes are selected
+        boolean disconnectedNodes = false;
+        for (TrackNode node : toDelete) {
+            for (TrackNode neigh : node.getNeighbours()) {
+                if (toDelete.contains(neigh)) {
+                    node.getTracks().disconnect(node, neigh);
+                    disconnectedNodes = true;
+                }
+            }
+        }
+        if (disconnectedNodes) {
+            // Clean up empty nodes
+            for (TrackNode node : toDelete) {
+                if (node.getConnections().isEmpty()) {
+                    this.setEditing(node, false);
+                    node.remove();
+                }
+            }
+            return;
+        }
+
+        // Backup all nodes to delete, then select all unselected neighbours of those nodes
         this.clearEditedNodes();
         for (TrackNode node : toDelete) {
             for (TrackNode neighbour : node.getNeighbours()) {

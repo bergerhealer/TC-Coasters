@@ -83,6 +83,7 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
             node.destroyParticles();
             this.getTracks().cancelNodeRefresh(node);
             this.getRails().purge(node);
+            this.markChanged();
         }
     }
 
@@ -192,15 +193,21 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
             // This writer helper class stores state about what nodes and connections still need to be written
             TrackCoasterCSVWriter coasterWriter = new TrackCoasterCSVWriter(this, writer);
 
+            // Go by all junctions and write their state out first
+            // This preserves switching direction: the first 2 connections are selected
+            for (TrackNode node : this.getNodes()) {
+                coasterWriter.writeFrom(node, TrackCoasterCSVWriter.Mode.JUNCTIONS_ONLY);
+            }
+
             // Go by all nodes and first save the chain from all nodes with one or less neighbours.
             // These are the end nodes of a chain of nodes, and are almost always a valid start of a new chain.
             for (TrackNode node : this.getNodes()) {
-                coasterWriter.writeFrom(node, true);
+                coasterWriter.writeFrom(node, TrackCoasterCSVWriter.Mode.ROOTS_ONLY);
             }
 
             // Clean up any remaining unwritten nodes, such as nodes in the middle of a chain
             for (TrackNode node : this.getNodes()) {
-                coasterWriter.writeFrom(node, false);
+                coasterWriter.writeFrom(node, TrackCoasterCSVWriter.Mode.NORMAL);
             }
 
             // Yay!

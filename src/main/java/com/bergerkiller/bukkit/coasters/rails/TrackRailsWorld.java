@@ -83,14 +83,14 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
             return;
         }
 
-        RailPath movePath = node.buildPath();
-        RailPath registerPath = movePath; //node.buildPath(0.5);
-        TrackRailsSection section = new TrackRailsSection(node, movePath);
+        addSectionToMap(new TrackRailsSection(node, node.buildPath()));
+    }
 
+    private final void addSectionToMap(TrackRailsSection section) {
         addToMap(sectionsByRails, section.rails, section);
 
         // For all segments of the path, store the block positions being covered in the lookup table
-        for (RailPath.Segment segment : registerPath.getSegments()) {
+        for (RailPath.Segment segment : section.path.getSegments()) {
             double x = section.rails.x + segment.p0.x;
             double y = section.rails.y + segment.p0.y;
             double z = section.rails.z + segment.p0.z;

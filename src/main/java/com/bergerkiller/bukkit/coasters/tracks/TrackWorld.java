@@ -162,6 +162,31 @@ public class TrackWorld extends CoasterWorldAccess.Component {
     }
 
     /**
+     * Disconnects two track nodes, removing any existing connection between them
+     * 
+     * @param nodeA
+     * @param nodeB
+     */
+    public void disconnect(TrackNode nodeA, TrackNode nodeB) {
+        if (nodeA == nodeB) {
+            return; // Ignore
+        }
+
+        // Find the connection in nodeA
+        for (TrackConnection connection : nodeA._connections) {
+            if (connection.isConnected(nodeB)) {
+                removeConnectionFromNode(nodeA, connection);
+                removeConnectionFromNode(nodeB, connection);
+                scheduleNodeRefresh(nodeA);
+                scheduleNodeRefresh(nodeB);
+                connection.destroyParticles();
+                connection.markChanged();
+                return; // Done
+            }
+        }
+    }
+
+    /**
      * Removes all connections from/to a particular node
      * 
      * @param node
