@@ -9,10 +9,12 @@ import java.util.Iterator;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
@@ -27,6 +29,8 @@ import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
+import com.bergerkiller.bukkit.common.utils.ItemUtil;
+import com.bergerkiller.bukkit.common.wrappers.HumanHand;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
 
@@ -36,10 +40,6 @@ public class TCCoasters extends JavaPlugin {
     private final TCCoastersListener listener = new TCCoastersListener(this);
     private final Map<Player, PlayerEditState> editStates = new HashMap<Player, PlayerEditState>();
     private final Map<World, CoasterWorldImpl> worlds = new HashMap<World, CoasterWorldImpl>();
-
-    //private final Map<World, TrackParticleWorld> particleWorlds = new HashMap<World, TrackParticleWorld>();
-    //private final Map<World, TrackWorld> trackWorlds = new HashMap<World, TrackWorld>();
-    //private final Map<World, TrackRailsWorld> railsWorlds = new HashMap<World, TrackRailsWorld>();
 
     public void unloadWorld(World world) {
         CoasterWorldImpl coasterWorld = worlds.get(world);
@@ -237,7 +237,15 @@ public class TCCoasters extends JavaPlugin {
     }
 
     public boolean isHoldingEditTool(Player player) {
-        return MapDisplay.getHeldDisplay(player) instanceof TCCoastersDisplay;
+        ItemStack mainItem = HumanHand.getItemInMainHand(player);
+        if (MapDisplay.getViewedDisplay(player, mainItem) instanceof TCCoastersDisplay) {
+            return true;
+        } else if (!ItemUtil.isEmpty(mainItem)) {
+            return false;
+        }
+
+        ItemStack offItem = HumanHand.getItemInOffHand(player);
+        return MapDisplay.getViewedDisplay(player, offItem) instanceof TCCoastersDisplay;
     }
 
     private static class AutosaveTask extends Task {
