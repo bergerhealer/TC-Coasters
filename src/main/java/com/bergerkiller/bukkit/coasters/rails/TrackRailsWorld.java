@@ -9,8 +9,10 @@ import java.util.List;
 import java.util.Map;
 
 import org.bukkit.block.Block;
+import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -83,7 +85,26 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
             return;
         }
 
+        // First 1 or 2 connections, which connect to each other and are selected
         addSectionToMap(new TrackRailsSection(node, node.buildPath()));
+
+        // All other kinds of connections lead to their best fit
+        List<TrackConnection> connections = node.getConnections();
+        if (connections.size() > 2) {
+            Vector dir0 = connections.get(0).getDirection(node);
+            Vector dir1 = connections.get(1).getDirection(node);
+            for (int i = 2; i < connections.size(); i++) {
+                TrackConnection conn = connections.get(i);
+                TrackConnection other;
+                Vector dir = conn.getDirection(node);
+                if (dir0.dot(dir) > dir1.dot(dir)) {
+                    other = connections.get(1);
+                } else {
+                    other = connections.get(0);
+                }
+                addSectionToMap(new TrackRailsSection(node, node.buildPath(conn, other)));
+            }
+        }
     }
 
     private final void addSectionToMap(TrackRailsSection section) {

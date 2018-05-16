@@ -87,6 +87,16 @@ public class TrackConnection {
     }
 
     /**
+     * Gets the motion vector at either end of this track connection
+     * 
+     * @param atNode
+     * @return motion vector
+     */
+    public Vector getDirection(TrackNode atNode) {
+        return this._endA.node == atNode ? this._endA.direction : this._endB.direction;
+    }
+
+    /**
      * Gets the position near the end of the connection, where extra labels
      * can be displayed.
      * 
@@ -189,14 +199,16 @@ public class TrackConnection {
         double fpA = fdA + tn * tn2;
         double fpB = fdB + tp * tp2;
 
-        Vector p1 = this._endA.node.getPosition();
-        Vector p2 = this._endB.node.getPosition();
-        Vector d1 = this._endA.delta;
-        Vector d2 = this._endB.delta;
+        double pfdA = fdA * this._endA.distance;
+        double pfdB = fdB * this._endB.distance;
+        Vector pA = this._endA.node.getPosition();
+        Vector pB = this._endB.node.getPosition();
+        Vector dA = this._endA.direction;
+        Vector dB = this._endB.direction;
         return new Vector(
-                fpA*p1.getX() + fpB*p2.getX() + fdA*d1.getX() + fdB*d2.getX(),
-                fpA*p1.getY() + fpB*p2.getY() + fdA*d1.getY() + fdB*d2.getY(),
-                fpA*p1.getZ() + fpB*p2.getZ() + fdA*d1.getZ() + fdB*d2.getZ());
+                fpA*pA.getX() + fpB*pB.getX() + pfdA*dA.getX() + pfdB*dB.getX(),
+                fpA*pA.getY() + fpB*pB.getY() + pfdA*dA.getY() + pfdB*dB.getY(),
+                fpA*pA.getZ() + fpB*pB.getZ() + pfdA*dA.getZ() + pfdB*dB.getZ());
     }
 
     public void destroyParticles() {
@@ -216,7 +228,8 @@ public class TrackConnection {
     protected static class EndPoint {
         protected final TrackNode node;
         protected final TrackNode other;
-        protected Vector delta = new Vector();
+        protected Vector direction = new Vector();
+        protected double distance = 0.0;
 
         public EndPoint(TrackNode node, TrackNode other) {
             this.node = node;
@@ -224,21 +237,23 @@ public class TrackConnection {
         }
 
         public void initAuto() {
-            this.delta = other.getPosition().clone()
-                    .subtract(node.getPosition())
-                    .normalize().multiply(this.calcDistance());
+            this.direction = other.getPosition().clone().subtract(node.getPosition()).normalize();
+            this.updateDistance();
         }
 
         public void initNormal() {
-            this.delta = node.getDirection().clone().multiply(this.calcDistance());
+            this.direction = node.getDirection();
+            this.updateDistance();
         }
 
         public void initInverted() {
-            this.delta = node.getDirection().clone().multiply(-this.calcDistance());
+            this.direction = node.getDirection().clone().multiply(-1.0);
+            this.updateDistance();
         }
 
-        private double calcDistance() {
-            return 0.5 * node.getPosition().distance(other.getPosition());
+        private final void updateDistance() {
+            this.distance = 0.5 * node.getPosition().distance(other.getPosition());
         }
+
     }
 }
