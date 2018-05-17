@@ -11,12 +11,16 @@ import org.bukkit.block.BlockFace;
 
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsSection;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
+import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.tc.controller.MinecartMember;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
+import com.bergerkiller.bukkit.tc.controller.components.RailJunction;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogic;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogicAir;
@@ -96,6 +100,34 @@ public class CoasterRailType extends RailType {
     }
 
     @Override
+    public List<RailJunction> getJunctions(Block railBlock) {
+        List<TrackRailsSection> rails = getRails(railBlock.getWorld()).findAtRails(railBlock);
+        if (rails.isEmpty()) {
+            return super.getJunctions(railBlock);
+        } else {
+            return rails.get(0).node.getJunctions();
+        }
+    }
+
+    @Override
+    public void switchJunction(Block railBlock, RailJunction from, RailJunction to) {
+        List<TrackRailsSection> rails = getRails(railBlock.getWorld()).findAtRails(railBlock);
+        if (rails.isEmpty()) {
+            return;
+        }
+        int fromIdx = (from == null) ? -1 : (ParseUtil.parseInt(from.name(), 0) - 1);
+        int toIdx = (to == null) ? -1 : (ParseUtil.parseInt(to.name(), 0) - 1);
+        TrackNode node = rails.get(0).node;
+        List<TrackConnection> connections = node.getSortedConnections();
+        if (fromIdx >= 0 && fromIdx < connections.size()) {
+            node.switchJunction(connections.get(fromIdx));
+        }
+        if (toIdx >= 0 && toIdx < connections.size()) {
+            node.switchJunction(connections.get(toIdx));
+        }
+    }
+
+    @Override
     public BlockFace getDirection(Block railsBlock) {
         List<TrackRailsSection> rails = getRails(railsBlock.getWorld()).findAtRails(railsBlock);
         if (!rails.isEmpty()) {
@@ -118,10 +150,26 @@ public class CoasterRailType extends RailType {
                 double minCost = section.calcCost(state);
                 for (int i = 1; i < rails.size(); i++) {
                     TrackRailsSection other = rails.get(i);
-                    double cost = other.calcCost(state);
-                    if (cost < minCost) {
-                        minCost = cost;
-                        section = other;
+                    if (other.primary) {
+                        double cost = other.calcCost(state);
+                        if (cost < minCost) {
+                            minCost = cost;
+                            section = other;
+                        }
+                    }
+                }
+
+                // Try non-primary rails when cost is above single movement threshold (0.4)
+                if (minCost > (0.4*0.4)) {
+                    for (int i = 1; i < rails.size(); i++) {
+                        TrackRailsSection other = rails.get(i);
+                        if (!other.primary) {
+                            double cost = other.calcCost(state);
+                            if (cost < minCost) {
+                                minCost = cost;
+                                section = other;
+                            }
+                        }
                     }
                 }
             }

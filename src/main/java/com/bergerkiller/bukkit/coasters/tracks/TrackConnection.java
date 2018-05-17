@@ -155,7 +155,9 @@ public class TrackConnection {
     }
 
     /**
-     * Gets a rails path point at a particular t
+     * Gets a rails path point at a particular t.
+     * This only includes position and orientation information and is faster
+     * to calculate.
      * 
      * @param railsPos
      * @param t [0 ... 1]
@@ -167,6 +169,23 @@ public class TrackConnection {
         pos.setY(pos.getY() - railsPos.y);
         pos.setZ(pos.getZ() - railsPos.z);
         return new RailPath.Point(pos, getOrientation(t));
+    }
+
+    /**
+     * Gets the position information on the rails for a particular theta.
+     * The result will contain the exact position, direction and up-vector information.
+     * 
+     * @param from node, used for the direction of the position
+     * @param t theta on the connection [ 0.0 ... 1.0 ]
+     * @return path position
+     */
+    public RailPath.Position getPathPosition(TrackNode from, double t) {
+        RailPath.Position p = RailPath.Position.fromPosDir(getPosition(t), getOrientation(t));
+        p.setMotion(getMotionVector(t));
+        if (from == this._endB.node) {
+            p.invertMotion();
+        }
+        return p;
     }
 
     /**
@@ -184,20 +203,19 @@ public class TrackConnection {
      * 
      * @param t [0 ... 1]
      * @return position at t
-     */
+     */    
     public Vector getPosition(double t) {
         // https://pomax.github.io/bezierinfo/#decasteljau
         double tp = t;
         double tn = 1.0 - tp;
-
         double tp2 = tp * tp;
-        double tn2 = tn * tn;
 
-        double fdA = 3.0 * tp * tn2;
-        double fdB = 3.0 * tn * tp2;
+        double ff = 3.0 * (tp - tp2);
+        double fdB = tp * ff;
+        double fdA = tn * ff;
 
-        double fpA = fdA + tn * tn2;
-        double fpB = fdB + tp * tp2;
+        double fpB = fdB + (tp * tp2);
+        double fpA = -fpB + 1.0;
 
         double pfdA = fdA * this._endA.distance;
         double pfdB = fdB * this._endB.distance;
@@ -209,6 +227,38 @@ public class TrackConnection {
                 fpA*pA.getX() + fpB*pB.getX() + pfdA*dA.getX() + pfdB*dB.getX(),
                 fpA*pA.getY() + fpB*pB.getY() + pfdA*dA.getY() + pfdB*dB.getY(),
                 fpA*pA.getZ() + fpB*pB.getZ() + pfdA*dA.getZ() + pfdB*dB.getZ());
+    }
+
+    /**
+     * Calculates the motion vector along this track at a particular t
+     * 
+     * @param t [0 ... 1]
+     * @return motion vector at t
+     */
+    public Vector getMotionVector(double t) {
+        // Derivative of getPosition(t)
+        double tp = t;
+        double tn = 1.0 - tp;
+
+        double tp2 = tp * tp;
+        double tn2 = tn * tn;
+
+        double fpA_dt = 6.0*(tp2-tp);
+        double fpB_dt = -fpA_dt;
+
+        double fdA_dt = fpA_dt + 3.0*tn2;
+        double fdB_dt = fpB_dt - 3.0*tp2;
+
+        double pfdA_dt = fdA_dt * this._endA.distance;
+        double pfdB_dt = fdB_dt * this._endB.distance;
+        Vector pA = this._endA.node.getPosition();
+        Vector pB = this._endB.node.getPosition();
+        Vector dA = this._endA.direction;
+        Vector dB = this._endB.direction;
+        return new Vector(
+                fpA_dt*pA.getX() + fpB_dt*pB.getX() + pfdA_dt*dA.getX() + pfdB_dt*dB.getX(),
+                fpA_dt*pA.getY() + fpB_dt*pB.getY() + pfdA_dt*dA.getY() + pfdB_dt*dB.getY(),
+                fpA_dt*pA.getZ() + fpB_dt*pB.getZ() + pfdA_dt*dA.getZ() + pfdB_dt*dB.getZ()).normalize();
     }
 
     public void destroyParticles() {

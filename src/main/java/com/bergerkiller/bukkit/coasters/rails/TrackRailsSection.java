@@ -27,11 +27,16 @@ public class TrackRailsSection {
      * The path along which Minecart move over this section
      */
     public final RailPath path;
+    /**
+     * The path is a primary path (selected junction)
+     */
+    public final boolean primary;
 
-    public TrackRailsSection(TrackNode node, RailPath path) {
+    public TrackRailsSection(TrackNode node, RailPath path, boolean primary) {
         this.node = node;
         this.rails = node.getRailsBlock();
         this.path = path;
+        this.primary = primary;
     }
 
     public BlockFace getMovementDirection() {

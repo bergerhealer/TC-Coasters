@@ -23,6 +23,7 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
+import com.bergerkiller.bukkit.tc.controller.components.RailJunction;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 
 /**
@@ -326,6 +327,20 @@ public class TrackNode implements CoasterWorldAccess {
         }
     }
 
+    public final List<RailJunction> getJunctions() {
+        List<TrackConnection> connections = this.getSortedConnections();
+        if (connections.isEmpty()) {
+            return Collections.emptyList();
+        }
+        RailJunction[] junctions = new RailJunction[connections.size()];
+        for (int i = 0; i < connections.size(); i++) {
+            String name = Integer.toString(i + 1);
+            RailPath.Position position = connections.get(i).getPathPosition(this, 0.5);
+            junctions[i] = new RailJunction(name, position);
+        }
+        return Arrays.asList(junctions);
+    }
+
     public final List<TrackConnection> getConnections() {
         return Arrays.asList(this._connections);
     }
@@ -346,6 +361,7 @@ public class TrackNode implements CoasterWorldAccess {
 
         // Use the connection with largest difference with the other connections as the base
         int baseIndex = 0;
+        Vector baseVector = tmp_vectors[0];
         double max_angle_diff = 0.0;
         for (int i = 0; i < tmp_vectors.length; i++) {
             Vector base = tmp_vectors[i];
@@ -358,9 +374,25 @@ public class TrackNode implements CoasterWorldAccess {
                     }
                 }
             }
-            if (min_angle > max_angle_diff) {
+
+            int comp = 0;
+            if (Math.abs(min_angle - max_angle_diff) <= 1e-10) {
+                // Very similar, select on direction vector instead
+                comp = Double.compare(base.getX(), baseVector.getX());
+                if (comp == 0) {
+                    comp = Double.compare(base.getZ(), baseVector.getZ());
+                    if (comp == 0) {
+                        comp = Double.compare(base.getY(), baseVector.getY());
+                    }
+                }
+            } else {
+                // Select based on angle
+                comp = Double.compare(min_angle, max_angle_diff);
+            }
+            if (comp > 0) {
                 max_angle_diff = min_angle;
                 baseIndex = i;
+                baseVector = base;
             }
         }
 
