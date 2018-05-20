@@ -133,9 +133,17 @@ public class TrackNode implements CoasterWorldAccess {
         // Assign up vector, normalize it to length 1
         double up_n = MathUtil.getNormalizationFactor(up);
         if (!Double.isInfinite(up_n)) {
-            this._up = up.clone().multiply(up_n);
+            up = up.clone().multiply(up_n);
+            if (!this._up.equals(up)) {
+                this._up = up;
+                this.scheduleRefresh();
+                this.markChanged();
+            }
         }
+        this.refreshOrientation();
+    }
 
+    private final void refreshOrientation() {
         // Calculate what kind of up vector is used 'visually'
         // This is on a 90-degree angle with the track itself (dir)
         this._up_visual = this._dir.clone().crossProduct(this._up).crossProduct(this._dir);
@@ -147,8 +155,6 @@ public class TrackNode implements CoasterWorldAccess {
             this._up_visual.multiply(n);
         }
         this._upParticleArrow.setDirection(this._dir, this._up_visual);
-        this.scheduleRefresh();
-        this.markChanged();
     }
 
     /**
@@ -261,7 +267,7 @@ public class TrackNode implements CoasterWorldAccess {
         }
 
         // Recalculate the up-vector to ortho to dir
-        this.setOrientation(this._up);
+        this.refreshOrientation();
 
         // Refresh connections connected to this node, for they have changed
         for (int i = 0; i < connections.size(); i++) {
