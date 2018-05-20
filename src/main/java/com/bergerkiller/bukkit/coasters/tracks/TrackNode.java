@@ -147,6 +147,7 @@ public class TrackNode implements CoasterWorldAccess {
             this._up_visual.multiply(n);
         }
         this._upParticleArrow.setDirection(this._dir, this._up_visual);
+        this.scheduleRefresh();
         this.markChanged();
     }
 
