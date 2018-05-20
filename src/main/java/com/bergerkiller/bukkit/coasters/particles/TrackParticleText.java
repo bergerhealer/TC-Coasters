@@ -69,8 +69,13 @@ public class TrackParticleText extends TrackParticle {
     }
 
     @Override
-    public boolean isVisible(Vector viewerPosition) {
-        return this.position.distanceSquared(viewerPosition) < (VIEW_RADIUS * VIEW_RADIUS);
+    public double distanceSquared(Vector viewerPosition) {
+        return this.position.distanceSquared(viewerPosition);
+    }
+
+    @Override
+    public double getViewDistance() {
+        return VIEW_RADIUS;
     }
 
     @Override
@@ -138,6 +143,11 @@ public class TrackParticleText extends TrackParticle {
                 broadcastPacket(metaPacket);
             }
         }
+    }
+
+    @Override
+    public boolean usesEntityId(int entityId) {
+        return this.entityId == entityId;
     }
 
     /**
@@ -231,4 +241,5 @@ public class TrackParticleText extends TrackParticle {
             ChatColor.AQUA, ChatColor.LIGHT_PURPLE, ChatColor.GOLD,
             ChatColor.BLACK, ChatColor.DARK_GRAY, ChatColor.GRAY, ChatColor.WHITE
     };
+
 }

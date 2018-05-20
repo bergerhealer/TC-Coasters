@@ -50,10 +50,16 @@ public class TrackParticleItem extends TrackParticle {
     }
 
     @Override
-    public boolean isVisible(Vector viewerPosition) {
-        return this.position.distanceSquared(viewerPosition) < (VIEW_RADIUS * VIEW_RADIUS);
+    public double distanceSquared(Vector viewerPosition) {
+        return this.position.distanceSquared(viewerPosition);
     }
 
+    @Override
+    public double getViewDistance() {
+        return VIEW_RADIUS;
+    }
+
+    @Override
     public void updateAppearance() {
         if (this.positionChanged) {
             this.positionChanged = false;
@@ -126,4 +132,8 @@ public class TrackParticleItem extends TrackParticle {
         }
     }
 
+    @Override
+    public boolean usesEntityId(int entityId) {
+        return this.entityId == entityId;
+    }
 }

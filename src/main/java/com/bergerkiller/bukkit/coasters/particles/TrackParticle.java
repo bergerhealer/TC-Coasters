@@ -83,8 +83,19 @@ public abstract class TrackParticle {
     public void onStateUpdated(Player viewer) {
     }
 
-    public abstract boolean isVisible(Vector viewerPosition);
+    public final boolean isVisible(Vector viewerPosition) {
+        double d = getViewDistance();
+        return distanceSquared(viewerPosition) <= (d * d);
+    }
+
+    public final boolean isNearby(Vector viewerPosition) {
+        return distanceSquared(viewerPosition) <= (5.0 * 5.0);
+    }
+
+    public abstract double distanceSquared(Vector viewerPosition);
+    public abstract double getViewDistance();
     public abstract void makeVisibleFor(Player viewer);
     public abstract void makeHiddenFor(Player viewer);
     public abstract void updateAppearance();
+    public abstract boolean usesEntityId(int entityId);
 }

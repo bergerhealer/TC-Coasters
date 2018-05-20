@@ -9,7 +9,6 @@ import java.util.Iterator;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -38,6 +37,7 @@ public class TCCoasters extends JavaPlugin {
     private Task updateTask;
     private Task autosaveTask;
     private final TCCoastersListener listener = new TCCoastersListener(this);
+    private final TCCoastersInteractionListener interactionListener = new TCCoastersInteractionListener(this);
     private final Map<Player, PlayerEditState> editStates = new HashMap<Player, PlayerEditState>();
     private final Map<World, CoasterWorldImpl> worlds = new HashMap<World, CoasterWorldImpl>();
 
@@ -133,6 +133,7 @@ public class TCCoasters extends JavaPlugin {
     @Override
     public void onEnable() {
         this.listener.enable();
+        this.interactionListener.enable();
         this.updateTask = new Task(this) {
             @Override
             public void run() {
@@ -170,6 +171,7 @@ public class TCCoasters extends JavaPlugin {
     @Override
     public void onDisable() {
         this.listener.disable();
+        this.interactionListener.disable();
         this.updateTask.stop();
         this.autosaveTask.stop();
 

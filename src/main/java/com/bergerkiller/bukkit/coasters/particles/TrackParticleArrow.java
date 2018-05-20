@@ -66,8 +66,13 @@ public class TrackParticleArrow extends TrackParticle {
     }
 
     @Override
-    public boolean isVisible(Vector viewerPosition) {
-        return this.position.distanceSquared(viewerPosition) < (VIEW_RADIUS * VIEW_RADIUS);
+    public double distanceSquared(Vector viewerPosition) {
+        return this.position.distanceSquared(viewerPosition);
+    }
+
+    @Override
+    public double getViewDistance() {
+        return VIEW_RADIUS;
     }
 
     @Override
@@ -145,6 +150,11 @@ public class TrackParticleArrow extends TrackParticle {
         PacketPlayOutEntityEquipmentHandle equipPacket = PacketPlayOutEntityEquipmentHandle.createNew(
                 this.entityId, EquipmentSlot.HAND, this.itemType.getItem(this.getState(viewer)));
         PacketUtil.sendPacket(viewer, equipPacket);
+    }
+
+    @Override
+    public boolean usesEntityId(int entityId) {
+        return this.entityId == entityId;
     }
 
     private static class ProtocolPosition {

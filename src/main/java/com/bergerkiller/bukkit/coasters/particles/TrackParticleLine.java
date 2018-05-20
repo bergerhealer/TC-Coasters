@@ -59,9 +59,14 @@ public class TrackParticleLine extends TrackParticle {
     }
 
     @Override
-    public boolean isVisible(Vector viewerPosition) {
-        return this.p1.distanceSquared(viewerPosition) < (VIEW_RADIUS * VIEW_RADIUS) ||
-               this.p2.distanceSquared(viewerPosition) < (VIEW_RADIUS * VIEW_RADIUS);
+    public double distanceSquared(Vector viewerPosition) {
+        return Math.min(this.p1.distanceSquared(viewerPosition),
+                        this.p2.distanceSquared(viewerPosition));
+    }
+
+    @Override
+    public double getViewDistance() {
+        return VIEW_RADIUS;
     }
 
     @Override
@@ -149,4 +154,8 @@ public class TrackParticleLine extends TrackParticle {
         PacketUtil.sendPacket(viewer, ap1);
     }
 
+    @Override
+    public boolean usesEntityId(int entityId) {
+        return this.e1 == entityId || this.e2 == entityId;
+    }
 }

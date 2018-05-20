@@ -88,4 +88,41 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
             }
         }
     }
+
+    /**
+     * Checks whether a particular entity Id is a particle a player can see
+     * 
+     * @param viewer
+     * @param entityId
+     * @return True if the entityId is that of a particle
+     */
+    public boolean isParticle(Player viewer, int entityId) {
+        if (this.players.contains(viewer)) {
+            for (TrackParticle particle : this.particles) {
+                if (particle.getViewers().contains(viewer) && particle.usesEntityId(entityId)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks whether a particle is nearby the player somewhere.
+     * This is used as a check when fixing interaction with blocks.
+     * 
+     * @param viewer
+     * @return True if a particle is nearby
+     */
+    public boolean isParticleNearby(Player viewer) {
+        if (this.players.contains(viewer)) {
+            Vector pos = viewer.getEyeLocation().toVector();
+            for (TrackParticle particle : this.particles) {
+                if (particle.isNearby(pos)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }
