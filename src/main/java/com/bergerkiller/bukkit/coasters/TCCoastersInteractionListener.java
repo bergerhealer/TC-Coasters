@@ -23,6 +23,7 @@ import com.bergerkiller.bukkit.common.events.PacketReceiveEvent;
 import com.bergerkiller.bukkit.common.events.PacketSendEvent;
 import com.bergerkiller.bukkit.common.protocol.PacketListener;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
+import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
@@ -59,6 +60,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
     private final Map<Player, Metadata> trackedMeta = new HashMap<Player, Metadata>();
     private final Metadata nullMeta = new Metadata();
     private Task metadataCleanupTimer = null;
+    private boolean ignoreInteractPacket = false;
 
     public TCCoastersInteractionListener(TCCoasters plugin) {
         this.plugin = plugin;
@@ -141,6 +143,11 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
         // and verify placement truly is impossible before letting it slip. Basically, we must correct
         // for the 'this spot is occupied' check on the client side before it happens.
         if (event.getType() == PacketType.IN_USE_ITEM || event.getType() == PacketType.IN_BLOCK_PLACE) {
+            // Avoids expensive rayTrace call for no reason
+            if (ignoreInteractPacket) {
+                return;
+            }
+
             boolean needsCheck = false;
             ClickInfo clickInfo = null;
             HumanHand suggestedHand = HumanHand.LEFT;
@@ -149,20 +156,18 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
                 // We don't know the specifics so perform some ray tracing
                 needsCheck = true;
                 clickInfo = rayTrace(event.getPlayer());
-                if (HumanHand.getItemInMainHand(event.getPlayer()) != null) {
-                    suggestedHand = HumanHand.getMainHand(event.getPlayer());
-                } else {
-                    suggestedHand = HumanHand.getOffHand(event.getPlayer());
-                }
+
+                suggestedHand = PacketType.IN_BLOCK_PLACE.getHand(event.getPacket(), event.getPlayer());
+                suggestedHand = fixHand(event.getPlayer(), suggestedHand);
             } else if (PacketPlayInUseItemHandle.T.enumHand.isAvailable()) {
                 PacketPlayInUseItemHandle packet = PacketPlayInUseItemHandle.createHandle(event.getPacket().getHandle());
 
                 // Use item is used - is the item we interact with null (empty?)
                 // And is the item in the other hand not empty? This is a strong indicator.
                 HumanHand hand = packet.getHand(event.getPlayer());
-                if (HumanHand.getHeldItem(event.getPlayer(), hand) == null) {
+                if (ItemUtil.isEmpty(HumanHand.getHeldItem(event.getPlayer(), hand))) {
                     HumanHand other = hand.opposite();
-                    if (HumanHand.getHeldItem(event.getPlayer(), other) != null) {
+                    if (!ItemUtil.isEmpty(HumanHand.getHeldItem(event.getPlayer(), other))) {
                         needsCheck = true;
                         suggestedHand = other;
                     }
@@ -199,12 +204,12 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
 
             // Fix it
             if (event.getType() == PacketType.IN_BLOCK_PLACE) {
-                event.setCancelled(true);
-
-                // Handle as a normal click
-                // Only when click info is available - otherwise is same as Block Place
-                // This prevents stack overflow
-                if (clickInfo != null) {
+                if (clickInfo == null) {
+                    // Switch hand as needed
+                    PacketType.IN_BLOCK_PLACE.setHand(event.getPacket(), event.getPlayer(), suggestedHand);
+                } else {
+                    // Cancel old event and fire item placement instead
+                    event.setCancelled(true);
                     fakeItemPlacement(event.getPlayer(), clickInfo, suggestedHand);
                 }
             } else {
@@ -260,25 +265,32 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
     }
 
     private void fakeItemPlacement(Player player, ClickInfo clickInfo, HumanHand hand) {
-        if (clickInfo == null) {
-            // Block Place is used when not clicking on any block
-            PacketPlayInBlockPlaceHandle packet = PacketPlayInBlockPlaceHandle.T.newHandleNull();
-            packet.setTimestamp(System.currentTimeMillis());
-            packet.setHand(player, hand);
-            PacketUtil.receivePacket(player, packet);
-        } else {
-            createMeta(player).blockPlaceTime = Long.valueOf(System.currentTimeMillis());
+        boolean ignoreInteractPacket_old = this.ignoreInteractPacket;
+        try {
+            if (clickInfo == null) {
+                this.ignoreInteractPacket = true;
 
-            // Send the actual packet
-            PacketPlayInUseItemHandle packet = PacketPlayInUseItemHandle.T.newHandleNull();
-            packet.setTimestamp(System.currentTimeMillis());
-            packet.setEnumHand(HumanHand.toNMSEnumHand(player, hand));
-            packet.setDirection(clickInfo.face);
-            packet.setPosition(new IntVector3(clickInfo.block));
-            packet.setDeltaX((float) clickInfo.position.getX());
-            packet.setDeltaY((float) clickInfo.position.getY());
-            packet.setDeltaZ((float) clickInfo.position.getZ());
-            PacketUtil.receivePacket(player, packet);
+                // Block Place is used when not clicking on any block
+                PacketPlayInBlockPlaceHandle packet = PacketPlayInBlockPlaceHandle.T.newHandleNull();
+                packet.setTimestamp(System.currentTimeMillis());
+                packet.setHand(player, fixHand(player, hand));
+                PacketUtil.receivePacket(player, packet);
+            } else {
+                createMeta(player).blockPlaceTime = Long.valueOf(System.currentTimeMillis());
+
+                // Send the actual packet
+                PacketPlayInUseItemHandle packet = PacketPlayInUseItemHandle.T.newHandleNull();
+                packet.setTimestamp(System.currentTimeMillis());
+                packet.setEnumHand(HumanHand.toNMSEnumHand(player, hand));
+                packet.setDirection(clickInfo.face);
+                packet.setPosition(new IntVector3(clickInfo.block));
+                packet.setDeltaX((float) clickInfo.position.getX());
+                packet.setDeltaY((float) clickInfo.position.getY());
+                packet.setDeltaZ((float) clickInfo.position.getZ());
+                PacketUtil.receivePacket(player, packet);
+            }
+        } finally {
+            this.ignoreInteractPacket = ignoreInteractPacket_old;
         }
     }
 
@@ -298,6 +310,18 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
             packet.setDigType(EnumPlayerDigTypeHandle.START_DESTROY_BLOCK);
             PacketUtil.receivePacket(player, packet);
         }
+    }
+
+    private static HumanHand fixHand(Player player, HumanHand hand) {
+        // Right-click air is broken when using a hand that is not holding an item
+        // Work around this issue first
+        if (ItemUtil.isEmpty(HumanHand.getHeldItem(player, hand))) {
+            HumanHand otherHand = hand.opposite();
+            if (!ItemUtil.isEmpty(HumanHand.getHeldItem(player, otherHand))) {
+                return otherHand;
+            }
+        }
+        return hand;
     }
 
     private static ClickInfo rayTrace(Player player) {
