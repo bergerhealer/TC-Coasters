@@ -3,8 +3,10 @@ package com.bergerkiller.bukkit.coasters.editor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.bukkit.Location;
@@ -31,25 +33,25 @@ import com.bergerkiller.bukkit.common.utils.LogicUtil;
  * When the player changed world, any edited nodes are automatically cleared.
  */
 public class PlayerEditState implements CoasterWorldAccess {
-    private static final int EDIT_AUTO_TIMEOUT = 5;
-    private static final int EDIT_CANCEL_TIMEOUT = 8;
+    private static final int EDIT_AUTO_TIMEOUT = 100;
     private final TCCoasters plugin;
     private final Player player;
-    private final Set<TrackNode> editedNodes = new HashSet<TrackNode>();
+    private final PlayerEditInput input;
+    private final Map<TrackNode, PlayerEditNode> editedNodes = new HashMap<TrackNode, PlayerEditNode>();
     private CoasterWorldAccess cachedCoasterWorld = null;
     private TrackNode lastEdited = null;
     private long lastEditTime = System.currentTimeMillis();
     private Mode editMode = Mode.DISABLED;
     private Mode afterEditMode = null;
-    private int editTimeoutCtr = 0;
     private int heldDownTicks = 0;
     private boolean changed = false;
-    private Location editStartPos = null;
+    private Matrix4x4 editStartTransform = null;
     private Vector editRotInfo = new Vector(); // virtual coordinate of the vector
 
     public PlayerEditState(TCCoasters plugin, Player player) {
         this.plugin = plugin;
         this.player = player;
+        this.input = new PlayerEditInput(player);
     }
 
     public void load() {
@@ -71,7 +73,7 @@ public class PlayerEditState implements CoasterWorldAccess {
                             z = Double.parseDouble(coords[2]);
                             TrackNode node = getTracks().findNodeExact(new Vector(x, y, z));
                             if (node != null) {
-                                this.editedNodes.add(node);
+                                this.editedNodes.put(node, new PlayerEditNode(node));
                             }
                         } catch (NumberFormatException ex) {}
                     }
@@ -89,7 +91,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         FileConfiguration config = this.plugin.getPlayerConfig(this.player);
         config.set("mode", this.editMode);
         List<String> editedNodeNames = new ArrayList<String>(this.editedNodes.size());
-        for (TrackNode node : this.editedNodes) {
+        for (TrackNode node : this.getEditedNodes()) {
             Vector p = node.getPosition();
             editedNodeNames.add(p.getX() + "_" + p.getY() + "_" + p.getZ());
         }
@@ -111,7 +113,7 @@ public class PlayerEditState implements CoasterWorldAccess {
 
     public void clearEditedNodes() {
         if (!this.editedNodes.isEmpty()) {
-            ArrayList<TrackNode> oldNodes = new ArrayList<TrackNode>(this.editedNodes);
+            ArrayList<TrackNode> oldNodes = new ArrayList<TrackNode>(this.getEditedNodes());
             this.editedNodes.clear();
             this.lastEdited = null;
             this.changed = true;
@@ -151,8 +153,12 @@ public class PlayerEditState implements CoasterWorldAccess {
         return this.editMode;
     }
 
+    public boolean isMode(Mode... modes) {
+        return LogicUtil.contains(this.editMode, modes);
+    }
+
     public Set<TrackNode> getEditedNodes() {
-        return this.editedNodes;
+        return this.editedNodes.keySet();
     }
 
     public boolean hasEditedNodes() {
@@ -164,7 +170,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         if (this.editMode != mode) {
             this.editMode = mode;
             this.changed = true;
-            for (TrackNode node : this.editedNodes) {
+            for (TrackNode node : this.getEditedNodes()) {
                 node.onStateUpdated(this.player);
             }
         }
@@ -180,7 +186,18 @@ public class PlayerEditState implements CoasterWorldAccess {
     }
 
     public void setEditing(TrackNode node, boolean editing) {
-        if (LogicUtil.addOrRemove(this.editedNodes, node, editing)) {
+        boolean changed;
+        if (editing) {
+            if (this.editedNodes.containsKey(node)) {
+                changed = false;
+            } else {
+                changed = true;
+                this.editedNodes.put(node, new PlayerEditNode(node));
+            }
+        } else {
+            changed = (this.editedNodes.remove(node) != null);
+        }
+        if (changed) {
             node.onStateUpdated(this.player);
             this.lastEdited = node;
             this.lastEditTime = System.currentTimeMillis();
@@ -189,7 +206,7 @@ public class PlayerEditState implements CoasterWorldAccess {
     }
 
     public boolean isEditing(TrackNode node) {
-        return this.editedNodes.contains(node);
+        return this.editedNodes.containsKey(node);
     }
 
     public boolean onLeftClick() {
@@ -325,19 +342,19 @@ public class PlayerEditState implements CoasterWorldAccess {
     }
 
     public boolean onRightClick() {
-        this.editTimeoutCtr = (EDIT_AUTO_TIMEOUT + EDIT_CANCEL_TIMEOUT);
+        this.input.click();
         return true;
     }
 
     public boolean isHoldingRightClick() {
-        return editTimeoutCtr > 0 && this.plugin.isHoldingEditTool(this.player);
+        return this.input.hasInput() && this.plugin.isHoldingEditTool(this.player);
     }
 
     public void update() {
         if (this.isHoldingRightClick()) {
-            this.editTimeoutCtr--;
+            this.input.update();
             this.changed = true;
-            if (this.editTimeoutCtr >= EDIT_AUTO_TIMEOUT) {
+            if (this.input.heldDuration() >= EDIT_AUTO_TIMEOUT) {
                 if (this.heldDownTicks == 0 || this.editMode.autoActivate(this.heldDownTicks)) {
                     this.updateEditing();
                 }
@@ -348,7 +365,6 @@ public class PlayerEditState implements CoasterWorldAccess {
                 this.onEditingFinished();
                 this.heldDownTicks = 0;
             }
-            this.editTimeoutCtr = 0;
             if (this.afterEditMode != null) {
                 this.setMode(this.afterEditMode);
             }
@@ -494,8 +510,8 @@ public class PlayerEditState implements CoasterWorldAccess {
         // If drag mode, switch to POSITION mode and initiate the drag
         if (dragAfterCreate) {
             this.setMode(Mode.POSITION);
-            this.editStartPos = eyeLoc;
-            this.editRotInfo = this.editStartPos.toVector();
+            this.editStartTransform = this.input.get().clone();
+            this.editRotInfo = this.editStartTransform.toVector();
             this.setAfterEditMode(Mode.CREATE);
         }
     }
@@ -529,44 +545,60 @@ public class PlayerEditState implements CoasterWorldAccess {
             return;
         }
 
+        // Get current input
+        Matrix4x4 current = this.input.get();
+
         // First click?
         if (this.heldDownTicks == 0) {
-            this.editStartPos = this.player.getEyeLocation();
-            this.editRotInfo = this.editStartPos.toVector();
+            this.editStartTransform = current.clone();
+            this.editRotInfo = this.editStartTransform.toVector();
 
+            // Store initial positions
+            for (PlayerEditNode editNode : this.editedNodes.values()) {
+                editNode.dragPosition = editNode.node.getPosition().clone();
+            }
+
+            // Is used to properly alter the orientation of a node looked at
             TrackNode lookingAt = this.findLookingAt();
             if (lookingAt != null) {
+                Vector forward = this.editStartTransform.getRotation().forwardVector();
                 double distanceTo = lookingAt.getPosition().distance(this.editRotInfo);
-                this.editRotInfo.add(this.editStartPos.getDirection().multiply(distanceTo));
+                this.editRotInfo.add(forward.multiply(distanceTo));
             }
         }
 
         // Calculate the transformation performed as a result of the player 'looking'
-        Location currPos = this.player.getEyeLocation();
-        Matrix4x4 oldTransform = new Matrix4x4();
-        Matrix4x4 newTransform = new Matrix4x4();
-        oldTransform.translateRotate(this.editStartPos);
-        newTransform.translateRotate(currPos);
-
         Matrix4x4 changes = new Matrix4x4();
-        changes.multiply(newTransform);
-        oldTransform.invert();
-        changes.multiply(oldTransform);
+        changes.multiply(current);
+
+        { // Divide
+            Matrix4x4 m = this.editStartTransform.clone();
+            m.invert();
+            changes.multiply(m);
+        }
 
         if (this.getMode() == Mode.ORIENTATION) {
             changes.transformPoint(this.editRotInfo);
-            for (TrackNode node : this.getEditedNodes()) {
-                node.setOrientation(this.editRotInfo.clone().subtract(node.getPosition()));
+            for (PlayerEditNode editNode : this.editedNodes.values()) {
+                editNode.node.setOrientation(this.editRotInfo.clone().subtract(editNode.node.getPosition()));
             }
         } else {
-            for (TrackNode node : this.getEditedNodes()) {
-                Vector v = node.getPosition().clone();
-                changes.transformPoint(v);
-                node.setPosition(v);
+            for (PlayerEditNode editNode : this.editedNodes.values()) {
+                // Recover null
+                if (editNode.dragPosition == null) {
+                    editNode.dragPosition = editNode.node.getPosition().clone();
+                }
+
+                // Transform position
+                changes.transformPoint(editNode.dragPosition);
+
+                // Apply position to node, while also checking for 'snap to block' logic
+                // TODO: Snap to block logic
+                editNode.node.setPosition(editNode.dragPosition);
             }
         }
 
-        this.editStartPos = currPos;
+        this.editStartTransform = current.clone();
     }
 
     public static enum Mode {
