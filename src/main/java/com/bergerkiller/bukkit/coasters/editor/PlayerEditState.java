@@ -15,6 +15,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
@@ -37,6 +38,7 @@ public class PlayerEditState implements CoasterWorldAccess {
     private final TCCoasters plugin;
     private final Player player;
     private final PlayerEditInput input;
+    private final PlayerEditHistory history;
     private final Map<TrackNode, PlayerEditNode> editedNodes = new HashMap<TrackNode, PlayerEditNode>();
     private CoasterWorldAccess cachedCoasterWorld = null;
     private TrackNode lastEdited = null;
@@ -52,6 +54,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         this.plugin = plugin;
         this.player = player;
         this.input = new PlayerEditInput(player);
+        this.history = new PlayerEditHistory();
     }
 
     public void load() {
@@ -101,6 +104,10 @@ public class PlayerEditState implements CoasterWorldAccess {
 
     public Player getPlayer() {
         return this.player;
+    }
+
+    public PlayerEditHistory getHistory() {
+        return this.history;
     }
 
     public long getLastEditTime(TrackNode node) {
@@ -384,54 +391,14 @@ public class PlayerEditState implements CoasterWorldAccess {
         }
     }
 
-    // when player releases the right-click mouse button
-    private void onEditingFinished() {
-        // When drag-dropping a node onto a node, 'merge' the two
-        // Do so by connecting all other neighbours of the dragged node to the node
-        if (this.getMode() == Mode.POSITION && this.getEditedNodes().size() == 1) {
-            TrackWorld tracks = this.getTracks();
-            TrackNode draggedNode = this.getEditedNodes().iterator().next();
-            TrackNode droppedNode = null;
-
-            // Get all nodes nearby the position, sorted from close to far
-            final Vector pos = draggedNode.getPosition();
-            List<TrackNode> nearby = tracks.findNodesNear(new ArrayList<TrackNode>(), pos, 0.3);
-            Collections.sort(nearby, new Comparator<TrackNode>() {
-                @Override
-                public int compare(TrackNode o1, TrackNode o2) {
-                    return Double.compare(o1.getPosition().distanceSquared(pos),
-                                          o2.getPosition().distanceSquared(pos));
-                }
-            });
-
-            // Pick first (closest) node that is not the node dragged
-            for (TrackNode nearNode : nearby) {
-                if (nearNode != draggedNode) {
-                    droppedNode = nearNode;
-                    break;
-                }
-            }
-
-            // Merge if found
-            if (droppedNode != null) {
-                List<TrackNode> connectedNodes = draggedNode.getNeighbours();
-
-                // Delete dragged node and connect all that was connected to it, with the one dropped on
-                draggedNode.remove();
-                for (TrackNode connected : connectedNodes) {
-                    if (connected != droppedNode) {
-                        tracks.connect(droppedNode, connected);
-                    }
-                }
-            }
-        }
-    }
-
     /**
      * Deletes all selected tracks and selects the track that is connected
      * to the now-deleted tracks. This allows repeated deletion to 'walk' and delete.
      */
     public void deleteTrack() {
+        // Track all changes
+        HistoryChange changes = this.getHistory().addChangeGroup();
+
         // Defensive copy
         HashSet<TrackNode> toDelete = new HashSet<TrackNode>(this.getEditedNodes());
 
@@ -441,6 +408,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             for (TrackNode neigh : node.getNeighbours()) {
                 if (toDelete.contains(neigh)) {
                     node.getTracks().disconnect(node, neigh);
+                    changes.addChangeDisconnect(node, neigh);
                     disconnectedNodes = true;
                 }
             }
@@ -450,6 +418,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             for (TrackNode node : toDelete) {
                 if (node.getConnections().isEmpty()) {
                     this.setEditing(node, false);
+                    changes.addChangeDeleteNode(node);
                     node.remove();
                 }
             }
@@ -468,6 +437,7 @@ public class PlayerEditState implements CoasterWorldAccess {
 
         // Delete all nodes to be deleted
         for (TrackNode node : toDelete) {
+            changes.addChangeDeleteNode(node);
             node.remove();
         }
     }
@@ -491,6 +461,11 @@ public class PlayerEditState implements CoasterWorldAccess {
                 this.clearEditedNodes();
                 this.setEditing(lookingAt, true);
                 pos = lookingAt.getPosition().clone();
+
+                // Node: introduce a tiny offset to pos, otherwise
+                // the node can not be properly looked up again during undo/redo
+                pos.setY(pos.getY() + 1e-5);
+
                 dragAfterCreate = true;
             }
         }
@@ -522,20 +497,31 @@ public class PlayerEditState implements CoasterWorldAccess {
     }
 
     private void createNewNode(Vector pos) {
-        // Create the node and set as editing
         TrackWorld tracks = getTracks();
-        TrackNode newNode = null;
-        if (hasEditedNodes()) {
-            for (TrackNode node : getEditedNodes()) {
-                if (newNode == null) {
-                    newNode = tracks.addNode(node, pos);
-                } else {
-                    tracks.connect(node, newNode);
-                }
-            }
-        } else {
-            newNode = tracks.createNew(pos).getNodes().get(0);
+
+        // Not editing any new nodes, create a completely new coaster and node
+        if (!this.hasEditedNodes()) {
+            TrackNode newNode = tracks.createNew(pos).getNodes().get(0);
+            this.getHistory().addChangeCreateNode(newNode);
+            setEditing(newNode, true);
+            return;
         }
+
+        // Add a new node connecting to existing selected nodes
+        HistoryChange changes = this.getHistory().addChangeGroup();
+        TrackNode newNode = null;
+        for (TrackNode node : getEditedNodes()) {
+            if (newNode == null) {
+                newNode = tracks.addNode(node, pos);
+                changes.addChangeCreateNode(newNode);
+                changes.addChangeConnect(newNode, node);
+            } else {
+                tracks.connect(node, newNode);
+                changes.addChangeConnect(newNode, node);
+            }
+        }
+
+        // Clear old selection and set new node as editing
         clearEditedNodes();
         setEditing(newNode, true);
     }
@@ -565,6 +551,11 @@ public class PlayerEditState implements CoasterWorldAccess {
                 double distanceTo = lookingAt.getPosition().distance(this.editRotInfo);
                 this.editRotInfo.add(forward.multiply(distanceTo));
             }
+        }
+
+        // Ensure moveBegin() is called once
+        for (PlayerEditNode editNode : this.editedNodes.values()) {
+            editNode.moveBegin();
         }
 
         // Calculate the transformation performed as a result of the player 'looking'
@@ -601,11 +592,76 @@ public class PlayerEditState implements CoasterWorldAccess {
         this.editStartTransform = current.clone();
     }
 
+    // when player releases the right-click mouse button
+    private void onEditingFinished() {
+        // When drag-dropping a node onto a node, 'merge' the two
+        // Do so by connecting all other neighbours of the dragged node to the node
+        if (this.getMode() == Mode.POSITION && this.getEditedNodes().size() == 1) {
+            TrackWorld tracks = this.getTracks();
+            PlayerEditNode draggedNode = this.editedNodes.values().iterator().next();
+            TrackNode droppedNode = null;
+
+            // Get all nodes nearby the position, sorted from close to far
+            final Vector pos = draggedNode.node.getPosition();
+            List<TrackNode> nearby = tracks.findNodesNear(new ArrayList<TrackNode>(), pos, 0.3);
+            Collections.sort(nearby, new Comparator<TrackNode>() {
+                @Override
+                public int compare(TrackNode o1, TrackNode o2) {
+                    return Double.compare(o1.getPosition().distanceSquared(pos),
+                                          o2.getPosition().distanceSquared(pos));
+                }
+            });
+
+            // Pick first (closest) node that is not the node dragged
+            for (TrackNode nearNode : nearby) {
+                if (nearNode != draggedNode.node) {
+                    droppedNode = nearNode;
+                    break;
+                }
+            }
+
+            // Merge if found
+            if (droppedNode != null) {
+                List<TrackNode> connectedNodes = draggedNode.node.getNeighbours();
+
+                // Track all the changes we are doing down below.
+                HistoryChange changes = this.getHistory().addChangePostMoveNode(
+                        draggedNode.node, draggedNode.startPosition, draggedNode.startUp);
+
+                // Delete dragged node
+                changes.addChangeDeleteNode(draggedNode.node);
+                draggedNode.node.remove();
+
+                // Connect all that was connected to it, with the one dropped on
+                for (TrackNode connected : connectedNodes) {
+                    if (connected != droppedNode) {
+                        changes.addChangeConnect(droppedNode, connected);
+                        tracks.connect(droppedNode, connected);
+                    }
+                }
+
+                // Do not do the standard position/orientation change saving down below
+                draggedNode.moveEnd();
+                return;
+            }
+        }
+
+        // For position/orientation, store the changes
+        if (this.isMode(Mode.POSITION, Mode.ORIENTATION)) {
+            HistoryChange changes = this.getHistory().addChangeGroup();
+            for (PlayerEditNode editNode : this.editedNodes.values()) {
+                changes.addChangePostMoveNode(editNode.node, editNode.startPosition, editNode.startUp);
+                editNode.moveEnd();
+            }
+        }
+    }
+
     public static enum Mode {
         DISABLED("Disabled (hidden)", 0, 1),
         CREATE("Create Track", 10, 3),
         POSITION("Change Position", 0, 1),
         ORIENTATION("Change Orientation", 0, 1),
+        RAILS("Change Rails Block", 0, 1),
         DELETE("Delete Track", 10, 6);
 
         private final int _autoInterval;

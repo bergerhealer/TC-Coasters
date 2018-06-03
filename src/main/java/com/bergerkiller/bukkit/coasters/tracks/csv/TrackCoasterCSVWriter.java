@@ -99,6 +99,7 @@ public class TrackCoasterCSVWriter {
             }
             entry.setPosition(startNode.getPosition());
             entry.setOrientation(startNode.getOrientation());
+            entry.setRailBlock(startNode.getRailBlock(false));
             entry.writeTo(this.writer);
 
             // Write a LINK entry for all connections to nodes that are not this coaster,
@@ -132,6 +133,7 @@ public class TrackCoasterCSVWriter {
         entry.setType(TrackCoasterCSVEntry.Type.LINK);
         entry.setPosition(node.getPosition());
         entry.setOrientation(node.getOrientation());
+        entry.setRailBlock(null);
         entry.writeTo(this.writer);
     }
 

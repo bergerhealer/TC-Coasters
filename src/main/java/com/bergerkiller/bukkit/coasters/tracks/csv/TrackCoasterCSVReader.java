@@ -38,6 +38,7 @@ public class TrackCoasterCSVReader {
                 // Adding new nodes, where NODE connects to the previous node loaded
                 Vector orientation = entry.getOrientation();
                 TrackNode node = this.coaster.createNewNode(position, orientation);
+                node.setRailBlock(entry.getRailBlock());
                 if (prevNode != null && type == TrackCoasterCSVEntry.Type.NODE) {
                     this.coaster.getTracks().connect(prevNode, node);
                 }

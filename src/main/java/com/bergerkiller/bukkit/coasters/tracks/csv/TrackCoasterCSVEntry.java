@@ -5,6 +5,7 @@ import java.util.Arrays;
 
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 
@@ -13,7 +14,7 @@ import com.opencsv.CSVWriter;
  * Acts as a buffer when reading/writing coaster CSV files.
  */
 public class TrackCoasterCSVEntry {
-    private final String[] columns = new String[7];
+    private final String[] columns = new String[10];
 
     public TrackCoasterCSVEntry() {
         Arrays.fill(this.columns, "");
@@ -86,6 +87,31 @@ public class TrackCoasterCSVEntry {
         this.columns[4] = Double.toString(up.getX());
         this.columns[5] = Double.toString(up.getY());
         this.columns[6] = Double.toString(up.getZ());
+    }
+
+    public IntVector3 getRailBlock() {
+        if (this.columns[7].isEmpty()) {
+            return null;
+        }
+        try {
+            return new IntVector3(Integer.parseInt(this.columns[7]),
+                                  Integer.parseInt(this.columns[8]),
+                                  Integer.parseInt(this.columns[9]));
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    public void setRailBlock(IntVector3 railsBlock) {
+        if (railsBlock == null) {
+            this.columns[7] = "";
+            this.columns[8] = "";
+            this.columns[9] = "";
+        } else {
+            this.columns[7] = Integer.toString(railsBlock.x);
+            this.columns[8] = Integer.toString(railsBlock.y);
+            this.columns[9] = Integer.toString(railsBlock.z);
+        }
     }
 
     @Override

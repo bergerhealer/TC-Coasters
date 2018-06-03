@@ -109,9 +109,25 @@ public class TrackWorld extends CoasterWorldAccess.Component {
      * @return new track coaster
      */
     public TrackCoaster createNew(Vector firstNodePosition) {
-        TrackCoaster coaster = new TrackCoaster(this, this.getPlugin().generateNewCoasterName());
-        coaster.createNewNode(firstNodePosition, new Vector(0.0, 1.0, 0.0));
-        this._coasters.add(coaster);
+        return createNew(this.getPlugin().generateNewCoasterName(), firstNodePosition, new Vector(0.0, 1.0, 0.0));
+    }
+
+    /**
+     * Creates a very new coaster, with only a single track node.
+     * Coaster name can be specified. If the coaster by this name already exists,
+     * a new node is added to the coaster and no new coaster is created.
+     * 
+     * @param coasterName
+     * @param firstNodePosition
+     * @return new track coaster
+     */
+    public TrackCoaster createNew(String coasterName, Vector firstNodePosition, Vector firstNodeUp) {
+        TrackCoaster coaster = this.findCoaster(coasterName);
+        if (coaster == null) {
+            coaster = new TrackCoaster(this, coasterName);
+            this._coasters.add(coaster);
+        }
+        coaster.createNewNode(firstNodePosition, firstNodeUp);
         return coaster;
     }
 

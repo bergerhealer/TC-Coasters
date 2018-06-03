@@ -33,6 +33,7 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 public class TrackNode implements CoasterWorldAccess {
     private TrackCoaster _coaster;
     private Vector _pos, _up, _up_visual, _dir;
+    private IntVector3 _railsBlock;
     //private TrackParticleItem _particle;
     private TrackParticleArrow _upParticleArrow;
     private List<TrackParticleText> _junctionParticles;
@@ -40,6 +41,7 @@ public class TrackNode implements CoasterWorldAccess {
     protected TrackConnection[] _connections;
 
     protected TrackNode(TrackCoaster group, Vector pos, Vector up) {
+        this._railsBlock = null;
         this._coaster = group;
         this._pos = pos;
         this._connections = TrackConnection.EMPTY_ARR;
@@ -468,10 +470,31 @@ public class TrackNode implements CoasterWorldAccess {
         this._junctionParticles = Collections.emptyList();
     }
 
-    public IntVector3 getRailsBlock() {
-        return new IntVector3(getPosition().getX(), getPosition().getY(), getPosition().getZ());
+    /**
+     * Gets the rail block, where signs are triggered.
+     * When createDefault is true, the current node position is turned into a rails block
+     * when no rails block is set. Otherwise, null is returned in that case.
+     * 
+     * @return rails block
+     */
+    public IntVector3 getRailBlock(boolean createDefault) {
+        if (createDefault && this._railsBlock == null) {
+            return new IntVector3(getPosition().getX(), getPosition().getY(), getPosition().getZ());
+        } else {
+            return this._railsBlock;
+        }
     }
-    
+
+    /**
+     * Sets the rail block, where signs are triggered
+     * 
+     * @param railsBlock
+     */
+    public void setRailBlock(IntVector3 railsBlock) {
+        this._railsBlock = railsBlock;
+        this.scheduleRefresh();
+    }
+
     /**
      * Builds a rail path for this track node, covering half of the connections connecting to this node.
      * The first two connections, if available, are used for the path.
@@ -521,7 +544,7 @@ public class TrackNode implements CoasterWorldAccess {
 
         //TODO: We can use less or more iterations here based on how much is really needed
         // This would help performance a lot!
-        IntVector3 railsPos = getRailsBlock();
+        IntVector3 railsPos = getRailBlock(true);
         RailPath.Builder builder = new RailPath.Builder();
         if (connection_a != null) {
             if (connection_a.getNodeA() == this) {

@@ -15,13 +15,11 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
-import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldImpl;
 import com.bergerkiller.bukkit.common.Task;
@@ -190,23 +188,11 @@ public class TCCoasters extends JavaPlugin {
         }
 
         final Player p = (Player) sender;
-        Vector pos = p.getEyeLocation().toVector();
+        PlayerEditState state = this.getEditState(p);
 
         if (args.length > 0 && args[0].equals("create")) {
             sender.sendMessage("Creating a new track node at your position");
-            TrackWorld tracks = this.getCoasterWorld(p.getWorld()).getTracks();
-            if (tracks.getCoasters().isEmpty()) {
-                pos.add(new Vector(0.0, -2.0, 0.0));
-                
-                tracks.createNew(pos.clone().add(new Vector(4.0, 0.0, 0.0)));
-                
-                TrackCoaster coaster = tracks.getCoasters().get(0);
-                tracks.addNode(coaster.getNodes().get(coaster.getNodes().size() - 1), pos);
-                
-            } else {
-                TrackCoaster coaster = tracks.getCoasters().get(0);
-                tracks.addNode(coaster.getNodes().get(coaster.getNodes().size() - 1), pos);
-            }
+            state.createTrack();
         } else if (args.length > 0 && args[0].equals("give")) {
             sender.sendMessage("Gave you a track editor map!");
             p.getInventory().addItem(MapDisplay.createMapItem(TCCoastersDisplay.class));
@@ -226,6 +212,18 @@ public class TCCoasters extends JavaPlugin {
         } else if (args.length > 0 && args[0].equals("build")) {
             sender.sendMessage("Rebuilding tracks");
             buildAll();
+        } else if (args.length > 0 && args[0].equals("undo")) {
+            if (state.getHistory().undo()) {
+                sender.sendMessage("Your last change has been undone");
+            } else {
+                sender.sendMessage("No more changes to undo");
+            }
+        } else if (args.length > 0 && args[0].equals("redo")) {
+            if (state.getHistory().redo()) {
+                sender.sendMessage("Redo of previous undo is successful");
+            } else {
+                sender.sendMessage("No more changes to redo");
+            }
         } else {
             sender.sendMessage("What did you want? Try /tcc give");
         }
