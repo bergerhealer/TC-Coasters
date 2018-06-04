@@ -6,7 +6,7 @@ import org.bukkit.entity.Player;
  * The state of a displayed particle
  */
 public enum TrackParticleState {
-    DEFAULT, SELECTED;
+    HIDDEN, DEFAULT, SELECTED;
 
     /**
      * Source providing track particle state information

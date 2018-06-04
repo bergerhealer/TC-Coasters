@@ -36,7 +36,7 @@ public abstract class TrackParticle {
      * @param viewerPosition of the viewer, null to hide forcibly
      */
     public final void updateFor(Player viewer, Vector viewerPosition) {
-        boolean visible = (viewer.getWorld() == this.world.getWorld()) && viewerPosition != null && isVisible(viewerPosition);
+        boolean visible = (viewer.getWorld() == this.world.getWorld()) && viewerPosition != null && isVisible(viewer, viewerPosition);
         ImmutablePlayerSet new_viewers = this.viewers.addOrRemove(viewer, visible);
         if (this.viewers != new_viewers) {
             this.viewers = new_viewers;
@@ -83,7 +83,7 @@ public abstract class TrackParticle {
     public void onStateUpdated(Player viewer) {
     }
 
-    public final boolean isVisible(Vector viewerPosition) {
+    public boolean isVisible(Player viewer, Vector viewerPosition) {
         double d = getViewDistance();
         return distanceSquared(viewerPosition) <= (d * d);
     }

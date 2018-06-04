@@ -9,6 +9,7 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.collections.ImmutablePlayerSet;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 
@@ -41,6 +42,10 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
 
     public TrackParticleArrow addParticleArrow(Vector position, Quaternion orientation) {
         return addParticle(new TrackParticleArrow(this, position, orientation));
+    }
+
+    public TrackParticleLitBlock addParticleLitBlock(IntVector3 block) {
+        return addParticle(new TrackParticleLitBlock(this, block));
     }
 
     protected <T extends TrackParticle> T addParticle(T particle) {

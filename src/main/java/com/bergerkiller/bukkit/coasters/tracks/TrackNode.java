@@ -15,6 +15,7 @@ import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleArrow;
+import com.bergerkiller.bukkit.coasters.particles.TrackParticleLitBlock;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleText;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
@@ -37,6 +38,7 @@ public class TrackNode implements CoasterWorldAccess {
     //private TrackParticleItem _particle;
     private TrackParticleArrow _upParticleArrow;
     private List<TrackParticleText> _junctionParticles;
+    private TrackParticleLitBlock _blockParticle;
     // Connections are automatically updated when connecting/disconnecting
     protected TrackConnection[] _connections;
 
@@ -76,6 +78,20 @@ public class TrackNode implements CoasterWorldAccess {
         });
 
         this._junctionParticles = Collections.emptyList();
+
+        this._blockParticle = group.getParticles().addParticleLitBlock(this.getRailBlock(true));
+        this._blockParticle.setStateSource(new TrackParticleState.Source() {
+            @Override
+            public TrackParticleState getState(Player viewer) {
+                PlayerEditState editState = getPlugin().getEditState(viewer);
+                if (editState.isMode(PlayerEditState.Mode.RAILS)) {
+                    return editState.isEditing(TrackNode.this) ? 
+                            TrackParticleState.SELECTED : TrackParticleState.DEFAULT;
+                } else {
+                    return TrackParticleState.HIDDEN;
+                }
+            }
+        });
     }
 
     public TrackCoaster getCoaster() {
@@ -330,6 +346,7 @@ public class TrackNode implements CoasterWorldAccess {
 
     public void onStateUpdated(Player viewer) {
         //this._particle.onStateUpdated(viewer);
+        this._blockParticle.onStateUpdated(viewer);
         this._upParticleArrow.onStateUpdated(viewer);
         for (TrackParticle juncParticle : this._junctionParticles) {
             juncParticle.onStateUpdated(viewer);
@@ -464,6 +481,7 @@ public class TrackNode implements CoasterWorldAccess {
 
     public void destroyParticles() {
         this._upParticleArrow.remove();
+        this._blockParticle.remove();
         for (TrackParticle particle : this._junctionParticles) {
             particle.remove();
         }

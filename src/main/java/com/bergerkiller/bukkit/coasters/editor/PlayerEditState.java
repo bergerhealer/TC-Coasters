@@ -385,6 +385,8 @@ public class PlayerEditState implements CoasterWorldAccess {
         } else if (this.editMode == Mode.DELETE) {
             // Delete tracks
             deleteTrack();
+        } else if (this.editMode == Mode.RAILS) {
+            // TODO: Stub
         } else {
             // Position / Orientation logic
             changePositionOrientation();
