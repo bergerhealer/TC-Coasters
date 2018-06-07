@@ -112,33 +112,87 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
 
         // For all segments of the path, store the block positions being covered in the lookup table
         for (RailPath.Segment segment : section.path.getSegments()) {
+            double smallStep = 1e-10;
+            double smallStep_x = smallStep * segment.dt_norm.x;
+            double smallStep_y = smallStep * segment.dt_norm.y;
+            double smallStep_z = smallStep * segment.dt_norm.z;
             double x = section.rails.x + segment.p0.x;
             double y = section.rails.y + segment.p0.y;
             double z = section.rails.z + segment.p0.z;
-            int numSteps = MathUtil.ceil(segment.l / 0.1);
-            if (numSteps <= 0) {
-                continue;
-            }
+            int block_x = MathUtil.floor(x);
+            int block_y = MathUtil.floor(y);
+            int block_z = MathUtil.floor(z);
+            int block_dx, block_dy, block_dz;
+            x -= block_x; y -= block_y; z -= block_z;
 
-            if (numSteps == 1) {
-                addToMap(sectionsByBlock, new IntVector3(x, y, z), section);
-            } else {
-                IntVector3 last_pos = null;
-                for (int i = 0; i < numSteps; i++) {
-                    double m = (double) i / (double) numSteps;
-                    IntVector3 pos = new IntVector3(x + m * segment.dt.x,
-                                                    y + m * segment.dt.y,
-                                                    z + m * segment.dt.z);
-                    if (!pos.equals(last_pos)) {
-                        last_pos = pos;
-                        addToMap(sectionsByBlock, pos, section);
-                    }
+            // Initial
+            addToMap(sectionsByBlock, new IntVector3(block_x, block_y, block_z), section);
+
+            double remaining = segment.l;
+            while (remaining > 0.0) {
+                // Check distance until next block edge
+                double move = Double.MAX_VALUE;
+
+                // Check move distance till x-edge of block
+                if (segment.dt_norm.x > 1e-10) {
+                    move = Math.min(move, (1.0 - x) / segment.dt_norm.x);
+                } else if (segment.dt_norm.x < -1e-10) {
+                    move = Math.min(move, x / -segment.dt_norm.x);
+                }
+
+                // Check move distance till y-edge of block
+                if (segment.dt_norm.y > 1e-10) {
+                    move = Math.min(move, (1.0 - y) / segment.dt_norm.y);
+                } else if (segment.dt_norm.y < -1e-10) {
+                    move = Math.min(move, y / -segment.dt_norm.y);
+                }
+
+                // Check move distance till z-edge of block
+                if (segment.dt_norm.z > 1e-10) {
+                    move = Math.min(move, (1.0 - z) / segment.dt_norm.z);
+                } else if (segment.dt_norm.z < -1e-10) {
+                    move = Math.min(move, z / -segment.dt_norm.z);
+                }
+
+                // Abort when reaching end of segment
+                if (move > remaining) {
+                    break;
+                }
+
+                // Move distance to next block
+                remaining -= move;
+                x += move * segment.dt_norm.x;
+                y += move * segment.dt_norm.y;
+                z += move * segment.dt_norm.z;
+
+                // Re-floor it and move block
+                block_dx = MathUtil.floor(x);
+                block_dy = MathUtil.floor(y);
+                block_dz = MathUtil.floor(z);
+                block_x += block_dx;
+                block_y += block_dy;
+                block_z += block_dz;
+                x -= block_dx;
+                y -= block_dy;
+                z -= block_dz;
+                addToMap(sectionsByBlock, new IntVector3(block_x, block_y, block_z), section);
+
+                // Move a very small amount of extra distance to avoid infinite loops and plug holes
+                x += smallStep_x; y += smallStep_y; z += smallStep_z;
+                remaining -= smallStep;
+                block_dx = MathUtil.floor(x);
+                block_dy = MathUtil.floor(y);
+                block_dz = MathUtil.floor(z);
+                if (block_dx != 0 || block_dy != 0 || block_dz != 0) {
+                    block_x += block_dx;
+                    block_y += block_dy;
+                    block_z += block_dz;
+                    x -= block_dx;
+                    y -= block_dy;
+                    z -= block_dz;
+                    addToMap(sectionsByBlock, new IntVector3(block_x, block_y, block_z), section);
                 }
             }
-            addToMap(sectionsByBlock, new IntVector3(
-                    section.rails.x + segment.p1.x,
-                    section.rails.y + segment.p1.y,
-                    section.rails.z + segment.p1.z), section);
         }
     }
 
