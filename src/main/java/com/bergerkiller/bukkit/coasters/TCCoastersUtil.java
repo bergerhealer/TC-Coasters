@@ -1,12 +1,20 @@
 package com.bergerkiller.bukkit.coasters;
 
+import java.util.ArrayList;
+
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
+import com.bergerkiller.bukkit.tc.controller.components.RailPath;
+import com.bergerkiller.bukkit.tc.controller.components.RailState;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogicHorizontal;
+import com.bergerkiller.bukkit.tc.rails.type.RailType;
 import com.bergerkiller.generated.net.minecraft.server.AxisAlignedBBHandle;
 
 /**
@@ -14,7 +22,7 @@ import com.bergerkiller.generated.net.minecraft.server.AxisAlignedBBHandle;
  */
 public class TCCoastersUtil {
 
-    public static Vector snapToBlock(World world, Vector eyePos, Vector position) {
+    public static void snapToBlock(World world, Vector eyePos, Vector position, Vector orientation) {
         // Direction vector to move into to find a free air block
         double wX = eyePos.getX() - position.getX();
         double wY = eyePos.getY() - position.getY();
@@ -28,6 +36,7 @@ public class TCCoastersUtil {
 
         final double OFFSET_TO_SIDE = RailLogicHorizontal.Y_POS_OFFSET;
         double totalDistance = 0.0;
+        BlockFace curFace = BlockFace.SELF;
         Block curBlock = world.getBlockAt(position.getBlockX(), position.getBlockY(), position.getBlockZ());
         Vector curPos = new Vector(position.getX() - curBlock.getX(),
                                    position.getY() - curBlock.getY(),
@@ -57,33 +66,39 @@ public class TCCoastersUtil {
                 double d = (bounds.getMaxX() - curPos.getX() + OFFSET_TO_SIDE) / wX;
                 if (d > 0.0 && d < minDist) {
                     minDist = d;
+                    curFace = BlockFace.EAST;
                 }
             } else if (wX < -MIN_DELTA) {
                 double d = (bounds.getMinX() - curPos.getX() - OFFSET_TO_SIDE) / wX;
                 if (d > 0.0 && d < minDist) {
                     minDist = d;
+                    curFace = BlockFace.WEST;
                 }
             }
             if (wY > MIN_DELTA) {
                 double d = (bounds.getMaxY() - curPos.getY() + OFFSET_TO_SIDE) / wY;
                 if (d > 0.0 && d < minDist) {
                     minDist = d;
+                    curFace = BlockFace.UP;
                 }
             } else if (wY < -MIN_DELTA) {
                 double d = (bounds.getMinY() - curPos.getY() - OFFSET_TO_SIDE) / wY;
                 if (d > 0.0 && d < minDist) {
                     minDist = d;
+                    curFace = BlockFace.DOWN;
                 }
             }
             if (wZ > MIN_DELTA) {
                 double d = (bounds.getMaxZ() - curPos.getZ() + OFFSET_TO_SIDE) / wZ;
                 if (d > 0.0 && d < minDist) {
                     minDist = d;
+                    curFace = BlockFace.SOUTH;
                 }
             } else if (wZ < -MIN_DELTA) {
                 double d = (bounds.getMinZ() - curPos.getZ() - OFFSET_TO_SIDE) / wZ;
                 if (d > 0.0 && d < minDist) {
                     minDist = d;
+                    curFace = BlockFace.NORTH;
                 }
             }
 
@@ -105,11 +120,71 @@ public class TCCoastersUtil {
             totalDistance += minDist;
         }
         if (foundFreeSpace) {
-            position = curPos;
-            position.setX(position.getX() + curBlock.getX());
-            position.setY(position.getY() + curBlock.getY());
-            position.setZ(position.getZ() + curBlock.getZ());
+            position.setX(curPos.getX() + curBlock.getX());
+            position.setY(curPos.getY() + curBlock.getY());
+            position.setZ(curPos.getZ() + curBlock.getZ());
+            orientation.setX(curFace.getModX());
+            orientation.setY(curFace.getModY());
+            orientation.setZ(curFace.getModZ());
         }
-        return position;
+    }
+
+    public static boolean snapToCoasterRails(TrackNode selfNode, Vector position, Vector orientation) {
+        for (TrackNode nearby : selfNode.getTracks().findNodesNear(new ArrayList<TrackNode>(0), position, 0.25)) {
+            if (nearby == selfNode) {
+                continue;
+            }
+
+            Vector nearbyPos = nearby.getPosition();
+            Vector nearbyOri = nearby.getOrientation();
+            position.setX(nearbyPos.getX());
+            position.setY(nearbyPos.getY());
+            position.setZ(nearbyPos.getZ());
+            orientation.setX(nearbyOri.getX());
+            orientation.setY(nearbyOri.getY());
+            orientation.setZ(nearbyOri.getZ());
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean snapToRails(World world, IntVector3 ignoreNodeBlock, Vector position, Vector orientation) {
+        // Snap to normal/other types of rails
+        Block positionBlock = world.getBlockAt(position.getBlockX(), position.getBlockY(), position.getBlockZ());
+        RailState state = new RailState();
+        state.position().posX = position.getX();
+        state.position().posY = position.getY();
+        state.position().posZ = position.getZ();
+        state.setRailBlock(positionBlock);
+        state.setRailType(RailType.NONE);
+        if (RailType.loadRailInformation(state)) {
+            if (state.railType() instanceof CoasterRailType) {
+                return false;
+            }
+
+            RailPath path = state.loadRailLogic().getPath();
+            RailPath.Position p1 = path.getStartPosition();
+            RailPath.Position p2 = path.getEndPosition();
+            RailPath.Position inPos = RailPath.Position.fromPosDir(position, orientation);
+            p1.makeAbsolute(state.railBlock());
+            p2.makeAbsolute(state.railBlock());
+            double dsq1 = p1.distanceSquared(inPos);
+            double dsq2 = p2.distanceSquared(inPos);
+            if (dsq2 < dsq1) {
+                dsq1 = dsq2;
+                p1 = p2;
+            }
+            final double SNAP_RADIUS = 0.25;
+            if (dsq1 < (SNAP_RADIUS*SNAP_RADIUS)) {
+                position.setX(p1.posX);
+                position.setY(p1.posY);
+                position.setZ(p1.posZ);
+                orientation.setX(p1.upX);
+                orientation.setY(p1.upY);
+                orientation.setZ(p1.upZ);
+                return true;
+            }
+        }
+        return false;
     }
 }

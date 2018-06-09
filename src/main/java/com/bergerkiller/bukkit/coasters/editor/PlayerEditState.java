@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -586,17 +587,29 @@ public class PlayerEditState implements CoasterWorldAccess {
 
                 // Transform position
                 changes.transformPoint(editNode.dragPosition);
-                Vector position = editNode.dragPosition;
+                Vector position = editNode.dragPosition.clone();
+                Vector orientation = editNode.startUp.clone();
 
                 // Snap position against the side of a block
+                // Then, look for other rails blocks and attach to it
                 // When sneaking, disable this functionality
-                if (!this.player.isSneaking()) {
-                    position = TCCoastersUtil.snapToBlock(getWorld(), eyePos, position);
+                // When more than 1 node is selected, only do this for nodes with 1 or less connections
+                // This is to avoid severe performance problems when moving a lot of track at once
+                if (!this.player.isSneaking() && (this.editedNodes.size() == 1 || editNode.node.getConnections().size() <= 1)) {
+                    TCCoastersUtil.snapToBlock(getWorld(), eyePos, position, orientation);
+
+                    if (TCCoastersUtil.snapToCoasterRails(editNode.node, position, orientation)) {
+                        // Play particle effects to indicate we are snapping to the coaster rails
+                        this.player.spawnParticle(Particle.REDSTONE, position.getX(), position.getY(), position.getZ(), 1);
+                    } else if (TCCoastersUtil.snapToRails(getWorld(), editNode.node.getRailBlock(true), position, orientation)) {
+                        // Play particle effects to indicate we are snapping to the rails
+                        this.player.spawnParticle(Particle.REDSTONE, position.getX(), position.getY(), position.getZ(), 1);
+                    }
                 }
 
-                // Apply position to node, while also checking for 'snap to block' logic
-                // TODO: Snap to block logic
+                // Apply to node
                 editNode.node.setPosition(position);
+                editNode.node.setOrientation(orientation);
             }
         }
 
