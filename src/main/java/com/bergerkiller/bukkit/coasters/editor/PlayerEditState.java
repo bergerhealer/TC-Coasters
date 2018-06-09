@@ -15,6 +15,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
@@ -576,6 +577,7 @@ public class PlayerEditState implements CoasterWorldAccess {
                 editNode.node.setOrientation(this.editRotInfo.clone().subtract(editNode.node.getPosition()));
             }
         } else {
+            Vector eyePos = this.player.getEyeLocation().toVector();
             for (PlayerEditNode editNode : this.editedNodes.values()) {
                 // Recover null
                 if (editNode.dragPosition == null) {
@@ -584,10 +586,17 @@ public class PlayerEditState implements CoasterWorldAccess {
 
                 // Transform position
                 changes.transformPoint(editNode.dragPosition);
+                Vector position = editNode.dragPosition;
+
+                // Snap position against the side of a block
+                // When sneaking, disable this functionality
+                if (!this.player.isSneaking()) {
+                    position = TCCoastersUtil.snapToBlock(getWorld(), eyePos, position);
+                }
 
                 // Apply position to node, while also checking for 'snap to block' logic
                 // TODO: Snap to block logic
-                editNode.node.setPosition(editNode.dragPosition);
+                editNode.node.setPosition(position);
             }
         }
 
