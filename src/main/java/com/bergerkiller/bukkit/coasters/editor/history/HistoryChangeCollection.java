@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 
 /**
@@ -24,8 +25,16 @@ public abstract class HistoryChangeCollection {
         return addChange(new HistoryChangeGroup());
     }
 
+    public final HistoryChange addChangeConnect(TrackConnection connection) {
+        return addChangeConnect(connection.getNodeA(), connection.getNodeB());
+    }
+
     public final HistoryChange addChangeConnect(TrackNode nodeA, TrackNode nodeB) {
         return addChange(new HistoryChangeConnect(nodeA, nodeB));
+    }
+
+    public final HistoryChange addChangeDisconnect(TrackConnection connection) {
+        return addChangeDisconnect(connection.getNodeA(), connection.getNodeB());
     }
 
     public final HistoryChange addChangeDisconnect(TrackNode nodeA, TrackNode nodeB) {

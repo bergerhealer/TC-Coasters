@@ -74,6 +74,13 @@ public class TrackConnection {
     }
 
     /**
+     * Removes this connection, disconnecting the two nodes
+     */
+    public void remove() {
+        this.getNodeA().getTracks().disconnect(this.getNodeA(), this.getNodeB());
+    }
+
+    /**
      * Gets the number of points needed to display this track connection in the world.
      * 
      * @return number of points, minimally 2

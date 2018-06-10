@@ -195,6 +195,9 @@ public class PlayerEditState implements CoasterWorldAccess {
     }
 
     public void setEditing(TrackNode node, boolean editing) {
+        if (node == null) {
+            throw new IllegalArgumentException("Node can not be null");
+        }
         boolean changed;
         if (editing) {
             if (this.editedNodes.containsKey(node)) {
@@ -511,8 +514,42 @@ public class PlayerEditState implements CoasterWorldAccess {
             return;
         }
 
-        // Add a new node connecting to existing selected nodes
+        // Track all changes
         HistoryChange changes = this.getHistory().addChangeGroup();
+
+        // First, find all track connections that have been selected thanks
+        // to both nodes being selected for editing right now.
+        HashSet<TrackConnection> selectedConnections = new HashSet<TrackConnection>();
+        for (TrackNode node : getEditedNodes()) {
+            for (TrackConnection conn : node.getConnections()) {
+                if (this.getEditedNodes().contains(conn.getOtherNode(node))) {
+                    selectedConnections.add(conn);
+                }
+            }
+        }
+
+        // Insert a new node in the middle of all selected connections
+        // Select these created nodes
+        List<TrackNode> createdConnNodes = new ArrayList<TrackNode>();
+        for (TrackConnection conn : selectedConnections) {
+            Vector newNodePos = conn.getPosition(0.5);
+            Vector newNodeOri = conn.getOrientation(0.5);
+
+            this.setEditing(conn.getNodeA(), false);
+            this.setEditing(conn.getNodeB(), false);
+
+            changes.addChangeDisconnect(conn);
+            conn.remove();
+
+            TrackNode newNode = conn.getNodeA().getCoaster().createNewNode(newNodePos, newNodeOri);
+            changes.addChangeCreateNode(newNode);
+
+            changes.addChangeConnect(tracks.connect(conn.getNodeA(), newNode));
+            changes.addChangeConnect(tracks.connect(newNode, conn.getNodeB()));
+            createdConnNodes.add(newNode);
+        }
+
+        // Add a new node connecting to existing selected nodes
         TrackNode newNode = null;
         for (TrackNode node : getEditedNodes()) {
             if (newNode == null) {
@@ -527,7 +564,12 @@ public class PlayerEditState implements CoasterWorldAccess {
 
         // Clear old selection and set new node as editing
         clearEditedNodes();
-        setEditing(newNode, true);
+        if (newNode != null) {
+            setEditing(newNode, true);
+        }
+        for (TrackNode node : createdConnNodes) {
+            setEditing(node, true);
+        }
     }
 
     public void changePositionOrientation() {
