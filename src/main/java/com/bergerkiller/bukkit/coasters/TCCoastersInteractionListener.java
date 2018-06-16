@@ -6,8 +6,6 @@ import java.util.Map;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -16,6 +14,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersUtil.TargetedBlockInfo;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -32,13 +31,11 @@ import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
 import com.bergerkiller.bukkit.common.wrappers.ResourceKey;
 import com.bergerkiller.bukkit.common.wrappers.UseAction;
-import com.bergerkiller.generated.net.minecraft.server.MovingObjectPositionHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayInArmAnimationHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayInBlockDigHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayInBlockDigHandle.EnumPlayerDigTypeHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayInBlockPlaceHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayInUseItemHandle;
-import com.bergerkiller.generated.net.minecraft.server.WorldHandle;
 
 /**
  * This packet listener detects when players click on the invisible entities for virtual rails,
@@ -149,13 +146,13 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
             }
 
             boolean needsCheck = false;
-            ClickInfo clickInfo = null;
+            TargetedBlockInfo clickInfo = null;
             HumanHand suggestedHand = HumanHand.LEFT;
             if (event.getType() == PacketType.IN_BLOCK_PLACE) {
                 // Block place is used when we cannot place with either hand - always check
                 // We don't know the specifics so perform some ray tracing
                 needsCheck = true;
-                clickInfo = rayTrace(event.getPlayer());
+                clickInfo = TCCoastersUtil.rayTrace(event.getPlayer());
 
                 suggestedHand = PacketType.IN_BLOCK_PLACE.getHand(event.getPacket(), event.getPlayer());
                 suggestedHand = fixHand(event.getPlayer(), suggestedHand);
@@ -185,7 +182,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
                     if (playerPosDiff.lengthSquared() > (10.0*10.0)) {
                         needsCheck = false;
                     } else {
-                        clickInfo = new ClickInfo();
+                        clickInfo = new TargetedBlockInfo();
                         clickInfo.block = event.getPlayer().getWorld().getBlockAt(pos.x, pos.y, pos.z);
                         clickInfo.face = packet.getDirection();
                         clickInfo.position = new Vector(packet.getDeltaX(), packet.getDeltaY(), packet.getDeltaZ());
@@ -237,9 +234,9 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
             // Find the block interacted with
             // When the player is in edit mode, skip this expensive lookup and always fire an interaction with block air
             // Due to a bug we can only do this for 'right click' (interact) actions
-            ClickInfo clickInfo = null;
+            TargetedBlockInfo clickInfo = null;
             if (!this.plugin.isHoldingEditTool(event.getPlayer()) || !isInteractEvent) {
-                clickInfo = rayTrace(event.getPlayer());
+                clickInfo = TCCoastersUtil.rayTrace(event.getPlayer());
             }
 
             // Fake the interaction with the blocks
@@ -264,7 +261,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
         return meta;
     }
 
-    private void fakeItemPlacement(Player player, ClickInfo clickInfo, HumanHand hand) {
+    private void fakeItemPlacement(Player player, TargetedBlockInfo clickInfo, HumanHand hand) {
         boolean ignoreInteractPacket_old = this.ignoreInteractPacket;
         try {
             if (clickInfo == null) {
@@ -294,7 +291,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
         }
     }
 
-    private void fakeBlockDestroy(Player player, ClickInfo clickInfo, HumanHand hand) {
+    private void fakeBlockDestroy(Player player, TargetedBlockInfo clickInfo, HumanHand hand) {
         if (clickInfo == null) {
             // Player arm animation is used to left-click the air
             PacketPlayInArmAnimationHandle packet = PacketPlayInArmAnimationHandle.T.newHandleNull();
@@ -322,36 +319,6 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
             }
         }
         return hand;
-    }
-
-    private static ClickInfo rayTrace(Player player) {
-        Location loc = player.getEyeLocation();
-        Vector dir = loc.getDirection();
-        Vector start = loc.toVector();
-        Vector end = dir.clone().multiply(5.0).add(start);
-        MovingObjectPositionHandle mop = WorldHandle.fromBukkit(loc.getWorld()).rayTrace(start, end, false);
-        if (mop == null) {
-            return null;
-        }
-
-        ClickInfo info = new ClickInfo();
-        info.position = mop.getPos();
-        info.face = mop.getDirection();
-        Vector blockCoordPos = info.position.clone().add(dir.clone().multiply(1e-5));
-        int x = blockCoordPos.getBlockX();
-        int y = blockCoordPos.getBlockY();
-        int z = blockCoordPos.getBlockZ();
-        info.block = loc.getWorld().getBlockAt(x, y, z);
-        info.position.setX(info.position.getX() - x);
-        info.position.setY(info.position.getY() - y);
-        info.position.setZ(info.position.getZ() - z);
-        return info;
-    }
-
-    public static class ClickInfo {
-        public Block block;
-        public Vector position;
-        public BlockFace face;
     }
 
     private static class Metadata {

@@ -12,11 +12,14 @@ import java.util.Set;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
+import com.bergerkiller.bukkit.coasters.TCCoastersUtil.TargetedBlockInfo;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
@@ -28,7 +31,11 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
+import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
+import com.bergerkiller.bukkit.tc.controller.components.RailPath;
+import com.bergerkiller.bukkit.tc.controller.components.RailState;
+import com.bergerkiller.bukkit.tc.rails.type.RailType;
 
 /**
  * The track editing state of a single player.
@@ -51,6 +58,8 @@ public class PlayerEditState implements CoasterWorldAccess {
     private boolean changed = false;
     private Matrix4x4 editStartTransform = null;
     private Vector editRotInfo = new Vector(); // virtual coordinate of the vector
+    private Block targetedBlock = null;
+    private BlockFace targetedBlockFace = BlockFace.UP;
 
     public PlayerEditState(TCCoasters plugin, Player player) {
         this.plugin = plugin;
@@ -230,7 +239,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             } else {
                 pos = this.getNewNodePos();
             }
-            this.createNewNode(pos);
+            this.createNewNode(pos, null);
             return true;
         }
 
@@ -353,6 +362,11 @@ public class PlayerEditState implements CoasterWorldAccess {
         }
     }
 
+    public void setTargetedBlock(Block clickedBlock, BlockFace clickedFace) {
+        this.targetedBlock = clickedBlock;
+        this.targetedBlockFace = clickedFace;
+    }
+
     public boolean onRightClick() {
         this.input.click();
         return true;
@@ -376,6 +390,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             if (this.heldDownTicks > 0) {
                 this.onEditingFinished();
                 this.heldDownTicks = 0;
+                this.targetedBlock = null;
             }
             if (this.afterEditMode != null) {
                 this.setMode(this.afterEditMode);
@@ -458,10 +473,11 @@ public class PlayerEditState implements CoasterWorldAccess {
         // If so, create a node on this connection or node and switch mode to position adjustment
         // This allows for a kind of click-drag creation design
         // TODO: Find connection
-        Location eyeLoc = getPlayer().getEyeLocation();
         TrackWorld tracks = getTracks();
+        Location eyeLoc = getPlayer().getEyeLocation();
         boolean dragAfterCreate = false;
         Vector pos = null;
+        Vector ori = null;
         if (this.heldDownTicks == 0) {
             TrackNode lookingAt = findLookingAt();
             if (lookingAt != null) {
@@ -477,6 +493,47 @@ public class PlayerEditState implements CoasterWorldAccess {
             }
         }
 
+        // If targeting a block face, create a node on top of this face
+        if (this.targetedBlock != null) {
+            // If the targeted block is a rails block, connect to one end of it
+            RailType clickedRailType = RailType.getType(this.targetedBlock);
+            if (clickedRailType != RailType.NONE) {
+                // Load the path for the rails clicked
+                RailState state = new RailState();
+                state.setRailBlock(this.targetedBlock);
+                state.setRailType(clickedRailType);
+                state.position().setLocation(clickedRailType.getSpawnLocation(this.targetedBlock, this.targetedBlockFace));
+                state.setEnterFace(this.targetedBlockFace);
+                RailPath path = state.loadRailLogic().getPath();
+
+                // Select the best possible path end position
+                RailPath.Position p1 = path.getStartPosition();
+                RailPath.Position p2 = path.getEndPosition();
+                p1.makeAbsolute(this.targetedBlock);
+                p2.makeAbsolute(this.targetedBlock);
+                RailPath.Position closest = (p1.distance(eyeLoc) < p2.distance(eyeLoc)) ? p1 : p2;
+                pos = new Vector(closest.posX, closest.posY, closest.posZ);
+            } else {
+                // Find the spot on the block that was actually clicked
+                TargetedBlockInfo info = TCCoastersUtil.rayTrace(this.player);
+                if (info != null) {
+                    // Find position (and correct clicked face if needed)
+                    ori = FaceUtil.faceToVector(info.face);
+                    pos = new Vector(info.block.getX() + info.position.getX(),
+                                     info.block.getY() + info.position.getY(),
+                                     info.block.getZ() + info.position.getZ());
+                } else {
+                    // Fallback
+                    double f = 0.5 + TCCoastersUtil.OFFSET_TO_SIDE;
+                    ori = FaceUtil.faceToVector(this.targetedBlockFace);
+                    pos = new Vector(this.targetedBlock.getX() + 0.5 + f * this.targetedBlockFace.getModX(),
+                                     this.targetedBlock.getY() + 0.5 + f * this.targetedBlockFace.getModY(),
+                                     this.targetedBlock.getZ() + 0.5 + f * this.targetedBlockFace.getModZ());
+                }
+            }
+        }
+
+        // Create in front of the player by default
         if (pos == null) {
             pos = eyeLoc.toVector().add(eyeLoc.getDirection().multiply(0.5));
         }
@@ -487,7 +544,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         }
 
         // Create the node and set as editing
-        createNewNode(pos);
+        createNewNode(pos, ori);
 
         // If drag mode, switch to POSITION mode and initiate the drag
         if (dragAfterCreate) {
@@ -503,12 +560,15 @@ public class PlayerEditState implements CoasterWorldAccess {
         return eyeLoc.toVector().add(eyeLoc.getDirection().multiply(0.5));
     }
 
-    private void createNewNode(Vector pos) {
+    private void createNewNode(Vector pos, Vector ori) {
         TrackWorld tracks = getTracks();
 
         // Not editing any new nodes, create a completely new coaster and node
         if (!this.hasEditedNodes()) {
             TrackNode newNode = tracks.createNew(pos).getNodes().get(0);
+            if (ori != null) {
+                newNode.setOrientation(ori);
+            }
             this.getHistory().addChangeCreateNode(newNode);
             setEditing(newNode, true);
             return;
@@ -554,6 +614,9 @@ public class PlayerEditState implements CoasterWorldAccess {
         for (TrackNode node : getEditedNodes()) {
             if (newNode == null) {
                 newNode = tracks.addNode(node, pos);
+                if (ori != null) {
+                    newNode.setOrientation(ori);
+                }
                 changes.addChangeCreateNode(newNode);
                 changes.addChangeConnect(newNode, node);
             } else {

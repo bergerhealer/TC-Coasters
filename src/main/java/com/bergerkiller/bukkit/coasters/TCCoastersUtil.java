@@ -2,9 +2,11 @@ package com.bergerkiller.bukkit.coasters;
 
 import java.util.ArrayList;
 
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
@@ -16,11 +18,14 @@ import com.bergerkiller.bukkit.tc.controller.components.RailState;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogicHorizontal;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
 import com.bergerkiller.generated.net.minecraft.server.AxisAlignedBBHandle;
+import com.bergerkiller.generated.net.minecraft.server.MovingObjectPositionHandle;
+import com.bergerkiller.generated.net.minecraft.server.WorldHandle;
 
 /**
  * Random stuff used internally that just needs a place
  */
 public class TCCoastersUtil {
+    public static final double OFFSET_TO_SIDE = RailLogicHorizontal.Y_POS_OFFSET;
 
     public static void snapToBlock(World world, Vector eyePos, Vector position, Vector orientation) {
         // Direction vector to move into to find a free air block
@@ -34,7 +39,6 @@ public class TCCoastersUtil {
             wX *= wN; wY *= wN; wZ *= wN;
         }
 
-        final double OFFSET_TO_SIDE = RailLogicHorizontal.Y_POS_OFFSET;
         double totalDistance = 0.0;
         BlockFace curFace = BlockFace.SELF;
         Block curBlock = world.getBlockAt(position.getBlockX(), position.getBlockY(), position.getBlockZ());
@@ -186,5 +190,42 @@ public class TCCoastersUtil {
             }
         }
         return false;
+    }
+
+    /**
+     * Performs raytracing from the player's field of view, providing information
+     * about the block clicked and where on the block was clicked
+     * 
+     * @param player
+     * @return raytrace results, null if not looking at a block
+     */
+    public static TargetedBlockInfo rayTrace(Player player) {
+        Location loc = player.getEyeLocation();
+        Vector dir = loc.getDirection();
+        Vector start = loc.toVector();
+        Vector end = dir.clone().multiply(5.0).add(start);
+        MovingObjectPositionHandle mop = WorldHandle.fromBukkit(loc.getWorld()).rayTrace(start, end, false);
+        if (mop == null) {
+            return null;
+        }
+
+        TargetedBlockInfo info = new TargetedBlockInfo();
+        info.position = mop.getPos();
+        info.face = mop.getDirection();
+        Vector blockCoordPos = info.position.clone().add(dir.clone().multiply(1e-5));
+        int x = blockCoordPos.getBlockX();
+        int y = blockCoordPos.getBlockY();
+        int z = blockCoordPos.getBlockZ();
+        info.block = loc.getWorld().getBlockAt(x, y, z);
+        info.position.setX(info.position.getX() - x);
+        info.position.setY(info.position.getY() - y);
+        info.position.setZ(info.position.getZ() - z);
+        return info;
+    }
+
+    public static class TargetedBlockInfo {
+        public Block block;
+        public Vector position;
+        public BlockFace face;
     }
 }
