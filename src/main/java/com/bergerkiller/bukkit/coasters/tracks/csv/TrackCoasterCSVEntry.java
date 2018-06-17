@@ -6,6 +6,7 @@ import java.util.Arrays;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 
@@ -41,12 +42,34 @@ public class TrackCoasterCSVEntry {
         String[] result = reader.readNext();
         if (result == null) {
             return false;
-        } else {
-            for (int i = 0; i < this.columns.length; i++) {
-                this.columns[i] = (i >= result.length) ? "" : result[i];
-            }
-            return true;
         }
+
+        // Detect use of tab characters instead of commas
+        // This may occur with foreign formats
+        // TODO: Deal with quotes around the values?
+        if (result.length == 1) {
+            String[] by_tabs = result[0].split("\t");
+            if (by_tabs.length > 1) {
+                result = by_tabs;
+            }
+        }
+
+        // Detect NoLimits CSV format and translate it into nodes
+        // Doesn't matter first entry is not ROOT, no previous entry was
+        // read before so that works perfectly fine.
+        if (result.length >= 13 && ParseUtil.isNumeric(result[0])) {
+            result = new String[] {
+                    "NODE",
+                    result[1], result[2], result[3],
+                    result[10], result[11], result[12]
+            };
+        }
+
+        // Read
+        for (int i = 0; i < this.columns.length; i++) {
+            this.columns[i] = (i >= result.length) ? "" : result[i];
+        }
+        return true;
     }
 
     public Type getType() {
