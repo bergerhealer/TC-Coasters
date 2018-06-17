@@ -23,6 +23,7 @@ import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailJunction;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
@@ -34,7 +35,7 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 public class TrackNode implements CoasterWorldAccess {
     private TrackCoaster _coaster;
     private Vector _pos, _up, _up_visual, _dir;
-    private IntVector3 _railsBlock;
+    private IntVector3 _railBlock;
     //private TrackParticleItem _particle;
     private TrackParticleArrow _upParticleArrow;
     private List<TrackParticleText> _junctionParticles;
@@ -43,7 +44,7 @@ public class TrackNode implements CoasterWorldAccess {
     protected TrackConnection[] _connections;
 
     protected TrackNode(TrackCoaster group, Vector pos, Vector up) {
-        this._railsBlock = null;
+        this._railBlock = null;
         this._coaster = group;
         this._pos = pos;
         this._connections = TrackConnection.EMPTY_ARR;
@@ -111,6 +112,9 @@ public class TrackNode implements CoasterWorldAccess {
             this._pos = position.clone();
             //this._particle.setPosition(this._pos);
             this._upParticleArrow.setPosition(this._pos);
+            if (this._railBlock == null) {
+                this._blockParticle.setBlock(this.getRailBlock(true));
+            }
             this.scheduleRefresh();
             this.markChanged();
         }
@@ -496,10 +500,10 @@ public class TrackNode implements CoasterWorldAccess {
      * @return rails block
      */
     public IntVector3 getRailBlock(boolean createDefault) {
-        if (createDefault && this._railsBlock == null) {
+        if (createDefault && this._railBlock == null) {
             return new IntVector3(getPosition().getX(), getPosition().getY(), getPosition().getZ());
         } else {
-            return this._railsBlock;
+            return this._railBlock;
         }
     }
 
@@ -508,9 +512,13 @@ public class TrackNode implements CoasterWorldAccess {
      * 
      * @param railsBlock
      */
-    public void setRailBlock(IntVector3 railsBlock) {
-        this._railsBlock = railsBlock;
-        this.scheduleRefresh();
+    public void setRailBlock(IntVector3 railBlock) {
+        if (!LogicUtil.bothNullOrEqual(this._railBlock, railBlock)) {
+            this._railBlock = railBlock;
+            this._blockParticle.setBlock(this.getRailBlock(true));
+            this.markChanged();
+            this.scheduleRefresh();
+        }
     }
 
     /**

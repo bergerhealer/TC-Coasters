@@ -13,17 +13,25 @@ import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
 import com.bergerkiller.generated.net.minecraft.server.EntityHandle;
-import com.bergerkiller.generated.net.minecraft.server.EntityItemHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityMetadataHandle;
+import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityTeleportHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityHandle;
 
 public class TrackParticleLitBlock extends TrackParticle {
     private IntVector3 block;
     private int entityId = -1;
+    private boolean positionChanged = false;
 
     public TrackParticleLitBlock(TrackParticleWorld world, IntVector3 block) {
         super(world);
         this.block = block;
+    }
+
+    public void setBlock(IntVector3 block) {
+        if (block != null && !this.block.equals(block)) {
+            this.block = block;
+            this.positionChanged = true;
+        }
     }
 
     @Override
@@ -77,10 +85,27 @@ public class TrackParticleLitBlock extends TrackParticle {
     }
 
     @Override
-    public void updateAppearance() {
-        for (Player viewer : this.getViewers()) {
-            makeHiddenFor(viewer);
+    public void onStateUpdated(Player viewer) {
+        super.onStateUpdated(viewer);
+        makeHiddenFor(viewer);
+        if (this.isVisible(viewer, viewer.getEyeLocation().toVector())) {
             makeVisibleFor(viewer);
+        }
+    }
+
+    @Override
+    public void updateAppearance() {
+        if (this.positionChanged) {
+            this.positionChanged = false;
+            if (this.entityId != -1) {
+                PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+                        this.entityId,
+                        this.block.x + 0.5,
+                        this.block.y + 0.0,
+                        this.block.z + 0.5,
+                        0.0f, 0.0f, false);
+                broadcastPacket(tpPacket);
+            }
         }
     }
 

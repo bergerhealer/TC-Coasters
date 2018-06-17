@@ -29,6 +29,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
@@ -406,7 +407,8 @@ public class PlayerEditState implements CoasterWorldAccess {
             // Delete tracks
             deleteTrack();
         } else if (this.editMode == Mode.RAILS) {
-            // TODO: Stub
+            // Set rails block to the block clicked
+            setRailBlock();
         } else {
             // Position / Orientation logic
             changePositionOrientation();
@@ -461,6 +463,58 @@ public class PlayerEditState implements CoasterWorldAccess {
         for (TrackNode node : toDelete) {
             changes.addChangeDeleteNode(node);
             node.remove();
+        }
+    }
+
+    /**
+     * Resets the rails blocks of all selected nodes, causing them to be
+     * the same as the position of the rails node itself.
+     */
+    public void resetRailsBlocks() {
+        HistoryChange changes = null;
+        for (TrackNode node : this.getEditedNodes()) {
+            if (node.getRailBlock(false) != null) {
+                if (changes == null) {
+                    changes = this.getHistory().addChangeGroup();
+                }
+                changes.addChangeSetRail(node, null);
+                node.setRailBlock(null);
+            }
+        }
+    }
+
+    /**
+     * Sets the rails block to what the player last right-clicked,
+     * or otherwise to where the player is looking.
+     */
+    public void setRailBlock() {
+        // New rails block to use
+        IntVector3 new_rail;
+        if (this.targetedBlock != null) {
+            new_rail = new IntVector3(this.targetedBlock);
+        } else {
+            Location eyeLoc = this.player.getEyeLocation();
+            Vector pos = eyeLoc.toVector().add(eyeLoc.getDirection().multiply(1.5));
+            new_rail = new IntVector3(pos.getBlockX(), pos.getBlockY(), pos.getBlockZ());
+        }
+        setRailBlock(new_rail);
+    }
+
+    /**
+     * Sets the rails block to the rail block coordinates specified
+     */
+    public void setRailBlock(IntVector3 new_rail) {
+        // Apply to all nodes
+        HistoryChange changes = null;
+        for (TrackNode node : this.getEditedNodes()) {
+            IntVector3 old_rail = node.getRailBlock(false);
+            if (!LogicUtil.bothNullOrEqual(old_rail, new_rail)) {
+                if (changes == null) {
+                    changes = this.getHistory().addChangeGroup();
+                }
+                changes.addChangeSetRail(node, new_rail);
+                node.setRailBlock(new_rail);
+            }
         }
     }
 

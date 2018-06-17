@@ -6,6 +6,7 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.common.bases.IntVector3;
 
 /**
  * Base class that makes it easier to create and add new changes
@@ -47,6 +48,10 @@ public abstract class HistoryChangeCollection {
 
     public final HistoryChange addChangeCreateNode(TrackNode node) {
         return addChange(new HistoryChangeCreateNode(node));
+    }
+
+    public final HistoryChange addChangeSetRail(TrackNode node, IntVector3 new_rail) {
+        return addChange(new HistoryChangeSetRail(node, node.getPosition(), node.getRailBlock(false), new_rail));
     }
 
     /**
