@@ -6,15 +6,18 @@ import java.net.URLDecoder;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
 import org.bukkit.World;
+import org.bukkit.block.BlockFace;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
@@ -25,8 +28,13 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorldImpl;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
+import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
+import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.ItemUtil;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
+import com.bergerkiller.bukkit.common.utils.MathUtil;
+import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
@@ -223,6 +231,57 @@ public class TCCoasters extends JavaPlugin {
                 sender.sendMessage("Redo of previous undo is successful");
             } else {
                 sender.sendMessage("No more changes to redo");
+            }
+        } else if (args.length > 0 && LogicUtil.contains(args[0], "orientation", "ori", "rot", "rotation", "rotate")) {
+            if (state.getEditedNodes().isEmpty()) {
+                sender.sendMessage("You don't have any nodes selected!");
+                return true;
+            }
+
+            // Argument is specified; set it
+            if (args.length >= 4) {
+                // X/Y/Z specified
+                double x = ParseUtil.parseDouble(args[1], 0.0);
+                double y = ParseUtil.parseDouble(args[2], 0.0);
+                double z = ParseUtil.parseDouble(args[3], 0.0);
+                state.setOrientation(new Vector(x, y, z));
+            } else if (args.length >= 2) {
+                // FACE or angle specified
+                BlockFace parsedFace = null;
+                String input = args[1].toLowerCase(Locale.ENGLISH);
+                for (BlockFace face : BlockFace.values()) {
+                    if (face.name().toLowerCase(Locale.ENGLISH).equals(input)) {
+                        parsedFace = face;
+                        break;
+                    }
+                }
+                if (parsedFace != null) {
+                    state.setOrientation(FaceUtil.faceToVector(parsedFace));
+                } else if (ParseUtil.isNumeric(input)) {
+                    // Angle offset applies to the 'up' orientation
+                    // Compute average forward direction vector of selected nodes
+                    Vector forward = new Vector();
+                    for (TrackNode node : state.getEditedNodes()) {
+                        forward.add(node.getDirection());
+                    }
+                    double angle = ParseUtil.parseDouble(input, 0.0);
+                    Quaternion q = Quaternion.fromLookDirection(forward, new Vector(0, 1, 0));
+                    q.rotateZ(angle);
+                    state.setOrientation(q.upVector());
+                } else {
+                    sender.sendMessage("Input value " + input + " not understood");
+                }
+            }
+
+            // Display feedback to user
+            Vector ori = state.getEditedNodes().iterator().next().getOrientation();
+            String ori_str = "dx=" + Double.toString(MathUtil.round(ori.getX(), 4)) + " / " +
+                             "dy=" + Double.toString(MathUtil.round(ori.getY(), 4)) + " / " +
+                             "dz=" + Double.toString(MathUtil.round(ori.getZ(), 4));
+            if (args.length >= 2) {
+                sender.sendMessage("Track orientation set to " + ori_str);
+            } else {
+                sender.sendMessage("Current track orientation is " + ori_str);
             }
         } else {
             sender.sendMessage("What did you want? Try /tcc give");

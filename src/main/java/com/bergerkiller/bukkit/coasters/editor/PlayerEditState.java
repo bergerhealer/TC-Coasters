@@ -519,6 +519,26 @@ public class PlayerEditState implements CoasterWorldAccess {
     }
 
     /**
+     * Sets the orientation for all selected nodes
+     * 
+     * @param orientation vector to set to
+     */
+    public void setOrientation(Vector orientation) {
+        // Apply to all nodes
+        HistoryChange changes = null;
+        for (TrackNode node : this.getEditedNodes()) {
+            Vector startPos = node.getPosition();
+            Vector startUp = node.getOrientation();
+            node.setOrientation(orientation);
+
+            if (changes == null) {
+                changes = this.getHistory().addChangeGroup();
+            }
+            changes.addChangePostMoveNode(node, startPos, startUp);
+        }
+    }
+
+    /**
      * Creates a new track node, connecting with already selected track nodes.
      * The created track node is selected to allow chaining create node calls.
      */
