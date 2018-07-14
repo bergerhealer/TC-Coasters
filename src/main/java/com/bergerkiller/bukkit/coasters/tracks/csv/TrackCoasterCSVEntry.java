@@ -28,7 +28,14 @@ public class TrackCoasterCSVEntry {
      * @throws IOException
      */
     public void writeTo(CSVWriter writer) throws IOException {
-        writer.writeNext(this.columns);
+        int len = this.columns.length;
+        while (this.columns[len - 1].isEmpty()) {
+            len--;
+            if (len == 0) {
+                return; // Empty line. Don't write anything.
+            }
+        }
+        writer.writeNext(Arrays.copyOf(this.columns, len));
     }
 
     /**
