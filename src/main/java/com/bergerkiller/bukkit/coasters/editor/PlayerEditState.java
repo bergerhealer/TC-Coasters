@@ -577,7 +577,8 @@ public class PlayerEditState implements CoasterWorldAccess {
                 state.setRailBlock(this.targetedBlock);
                 state.setRailType(clickedRailType);
                 state.position().setLocation(clickedRailType.getSpawnLocation(this.targetedBlock, this.targetedBlockFace));
-                state.setEnterDirection(FaceUtil.faceToVector(this.targetedBlockFace));
+                state.position().setMotion(this.targetedBlockFace);
+                state.initEnterDirection();
                 RailPath path = state.loadRailLogic().getPath();
 
                 // Select the best possible path end position
