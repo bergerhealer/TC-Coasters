@@ -2,13 +2,14 @@ package com.bergerkiller.bukkit.coasters.particles;
 
 import java.util.UUID;
 
-import org.bukkit.Material;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
+import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
@@ -67,8 +68,8 @@ public class TrackParticleLitBlock extends TrackParticle {
         packet.setPosX(this.block.x + 0.5);
         packet.setPosY(this.block.y + 0.0);
         packet.setPosZ(this.block.z + 0.5);
-        packet.setEntityTypeId(70);
-        packet.setExtraData(getMat(viewer).getCombinedId());
+        packet.setEntityType(EntityType.FALLING_BLOCK);
+        packet.setFallingBlockData(getMat(viewer));
         PacketUtil.sendPacket(viewer, packet);
 
         DataWatcher metadata = new DataWatcher();
@@ -116,9 +117,9 @@ public class TrackParticleLitBlock extends TrackParticle {
 
     private final BlockData getMat(Player viewer) {
         if (getState(viewer) == TrackParticleState.SELECTED) {
-            return BlockData.fromMaterial(Material.GOLD_BLOCK);
+            return BlockData.fromMaterial(MaterialUtil.getFirst("GOLD_BLOCK", "LEGACY_GOLD_BLOCK"));
         } else {
-            return BlockData.fromMaterial(Material.GLASS);
+            return BlockData.fromMaterial(MaterialUtil.getFirst("GLASS", "LEGACY_GLASS"));
         }
     }
 }

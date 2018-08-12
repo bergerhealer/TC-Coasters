@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.World;
@@ -29,11 +30,14 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
+import com.bergerkiller.bukkit.common.utils.PlayerUtil;
+import com.bergerkiller.bukkit.tc.Util;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
@@ -780,10 +784,10 @@ public class PlayerEditState implements CoasterWorldAccess {
 
                     if (TCCoastersUtil.snapToCoasterRails(editNode.node, position, orientation)) {
                         // Play particle effects to indicate we are snapping to the coaster rails
-                        this.player.spawnParticle(Particle.REDSTONE, position.getX(), position.getY(), position.getZ(), 1);
+                        PlayerUtil.spawnDustParticles(this.player, position, Color.RED);
                     } else if (TCCoastersUtil.snapToRails(getWorld(), editNode.node.getRailBlock(true), position, orientation)) {
                         // Play particle effects to indicate we are snapping to the rails
-                        this.player.spawnParticle(Particle.REDSTONE, position.getX(), position.getY(), position.getZ(), 1);
+                        PlayerUtil.spawnDustParticles(this.player, position, Color.PURPLE);
                     }
                 }
 

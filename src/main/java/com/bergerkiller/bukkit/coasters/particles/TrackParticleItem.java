@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.particles;
 
 import java.util.UUID;
 
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
@@ -105,8 +106,7 @@ public class TrackParticleItem extends TrackParticle {
         PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.T.newHandleNull();
         spawnPacket.setEntityId(this.entityId);
         spawnPacket.setEntityUUID(this.entityUUID);
-        spawnPacket.setEntityTypeId(2);
-        spawnPacket.setExtraData(1);
+        spawnPacket.setEntityType(EntityType.DROPPED_ITEM);
         spawnPacket.setPosX(this.position.getX() + OFFSET.getX());
         spawnPacket.setPosY(this.position.getY() + OFFSET.getY());
         spawnPacket.setPosZ(this.position.getZ() + OFFSET.getZ());

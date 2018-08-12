@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.particles;
 
 import java.util.UUID;
 
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
@@ -123,7 +124,7 @@ public class TrackParticleLine extends TrackParticle {
         p1.setPosX(this.p1.getX() + OFFSET1.getX());
         p1.setPosY(this.p1.getY() + OFFSET1.getY());
         p1.setPosZ(this.p1.getZ() + OFFSET1.getZ());
-        p1.setEntityTypeId(65); // bat
+        p1.setEntityType(EntityType.BAT);
         p1.setDataWatcher(new DataWatcher());
         p1.getDataWatcher().set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
         p1.getDataWatcher().set(EntityHandle.DATA_SILENT, true);
@@ -137,7 +138,7 @@ public class TrackParticleLine extends TrackParticle {
         p2.setPosX(this.p2.getX() + OFFSET2.getX());
         p2.setPosY(this.p2.getY() + OFFSET2.getY());
         p2.setPosZ(this.p2.getZ() + OFFSET2.getZ());
-        p2.setEntityTypeId(65); // bat
+        p2.setEntityType(EntityType.BAT);
         p2.setDataWatcher(new DataWatcher());
         p2.getDataWatcher().set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
         p2.getDataWatcher().set(EntityHandle.DATA_SILENT, true);

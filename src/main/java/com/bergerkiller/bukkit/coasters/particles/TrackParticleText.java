@@ -5,19 +5,17 @@ import java.util.UUID;
 
 import org.bukkit.ChatColor;
 import org.bukkit.DyeColor;
-import org.bukkit.Material;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.material.Colorable;
-import org.bukkit.material.MaterialData;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
-import com.bergerkiller.bukkit.common.utils.ItemUtil;
+import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
-import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
+import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
 import com.bergerkiller.generated.net.minecraft.server.EntityHandle;
 import com.bergerkiller.generated.net.minecraft.server.EntityItemHandle;
@@ -88,8 +86,7 @@ public class TrackParticleText extends TrackParticle {
         PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.T.newHandleNull();
         spawnPacket.setEntityId(this.entityId);
         spawnPacket.setEntityUUID(this.entityUUID);
-        spawnPacket.setEntityTypeId(2);
-        spawnPacket.setExtraData(1);
+        spawnPacket.setEntityType(EntityType.DROPPED_ITEM);
         spawnPacket.setPosX(this.position.getX() + OFFSET.getX());
         spawnPacket.setPosY(this.position.getY() + OFFSET.getY());
         spawnPacket.setPosZ(this.position.getZ() + OFFSET.getZ());
@@ -181,9 +178,11 @@ public class TrackParticleText extends TrackParticle {
         ItemStack item = _colorItemCache.get(color);
         if (item == null) {
             // Attempts to use concrete if it exists, otherwise falls back to WOOL
-            item = ItemUtil.createItem(
-                    ParseUtil.parseEnum("CONCRETE_POWDER", Material.WOOL),
-                    toDyeColor(color).getWoolData(), 1);
+            // Uses legacy <1.13 logic, because on 1.13 and onwards the color is no longer part of data
+            BlockData block = BlockData.fromMaterialData(
+                    MaterialUtil.getFirst("LEGACY_CONCRETE_POWDER", "LEGACY_WOOL"),
+                    toDyeColor(color).getWoolData());
+            item = block.createItem(1);
 
             // Store
             _colorItemCache.put(color, item);
