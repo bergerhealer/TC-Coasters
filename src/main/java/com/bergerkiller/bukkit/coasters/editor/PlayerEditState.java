@@ -11,7 +11,6 @@ import java.util.Set;
 
 import org.bukkit.Color;
 import org.bukkit.Location;
-import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -30,14 +29,14 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
-import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
+import com.bergerkiller.bukkit.common.map.MapDisplay;
+import com.bergerkiller.bukkit.common.map.MapPlayerInput;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
-import com.bergerkiller.bukkit.tc.Util;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
@@ -235,6 +234,23 @@ public class PlayerEditState implements CoasterWorldAccess {
         return this.editedNodes.containsKey(node);
     }
 
+    /**
+     * Gets whether the player is sneaking (holding shift), indicating special modifiers are active.
+     * Also checks whether the player is holding down the same key while holding the editor map.
+     * 
+     * @return True if sneaking
+     */
+    public boolean isSneaking() {
+        if (this.player.isSneaking()) {
+            return true;
+        }
+        TCCoastersDisplay display = MapDisplay.getHeldDisplay(this.player, TCCoastersDisplay.class);
+        if (display != null && display.getInput(this.player).isPressed(MapPlayerInput.Key.BACK)) {
+            return true;
+        }
+        return false;
+    }
+
     public boolean onLeftClick() {
         // When holding right-click and clicking left-click in position mode, create a new node and drag that
         if (this.getMode() == Mode.POSITION && this.isHoldingRightClick()) {
@@ -288,7 +304,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         }
 
         if (bestNode == null) {
-            if (!player.isSneaking()) {
+            if (!this.isSneaking()) {
                 clearEditedNodes();
             }
             return false;
@@ -303,7 +319,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         long lastEditTime = getLastEditTime(bestNode);
         if (lastEditTime > 300) {
             // Single node selection mode
-            if (!player.isSneaking()) {
+            if (!this.isSneaking()) {
                 clearEditedNodes();
             }
 
@@ -312,7 +328,7 @@ public class PlayerEditState implements CoasterWorldAccess {
 
         } else if (isEditing(bestNode)) {
             // Mass-selection mode
-            if (player.isSneaking()) {
+            if (this.isSneaking()) {
                 // Select all nodes between the clicked node and the nearest other selected node
                 this.floodSelectNearest(bestNode);
             } else {
@@ -779,7 +795,7 @@ public class PlayerEditState implements CoasterWorldAccess {
                 // When sneaking, disable this functionality
                 // When more than 1 node is selected, only do this for nodes with 1 or less connections
                 // This is to avoid severe performance problems when moving a lot of track at once
-                if (!this.player.isSneaking() && (this.editedNodes.size() == 1 || editNode.node.getConnections().size() <= 1)) {
+                if (!this.isSneaking() && (this.editedNodes.size() == 1 || editNode.node.getConnections().size() <= 1)) {
                     TCCoastersUtil.snapToBlock(getWorld(), eyePos, position, orientation);
 
                     if (TCCoastersUtil.snapToCoasterRails(editNode.node, position, orientation)) {
