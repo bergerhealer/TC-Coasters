@@ -8,6 +8,7 @@ import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
+import com.bergerkiller.bukkit.tc.Util;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 
 /**
@@ -40,7 +41,7 @@ public class TrackRailsSection {
     }
 
     public BlockFace getMovementDirection() {
-        return BlockFace.NORTH;
+        return Util.vecToFace(this.node.getDirection(), false);
     }
 
     public String getSectionStr() {
