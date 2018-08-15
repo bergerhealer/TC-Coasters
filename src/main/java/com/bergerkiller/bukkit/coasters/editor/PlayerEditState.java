@@ -273,7 +273,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             } else {
                 pos = this.getNewNodePos();
             }
-            this.createNewNode(pos, null);
+            this.createNewNode(pos, null, false);
             return true;
         }
 
@@ -666,8 +666,10 @@ public class PlayerEditState implements CoasterWorldAccess {
         }
 
         // Create in front of the player by default
+        boolean inAir = false;
         if (pos == null) {
             pos = eyeLoc.toVector().add(eyeLoc.getDirection().multiply(0.5));
+            inAir = true;
         }
 
         // First check no track already exists at this position
@@ -676,7 +678,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         }
 
         // Create the node and set as editing
-        createNewNode(pos, ori);
+        createNewNode(pos, ori, inAir);
 
         // If drag mode, switch to POSITION mode and initiate the drag
         if (dragAfterCreate) {
@@ -692,7 +694,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         return eyeLoc.toVector().add(eyeLoc.getDirection().multiply(0.5));
     }
 
-    private void createNewNode(Vector pos, Vector ori) {
+    private void createNewNode(Vector pos, Vector ori, boolean inAir) {
         TrackWorld tracks = getTracks();
 
         // Not editing any new nodes, create a completely new coaster and node
@@ -741,27 +743,46 @@ public class PlayerEditState implements CoasterWorldAccess {
             createdConnNodes.add(newNode);
         }
 
-        // Add a new node connecting to existing selected nodes
-        TrackNode newNode = null;
-        for (TrackNode node : getEditedNodes()) {
-            if (newNode == null) {
-                newNode = tracks.addNode(node, pos);
-                if (ori != null) {
-                    newNode.setOrientation(ori);
+        // When clicking on a block or when only having one node selected, create a new node
+        // When more than one node is selected and the air is clicked, simply connect the selected nodes together
+        if (this.editedNodes.size() >= 2 && inAir) {
+            // Connect all remaining edited nodes together in the most logical fashion
+            // From previous logic we already know these nodes do not share connections among them
+            // This means a single 'line' must be created that connects all nodes together
+            // While we can figure this out using a clever algorithm, the nodes are already sorted in the
+            // order the player clicked them. Let's give the player some control back, and connect them in the
+            // same order.
+            TrackNode prevNode = null;
+            for (TrackNode node : getEditedNodes()) {
+                if (prevNode != null) {
+                    tracks.connect(prevNode, node);
+                    changes.addChangeConnect(prevNode, node);
                 }
-                changes.addChangeCreateNode(newNode);
-                changes.addChangeConnect(newNode, node);
-            } else {
-                tracks.connect(node, newNode);
-                changes.addChangeConnect(newNode, node);
+                prevNode = node;
+            }
+        } else {
+            // Add a new node connecting to existing selected nodes
+            TrackNode newNode = null;
+            for (TrackNode node : getEditedNodes()) {
+                if (newNode == null) {
+                    newNode = tracks.addNode(node, pos);
+                    if (ori != null) {
+                        newNode.setOrientation(ori);
+                    }
+                    changes.addChangeCreateNode(newNode);
+                    changes.addChangeConnect(newNode, node);
+                } else {
+                    tracks.connect(node, newNode);
+                    changes.addChangeConnect(newNode, node);
+                }
+            }
+            clearEditedNodes();
+            if (newNode != null) {
+                setEditing(newNode, true);
             }
         }
 
-        // Clear old selection and set new node as editing
-        clearEditedNodes();
-        if (newNode != null) {
-            setEditing(newNode, true);
-        }
+        // Set all new nodes we created as editing, too.
         for (TrackNode node : createdConnNodes) {
             setEditing(node, true);
         }
