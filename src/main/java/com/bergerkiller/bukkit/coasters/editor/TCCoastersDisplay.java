@@ -165,7 +165,8 @@ public class TCCoastersDisplay extends MapDisplay {
 
                 @Override
                 public void onTick() {
-                    for (TrackNode node : getState().getEditedNodes()) {
+                    TrackNode node = getState().getLastEditedNode();
+                    if (node != null) {
                         IntVector3 rails = node.getRailBlock(true);
                         int val;
                         if (this == coord_boxes[0]) {
@@ -180,7 +181,6 @@ public class TCCoastersDisplay extends MapDisplay {
                             this.setValue(val);
                             finished_loading.set(true);
                         }
-                        break;
                     }
                 }
             });

@@ -3,8 +3,8 @@ package com.bergerkiller.bukkit.coasters.editor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,7 +52,7 @@ public class PlayerEditState implements CoasterWorldAccess {
     private final Player player;
     private final PlayerEditInput input;
     private final PlayerEditHistory history;
-    private final Map<TrackNode, PlayerEditNode> editedNodes = new HashMap<TrackNode, PlayerEditNode>();
+    private final Map<TrackNode, PlayerEditNode> editedNodes = new LinkedHashMap<TrackNode, PlayerEditNode>();
     private CoasterWorldAccess cachedCoasterWorld = null;
     private TrackNode lastEdited = null;
     private long lastEditTime = System.currentTimeMillis();
@@ -181,6 +181,19 @@ public class PlayerEditState implements CoasterWorldAccess {
 
     public Set<TrackNode> getEditedNodes() {
         return this.editedNodes.keySet();
+    }
+
+    /**
+     * Gets the last node that was clicked by the player to be edited
+     * 
+     * @return last edited node, null if no nodes are being edited.
+     */
+    public TrackNode getLastEditedNode() {
+        TrackNode last = null;
+        for (TrackNode node : this.editedNodes.keySet()) {
+            last = node;
+        }
+        return last;
     }
 
     public boolean hasEditedNodes() {
@@ -491,16 +504,7 @@ public class PlayerEditState implements CoasterWorldAccess {
      * the same as the position of the rails node itself.
      */
     public void resetRailsBlocks() {
-        HistoryChange changes = null;
-        for (TrackNode node : this.getEditedNodes()) {
-            if (node.getRailBlock(false) != null) {
-                if (changes == null) {
-                    changes = this.getHistory().addChangeGroup();
-                }
-                changes.addChangeSetRail(node, null);
-                node.setRailBlock(null);
-            }
-        }
+        setRailBlock(null);
     }
 
     /**
@@ -522,19 +526,52 @@ public class PlayerEditState implements CoasterWorldAccess {
 
     /**
      * Sets the rails block to the rail block coordinates specified
+     * 
+     * @param new_rail to set to, null to reset
      */
     public void setRailBlock(IntVector3 new_rail) {
-        // Apply to all nodes
-        HistoryChange changes = null;
-        for (TrackNode node : this.getEditedNodes()) {
-            IntVector3 old_rail = node.getRailBlock(false);
-            if (!LogicUtil.bothNullOrEqual(old_rail, new_rail)) {
-                if (changes == null) {
-                    changes = this.getHistory().addChangeGroup();
+        // Reset
+        if (new_rail == null) {
+            HistoryChange changes = null;
+            for (TrackNode node : this.getEditedNodes()) {
+                if (node.getRailBlock(false) != null) {
+                    if (changes == null) {
+                        changes = this.getHistory().addChangeGroup();
+                    }
+                    changes.addChangeSetRail(node, null);
+                    node.setRailBlock(null);
                 }
-                changes.addChangeSetRail(node, new_rail);
-                node.setRailBlock(new_rail);
             }
+            return;
+        }
+
+        TrackNode lastEdited = this.getLastEditedNode();
+        if (lastEdited == null) {
+            return;
+        }
+
+        // Simplified when its just one node
+        if (this.editedNodes.size() == 1) {
+            IntVector3 old_rail = lastEdited.getRailBlock(false);
+            if (!LogicUtil.bothNullOrEqual(old_rail, new_rail)) {
+                this.getHistory().addChangeSetRail(lastEdited, new_rail);
+                lastEdited.setRailBlock(new_rail);
+            }
+            return;
+        }
+
+        // Use last selected node as a basis for the movement
+        IntVector3 diff = new_rail.subtract(lastEdited.getRailBlock(true));
+        if (diff.equals(IntVector3.ZERO)) {
+            return; // No changes
+        }
+
+        // Offset all edited nodes by diff
+        HistoryChange changes = this.getHistory().addChangeGroup();
+        for (TrackNode node : this.getEditedNodes()) {
+            IntVector3 node_new_rail = node.getRailBlock(true).add(diff);
+            changes.addChangeSetRail(node, node_new_rail);
+            node.setRailBlock(node_new_rail);
         }
     }
 
