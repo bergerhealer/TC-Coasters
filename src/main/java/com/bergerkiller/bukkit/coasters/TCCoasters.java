@@ -80,6 +80,12 @@ public class TCCoasters extends JavaPlugin {
         return CommonUtil.unsafeCast(this.worlds.values());
     }
 
+    public void removeNodeFromEditStates(TrackNode node) {
+        for (PlayerEditState state : editStates.values()) {
+            state.setEditing(node, false);
+        }
+    }
+
     public PlayerEditState getEditState(Player player) {
         PlayerEditState state = editStates.get(player);
         if (state == null) {

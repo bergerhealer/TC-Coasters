@@ -81,6 +81,7 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
             node.destroyParticles();
             this.getTracks().cancelNodeRefresh(node);
             this.getRails().purge(node);
+            this.getPlugin().removeNodeFromEditStates(node);
             this.markChanged();
         }
     }

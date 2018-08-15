@@ -69,6 +69,21 @@ public class TrackWorld extends CoasterWorldAccess.Component {
     }
 
     /**
+     * Checks whether a particular node actually exists on this World.
+     * 
+     * @param node to check
+     * @return True if it exists on this World
+     */
+    public boolean containsNode(TrackNode node) {
+        for (TrackCoaster coaster : this._coasters) {
+            if (coaster.getNodes().contains(node)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Finds the track node that exists precisely at a particular 3d position
      * 
      * @param position
@@ -159,6 +174,13 @@ public class TrackWorld extends CoasterWorldAccess.Component {
         // Let's not do this
         if (nodeA == nodeB) {
             throw new IllegalArgumentException("Input nodeA and nodeB are the same nodes!");
+        }
+        // Verify both nodes actually exist
+        if (!this.containsNode(nodeA)) {
+            throw new IllegalArgumentException("Input nodeA was deleted and does not exist");
+        }
+        if (!this.containsNode(nodeB)) {
+            throw new IllegalArgumentException("Input nodeB was deleted and does not exist");
         }
         // Verify no such connection exists yet
         for (TrackConnection connection : nodeA._connections) {
