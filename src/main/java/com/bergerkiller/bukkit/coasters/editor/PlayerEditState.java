@@ -940,11 +940,11 @@ public class PlayerEditState implements CoasterWorldAccess {
 
     public static enum Mode {
         DISABLED("Disabled (hidden)", 0, 1),
-        CREATE("Create Track", 10, 3),
+        CREATE("Create Track", 20, 4),
         POSITION("Change Position", 0, 1),
         ORIENTATION("Change Orientation", 0, 1),
         RAILS("Change Rails Block", 0, 1),
-        DELETE("Delete Track", 10, 6);
+        DELETE("Delete Track", 10, 3);
 
         private final int _autoInterval;
         private final int _autoDelay;
