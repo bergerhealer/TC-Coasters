@@ -16,6 +16,7 @@ import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
+import com.bergerkiller.bukkit.common.wrappers.ChatText;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
 import com.bergerkiller.generated.net.minecraft.server.EntityHandle;
 import com.bergerkiller.generated.net.minecraft.server.EntityItemHandle;
@@ -101,7 +102,7 @@ public class TrackParticleText extends TrackParticle {
         metadata.set(EntityItemHandle.DATA_ITEM, getItem(this.textColor));
         metadata.set(EntityHandle.DATA_NO_GRAVITY, true);
         metadata.set(EntityHandle.DATA_CUSTOM_NAME_VISIBLE, true);
-        metadata.set(EntityHandle.DATA_CUSTOM_NAME, this.text);
+        metadata.set(EntityHandle.DATA_CUSTOM_NAME, ChatText.fromMessage(this.text));
         PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
         PacketUtil.sendPacket(viewer, metaPacket);
     }
@@ -131,7 +132,7 @@ public class TrackParticleText extends TrackParticle {
             this.textChanged = false;
             if (this.entityId != -1) {
                 DataWatcher metadata = new DataWatcher();
-                metadata.set(EntityItemHandle.DATA_CUSTOM_NAME, this.text);
+                metadata.set(EntityItemHandle.DATA_CUSTOM_NAME, ChatText.fromMessage(this.text));
                 if (this.textColorChanged) {
                     this.textColorChanged = false;
                     metadata.set(EntityItemHandle.DATA_ITEM, getItem(this.textColor));
