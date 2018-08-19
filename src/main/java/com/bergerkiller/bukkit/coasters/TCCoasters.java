@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.Command;
@@ -26,6 +27,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldImpl;
 import com.bergerkiller.bukkit.common.Task;
+import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.math.Quaternion;
@@ -275,22 +277,67 @@ public class TCCoasters extends JavaPlugin {
                     q.rotateZ(angle);
                     state.setOrientation(q.upVector());
                 } else {
-                    sender.sendMessage("Input value " + input + " not understood");
+                    sender.sendMessage(ChatColor.RED + "Input value " + input + " not understood");
                 }
             }
 
             // Display feedback to user
-            Vector ori = state.getEditedNodes().iterator().next().getOrientation();
+            Vector ori = state.getLastEditedNode().getOrientation();
             String ori_str = "dx=" + Double.toString(MathUtil.round(ori.getX(), 4)) + " / " +
                              "dy=" + Double.toString(MathUtil.round(ori.getY(), 4)) + " / " +
                              "dz=" + Double.toString(MathUtil.round(ori.getZ(), 4));
             if (args.length >= 2) {
-                sender.sendMessage("Track orientation set to " + ori_str);
+                sender.sendMessage(ChatColor.GREEN + "Track orientation set to " + ori_str);
             } else {
-                sender.sendMessage("Current track orientation is " + ori_str);
+                sender.sendMessage(ChatColor.GREEN + "Current track orientation is " + ori_str);
+            }
+        } else if (args.length > 0 && LogicUtil.contains(args[0], "rail", "rails", "railblock", "railsblock")) {
+            if (state.getEditedNodes().isEmpty()) {
+                sender.sendMessage("You don't have any nodes selected!");
+                return true;
+            }
+
+            // Argument is specified; set it
+            if (args.length >= 4) {
+                // X/Y/Z specified
+                int x = ParseUtil.parseInt(args[1], 0);
+                int y = ParseUtil.parseInt(args[2], 0);
+                int z = ParseUtil.parseInt(args[3], 0);
+                state.setRailBlock(new IntVector3(x, y, z));
+            } else if (args.length >= 2) {
+                // BlockFace translate or 'Reset'
+                BlockFace parsedFace = null;
+                String input = args[1].toLowerCase(Locale.ENGLISH);
+                for (BlockFace face : BlockFace.values()) {
+                    if (face.name().toLowerCase(Locale.ENGLISH).equals(input)) {
+                        parsedFace = face;
+                        break;
+                    }
+                }
+                if (parsedFace != null) {
+                    sender.sendMessage(ChatColor.YELLOW + "Rail block moved one block " + parsedFace);
+                    IntVector3 old = state.getLastEditedNode().getRailBlock(true);
+                    state.setRailBlock(old.add(parsedFace));
+                } else if (input.equals("reset")) {
+                    sender.sendMessage(ChatColor.YELLOW + "Rail block position reset");
+                    state.resetRailsBlocks();
+                } else {
+                    sender.sendMessage(ChatColor.RED + "Input value " + input + " not understood");
+                }
+            }
+
+            // Display feedback to user
+            IntVector3 rail = state.getLastEditedNode().getRailBlock(true);
+            String rail_str = "x=" + rail.x + " / " +
+                              "y=" + rail.y + " / " +
+                              "z=" + rail.z;
+            if (args.length >= 2) {
+                sender.sendMessage(ChatColor.GREEN + "Track rail block set to " + rail_str);
+            } else {
+                sender.sendMessage(ChatColor.GREEN + "Current track rail block is " + rail_str);
             }
         } else {
-            sender.sendMessage("What did you want? Try /tcc give");
+            sender.sendMessage(ChatColor.RED + "What did you want? Try /tcc give");
         }
         return true;
     }
