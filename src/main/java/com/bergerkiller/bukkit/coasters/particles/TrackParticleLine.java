@@ -152,6 +152,12 @@ public class TrackParticleLine extends TrackParticle {
         PacketPlayOutAttachEntityHandle ap1 = PacketPlayOutAttachEntityHandle.T.newHandleNull();
         ap1.setVehicleId(this.e1);
         ap1.setPassengerId(this.e2);
+
+        // Fix for <= 1.8.8
+        if (PacketPlayOutAttachEntityHandle.T.leashId.isAvailable()) {
+            PacketPlayOutAttachEntityHandle.T.leashId.set(ap1.getRaw(), 1);
+        }
+
         PacketUtil.sendPacket(viewer, ap1);
     }
 

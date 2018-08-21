@@ -88,9 +88,11 @@ public class TrackParticleLitBlock extends TrackParticle {
     @Override
     public void onStateUpdated(Player viewer) {
         super.onStateUpdated(viewer);
-        makeHiddenFor(viewer);
-        if (this.isVisible(viewer, viewer.getEyeLocation().toVector())) {
-            makeVisibleFor(viewer);
+        if (this.getViewers().contains(viewer)) {
+            makeHiddenFor(viewer);
+            if (this.isVisible(viewer, viewer.getEyeLocation().toVector())) {
+                makeVisibleFor(viewer);
+            }
         }
     }
 
