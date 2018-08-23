@@ -156,7 +156,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
 
                 suggestedHand = PacketType.IN_BLOCK_PLACE.getHand(event.getPacket(), event.getPlayer());
                 suggestedHand = fixHand(event.getPlayer(), suggestedHand);
-            } else if (PacketPlayInUseItemHandle.T.enumHand.isAvailable()) {
+            } else {
                 PacketPlayInUseItemHandle packet = PacketPlayInUseItemHandle.createHandle(event.getPacket().getHandle());
 
                 // Use item is used - is the item we interact with null (empty?)
@@ -278,7 +278,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
                 // Send the actual packet
                 PacketPlayInUseItemHandle packet = PacketPlayInUseItemHandle.T.newHandleNull();
                 packet.setTimestamp(System.currentTimeMillis());
-                packet.setEnumHand(HumanHand.toNMSEnumHand(player, hand));
+                packet.setHand(player, hand);
                 packet.setDirection(clickInfo.face);
                 packet.setPosition(new IntVector3(clickInfo.block));
                 packet.setDeltaX((float) clickInfo.position.getX());
