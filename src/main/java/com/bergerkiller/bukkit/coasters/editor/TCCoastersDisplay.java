@@ -9,9 +9,9 @@ import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
-import com.bergerkiller.bukkit.common.events.map.MapStatusEvent;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
+import com.bergerkiller.bukkit.common.map.MapFont;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetButton;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetTabView;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetText;
@@ -19,6 +19,7 @@ import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetNumberBox;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetSelectionBox;
 
 public class TCCoastersDisplay extends MapDisplay {
+    private boolean _hasPermission;
 
     private final MapWidgetTabView tabView = new MapWidgetTabView() {
         @Override
@@ -42,8 +43,29 @@ public class TCCoastersDisplay extends MapDisplay {
     };
 
     @Override
+    public void onTick() {
+        super.onTick();
+
+        // Detect changes in permission to revoke/return permissions
+        if (this.getPlugin().hasPermission(this.getPlayer()) != this._hasPermission) {
+            this.setRunning(false);
+            this.setRunning(true);
+        }
+    }
+
+    @Override
     public void onAttached() {
         getLayer().draw(this.loadTexture("com/bergerkiller/bukkit/coasters/resources/coaster_bg.png"), 0, 0);
+
+        // Don't do onTick when not viewing for better performance
+        this.setUpdateWithoutViewers(false);
+
+        // When no permission, simply show nothing on the map
+        this._hasPermission = this.getPlugin().hasPermission(this.getPlayer());
+        if (!this._hasPermission) {
+            getLayer(1).draw(MapFont.MINECRAFT, 5, 5, MapColorPalette.COLOR_RED, "No Permission");
+            return;
+        }
 
         this.setReceiveInputWhenHolding(true);
 
@@ -66,62 +88,12 @@ public class TCCoastersDisplay extends MapDisplay {
         });
 
         this.addWidget(this.tabView);
+    }
 
-        /*
-        this.addWidget(new MapWidgetButton() {
-            @Override
-            public void onAttached() {
-                this.setText("Create");
-                this.setBounds(10, 30, 108, 16);
-            }
-
-            @Override
-            public void onActivate() {
-                Location loc = getPlayer().getEyeLocation();
-                loc.add(loc.getDirection().multiply(0.5));
-                TrackNode newNode = null;
-                if (state.hasEditedNodes()) {
-                    for (TrackNode node : state.getEditedNodes()) {
-                        if (newNode == null) {
-                            newNode = getTracks().addNode(node, loc.toVector());
-                        } else {
-                            getTracks().connect(node, newNode);
-                        }
-                    }
-                } else {
-                    newNode = getTracks().createNew(loc.toVector()).getNodes().get(0);
-                }
-                state.clearEditedNodes();
-                state.setEditing(newNode, true);
-            }
-        });
-
-        this.addWidget(new MapWidgetButton() {
-            @Override
-            public void onAttached() {
-                this.setText("Split");
-                this.setBounds(10, 50, 108, 16);
-            }
-
-            @Override
-            public void onActivate() {
-                
-            }
-        });
-
-        this.addWidget(new MapWidgetButton() {
-            @Override
-            public void onAttached() {
-                this.setText("Delete");
-                this.setBounds(10, 70, 108, 16);
-            }
-
-            @Override
-            public void onActivate() {
-                
-            }
-        });
-        */
+    @Override
+    public void onDetached() {
+        this.clearWidgets();
+        this.setReceiveInputWhenHolding(false);
     }
 
     private void addRailsWidgets(MapWidgetTabView.Tab tab) {

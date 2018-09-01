@@ -195,11 +195,21 @@ public class TCCoasters extends JavaPlugin {
         }
     }
 
+    /**
+     * Checks whether a player has permission to use this plugin
+     * 
+     * @param sender
+     * @return True if permission is granted
+     */
+    public boolean hasPermission(CommandSender sender) {
+        // Im lazy, ok?
+        return sender.hasPermission("train.coasters.use") || sender.isOp();
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        // Im lazy, ok?
-        if (!sender.hasPermission("train.coasters.use") && !sender.isOp()) {
-            sender.sendMessage("Sorry, no permission for this.");
+        if (!hasPermission(sender)) {
+            sender.sendMessage(ChatColor.RED + "Sorry, no permission for this.");
             return true;
         }
 
@@ -349,6 +359,10 @@ public class TCCoasters extends JavaPlugin {
     }
 
     public boolean isHoldingEditTool(Player player) {
+        if (!this.hasPermission(player)) {
+            return false;
+        }
+
         ItemStack mainItem = HumanHand.getItemInMainHand(player);
         if (MapDisplay.getViewedDisplay(player, mainItem) instanceof TCCoastersDisplay) {
             return true;
