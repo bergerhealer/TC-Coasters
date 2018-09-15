@@ -85,7 +85,18 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
             for (TrackParticle particle : this.particles) {
                 particle.updateFor(viewer, pos);
             }
-        } else if (this.players.contains(viewer)) {
+        } else {
+            hideAllFor(viewer);
+        }
+    }
+
+    /**
+     * Despawns all particles a viewer sees
+     * 
+     * @param viewer
+     */
+    public void hideAllFor(Player viewer) {
+        if (this.players.contains(viewer)) {
             this.players = this.players.remove(viewer);
 
             for (TrackParticle particle : this.particles) {
