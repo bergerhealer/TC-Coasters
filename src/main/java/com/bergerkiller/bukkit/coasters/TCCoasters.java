@@ -208,6 +208,10 @@ public class TCCoasters extends JavaPlugin {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage("This command is only for players");
+            return true;
+        }
         if (!hasPermission(sender)) {
             sender.sendMessage(ChatColor.RED + "Sorry, no permission for this.");
             return true;
