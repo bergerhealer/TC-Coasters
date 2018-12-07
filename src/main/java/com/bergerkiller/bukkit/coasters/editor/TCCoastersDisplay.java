@@ -69,6 +69,8 @@ public class TCCoastersDisplay extends MapDisplay {
 
         this.setReceiveInputWhenHolding(true);
 
+        this.addWidget(this.tabView);
+
         this.addWidget(new MapWidgetSelectionBox() {
             @Override
             public void onAttached() {
@@ -86,8 +88,6 @@ public class TCCoastersDisplay extends MapDisplay {
                 tabView.setSelectedIndex(getState().getMode().ordinal());
             }
         });
-
-        this.addWidget(this.tabView);
     }
 
     @Override
