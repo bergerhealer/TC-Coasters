@@ -381,11 +381,28 @@ public class TrackWorld extends CoasterWorldAccess.Component {
     }
 
     /**
+     * Saves all coasters stored inside the world to disk, even when they do not have
+     * any changes in them. This is useful if the original files on the disk were manipulated,
+     * and need to be regenerated.
+     */
+    public void saveForced() {
+        save(false);
+    }
+
+    /**
+     * Saves all coasters stored inside the world to disk when they have changes
+     * since the last time it was saved.
+     */
+    public void saveChanges() {
+        save(true);
+    }
+
+    /**
      * Saves all coasters stored inside the world to disk
      * 
      * @param autosave whether to save only when changes occurred (true), or all the time (false)
      */
-    public void save(boolean autosave) {
+    private void save(boolean autosave) {
         Iterator<TrackCoaster> iter = this._coasters.iterator();
         while (iter.hasNext()) {
             TrackCoaster coaster = iter.next();

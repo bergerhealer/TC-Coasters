@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters;
 import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -189,6 +190,11 @@ public class TCCoasters extends JavaPlugin {
         this.updateTask.stop();
         this.autosaveTask.stop();
 
+        // Log off all players
+        for (Player player : new ArrayList<Player>(this.editStates.keySet())) {
+            this.logoutPlayer(player);
+        }
+
         // Clean up when disabling (save dirty coasters + despawn particles)
         for (World world : Bukkit.getWorlds()) {
             unloadWorld(world);
@@ -229,8 +235,33 @@ public class TCCoasters extends JavaPlugin {
         } else if (args.length > 0 && args[0].equals("save")) {
             sender.sendMessage("Saving all tracks to disk now");
             for (CoasterWorldAccess coasterWorld : this.getCoasterWorlds()) {
-                coasterWorld.getTracks().save(false);
+                coasterWorld.getTracks().saveForced();
             }
+        } else if (args.length > 0 && LogicUtil.contains(args[0], "load", "reload")) {
+            sender.sendMessage("Loading all tracks from disk now");
+
+            // First, log out all players to guarantee their state is saved and then reset
+            for (Player player : new ArrayList<Player>(this.editStates.keySet())) {
+                this.logoutPlayer(player);
+            }
+
+            // Unload all coasters, saving coasters that have open changes first
+            // The load command should only be used to load new coasters / reload existing ones
+            for (World world : Bukkit.getWorlds()) {
+                unloadWorld(world);
+            }
+
+            // Reload all coasters
+            for (World world : Bukkit.getWorlds()) {
+                this.getCoasterWorld(world).getTracks().load();
+            }
+
+            // For all players holding the editor map, reload it
+            for (TCCoastersDisplay display : MapDisplay.getAllDisplays(TCCoastersDisplay.class)) {
+                display.setRunning(false);
+                display.setRunning(true);
+            }
+
         } else if (args.length > 0 && args[0].equals("path")) {
             sender.sendMessage("Logging paths of all selected nodes");
             for (TrackNode node : this.getEditState(p).getEditedNodes()) {
@@ -387,7 +418,7 @@ public class TCCoasters extends JavaPlugin {
         @Override
         public void run() {
             for (CoasterWorldImpl coasterWorld : ((TCCoasters) this.getPlugin()).worlds.values()) {
-                coasterWorld.save(true);
+                coasterWorld.saveChanges();
             }
 
             Iterator<PlayerEditState> iter = ((TCCoasters) this.getPlugin()).editStates.values().iterator();

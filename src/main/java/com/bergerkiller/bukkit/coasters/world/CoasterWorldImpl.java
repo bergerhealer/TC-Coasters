@@ -56,7 +56,7 @@ public class CoasterWorldImpl implements CoasterWorldAccess {
     public void unload() {
         {
             TrackWorld tracks = getTracks();
-            tracks.save(true);
+            tracks.saveChanges();
             tracks.clear();
         }
         {
@@ -74,11 +74,9 @@ public class CoasterWorldImpl implements CoasterWorldAccess {
 
     /**
      * Performs a save of the underlying world components
-     * 
-     * @param autosave
      */
-    public void save(boolean autosave) {
-        getTracks().save(autosave);
+    public void saveChanges() {
+        getTracks().saveChanges();
     }
 
     /**
