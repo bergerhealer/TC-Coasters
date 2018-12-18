@@ -68,10 +68,11 @@ public final class TrackNodeState {
      */
     public TrackNodeState transform(Matrix4x4 transform) {
         Vector position = this.position.clone();
-        Vector orientation = this.orientation.clone();
+        Vector orientation = this.orientation.clone().add(position);
         IntVector3 railBlock = this.railBlock;
         transform.transformPoint(position);
         transform.transformPoint(orientation);
+        orientation.subtract(position);
         if (railBlock != null) {
             Vector tmp = new Vector(0.5 + railBlock.x, 0.5 + railBlock.y, 0.5 + railBlock.z);
             transform.transformPoint(tmp);
