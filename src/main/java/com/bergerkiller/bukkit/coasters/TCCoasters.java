@@ -229,6 +229,13 @@ public class TCCoasters extends JavaPlugin {
         if (args.length > 0 && args[0].equals("create")) {
             sender.sendMessage("Creating a new track node at your position");
             state.createTrack();
+        } else if (args.length > 0 && args[0].equals("delete")) {
+            if (state.getEditedNodes().isEmpty()) {
+                sender.sendMessage("No track nodes selected, nothing has been deleted!");
+            } else {
+                sender.sendMessage("Deleting " + state.getEditedNodes().size() + " track nodes!");
+                state.deleteTrack();
+            }
         } else if (args.length > 0 && args[0].equals("give")) {
             sender.sendMessage("Gave you a track editor map!");
             p.getInventory().addItem(MapDisplay.createMapItem(TCCoastersDisplay.class));
