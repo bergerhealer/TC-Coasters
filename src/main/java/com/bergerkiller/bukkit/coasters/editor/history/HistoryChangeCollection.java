@@ -42,7 +42,7 @@ public abstract class HistoryChangeCollection {
     }
 
     public final HistoryChange addChangePostMoveNode(TrackNode node, TrackNodeState startState) {
-        return addChange(new HistoryChangeMoveNode(node, startState, node.getState()));
+        return addChange(new HistoryChangeNode(node, startState, node.getState()));
     }
 
     public final HistoryChange addChangeCreateNode(TrackNode node) {
@@ -50,7 +50,9 @@ public abstract class HistoryChangeCollection {
     }
 
     public final HistoryChange addChangeSetRail(TrackNode node, IntVector3 new_rail) {
-        return addChange(new HistoryChangeSetRail(node, node.getPosition(), node.getRailBlock(false), new_rail));
+        TrackNodeState old_state = node.getState();
+        TrackNodeState new_state = old_state.changeRail(new_rail);
+        return addChange(new HistoryChangeNode(node, old_state, new_state));
     }
 
     /**

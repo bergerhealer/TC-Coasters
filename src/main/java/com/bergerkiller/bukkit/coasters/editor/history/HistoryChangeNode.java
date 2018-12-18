@@ -7,11 +7,11 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 /**
  * Changes the position and/or orientation of a node
  */
-public class HistoryChangeMoveNode extends HistoryChange {
+public class HistoryChangeNode extends HistoryChange {
     private final TrackNodeState from;
     private final TrackNodeState to;
 
-    public HistoryChangeMoveNode(CoasterWorldAccess world,
+    public HistoryChangeNode(CoasterWorldAccess world,
             TrackNodeState from, TrackNodeState to)
     {
         super(world);

@@ -80,6 +80,10 @@ public final class TrackNodeState {
         return new TrackNodeState(position, orientation, railBlock);
     }
 
+    public TrackNodeState changeRail(IntVector3 new_rail) {
+        return new TrackNodeState(this.position, this.orientation, new_rail);
+    }
+
     public static TrackNodeState create(Vector position, Vector orientation, IntVector3 railBlock) {
         return new TrackNodeState(position, orientation, railBlock);
     }
