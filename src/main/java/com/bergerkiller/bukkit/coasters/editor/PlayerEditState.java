@@ -53,6 +53,7 @@ public class PlayerEditState implements CoasterWorldAccess {
     private final Player player;
     private final PlayerEditInput input;
     private final PlayerEditHistory history;
+    private final PlayerEditClipboard clipboard;
     private final Map<TrackNode, PlayerEditNode> editedNodes = new LinkedHashMap<TrackNode, PlayerEditNode>();
     private CoasterWorldAccess cachedCoasterWorld = null;
     private TrackNode lastEdited = null;
@@ -71,6 +72,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         this.player = player;
         this.input = new PlayerEditInput(player);
         this.history = new PlayerEditHistory();
+        this.clipboard = new PlayerEditClipboard(this);
     }
 
     public void load() {
@@ -124,6 +126,10 @@ public class PlayerEditState implements CoasterWorldAccess {
 
     public PlayerEditHistory getHistory() {
         return this.history;
+    }
+
+    public PlayerEditClipboard getClipboard() {
+        return this.clipboard;
     }
 
     public long getLastEditTime(TrackNode node) {

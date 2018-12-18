@@ -285,6 +285,20 @@ public class TCCoasters extends JavaPlugin {
             } else {
                 sender.sendMessage("No more changes to redo");
             }
+        } else if (args.length > 0 && args[0].equals("copy")) {
+            state.getClipboard().copy();
+            if (state.getClipboard().isFilled()) {
+                sender.sendMessage(state.getClipboard().getNodeCount() + " track nodes copied to the clipboard!");
+            } else {
+                sender.sendMessage("No tracks selected, clipboard cleared!");
+            }
+        } else if (args.length > 0 && args[0].equals("paste")) {
+            if (state.getClipboard().isFilled()) {
+                state.getClipboard().paste();
+                sender.sendMessage(state.getClipboard().getNodeCount() + " track nodes pasted from the clipboard at your position!");
+            } else {
+                sender.sendMessage("Clipboard is empty, nothing has been pasted!");
+            }
         } else if (args.length > 0 && LogicUtil.contains(args[0], "orientation", "ori", "rot", "rotation", "rotate")) {
             if (state.getEditedNodes().isEmpty()) {
                 sender.sendMessage("You don't have any nodes selected!");

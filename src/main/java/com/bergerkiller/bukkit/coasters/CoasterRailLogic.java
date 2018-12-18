@@ -1,9 +1,6 @@
 package com.bergerkiller.bukkit.coasters;
 
-import org.bukkit.block.BlockFace;
-
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsSection;
-import com.bergerkiller.bukkit.tc.controller.MinecartMember;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogic;
 
