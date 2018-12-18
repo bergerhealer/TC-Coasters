@@ -120,6 +120,17 @@ public class TrackWorld extends CoasterWorldAccess.Component {
      * Creates a very new coaster, with only a single track node.
      * It will have an auto-generated name.
      * 
+     * @param state of the first node of the new coaster
+     * @return new track coaster
+     */
+    public TrackCoaster createNew(TrackNodeState state) {
+        return createNew(this.getPlugin().generateNewCoasterName(), state);
+    }
+
+    /**
+     * Creates a very new coaster, with only a single track node.
+     * It will have an auto-generated name.
+     * 
      * @param firstNodePosition
      * @return new track coaster
      */
@@ -133,17 +144,31 @@ public class TrackWorld extends CoasterWorldAccess.Component {
      * a new node is added to the coaster and no new coaster is created.
      * 
      * @param coasterName
-     * @param firstNodePosition
+     * @param state of the new node for the coaster
      * @return new track coaster
      */
-    public TrackCoaster createNew(String coasterName, Vector firstNodePosition, Vector firstNodeUp) {
+    public TrackCoaster createNew(String coasterName, TrackNodeState state) {
         TrackCoaster coaster = this.findCoaster(coasterName);
         if (coaster == null) {
             coaster = new TrackCoaster(this, coasterName);
             this._coasters.add(coaster);
         }
-        coaster.createNewNode(firstNodePosition, firstNodeUp);
+        coaster.createNewNode(state);
         return coaster;
+    }
+
+    /**
+     * Creates a very new coaster, with only a single track node.
+     * Coaster name can be specified. If the coaster by this name already exists,
+     * a new node is added to the coaster and no new coaster is created.
+     * 
+     * @param coasterName
+     * @param firstNodePosition
+     * @param firstNodeUp
+     * @return new track coaster
+     */
+    public TrackCoaster createNew(String coasterName, Vector firstNodePosition, Vector firstNodeUp) {
+        return createNew(coasterName, TrackNodeState.create(firstNodePosition, firstNodeUp, null));
     }
 
     /**
@@ -161,6 +186,23 @@ public class TrackWorld extends CoasterWorldAccess.Component {
         TrackNode newNode = node.getCoaster().createNewNode(position, node.getOrientation());
         this.addConnection(node, newNode);
         return newNode;
+    }
+
+    /**
+     * Attempts making a connection using the connection state provided.
+     * If no nodes exist at the positions inside the state, the operation fails and null is returned.
+     * 
+     * @param state
+     * @return created connection, null on failure
+     */
+    public TrackConnection connect(TrackConnectionState state) {
+        TrackNode nodeA = this.findNodeExact(state.node_pos_a);
+        TrackNode nodeB = this.findNodeExact(state.node_pos_b);
+        if (nodeA == null || nodeB == null || nodeA == nodeB) {
+            return null;
+        } else {
+            return this.connect(nodeA, nodeB);
+        }
     }
 
     /**

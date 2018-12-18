@@ -1,7 +1,6 @@
 package com.bergerkiller.bukkit.coasters.editor.history;
 
-import org.bukkit.util.Vector;
-
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 
@@ -11,8 +10,8 @@ public class HistoryChangeDisconnect extends HistoryChangeConnect {
         super(nodeA, nodeB);
     }
 
-    public HistoryChangeDisconnect(CoasterWorldAccess world, Vector nodePosA, Vector nodePosB) {
-        super(world, nodePosA, nodePosB);
+    public HistoryChangeDisconnect(CoasterWorldAccess world, TrackConnectionState state) {
+        super(world, state);
     }
 
     @Override

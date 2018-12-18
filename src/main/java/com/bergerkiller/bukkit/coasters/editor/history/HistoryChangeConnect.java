@@ -1,7 +1,6 @@
 package com.bergerkiller.bukkit.coasters.editor.history;
 
-import org.bukkit.util.Vector;
-
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 
@@ -9,23 +8,21 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
  * Connects or disconnects two nodes
  */
 public class HistoryChangeConnect extends HistoryChange {
-    private final Vector nodePosA;
-    private final Vector nodePosB;
+    private final TrackConnectionState state;
 
     public HistoryChangeConnect(TrackNode nodeA, TrackNode nodeB) {
-        this(nodeA, nodeA.getPosition(), nodeB.getPosition());
+        this(nodeA, TrackConnectionState.create(nodeA.getPosition(), nodeB.getPosition()));
     }
 
-    public HistoryChangeConnect(CoasterWorldAccess world, Vector nodePosA, Vector nodePosB) {
+    public HistoryChangeConnect(CoasterWorldAccess world, TrackConnectionState state) {
         super(world);
-        this.nodePosA = nodePosA;
-        this.nodePosB = nodePosB;
+        this.state = state;
     }
 
     @Override
     protected void run(boolean undo) {
-        TrackNode nodeA = this.world.getTracks().findNodeExact(this.nodePosA);
-        TrackNode nodeB = this.world.getTracks().findNodeExact(this.nodePosB);
+        TrackNode nodeA = this.world.getTracks().findNodeExact(this.state.node_pos_a);
+        TrackNode nodeB = this.world.getTracks().findNodeExact(this.state.node_pos_b);
         if (nodeA != null && nodeB != null) {
             if (undo) {
                 this.world.getTracks().disconnect(nodeA, nodeB);

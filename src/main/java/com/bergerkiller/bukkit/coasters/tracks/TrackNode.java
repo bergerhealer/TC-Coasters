@@ -44,14 +44,18 @@ public class TrackNode implements CoasterWorldAccess {
     protected TrackConnection[] _connections;
 
     protected TrackNode(TrackCoaster group, Vector pos, Vector up) {
-        this._railBlock = null;
+        this(group, TrackNodeState.create(pos, up, null));
+    }
+
+    protected TrackNode(TrackCoaster group, TrackNodeState state) {
+        this._railBlock = state.railBlock;
         this._coaster = group;
-        this._pos = pos;
+        this._pos = state.position;
         this._connections = TrackConnection.EMPTY_ARR;
-        if (up.lengthSquared() < 1e-10) {
+        if (state.orientation.lengthSquared() < 1e-10) {
             this._up = new Vector(0.0, 0.0, 0.0);
         } else {
-            this._up = up.clone().normalize();
+            this._up = state.orientation.clone().normalize();
         }
         this._up_visual = this._up.clone();
         this._dir = new Vector(0, 0, 1);
@@ -97,6 +101,10 @@ public class TrackNode implements CoasterWorldAccess {
 
     public TrackCoaster getCoaster() {
         return this._coaster;
+    }
+
+    public TrackNodeState getState() {
+        return TrackNodeState.create(this);
     }
 
     public void markChanged() {

@@ -1,8 +1,7 @@
 package com.bergerkiller.bukkit.coasters.editor.history;
 
-import org.bukkit.util.Vector;
-
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 
 /**
@@ -15,8 +14,8 @@ public class HistoryChangeDeleteNode extends HistoryChangeCreateNode {
         super(node);
     }
 
-    public HistoryChangeDeleteNode(CoasterWorldAccess world, String coasterName, Vector position, Vector up) {
-        super(world, coasterName, position, up);
+    public HistoryChangeDeleteNode(CoasterWorldAccess world, String coasterName, TrackNodeState state) {
+        super(world, coasterName, state);
     }
 
     @Override

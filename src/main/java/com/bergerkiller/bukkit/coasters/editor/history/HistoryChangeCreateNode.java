@@ -1,8 +1,7 @@
 package com.bergerkiller.bukkit.coasters.editor.history;
 
-import org.bukkit.util.Vector;
-
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 
 /**
@@ -11,29 +10,27 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
  */
 public class HistoryChangeCreateNode extends HistoryChange {
     private final String coasterName;
-    private final Vector position;
-    private final Vector up;
+    private final TrackNodeState state;
 
     public HistoryChangeCreateNode(TrackNode node) {
-        this(node, node.getCoaster().getName(), node.getPosition(), node.getOrientation());
+        this(node, node.getCoaster().getName(), node.getState());
     }
 
-    public HistoryChangeCreateNode(CoasterWorldAccess world, String coasterName, Vector position, Vector up) {
+    public HistoryChangeCreateNode(CoasterWorldAccess world, String coasterName, TrackNodeState state) {
         super(world);
         this.coasterName = coasterName;
-        this.position = position;
-        this.up = up;
+        this.state = state;
     }
 
     @Override
     protected void run(boolean undo) {
         if (undo) {
-            TrackNode nodeToDelete = this.world.getTracks().findNodeExact(this.position);
+            TrackNode nodeToDelete = this.world.getTracks().findNodeExact(this.state.position);
             if (nodeToDelete != null && nodeToDelete.getCoaster().getName().equals(this.coasterName)) {
                 nodeToDelete.remove();
             }
         } else {
-            this.world.getTracks().createNew(this.coasterName, this.position, this.up);
+            this.world.getTracks().createNew(this.coasterName, this.state);
         }
     }
 

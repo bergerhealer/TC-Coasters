@@ -27,6 +27,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -584,14 +585,13 @@ public class PlayerEditState implements CoasterWorldAccess {
         // Apply to all nodes
         HistoryChange changes = null;
         for (TrackNode node : this.getEditedNodes()) {
-            Vector startPos = node.getPosition();
-            Vector startUp = node.getOrientation();
+            TrackNodeState startState = node.getState();
             node.setOrientation(orientation);
 
             if (changes == null) {
                 changes = this.getHistory().addChangeGroup();
             }
-            changes.addChangePostMoveNode(node, startPos, startUp);
+            changes.addChangePostMoveNode(node, startState);
         }
     }
 
@@ -846,7 +846,7 @@ public class PlayerEditState implements CoasterWorldAccess {
                 // Transform position
                 changes.transformPoint(editNode.dragPosition);
                 Vector position = editNode.dragPosition.clone();
-                Vector orientation = editNode.startUp.clone();
+                Vector orientation = editNode.startState.orientation.clone();
 
                 // Snap position against the side of a block
                 // Then, look for other rails blocks and attach to it
@@ -908,7 +908,7 @@ public class PlayerEditState implements CoasterWorldAccess {
 
                 // Track all the changes we are doing down below.
                 HistoryChange changes = this.getHistory().addChangePostMoveNode(
-                        draggedNode.node, draggedNode.startPosition, draggedNode.startUp);
+                        draggedNode.node, draggedNode.startState);
 
                 // Delete dragged node
                 changes.addChangeDeleteNode(draggedNode.node);
@@ -932,7 +932,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         if (this.isMode(Mode.POSITION, Mode.ORIENTATION)) {
             HistoryChange changes = this.getHistory().addChangeGroup();
             for (PlayerEditNode editNode : this.editedNodes.values()) {
-                changes.addChangePostMoveNode(editNode.node, editNode.startPosition, editNode.startUp);
+                changes.addChangePostMoveNode(editNode.node, editNode.startState);
                 editNode.moveEnd();
             }
         }

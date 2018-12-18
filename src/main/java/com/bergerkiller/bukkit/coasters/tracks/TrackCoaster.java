@@ -94,10 +94,14 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
         return this._name;
     }
 
-    public TrackNode createNewNode(Vector position, Vector up) {
-        TrackNode node = new TrackNode(this, position, up);
+    public TrackNode createNewNode(TrackNodeState state) {
+        TrackNode node = new TrackNode(this, state);
         this._nodes.add(node);
         return node;
+    }
+
+    public TrackNode createNewNode(Vector position, Vector up) {
+        return createNewNode(TrackNodeState.create(position, up, null));
     }
 
     /**

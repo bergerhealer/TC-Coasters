@@ -2,10 +2,9 @@ package com.bergerkiller.bukkit.coasters.editor.history;
 
 import java.util.List;
 
-import org.bukkit.util.Vector;
-
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 
 /**
@@ -42,8 +41,8 @@ public abstract class HistoryChangeCollection {
         return addChange(new HistoryChangeDisconnect(nodeA, nodeB));
     }
 
-    public final HistoryChange addChangePostMoveNode(TrackNode node, Vector startPosition, Vector startUp) {
-        return addChange(new HistoryChangeMoveNode(node, startPosition, startUp, node.getPosition(), node.getOrientation()));
+    public final HistoryChange addChangePostMoveNode(TrackNode node, TrackNodeState startState) {
+        return addChange(new HistoryChangeMoveNode(node, startState, node.getState()));
     }
 
     public final HistoryChange addChangeCreateNode(TrackNode node) {

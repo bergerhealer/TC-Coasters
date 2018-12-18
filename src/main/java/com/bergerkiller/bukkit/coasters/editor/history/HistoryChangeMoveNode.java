@@ -1,55 +1,45 @@
 package com.bergerkiller.bukkit.coasters.editor.history;
 
-import org.bukkit.util.Vector;
-
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 
 /**
  * Changes the position and/or orientation of a node
  */
 public class HistoryChangeMoveNode extends HistoryChange {
-    private final Vector fromPosition;
-    private final Vector fromOrientation;
-    private final Vector toPosition;
-    private final Vector toOrientation;
+    private final TrackNodeState from;
+    private final TrackNodeState to;
 
     public HistoryChangeMoveNode(CoasterWorldAccess world,
-            Vector fromPosition, Vector fromOrientation,
-            Vector toPosition, Vector toOrientation)
+            TrackNodeState from, TrackNodeState to)
     {
         super(world);
-        if (fromPosition == null) {
-            throw new IllegalArgumentException("From position can not be null");
+        if (from == null) {
+            throw new IllegalArgumentException("from can not be null");
         }
-        if (fromOrientation == null) {
-            throw new IllegalArgumentException("From orientation can not be null");
+        if (to == null) {
+            throw new IllegalArgumentException("to can not be null");
         }
-        if (toPosition == null) {
-            throw new IllegalArgumentException("To position can not be null");
-        }
-        if (toOrientation == null) {
-            throw new IllegalArgumentException("To orientation can not be null");
-        }
-        this.fromPosition = fromPosition;
-        this.fromOrientation = fromOrientation;
-        this.toPosition = toPosition;
-        this.toOrientation = toOrientation;
+        this.from = from;
+        this.to = to;
     }
 
     @Override
     protected final void run(boolean undo) {
         if (undo) {
-            TrackNode node = world.getTracks().findNodeExact(this.toPosition);
+            TrackNode node = world.getTracks().findNodeExact(this.to.position);
             if (node != null) {
-                node.setPosition(this.fromPosition);
-                node.setOrientation(this.fromOrientation);
+                node.setPosition(this.from.position);
+                node.setOrientation(this.from.orientation);
+                node.setRailBlock(this.from.railBlock);
             }
         } else {
-            TrackNode node = world.getTracks().findNodeExact(this.fromPosition);
+            TrackNode node = world.getTracks().findNodeExact(this.from.position);
             if (node != null) {
-                node.setPosition(this.toPosition);
-                node.setOrientation(this.toOrientation);
+                node.setPosition(this.to.position);
+                node.setOrientation(this.to.orientation);
+                node.setRailBlock(this.to.railBlock);
             }
         }
     }
