@@ -299,6 +299,14 @@ public class TCCoasters extends JavaPlugin {
             } else {
                 sender.sendMessage("No tracks selected, clipboard cleared!");
             }
+        } else if (args.length > 0 && args[0].equals("cut")) {
+            state.getClipboard().copy();
+            if (state.getClipboard().isFilled()) {
+                sender.sendMessage(state.getClipboard().getNodeCount() + " track nodes cut from the world and saved to the clipboard!");
+                state.deleteTrack();
+            } else {
+                sender.sendMessage("No tracks selected, clipboard cleared!");
+            }
         } else if (args.length > 0 && args[0].equals("paste")) {
             if (state.getClipboard().isFilled()) {
                 state.getClipboard().paste();
