@@ -47,8 +47,7 @@ public class TrackCoasterCSVWriter {
 
             // Write out the ROOT node
             entry.setType(TrackCoasterCSVEntry.Type.ROOT);
-            entry.setPosition(startNode.getPosition());
-            entry.setOrientation(startNode.getOrientation());
+            entry.setFromNode(startNode);
             entry.writeTo(this.writer);
 
             // Write out all the links - in order
@@ -97,9 +96,7 @@ public class TrackCoasterCSVWriter {
             } else {
                 entry.setType(TrackCoasterCSVEntry.Type.NODE);
             }
-            entry.setPosition(startNode.getPosition());
-            entry.setOrientation(startNode.getOrientation());
-            entry.setRailBlock(startNode.getRailBlock(false));
+            entry.setFromNode(startNode);
             entry.writeTo(this.writer);
 
             // Write a LINK entry for all connections to nodes that are not this coaster,

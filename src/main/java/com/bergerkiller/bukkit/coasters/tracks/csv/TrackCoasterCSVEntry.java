@@ -5,6 +5,7 @@ import java.util.Arrays;
 
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.opencsv.CSVReader;
@@ -85,6 +86,12 @@ public class TrackCoasterCSVEntry {
 
     public void setType(Type type) {
         this.columns[0] = type.name();
+    }
+
+    public void setFromNode(TrackNode node) {
+        setPosition(node.getPosition());
+        setOrientation(node.getOrientation());
+        setRailBlock(node.getRailBlock(false));
     }
 
     public Vector getPosition() {
