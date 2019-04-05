@@ -209,42 +209,11 @@ public class TCCoasters extends JavaPlugin {
      */
     public boolean hasPermission(CommandSender sender) {
         // Im lazy, ok?
-        return sender.hasPermission("train.coasters.use") || sender.isOp();
+        return !(sender instanceof Player) || sender.hasPermission("train.coasters.use") || sender.isOp();
     }
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player)) {
-            sender.sendMessage("This command is only for players");
-            return true;
-        }
-        if (!hasPermission(sender)) {
-            sender.sendMessage(ChatColor.RED + "Sorry, no permission for this.");
-            return true;
-        }
-
-        final Player p = (Player) sender;
-        PlayerEditState state = this.getEditState(p);
-
-        if (args.length > 0 && args[0].equals("create")) {
-            sender.sendMessage("Creating a new track node at your position");
-            state.createTrack();
-        } else if (args.length > 0 && args[0].equals("delete")) {
-            if (state.getEditedNodes().isEmpty()) {
-                sender.sendMessage("No track nodes selected, nothing has been deleted!");
-            } else {
-                sender.sendMessage("Deleting " + state.getEditedNodes().size() + " track nodes!");
-                state.deleteTrack();
-            }
-        } else if (args.length > 0 && args[0].equals("give")) {
-            sender.sendMessage("Gave you a track editor map!");
-            p.getInventory().addItem(MapDisplay.createMapItem(TCCoastersDisplay.class));
-        } else if (args.length > 0 && args[0].equals("save")) {
-            sender.sendMessage("Saving all tracks to disk now");
-            for (CoasterWorldAccess coasterWorld : this.getCoasterWorlds()) {
-                coasterWorld.getTracks().saveForced();
-            }
-        } else if (args.length > 0 && LogicUtil.contains(args[0], "load", "reload")) {
+    public boolean globalCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (args.length > 0 && LogicUtil.contains(args[0], "load", "reload")) {
             sender.sendMessage("Loading all tracks from disk now");
 
             // First, log out all players to guarantee their state is saved and then reset
@@ -268,7 +237,49 @@ public class TCCoasters extends JavaPlugin {
                 display.setRunning(false);
                 display.setRunning(true);
             }
+        } else if (args.length > 0 && args[0].equals("save")) {
+            sender.sendMessage("Saving all tracks to disk now");
+            for (CoasterWorldAccess coasterWorld : this.getCoasterWorlds()) {
+                coasterWorld.getTracks().saveForced();
+            }
+        } else if (args.length > 0 && args[0].equals("build")) {
+            sender.sendMessage("Rebuilding tracks");
+            buildAll();
+        } else {
+            return false;
+        }
+        return true;
+    }
 
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!hasPermission(sender)) {
+            sender.sendMessage(ChatColor.RED + "Sorry, no permission for this.");
+            return true;
+        }
+        if (globalCommand(sender, command, label, args)) {
+            return true;
+        } else if (!(sender instanceof Player)) {
+            sender.sendMessage("This command is only for players");
+            return true;
+        }
+
+        final Player p = (Player) sender;
+        PlayerEditState state = this.getEditState(p);
+
+        if (args.length > 0 && args[0].equals("create")) {
+            sender.sendMessage("Creating a new track node at your position");
+            state.createTrack();
+        } else if (args.length > 0 && args[0].equals("delete")) {
+            if (state.getEditedNodes().isEmpty()) {
+                sender.sendMessage("No track nodes selected, nothing has been deleted!");
+            } else {
+                sender.sendMessage("Deleting " + state.getEditedNodes().size() + " track nodes!");
+                state.deleteTrack();
+            }
+        } else if (args.length > 0 && args[0].equals("give")) {
+            sender.sendMessage("Gave you a track editor map!");
+            p.getInventory().addItem(MapDisplay.createMapItem(TCCoastersDisplay.class));
         } else if (args.length > 0 && args[0].equals("path")) {
             sender.sendMessage("Logging paths of all selected nodes");
             for (TrackNode node : this.getEditState(p).getEditedNodes()) {
@@ -277,9 +288,6 @@ public class TCCoasters extends JavaPlugin {
                     System.out.println(point);
                 }
             }
-        } else if (args.length > 0 && args[0].equals("build")) {
-            sender.sendMessage("Rebuilding tracks");
-            buildAll();
         } else if (args.length > 0 && args[0].equals("undo")) {
             if (state.getHistory().undo()) {
                 sender.sendMessage("Your last change has been undone");
