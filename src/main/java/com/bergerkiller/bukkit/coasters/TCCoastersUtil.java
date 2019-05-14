@@ -204,7 +204,7 @@ public class TCCoastersUtil {
         Vector dir = loc.getDirection();
         Vector start = loc.toVector();
         Vector end = dir.clone().multiply(5.0).add(start);
-        MovingObjectPositionHandle mop = WorldHandle.fromBukkit(loc.getWorld()).rayTrace(start, end, false);
+        MovingObjectPositionHandle mop = WorldHandle.fromBukkit(loc.getWorld()).rayTrace(start, end);
         if (mop == null) {
             return null;
         }

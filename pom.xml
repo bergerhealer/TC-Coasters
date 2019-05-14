@@ -4,7 +4,7 @@
 
     <groupId>com.bergerkiller.bukkit</groupId>
     <artifactId>TCCoasters</artifactId>
-    <version>1.13.2-v2-SNAPSHOT</version>
+    <version>1.14-v1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>TCCoasters</name>
@@ -14,7 +14,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.mcversion>v1_11_R1</project.mcversion>
         <project.serverversion>1.11.2-R0.1</project.serverversion>
-        <project.bkcversion>1.13-v1-SNAPSHOT</project.bkcversion>
+        <project.bkcversion>1.14-v1-SNAPSHOT</project.bkcversion>
         <project.tcversion>1.12.2-v3</project.tcversion>
     </properties>
 
@@ -65,6 +65,13 @@
             <version>4.0</version>
             <scope>compile</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.8.1</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
     <!-- Build -->
@@ -100,6 +107,10 @@
                             <pattern>com.opencsv</pattern>
                             <shadedPattern>com.bergerkiller.bukkit.coasters.dep.opencsv</shadedPattern>
                         </relocation>
+                        <relocation>
+                            <pattern>org.apache.commons</pattern>
+                            <shadedPattern>com.bergerkiller.bukkit.coasters.dep.org.apache.commons</shadedPattern>
+                        </relocation>
                     </relocations>
                 </configuration>
                 <executions>
@@ -114,6 +125,7 @@
                             <artifactSet>
                                 <includes>
                                     <include>com.opencsv</include>
+                                    <include>org.apache.commons</include>
                                 </includes>
                             </artifactSet>
                         </configuration>
