@@ -582,12 +582,12 @@ public class TrackNode implements CoasterWorldAccess {
         RailPath.Builder builder = new RailPath.Builder();
         if (connection_a != null) {
             if (connection_a.getNodeA() == this) {
-                for (int n = 50; n >= 0; --n) {
+                for (int n = 49; n >= 0; --n) {
                     double t = 0.01 * n;
                     builder.add(connection_a.getPathPoint(railsPos, t));
                 }
             } else {
-                for (int n = 50; n <= 100; n++) {
+                for (int n = 49; n <= 100; n++) {
                     double t = 0.01 * n;
                     builder.add(connection_a.getPathPoint(railsPos, t));
                 }
@@ -595,12 +595,12 @@ public class TrackNode implements CoasterWorldAccess {
         }
         if (connection_b != null) {
             if (connection_b.getNodeA() == this) {
-                for (int n = 1; n <= 50; n++) {
+                for (int n = 1; n <= 51; n++) {
                     double t = 0.01 * n;
                     builder.add(connection_b.getPathPoint(railsPos, t));
                 }
             } else {
-                for (int n = 100-1; n >= 50; --n) {
+                for (int n = 100-1; n >= 49; --n) {
                     double t = 0.01 * n;
                     builder.add(connection_b.getPathPoint(railsPos, t));
                 }
