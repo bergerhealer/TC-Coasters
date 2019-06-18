@@ -206,6 +206,43 @@ public class TrackConnection {
     }
 
     /**
+     * Calculates the absition (area below the position curve from t=0 to t).
+     * This property is used to compute the area difference between two 3D curves.
+     * 
+     * @param t [0 ... 1]
+     * @return absition at t
+     */
+    public Vector getAbsition(double t) {
+        // Primitive of getPosition(t)
+
+        // fpB_p = -0.5t^4 + t^3
+        // fpA_p = 0.5t^4 - t^3 + t
+        // fdB_p = -0.75t^4 + t^3
+        // fdA_p = 0.75t^4 - 2t^3 + 1.5t^2
+
+        double t2 = t*t;
+        double t3 = t2*t;
+        double t4 = t2*t2;
+
+        double fpB_p = -0.5 * t4 + t3;
+        double fpA_p = -fpB_p + t;
+
+        double fdB_p = -0.75 * t4 + t3;
+        double fdA_p = -fdB_p - t3 + 1.5*t2;
+
+        double pfdA_p = fdA_p * this._endA.distance;
+        double pfdB_p = fdB_p * this._endB.distance;
+        Vector pA = this._endA.node.getPosition();
+        Vector pB = this._endB.node.getPosition();
+        Vector dA = this._endA.direction;
+        Vector dB = this._endB.direction;
+        return new Vector(
+                fpA_p*pA.getX() + fpB_p*pB.getX() + pfdA_p*dA.getX() + pfdB_p*dB.getX(),
+                fpA_p*pA.getY() + fpB_p*pB.getY() + pfdA_p*dA.getY() + pfdB_p*dB.getY(),
+                fpA_p*pA.getZ() + fpB_p*pB.getZ() + pfdA_p*dA.getZ() + pfdB_p*dB.getZ());
+    }
+
+    /**
      * Calculates the position along this track at a particular t
      * 
      * @param t [0 ... 1]
@@ -213,16 +250,20 @@ public class TrackConnection {
      */    
     public Vector getPosition(double t) {
         // https://pomax.github.io/bezierinfo/#decasteljau
-        double tp = t;
-        double tn = 1.0 - tp;
-        double tp2 = tp * tp;
 
-        double ff = 3.0 * (tp - tp2);
-        double fdB = tp * ff;
-        double fdA = tn * ff;
+        // fpB = -2t^3 + 3t^2
+        // fpA = 2t^3 - 3t^2 + 1.0
+        // fdB = -3t^3 + 3t^2
+        // fdA = 3t^3 - 6t^2 + 3t
 
-        double fpB = fdB + (tp * tp2);
+        double t2 = t*t;
+        double t3 = t2*t;
+
+        double fpB = -2.0 * t3 + 3.0 * t2;
         double fpA = -fpB + 1.0;
+
+        double fdB = fpB - t3;
+        double fdA = -fpB + t3 + 3.0 * (t - t2);
 
         double pfdA = fdA * this._endA.distance;
         double pfdB = fdB * this._endB.distance;
@@ -244,17 +285,19 @@ public class TrackConnection {
      */
     public Vector getMotionVector(double t) {
         // Derivative of getPosition(t)
-        double tp = t;
-        double tn = 1.0 - tp;
 
-        double tp2 = tp * tp;
-        double tn2 = tn * tn;
+        // fpB_dt = -6t^2 + 6t
+        // fpA_dt = 6t^2 - 6t
+        // fdB_dt = -9t^2 + 6t
+        // fdA_dt = 9t^2 - 12t + 3
 
-        double fpA_dt = 6.0*(tp2-tp);
-        double fpB_dt = -fpA_dt;
+        double t2 = t*t;
 
-        double fdA_dt = fpA_dt + 3.0*tn2;
-        double fdB_dt = fpB_dt - 3.0*tp2;
+        double fpB_dt = 6.0 * (t - t2);
+        double fpA_dt = -fpB_dt;
+
+        double fdB_dt = fpB_dt - 3.0 * t2;
+        double fdA_dt = -fdB_dt - 6.0 * t + 3.0;
 
         double pfdA_dt = fdA_dt * this._endA.distance;
         double pfdB_dt = fdB_dt * this._endB.distance;
