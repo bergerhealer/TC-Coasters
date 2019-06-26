@@ -43,12 +43,14 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
 
 public class TCCoasters extends JavaPlugin {
+    private static final double DEFAULT_SMOOTHNESS = 10000.0;
     private Task updateTask;
     private Task autosaveTask;
     private final TCCoastersListener listener = new TCCoastersListener(this);
     private final TCCoastersInteractionListener interactionListener = new TCCoastersInteractionListener(this);
     private final Map<Player, PlayerEditState> editStates = new HashMap<Player, PlayerEditState>();
     private final Map<World, CoasterWorldImpl> worlds = new HashMap<World, CoasterWorldImpl>();
+    private double smoothness = DEFAULT_SMOOTHNESS;
 
     public void unloadWorld(World world) {
         CoasterWorldImpl coasterWorld = worlds.get(world);
@@ -145,6 +147,15 @@ public class TCCoasters extends JavaPlugin {
         }
     }
 
+    /**
+     * Gets the smoothness of the tracks created
+     * 
+     * @return smoothness, higher values is smoother
+     */
+    public double getSmoothness() {
+        return this.smoothness;
+    }
+
     @Override
     public void onEnable() {
         this.listener.enable();
@@ -167,6 +178,14 @@ public class TCCoasters extends JavaPlugin {
                 }
             }
         }.start(1, 1);
+
+        // Load configuration
+        FileConfiguration config = new FileConfiguration(this);
+        config.load();
+        config.setHeader("smoothness", "\nSpecifies how smoothly trains drive over the tracks, especially in curves");
+        config.addHeader("smoothness", "Very high values may cause performance issues");
+        this.smoothness = config.get("smoothness", DEFAULT_SMOOTHNESS);
+        config.save();
 
         // Autosave every 30 seconds approximately
         this.autosaveTask = new AutosaveTask(this).start(30*20, 30*20);
@@ -244,6 +263,24 @@ public class TCCoasters extends JavaPlugin {
             }
         } else if (args.length > 0 && args[0].equals("build")) {
             sender.sendMessage("Rebuilding tracks");
+            buildAll();
+        } else if (args.length > 0 && args[0].equals("smoothness")) {
+            if (args.length == 1) {
+                sender.sendMessage("Smoothness is currently set to " + this.smoothness);
+                return true;
+            }
+
+            this.smoothness = ParseUtil.parseDouble(args[1], DEFAULT_SMOOTHNESS);
+
+            // Update config.yml
+            {
+                FileConfiguration config = new FileConfiguration(this);
+                config.load();
+                config.set("smoothness", this.smoothness);
+                config.save();
+            }
+
+            sender.sendMessage("Set smoothness to " + this.smoothness + ", rebuilding tracks");
             buildAll();
         } else {
             return false;

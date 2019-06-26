@@ -100,7 +100,7 @@ public class TrackConnection {
      * @return motion vector
      */
     public Vector getDirection(TrackNode atNode) {
-        return this._endA.node == atNode ? this._endA.direction : this._endB.direction;
+        return this._endA.node == atNode ? this._endA.getDirection() : this._endB.getDirection();
     }
 
     /**
@@ -113,11 +113,11 @@ public class TrackConnection {
     public Vector getNearEndPosition(TrackNode endNode) {
         int n = this.getPointCount();
         if (n <= 2) {
-            return this.getPosition(0.5);
+            return this.getPath().getPosition(0.5);
         } else if (endNode == this.getNodeA()) {
-            return getPosition((double) 1 / (double) (n-1));
+            return this.getPath().getPosition((double) 1 / (double) (n-1));
         } else {
-            return getPosition((double) (n-2) / (double) (n-1));
+            return this.getPath().getPosition((double) (n-2) / (double) (n-1));
         }
     }
 
@@ -127,11 +127,12 @@ public class TrackConnection {
      * or one of its connected neighbours.
      */
     public void onShapeUpdated() {
+        TrackConnectionPath path = this.getPath();
+
         //this._connParticleLine.setPositions(this._endA.node.getPosition(), this._endB.node.getPosition());
 
         // Initialize the 4 points of the De Casteljau's algorithm inputs
         // d1 and d2 are the diff between p1-p3 and p2-p4
-        
 
         // Calculate the points forming the line
         int n = this.getPointCount();
@@ -140,7 +141,7 @@ public class TrackConnection {
         points[n-1] = this._endB.node.getPosition();
         for (int i = 1; i < (n-1); i++) {
             double t = ((double) i / (double) (n-1));
-            points[i] = this.getPosition(t);
+            points[i] = path.getPosition(t);
         }
 
         if ((n - 1) != this.lines.size()) {
@@ -162,6 +163,139 @@ public class TrackConnection {
     }
 
     /**
+     * Calculates all the discrete path points required to build the smooth path from t0 to t1.
+     * 
+     * @param builder
+     * @param railsPos
+     * @param smoothness
+     * @param t0
+     * @param t1
+     */
+    public void buildPath(List<RailPath.Point> points, IntVector3 railsPos, double smoothness, double t0, double t1) {
+        TrackConnectionPath path = this.getPath();
+
+        // Initial point
+        points.add(getPathPoint(railsPos,  t0));
+
+        // If smoothness is too rough, just create a linear line
+        if (smoothness <= 1e-4) {
+            points.add(getPathPoint(railsPos,  t1));
+            return;
+        }
+
+        double threshold = 1.0 / smoothness;
+        double curr_t0 = t0;
+        while (curr_t0 != t1) {
+            double curr_t1 = t1;
+            do {
+                // When error is small enough, stop
+                double error = path.getLinearError(curr_t0, curr_t1);
+                if (error <= threshold) {
+                    //System.out.println("ADD SEGMENT DELTA=" + (curr_t1 - curr_t0) + " ERROR " + error);
+                    break;
+                }
+
+                // Error too large, choose halfway between curr_t0 and curr_t1 and try again
+                // If the delta is so small curr_t0 equals curr_t1 this loop breaks.
+                //System.out.println("ERROR TOO BIG DELTA=" + (curr_t1 - curr_t0) + " ERROR " + error);
+                curr_t1 = 0.5 * (curr_t1 + curr_t0);
+            } while (curr_t1 != curr_t0);
+
+            // Next curr_t0
+            curr_t0 = curr_t1;
+
+            points.add(getPathPoint(railsPos, curr_t0));
+        }
+
+        // System.out.println("ADDED " + points.size() + " POINTS");
+    }
+
+    /*
+    public void buildPath(List<RailPath.Point> points, IntVector3 railsPos, double t0, double t1) {
+        double curr_t0 = t0;
+        Vector position_t0 = getPosition(curr_t0);
+        Vector absition_t0 = getAbsition(curr_t0);
+
+        // Initial point
+        points.add(getPathPoint(railsPos, position_t0, curr_t0));
+
+        while (curr_t0 != t1) {
+            double curr_t1 = t1;
+            Vector absition_t1;
+            Vector position_t1;
+            do {
+                absition_t1 = getAbsition(curr_t1);
+                position_t1 = getPosition(curr_t1);
+
+                // Attempt to create a linear line from curr_t0 to curr_t1
+                // The line is between position_t0 and position_t1
+                double dt = (curr_t1 - curr_t0);
+                double dt_inv = 1.0 / dt;
+
+                double mx = dt_inv * (position_t1.getX() - position_t0.getX());
+                double my = dt_inv * (position_t1.getY() - position_t0.getY());
+                double mz = dt_inv * (position_t1.getZ() - position_t0.getZ());
+
+                double bx = position_t0.getX() - curr_t0 * mx;
+                double by = position_t0.getY() - curr_t0 * my;
+                double bz = position_t0.getZ() - curr_t0 * mz;
+
+                // line position:
+                //   y = mx * t + bx;
+                // line absition:
+                //   yP = 0.5 * mx * t^2 + bx * t
+
+                // Compute line absition error value between curr_t1 and curr_t0
+                double half_sq_dt = 0.5 * (curr_t1*curr_t1 - curr_t0*curr_t0);
+                double absition_err_x = (half_sq_dt * mx + dt * bx) - absition_t1.getX() + absition_t0.getX();
+                double absition_err_y = (half_sq_dt * my + dt * by) - absition_t1.getY() + absition_t0.getY();
+                double absition_err_z = (half_sq_dt * mz + dt * bz) - absition_t1.getZ() + absition_t0.getZ();
+
+                // When error is small enough, stop
+                final double ERROR_THRESHOLD = 0.5;
+                if (absition_err_x >= -ERROR_THRESHOLD && absition_err_x <= ERROR_THRESHOLD &&
+                    absition_err_y >= -ERROR_THRESHOLD && absition_err_y <= ERROR_THRESHOLD &&
+                    absition_err_z >= -ERROR_THRESHOLD && absition_err_z <= ERROR_THRESHOLD)
+                {
+                    System.out.println("ADD SEGMENT DELTA=" + dt + " ERROR " + absition_err_x + "/" + absition_err_y + "/" + absition_err_z);
+                    break;
+                }
+
+                // Error too large, choose halfway between curr_t0 and curr_t1 and try again
+                // If the delta is so small curr_t0 equals curr_t1 this loop breaks.
+                System.out.println("ERROR TOO BIG DELTA=" + dt + " ERROR " + absition_err_x + "/" + absition_err_y + "/" + absition_err_z);
+                curr_t1 = 0.5 * (curr_t1 + curr_t0);
+            } while (curr_t1 != curr_t0);
+
+            // Next curr_t0
+            curr_t0 = curr_t1;
+            absition_t0 = absition_t1;
+            position_t0 = position_t1;
+
+            points.add(getPathPoint(railsPos, position_t0, curr_t0));
+        }
+    }
+    */
+
+    /**
+     * Gets a rails path point at a particular t.
+     * This only includes position and orientation information and is faster
+     * to calculate.
+     * 
+     * @param railsPos
+     * @param position at t
+     * @param t [0 ... 1]
+     * @return point at t
+     */
+    public RailPath.Point getPathPoint(IntVector3 railsPos, Vector position, double t) {
+        Vector pos = position.clone();
+        pos.setX(pos.getX() - railsPos.x);
+        pos.setY(pos.getY() - railsPos.y);
+        pos.setZ(pos.getZ() - railsPos.z);
+        return new RailPath.Point(pos, getOrientation(t));
+    }
+
+    /**
      * Gets a rails path point at a particular t.
      * This only includes position and orientation information and is faster
      * to calculate.
@@ -171,7 +305,7 @@ public class TrackConnection {
      * @return point at t
      */
     public RailPath.Point getPathPoint(IntVector3 railsPos, double t) {
-        Vector pos = getPosition(t);
+        Vector pos = getPath().getPosition(t);
         pos.setX(pos.getX() - railsPos.x);
         pos.setY(pos.getY() - railsPos.y);
         pos.setZ(pos.getZ() - railsPos.z);
@@ -187,8 +321,9 @@ public class TrackConnection {
      * @return path position
      */
     public RailPath.Position getPathPosition(TrackNode from, double t) {
-        RailPath.Position p = RailPath.Position.fromPosDir(getPosition(t), getOrientation(t));
-        p.setMotion(getMotionVector(t));
+        TrackConnectionPath path = this.getPath();
+        RailPath.Position p = RailPath.Position.fromPosDir(path.getPosition(t), getOrientation(t));
+        p.setMotion(path.getMotionVector(t));
         if (from == this._endB.node) {
             p.invertMotion();
         }
@@ -206,109 +341,13 @@ public class TrackConnection {
     }
 
     /**
-     * Calculates the absition (area below the position curve from t=0 to t).
-     * This property is used to compute the area difference between two 3D curves.
+     * Gets the path of this track connection, from which spatial information
+     * can be computed.
      * 
-     * @param t [0 ... 1]
-     * @return absition at t
+     * @return path
      */
-    public Vector getAbsition(double t) {
-        // Primitive of getPosition(t)
-
-        // fpB_p = -0.5t^4 + t^3
-        // fpA_p = 0.5t^4 - t^3 + t
-        // fdB_p = -0.75t^4 + t^3
-        // fdA_p = 0.75t^4 - 2t^3 + 1.5t^2
-
-        double t2 = t*t;
-        double t3 = t2*t;
-        double t4 = t2*t2;
-
-        double fpB_p = -0.5 * t4 + t3;
-        double fpA_p = -fpB_p + t;
-
-        double fdB_p = -0.75 * t4 + t3;
-        double fdA_p = -fdB_p - t3 + 1.5*t2;
-
-        double pfdA_p = fdA_p * this._endA.distance;
-        double pfdB_p = fdB_p * this._endB.distance;
-        Vector pA = this._endA.node.getPosition();
-        Vector pB = this._endB.node.getPosition();
-        Vector dA = this._endA.direction;
-        Vector dB = this._endB.direction;
-        return new Vector(
-                fpA_p*pA.getX() + fpB_p*pB.getX() + pfdA_p*dA.getX() + pfdB_p*dB.getX(),
-                fpA_p*pA.getY() + fpB_p*pB.getY() + pfdA_p*dA.getY() + pfdB_p*dB.getY(),
-                fpA_p*pA.getZ() + fpB_p*pB.getZ() + pfdA_p*dA.getZ() + pfdB_p*dB.getZ());
-    }
-
-    /**
-     * Calculates the position along this track at a particular t
-     * 
-     * @param t [0 ... 1]
-     * @return position at t
-     */    
-    public Vector getPosition(double t) {
-        // https://pomax.github.io/bezierinfo/#decasteljau
-
-        // fpB = -2t^3 + 3t^2
-        // fpA = 2t^3 - 3t^2 + 1.0
-        // fdB = -3t^3 + 3t^2
-        // fdA = 3t^3 - 6t^2 + 3t
-
-        double t2 = t*t;
-        double t3 = t2*t;
-
-        double fpB = -2.0 * t3 + 3.0 * t2;
-        double fpA = -fpB + 1.0;
-
-        double fdB = fpB - t3;
-        double fdA = -fpB + t3 + 3.0 * (t - t2);
-
-        double pfdA = fdA * this._endA.distance;
-        double pfdB = fdB * this._endB.distance;
-        Vector pA = this._endA.node.getPosition();
-        Vector pB = this._endB.node.getPosition();
-        Vector dA = this._endA.direction;
-        Vector dB = this._endB.direction;
-        return new Vector(
-                fpA*pA.getX() + fpB*pB.getX() + pfdA*dA.getX() + pfdB*dB.getX(),
-                fpA*pA.getY() + fpB*pB.getY() + pfdA*dA.getY() + pfdB*dB.getY(),
-                fpA*pA.getZ() + fpB*pB.getZ() + pfdA*dA.getZ() + pfdB*dB.getZ());
-    }
-
-    /**
-     * Calculates the motion vector along this track at a particular t
-     * 
-     * @param t [0 ... 1]
-     * @return motion vector at t
-     */
-    public Vector getMotionVector(double t) {
-        // Derivative of getPosition(t)
-
-        // fpB_dt = -6t^2 + 6t
-        // fpA_dt = 6t^2 - 6t
-        // fdB_dt = -9t^2 + 6t
-        // fdA_dt = 9t^2 - 12t + 3
-
-        double t2 = t*t;
-
-        double fpB_dt = 6.0 * (t - t2);
-        double fpA_dt = -fpB_dt;
-
-        double fdB_dt = fpB_dt - 3.0 * t2;
-        double fdA_dt = -fdB_dt - 6.0 * t + 3.0;
-
-        double pfdA_dt = fdA_dt * this._endA.distance;
-        double pfdB_dt = fdB_dt * this._endB.distance;
-        Vector pA = this._endA.node.getPosition();
-        Vector pB = this._endB.node.getPosition();
-        Vector dA = this._endA.direction;
-        Vector dB = this._endB.direction;
-        return new Vector(
-                fpA_dt*pA.getX() + fpB_dt*pB.getX() + pfdA_dt*dA.getX() + pfdB_dt*dB.getX(),
-                fpA_dt*pA.getY() + fpB_dt*pB.getY() + pfdA_dt*dA.getY() + pfdB_dt*dB.getY(),
-                fpA_dt*pA.getZ() + fpB_dt*pB.getZ() + pfdA_dt*dA.getZ() + pfdB_dt*dB.getZ()).normalize();
+    public TrackConnectionPath getPath() {
+        return new TrackConnectionPath(this._endA, this._endB);
     }
 
     public void destroyParticles() {
@@ -325,35 +364,33 @@ public class TrackConnection {
     }
 
     // metadata for a single endpoint
-    protected static class EndPoint {
+    protected static class EndPoint extends TrackConnectionPath.EndPoint {
         protected final TrackNode node;
         protected final TrackNode other;
-        protected Vector direction = new Vector();
-        protected double distance = 0.0;
 
         public EndPoint(TrackNode node, TrackNode other) {
             this.node = node;
             this.other = other;
         }
 
-        public void initAuto() {
-            this.direction = other.getPosition().clone().subtract(node.getPosition()).normalize();
-            this.updateDistance();
+        @Override
+        public Vector getNodePosition() {
+            return this.node.getPosition();
         }
 
-        public void initNormal() {
-            this.direction = node.getDirection();
-            this.updateDistance();
+        @Override
+        public Vector getNodeDirection() {
+            return this.node.getDirection();
         }
 
-        public void initInverted() {
-            this.direction = node.getDirection().clone().multiply(-1.0);
-            this.updateDistance();
+        @Override
+        public Vector getOtherNodePosition() {
+            return this.other.getPosition();
         }
 
-        private final void updateDistance() {
-            this.distance = 0.5 * node.getPosition().distance(other.getPosition());
+        @Override
+        public Vector getOtherNodeDirection() {
+            return this.other.getDirection();
         }
-
     }
 }

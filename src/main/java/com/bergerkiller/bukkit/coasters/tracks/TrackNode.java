@@ -557,6 +557,36 @@ public class TrackNode implements CoasterWorldAccess {
             return RailPath.EMPTY;
         }
 
+        IntVector3 railsPos = getRailBlock(true);
+        List<RailPath.Point> points = new ArrayList<RailPath.Point>();
+
+        if (connection_a != null) {
+            if (connection_a.getNodeA() == this) {
+                connection_a.buildPath(points, railsPos, getPlugin().getSmoothness(), 0.5, 0.0);
+            } else {
+                connection_a.buildPath(points, railsPos, getPlugin().getSmoothness(), 0.5, 1.0);
+            }
+        }
+        if (connection_b != null) {
+            // Remove last point from previous half added, as it's the same
+            // as the first point of this half
+            if (connection_a != null) {
+                points.remove(points.size() - 1);
+            }
+
+            if (connection_b.getNodeA() == this) {
+                connection_b.buildPath(points, railsPos, getPlugin().getSmoothness(), 0.0, 0.5);
+            } else {
+                connection_b.buildPath(points, railsPos, getPlugin().getSmoothness(), 1.0, 0.5);
+            }
+        }
+
+        RailPath.Builder builder = new RailPath.Builder();
+        for (RailPath.Point point : points) {
+            builder.add(point);
+        }
+        return builder.build();
+
         // Minimalist.
         /*
         IntVector3 railsPos = getRailsBlock();
@@ -576,37 +606,38 @@ public class TrackNode implements CoasterWorldAccess {
         return builder.build();
         */
 
+        /*
         //TODO: We can use less or more iterations here based on how much is really needed
         // This would help performance a lot!
-        IntVector3 railsPos = getRailBlock(true);
         RailPath.Builder builder = new RailPath.Builder();
         if (connection_a != null) {
             if (connection_a.getNodeA() == this) {
-                for (int n = 49; n >= 0; --n) {
-                    double t = 0.01 * n;
+                for (int n = 499; n >= 0; --n) {
+                    double t = 0.001 * n;
                     builder.add(connection_a.getPathPoint(railsPos, t));
                 }
             } else {
-                for (int n = 49; n <= 100; n++) {
-                    double t = 0.01 * n;
+                for (int n = 499; n <= 1000; n++) {
+                    double t = 0.001 * n;
                     builder.add(connection_a.getPathPoint(railsPos, t));
                 }
             }
         }
         if (connection_b != null) {
             if (connection_b.getNodeA() == this) {
-                for (int n = 1; n <= 51; n++) {
-                    double t = 0.01 * n;
+                for (int n = 1; n <= 501; n++) {
+                    double t = 0.001 * n;
                     builder.add(connection_b.getPathPoint(railsPos, t));
                 }
             } else {
-                for (int n = 100-1; n >= 49; --n) {
-                    double t = 0.01 * n;
+                for (int n = 1000-1; n >= 490; --n) {
+                    double t = 0.001 * n;
                     builder.add(connection_b.getPathPoint(railsPos, t));
                 }
             }
         }
         return builder.build();
+        */
     }
 
     private void scheduleRefresh() {

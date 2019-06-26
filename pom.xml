@@ -16,6 +16,7 @@
         <project.serverversion>1.11.2-R0.1</project.serverversion>
         <project.bkcversion>1.14-v1-SNAPSHOT</project.bkcversion>
         <project.tcversion>1.12.2-v3</project.tcversion>
+        <junit.version>4.12</junit.version>
     </properties>
 
     <repositories>
@@ -64,6 +65,14 @@
             <artifactId>opencsv</artifactId>
             <version>4.0</version>
             <scope>compile</scope>
+        </dependency>
+
+        <!-- Test engine -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -198,8 +207,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>2.4</version>
                 <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                     <showWarnings>true</showWarnings>
                     <showDeprecation>true</showDeprecation>
                 </configuration>
