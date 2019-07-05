@@ -111,9 +111,20 @@ public class TrackParticleArrow extends TrackParticle {
     public void onStateUpdated(Player viewer) {
         super.onStateUpdated(viewer);
 
+        TrackParticleState state = getState(viewer);
+
         PacketPlayOutEntityEquipmentHandle equipPacket = PacketPlayOutEntityEquipmentHandle.createNew(
-                this.entityId, EquipmentSlot.HAND, this.itemType.getItem(this.getState(viewer)));
+                this.entityId, EquipmentSlot.HAND, this.itemType.getItem(state));
         PacketUtil.sendPacket(viewer, equipPacket);
+
+        DataWatcher metadata = new DataWatcher();
+        if (state == TrackParticleState.SELECTED && getWorld().getPlugin().getGlowingSelections()) {
+            metadata.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_GLOWING));
+        } else {
+            metadata.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE));
+        }
+        PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
+        PacketUtil.sendPacket(viewer, metaPacket);
     }
 
     @Override
@@ -129,6 +140,8 @@ public class TrackParticleArrow extends TrackParticle {
             this.entityId = EntityUtil.getUniqueEntityId();
         }
 
+        TrackParticleState state = getState(viewer);
+
         prot.calculate(this.position, this.orientation);
 
         PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.T.newHandleNull();
@@ -142,14 +155,18 @@ public class TrackParticleArrow extends TrackParticle {
 
         DataWatcher metadata = new DataWatcher();
         metadata.set(EntityHandle.DATA_NO_GRAVITY, true);
-        metadata.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE));
-        metadata.set(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, (byte) EntityArmorStandHandle.DATA_FLAG_HAS_ARMS);
+        if (state == TrackParticleState.SELECTED && getWorld().getPlugin().getGlowingSelections()) {
+            metadata.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_GLOWING));
+        } else {
+            metadata.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE));
+        }
+        metadata.set(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, (byte) (EntityArmorStandHandle.DATA_FLAG_HAS_ARMS | EntityArmorStandHandle.DATA_FLAG_SET_MARKER));
         metadata.set(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, prot.rotation);
         PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
         PacketUtil.sendPacket(viewer, metaPacket);
 
         PacketPlayOutEntityEquipmentHandle equipPacket = PacketPlayOutEntityEquipmentHandle.createNew(
-                this.entityId, EquipmentSlot.HAND, this.itemType.getItem(this.getState(viewer)));
+                this.entityId, EquipmentSlot.HAND, this.itemType.getItem(state));
         PacketUtil.sendPacket(viewer, equipPacket);
     }
 

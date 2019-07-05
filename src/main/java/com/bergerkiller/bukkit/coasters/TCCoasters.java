@@ -44,6 +44,7 @@ import com.bergerkiller.bukkit.tc.rails.type.RailType;
 
 public class TCCoasters extends JavaPlugin {
     private static final double DEFAULT_SMOOTHNESS = 10000.0;
+    private static final boolean DEFAULT_GLOWING_SELECTIONS = true;
     private Task updateTask;
     private Task autosaveTask;
     private final TCCoastersListener listener = new TCCoastersListener(this);
@@ -51,6 +52,7 @@ public class TCCoasters extends JavaPlugin {
     private final Map<Player, PlayerEditState> editStates = new HashMap<Player, PlayerEditState>();
     private final Map<World, CoasterWorldImpl> worlds = new HashMap<World, CoasterWorldImpl>();
     private double smoothness = DEFAULT_SMOOTHNESS;
+    private boolean glowingSelections = DEFAULT_GLOWING_SELECTIONS;
 
     public void unloadWorld(World world) {
         CoasterWorldImpl coasterWorld = worlds.get(world);
@@ -156,6 +158,15 @@ public class TCCoasters extends JavaPlugin {
         return this.smoothness;
     }
 
+    /**
+     * Gets whether selections should be glowing
+     *
+     * @return true if selections should glow
+     */
+    public boolean getGlowingSelections() {
+        return this.glowingSelections;
+    }
+
     @Override
     public void onEnable() {
         this.listener.enable();
@@ -185,6 +196,9 @@ public class TCCoasters extends JavaPlugin {
         config.setHeader("smoothness", "\nSpecifies how smoothly trains drive over the tracks, especially in curves");
         config.addHeader("smoothness", "Very high values may cause performance issues");
         this.smoothness = config.get("smoothness", DEFAULT_SMOOTHNESS);
+        config.setHeader("glowing-selections", "\nSpecifies if selected nodes should be glowing.");
+        config.addHeader("glowing-selections", "Glowing nodes are visible through walls.");
+        this.glowingSelections = config.get("glowing-selections", DEFAULT_GLOWING_SELECTIONS);
         config.save();
 
         // Autosave every 30 seconds approximately
@@ -282,6 +296,30 @@ public class TCCoasters extends JavaPlugin {
 
             sender.sendMessage("Set smoothness to " + this.smoothness + ", rebuilding tracks");
             buildAll();
+        } else if (args.length > 0 && args[0].equals("glow")) {
+            if (args.length == 1) {
+                sender.sendMessage("Glowing selections are currently " + (this.glowingSelections ? "enabled" : "disabled"));
+                return true;
+            }
+
+            this.glowingSelections = ParseUtil.parseBool(args[1], DEFAULT_GLOWING_SELECTIONS);
+
+            // Update config.yml
+            {
+                FileConfiguration config = new FileConfiguration(this);
+                config.load();
+                config.set("glowing-selections", this.glowingSelections);
+                config.save();
+            }
+
+            sender.sendMessage((this.glowingSelections ? "Enabled" : "Disabled") + " glowing selections");
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                PlayerEditState editState = getEditState(player);
+                for (TrackNode node : editState.getEditedNodes()) {
+                    node.onStateUpdated(player);
+                }
+            }
         } else {
             return false;
         }
