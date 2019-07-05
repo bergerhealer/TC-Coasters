@@ -114,6 +114,18 @@ public class TrackParticleArrow extends TrackParticle {
         PacketPlayOutEntityEquipmentHandle equipPacket = PacketPlayOutEntityEquipmentHandle.createNew(
                 this.entityId, EquipmentSlot.HAND, this.itemType.getItem(this.getState(viewer)));
         PacketUtil.sendPacket(viewer, equipPacket);
+
+        DataWatcher metadata = new DataWatcher();
+        metadata.set(EntityHandle.DATA_NO_GRAVITY, true);
+        if (getState(viewer) == TrackParticleState.SELECTED) {
+            metadata.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_GLOWING));
+        } else {
+            metadata.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE));
+        }
+        metadata.set(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, (byte) (EntityArmorStandHandle.DATA_FLAG_HAS_ARMS | EntityArmorStandHandle.DATA_FLAG_SET_MARKER));
+        metadata.set(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, prot.rotation);
+        PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
+        PacketUtil.sendPacket(viewer, metaPacket);
     }
 
     @Override
@@ -142,8 +154,12 @@ public class TrackParticleArrow extends TrackParticle {
 
         DataWatcher metadata = new DataWatcher();
         metadata.set(EntityHandle.DATA_NO_GRAVITY, true);
-        metadata.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE));
-        metadata.set(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, (byte) EntityArmorStandHandle.DATA_FLAG_HAS_ARMS);
+        if (getState(viewer) == TrackParticleState.SELECTED) {
+            metadata.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_GLOWING));
+        } else {
+            metadata.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE));
+        }
+        metadata.set(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, (byte) (EntityArmorStandHandle.DATA_FLAG_HAS_ARMS | EntityArmorStandHandle.DATA_FLAG_SET_MARKER));
         metadata.set(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, prot.rotation);
         PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
         PacketUtil.sendPacket(viewer, metaPacket);
