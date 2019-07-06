@@ -1,8 +1,13 @@
 package com.bergerkiller.bukkit.coasters.rails;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
 import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
@@ -32,6 +37,13 @@ public class TrackRailsSection {
      * The path is a primary path (selected junction)
      */
     public final boolean primary;
+
+    public TrackRailsSection(TrackRailsSection original, RailPath path) {
+        this.node = original.node;
+        this.rails = original.rails;
+        this.path = path;
+        this.primary = original.primary;
+    }
 
     public TrackRailsSection(TrackNode node, RailPath path, boolean primary) {
         this.node = node;
@@ -77,4 +89,45 @@ public class TrackRailsSection {
         this.path.moveRelative(pos, 0.0);
         return MathUtil.distanceSquared(pos.posX, pos.posY, pos.posZ, v.getX(), v.getY(), v.getZ());
     }
+
+    /**
+     * Gets whether a list of nodes contains a node of this section
+     * 
+     * @param nodes
+     * @return True if a node in the nodes list is part of this section
+     */
+    public boolean containsNode(Collection<TrackNode> nodes) {
+        return nodes.contains(this.node);
+    }
+
+    /**
+     * Gets whether another section is directly connected with this one
+     * 
+     * @param section
+     * @return True if connected
+     */
+    public boolean isConnectedWith(TrackRailsSection section) {
+        // Disallow non-primary sections as that can break physics
+        if (!this.primary) {
+            return false;
+        }
+
+        // Check a connection exists between this section's node, and the new section's node
+        for (TrackConnection connection : this.node.getConnections()) {
+            if (connection.getNodeA() == section.node || connection.getNodeB() == section.node) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Gets all sections represented by this rails section.
+     * 
+     * @return list of sections
+     */
+    public List<TrackRailsSection> getAllSections() {
+        return Collections.singletonList(this);
+    }
+
 }

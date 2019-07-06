@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.bukkit.block.Block;
 import org.bukkit.util.Vector;
@@ -75,13 +77,18 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
      * @param nodes
      */
     public void purge(Collection<TrackNode> nodes) {
-        removeFromMap(sectionsByRails, nodes);
-        removeFromMap(sectionsByBlock, nodes);
+        HashSet<TrackRailsSection> sectionsToReAdd = new HashSet<TrackRailsSection>();
+        removeFromMap(sectionsByRails, nodes, sectionsToReAdd);
+        removeFromMap(sectionsByBlock, nodes, sectionsToReAdd);
+        for (TrackRailsSection reAdd : sectionsToReAdd) {
+            addSectionToMap(reAdd);
+        }
     }
 
     public void store(TrackNode node) {
         // If no connections, don't map it in the world at all - it does nothing
-        if (node.getConnections().isEmpty()) {
+        List<TrackConnection> connections = node.getConnections();
+        if (connections.isEmpty()) {
             return;
         }
 
@@ -89,7 +96,6 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
         addSectionToMap(new TrackRailsSection(node, node.buildPath(), true));
 
         // All other kinds of connections lead to their best fit
-        List<TrackConnection> connections = node.getConnections();
         if (connections.size() > 2) {
             Vector dir0 = connections.get(0).getDirection(node);
             Vector dir1 = connections.get(1).getDirection(node);
@@ -108,7 +114,82 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
     }
 
     private final void addSectionToMap(TrackRailsSection section) {
-        addToMap(sectionsByRails, section.rails, section);
+        // Add to sections by rails mapping. If not empty, try to merge the sections.
+        // We then proceed to store the merged-together sections in the map, instead.
+        // Only do this for primary sections, never for non-primary (junctions) to prevent issues.
+        {
+            List<TrackRailsSection> sectionsAtRails = sectionsByRails.get(section.rails);
+            if (sectionsAtRails == null) {
+                // No sections here, store it and nothing special
+                sectionsByRails.put(section.rails, Collections.singletonList(section));
+            } else {
+                // Make the list mutable first
+                if (sectionsAtRails.size() == 1) {
+                    sectionsAtRails = new ArrayList<TrackRailsSection>(sectionsAtRails);
+                    sectionsByRails.put(section.rails, sectionsAtRails);
+                }
+
+                // Try to merge it with existing track sections at these rails
+                if (section.primary) {
+                    List<TrackRailsSection> sectionsToMerge = new ArrayList<TrackRailsSection>(2);
+                    for (TrackRailsSection other : sectionsAtRails) {
+                        if (other.isConnectedWith(section)) {
+                            sectionsToMerge.add(other);
+                        }
+                    }
+
+                    int numSectionsToMerge = sectionsToMerge.size();
+                    if (numSectionsToMerge == 1 || numSectionsToMerge == 2) {
+                        List<TrackRailsSection> allSections = new ArrayList<TrackRailsSection>();
+                        allSections.addAll(sectionsToMerge.get(0).getAllSections());
+                        if (allSections.get(0).isConnectedWith(section)) {
+                            allSections.add(0, section);
+                            if (numSectionsToMerge == 2) {
+                                List<TrackRailsSection> secondSections = sectionsToMerge.get(1).getAllSections();
+                                if (secondSections.get(0).isConnectedWith(section)) {
+                                    // First section is connected, which means the list is the wrong way around
+                                    // Reverse it
+                                    secondSections = new ArrayList<TrackRailsSection>(secondSections);
+                                    Collections.reverse(secondSections);
+                                }
+                                allSections.addAll(0, secondSections);
+                            }
+                        } else {
+                            allSections.add(section);
+                            if (numSectionsToMerge == 2) {
+                                List<TrackRailsSection> secondSections = sectionsToMerge.get(1).getAllSections();
+                                if (secondSections.get(secondSections.size()-1).isConnectedWith(section)) {
+                                    // Last section is connected, which means the list is the wrong way around
+                                    // Reverse it
+                                    secondSections = new ArrayList<TrackRailsSection>(secondSections);
+                                    Collections.reverse(secondSections);
+                                }
+                                allSections.addAll(secondSections);
+                            }
+                        }
+
+                        // Unregister sections we are replacing from the by-rails list
+                        sectionsAtRails.removeAll(sectionsToMerge);
+
+                        // Remove sections we are replacing from the by-block-position mapping
+                        for (TrackRailsSection mergedSection : sectionsToMerge) {
+                            removeFromSectionsByBlock(mergedSection);
+                        }
+
+                        // Now create a single linked section from all the sections we've gathered
+                        section = new TrackRailsSectionLinked(allSections);
+                    }
+                }
+
+                // Add section to list
+                // If the list is presently empty (after a merge), store a singleton list instead
+                if (sectionsAtRails.isEmpty()) {
+                    sectionsByRails.put(section.rails, Collections.singletonList(section));
+                } else {
+                    sectionsAtRails.add(section);
+                }
+            }
+        }
 
         // For all segments of the path, store the block positions being covered in the lookup table
         for (RailPath.Segment segment : section.path.getSegments()) {
@@ -196,23 +277,66 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
         }
     }
 
-    private static void removeFromMap(Map<IntVector3, List<TrackRailsSection>> map, Collection<TrackNode> nodes) {
+    private static void removeFromMap(Map<IntVector3, List<TrackRailsSection>> map, Collection<TrackNode> nodes, Set<TrackRailsSection> sectionsToReAdd) {
         Iterator<List<TrackRailsSection>> iter = map.values().iterator();
         while (iter.hasNext()) {
             List<TrackRailsSection> sections = iter.next();
-            if (sections.size() > 1) {
-                // List is an ArrayList - simply remove entries that should be removed
-                for (int i = sections.size() - 1; i >= 0; i--) {
-                    if (nodes.contains(sections.get(i).node)) {
+            if (sections.size() == 1) {
+                // Single section (or linked section) is stored
+                TrackRailsSection section = sections.get(0);
+                if (!section.containsNode(nodes)) {
+                    continue;
+                }
+
+                // Sub-sections that should not be removed, should be re-added later
+                if (section instanceof TrackRailsSectionLinked) { // optimization. Can remove.
+                    for (TrackRailsSection part : section.getAllSections()) {
+                        if (!part.containsNode(nodes)) {
+                            sectionsToReAdd.add(part);
+                        }
+                    }
+                }
+
+                // Remove entry entirely
+                iter.remove();
+            } else {
+                // Multiple sections are stored in an ArrayList
+                for (int i = sections.size()-1; i >= 0; i--) {
+                    TrackRailsSection section = sections.get(i);
+                    if (section.containsNode(nodes)) {
+
+                        // Sub-sections that should not be removed, should be re-added later
+                        if (section instanceof TrackRailsSectionLinked) { // optimization. Can remove.
+                            for (TrackRailsSection part : section.getAllSections()) {
+                                if (!part.containsNode(nodes)) {
+                                    sectionsToReAdd.add(part);
+                                }
+                            }
+                        }
+
                         sections.remove(i);
                     }
                 }
+
+                // Remove empty lists entirely
                 if (sections.isEmpty()) {
                     iter.remove();
                 }
-            } else if (sections.isEmpty() || nodes.contains(sections.get(0).node)) {
-                // Easy handling of already-empty lists or lists storing only one section that should be removed
-                iter.remove();
+            }
+        }
+    }
+
+    private void removeFromSectionsByBlock(TrackRailsSection section) {
+        Iterator<Map.Entry<IntVector3, List<TrackRailsSection>>> iter = this.sectionsByBlock.entrySet().iterator();
+        while (iter.hasNext()) {
+            Map.Entry<IntVector3, List<TrackRailsSection>> entry = iter.next();
+            List<TrackRailsSection> list = entry.getValue();
+            if (list.size() == 1) {
+                if (list.get(0) == section) {
+                    iter.remove();
+                }
+            } else {
+                list.remove(section);
             }
         }
     }
@@ -221,7 +345,6 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
         List<TrackRailsSection> list = map.get(key);
         if (list == null) {
             map.put(key, Collections.singletonList(section));
-            //System.out.println("SINGLETRACK AT " + key);
             return true;
         } else if (!list.contains(section)) {
             if (list.size() == 1) {

@@ -13,7 +13,9 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
+import com.bergerkiller.bukkit.tc.Util;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
+import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogicHorizontal;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
@@ -159,8 +161,7 @@ public class TCCoastersUtil {
         state.position().posX = position.getX();
         state.position().posY = position.getY();
         state.position().posZ = position.getZ();
-        state.setRailBlock(positionBlock);
-        state.setRailType(RailType.NONE);
+        state.setRailPiece(RailPiece.create(RailType.NONE, positionBlock));
         if (RailType.loadRailInformation(state)) {
             if (state.railType() instanceof CoasterRailType) {
                 return false;
@@ -183,9 +184,7 @@ public class TCCoastersUtil {
                 position.setX(p1.posX);
                 position.setY(p1.posY);
                 position.setZ(p1.posZ);
-                orientation.setX(p1.upX);
-                orientation.setY(p1.upY);
-                orientation.setZ(p1.upZ);
+                Util.setVector(orientation, p1.orientation.upVector());
                 return true;
             }
         }
