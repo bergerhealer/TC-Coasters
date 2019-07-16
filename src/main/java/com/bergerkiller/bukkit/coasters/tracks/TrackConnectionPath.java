@@ -2,6 +2,8 @@ package com.bergerkiller.bukkit.coasters.tracks;
 
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.common.utils.MathUtil;
+
 /**
  * Helper object for computing track path information
  */
@@ -158,7 +160,13 @@ public class TrackConnectionPath {
         BezierInput b0 = new BezierInput().setup_k1(t0);
         BezierInput b1 = new BezierInput().setup_k1(t1);
 
-        Vector delta = bezier(b1.fpA-b0.fpA, b1.fpB-b0.fpB, b1.fdA-b0.fdA, b1.fdB-b0.fdB).normalize();
+        Vector delta = bezier(b1.fpA-b0.fpA, b1.fpB-b0.fpB, b1.fdA-b0.fdA, b1.fdB-b0.fdB);
+        double delta_NZ = MathUtil.getNormalizationFactor(delta);
+        if (Double.isFinite(delta_NZ)) {
+            delta.multiply(delta_NZ);
+        } else {
+            return 0.0; // Zero length path
+        }
 
         Vector pA = this.endA.getPosition();
         Vector pB = this.endB.getPosition();
@@ -273,7 +281,12 @@ public class TrackConnectionPath {
      */
     public Vector getMotionVector(double t) {
         // Derivative of getPosition(t)
-        return bezier(new BezierInput().setup_k0(t)).normalize();
+        Vector motion = bezier(new BezierInput().setup_k0(t));
+        double motion_NZ = MathUtil.getNormalizationFactor(motion);
+        if (Double.isFinite(motion_NZ)) {
+            motion.multiply(motion_NZ);
+        }
+        return motion;
     }
 
     private Vector bezier(BezierInput bezier) {
@@ -325,6 +338,9 @@ public class TrackConnectionPath {
 
         private final void updateDistance() {
             this.distance = 0.5 * getNodePosition().distance(getOtherNodePosition());
+            if (Double.isNaN(this.direction.getX())) {
+                this.direction = new Vector(1.0, 0.0, 0.0);
+            }
         }
 
         public final Vector getPosition() {

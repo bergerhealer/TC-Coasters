@@ -118,6 +118,34 @@ public class TrackConnectionPathTest {
         assertVectorEquals(path.getMotionVector(1.0), 0.358979, -0.358979, 0.86155);
 
         // We expect (near) 0 error because this bezier is a linear line
+        assertEquals(0.0, path.getLinearError(0.0, 0.5), 1e-10);
+        assertEquals(0.0, path.getLinearError(0.5, 1.0), 1e-10);
+        assertEquals(0.0, path.getLinearError(0.0, 1.0), 1e-10);
+        assertEquals(0.0, path.getLinearError(1.0, 0.0), 1e-10);
+    }
+
+    @Test
+    public void testTrackSamePoints() {
+        TrackConnectionPath path = TrackConnectionPath.create(new Vector(20.0, 30.0, -502.0), new Vector(-0.4, 0.1, 1.0),
+                                                              new Vector(20.0, 30.0, -502.0), new Vector(-0.3, 0.3, 1.0));
+        path.endA.initAuto();
+        path.endB.initAuto();
+
+        // Position vector
+        assertVectorEquals(path.getPosition(0.0), 20.0, 30.0, -502.0);
+        assertVectorEquals(path.getPosition(0.25), 20.0, 30.0, -502.0);
+        assertVectorEquals(path.getPosition(0.5), 20.0, 30.0, -502.0);
+        assertVectorEquals(path.getPosition(0.75), 20.0, 30.0, -502.0);
+        assertVectorEquals(path.getPosition(1.0), 20.0, 30.0, -502.0);
+
+        // Motion vector
+        assertVectorEquals(path.getMotionVector(0.0), 0.0, 0.0, 0.0);
+        assertVectorEquals(path.getMotionVector(0.25), 0.0, 0.0, 0.0);
+        assertVectorEquals(path.getMotionVector(0.5), 0.0, 0.0, 0.0);
+        assertVectorEquals(path.getMotionVector(0.75), 0.0, 0.0, 0.0);
+        assertVectorEquals(path.getMotionVector(1.0), 0.0, 0.0, 0.0);
+
+        // We expect (near) 0 error because this bezier is a linear line
         assertEquals(0.0, path.getLinearError(0.0, 0.5), 1e-20);
         assertEquals(0.0, path.getLinearError(0.5, 1.0), 1e-20);
         assertEquals(0.0, path.getLinearError(0.0, 1.0), 1e-20);
