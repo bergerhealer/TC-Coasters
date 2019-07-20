@@ -192,6 +192,7 @@ public class TrackParticleText extends TrackParticle {
     }
 
     // turns a chat color into a dye color with best effort
+    @SuppressWarnings("deprecation")
     private static final DyeColor toDyeColor(ChatColor color) {
         //TODO: Meh?
         switch (color) {
@@ -210,7 +211,7 @@ public class TrackParticleText extends TrackParticle {
         case GOLD:
             return DyeColor.ORANGE;
         case GRAY:
-            return DyeColor.SILVER;
+            return DyeColor.getByWoolData((byte) 0x8);
         case DARK_GRAY:
             return DyeColor.GRAY;
         case BLUE:
