@@ -5,6 +5,7 @@ authors: [bergerkiller]
 description: Add-on for TrainCarts that adds free-form rollercoaster track
 depend: [Train_Carts]
 dev-url: ${project.url}
+api-version: 1.13
 commands:
     tccoasters:
         aliases: [coaster, tcc]
