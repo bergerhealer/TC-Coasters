@@ -4,6 +4,8 @@ import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 
+import com.bergerkiller.bukkit.common.utils.MaterialUtil;
+
 /**
  * Stores a type of item displayed in a particle.
  * Different state versions of the item are kept
@@ -11,8 +13,8 @@ import org.bukkit.inventory.ItemStack;
 public class TrackParticleItemType {
     private final ItemStack item_default;
     private final ItemStack item_selected;
-    public static TrackParticleItemType DEFAULT = new TrackParticleItemType(Material.GOLD_BLOCK);
-    public static TrackParticleItemType LEVER = new TrackParticleItemType(Material.LEVER);
+    public static TrackParticleItemType DEFAULT = new TrackParticleItemType(MaterialUtil.getFirst("GOLD_BLOCK", "LEGACY_GOLD_BLOCK"));
+    public static TrackParticleItemType LEVER = new TrackParticleItemType(MaterialUtil.getFirst("LEVER", "LEGACY_LEVER"));
 
     public TrackParticleItemType(Material itemType) {
         this.item_default = new ItemStack(itemType, 1);
