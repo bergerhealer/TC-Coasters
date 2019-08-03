@@ -197,17 +197,14 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
             double smallStep_x = smallStep * segment.dt_norm.x;
             double smallStep_y = smallStep * segment.dt_norm.y;
             double smallStep_z = smallStep * segment.dt_norm.z;
-            double x = section.rails.x + segment.p0.x;
-            double y = section.rails.y + segment.p0.y;
-            double z = section.rails.z + segment.p0.z;
-            int block_x = MathUtil.floor(x);
-            int block_y = MathUtil.floor(y);
-            int block_z = MathUtil.floor(z);
-            int block_dx, block_dy, block_dz;
-            x -= block_x; y -= block_y; z -= block_z;
+            BlockRelativePosition position = new BlockRelativePosition();
+            position.x = section.rails.x + segment.p0.x;
+            position.y = section.rails.y + segment.p0.y;
+            position.z = section.rails.z + segment.p0.z;
+            position.update();
 
             // Initial
-            addToMap(sectionsByBlock, new IntVector3(block_x, block_y, block_z), section);
+            addToSectionsByBlock(position, section);
 
             double remaining = segment.l;
             while (remaining > 0.0) {
@@ -216,23 +213,23 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
 
                 // Check move distance till x-edge of block
                 if (segment.dt_norm.x > 1e-10) {
-                    move = Math.min(move, (1.0 - x) / segment.dt_norm.x);
+                    move = Math.min(move, (1.0 - position.x) / segment.dt_norm.x);
                 } else if (segment.dt_norm.x < -1e-10) {
-                    move = Math.min(move, x / -segment.dt_norm.x);
+                    move = Math.min(move, position.x / -segment.dt_norm.x);
                 }
 
                 // Check move distance till y-edge of block
                 if (segment.dt_norm.y > 1e-10) {
-                    move = Math.min(move, (1.0 - y) / segment.dt_norm.y);
+                    move = Math.min(move, (1.0 - position.y) / segment.dt_norm.y);
                 } else if (segment.dt_norm.y < -1e-10) {
-                    move = Math.min(move, y / -segment.dt_norm.y);
+                    move = Math.min(move, position.y / -segment.dt_norm.y);
                 }
 
                 // Check move distance till z-edge of block
                 if (segment.dt_norm.z > 1e-10) {
-                    move = Math.min(move, (1.0 - z) / segment.dt_norm.z);
+                    move = Math.min(move, (1.0 - position.z) / segment.dt_norm.z);
                 } else if (segment.dt_norm.z < -1e-10) {
-                    move = Math.min(move, z / -segment.dt_norm.z);
+                    move = Math.min(move, position.z / -segment.dt_norm.z);
                 }
 
                 // Abort when reaching end of segment
@@ -242,36 +239,18 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
 
                 // Move distance to next block
                 remaining -= move;
-                x += move * segment.dt_norm.x;
-                y += move * segment.dt_norm.y;
-                z += move * segment.dt_norm.z;
-
-                // Re-floor it and move block
-                block_dx = MathUtil.floor(x);
-                block_dy = MathUtil.floor(y);
-                block_dz = MathUtil.floor(z);
-                block_x += block_dx;
-                block_y += block_dy;
-                block_z += block_dz;
-                x -= block_dx;
-                y -= block_dy;
-                z -= block_dz;
-                addToMap(sectionsByBlock, new IntVector3(block_x, block_y, block_z), section);
+                position.x += move * segment.dt_norm.x;
+                position.y += move * segment.dt_norm.y;
+                position.z += move * segment.dt_norm.z;
+                addToSectionsByBlock(position, section);
 
                 // Move a very small amount of extra distance to avoid infinite loops and plug holes
-                x += smallStep_x; y += smallStep_y; z += smallStep_z;
+                position.x += smallStep_x;
+                position.y += smallStep_y;
+                position.z += smallStep_z;
                 remaining -= smallStep;
-                block_dx = MathUtil.floor(x);
-                block_dy = MathUtil.floor(y);
-                block_dz = MathUtil.floor(z);
-                if (block_dx != 0 || block_dy != 0 || block_dz != 0) {
-                    block_x += block_dx;
-                    block_y += block_dy;
-                    block_z += block_dz;
-                    x -= block_dx;
-                    y -= block_dy;
-                    z -= block_dz;
-                    addToMap(sectionsByBlock, new IntVector3(block_x, block_y, block_z), section);
+                if (position.update()) {
+                    addToSectionsByBlock(position, section);
                 }
             }
         }
@@ -341,6 +320,38 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
         }
     }
 
+    private void addToSectionsByBlock(BlockRelativePosition position, TrackRailsSection section) {
+        int min_x = position.block_x;
+        int max_x = position.block_x;
+        int min_y = position.block_y;
+        int max_y = position.block_y;
+        int min_z = position.block_z;
+        int max_z = position.block_z;
+        final double c = 1e-8;
+        if (position.x < c) {
+            min_x--;
+        } else if (position.x > (1.0 - c)) {
+            max_x++;
+        }
+        if (position.y < c) {
+            min_y--;
+        } else if (position.y > (1.0 - c)) {
+            max_y++;
+        }
+        if (position.z < c) {
+            min_z--;
+        } else if (position.z > (1.0 - c)) {
+            max_z++;
+        }
+        for (int bx = min_x; bx <= max_x; bx++) {
+            for (int by = min_y; by <= max_y; by++) {
+                for (int bz = min_z; bz <= max_z; bz++) {
+                    addToMap(sectionsByBlock, new IntVector3(bx, by, bz), section);
+                }
+            }
+        }
+    }
+
     private static boolean addToMap(Map<IntVector3, List<TrackRailsSection>> map, IntVector3 key, TrackRailsSection section) {
         List<TrackRailsSection> list = map.get(key);
         if (list == null) {
@@ -387,4 +398,33 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
         }
     }
     */
+
+    /**
+     * Stores an x/y/z vector by splitting it into a block part (int) and
+     * the small position relative to the block (double). The x/y/z will
+     * always fall between 0.0 and 1.0 after each update().
+     */
+    private static class BlockRelativePosition {
+        public double x, y, z;
+        public int block_x = 0;
+        public int block_y = 0;
+        public int block_z = 0;
+
+        public boolean update() {
+            int block_dx = MathUtil.floor(x);
+            int block_dy = MathUtil.floor(y);
+            int block_dz = MathUtil.floor(z);
+            if ((block_dx | block_dy | block_dz) == 0) {
+                return false;
+            }
+
+            block_x += block_dx;
+            block_y += block_dy;
+            block_z += block_dz;
+            x -= block_dx;
+            y -= block_dy;
+            z -= block_dz;
+            return true;
+        }
+    }
 }
