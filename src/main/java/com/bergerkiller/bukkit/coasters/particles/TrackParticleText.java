@@ -22,6 +22,7 @@ import com.bergerkiller.generated.net.minecraft.server.EntityHandle;
 import com.bergerkiller.generated.net.minecraft.server.EntityItemHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityMetadataHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityTeleportHandle;
+import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityVelocityHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityHandle;
 
 /**
@@ -105,6 +106,9 @@ public class TrackParticleText extends TrackParticle {
         metadata.set(EntityHandle.DATA_CUSTOM_NAME, ChatText.fromMessage(this.text));
         PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
         PacketUtil.sendPacket(viewer, metaPacket);
+
+        // Send velocity 0 0 0 packet otherwise items fly away on 1.14+
+        PacketUtil.sendPacket(viewer, PacketPlayOutEntityVelocityHandle.createNew(this.entityId, 0.0, 0.0, 0.0));
     }
 
     @Override
