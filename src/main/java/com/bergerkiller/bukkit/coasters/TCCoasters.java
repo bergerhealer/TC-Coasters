@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 
+import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.World;
@@ -354,7 +355,12 @@ public class TCCoasters extends JavaPlugin {
             }
         } else if (args.length > 0 && args[0].equals("give")) {
             sender.sendMessage("Gave you a track editor map!");
-            p.getInventory().addItem(MapDisplay.createMapItem(TCCoastersDisplay.class));
+            ItemStack item = MapDisplay.createMapItem(TCCoastersDisplay.class);
+            ItemUtil.setDisplayName(item, "Track Editor");
+            CommonTagCompound tag = ItemUtil.getMetaTag(item, true);
+            CommonTagCompound display = tag.createCompound("display");
+            display.putValue("MapColor", 0x0000FF);
+            p.getInventory().addItem(item);
         } else if (args.length > 0 && args[0].equals("path")) {
             sender.sendMessage("Logging paths of all selected nodes");
             for (TrackNode node : this.getEditState(p).getEditedNodes()) {
