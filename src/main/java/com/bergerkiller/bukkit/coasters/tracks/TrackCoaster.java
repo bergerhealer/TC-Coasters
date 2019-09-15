@@ -12,9 +12,9 @@ import org.bukkit.util.FileUtil;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVReader;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVWriter;
+import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
@@ -164,9 +164,9 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
             coasterReader.createPendingLinks();
 
             // Note: on failure not all nodes may be loaded, but at least some is.
-        } catch (TrackCoasterCSV.EntrySyntaxException ex) {
+        } catch (SyntaxException ex) {
             this.getPlugin().getLogger().log(Level.SEVERE,
-                    "Syntax error while loading coaster " + this.getName() + ": " + ex.getMessage());
+                    "Syntax error while loading coaster " + this.getName() + " " + ex.getMessage());
         } catch (IOException ex) {
             this.getPlugin().getLogger().log(Level.SEVERE,
                     "An I/O Error occurred while loading coaster " + this.getName(), ex);

@@ -3,6 +3,10 @@ package com.bergerkiller.bukkit.coasters.util;
 import java.util.Arrays;
 import java.util.Iterator;
 
+import org.bukkit.util.Vector;
+
+import com.bergerkiller.bukkit.common.bases.IntVector3;
+
 /**
  * An array of String values. When reading a value that does not exist
  * in the array, an empty String is returned. The array is automatically
@@ -14,7 +18,6 @@ import java.util.Iterator;
  */
 public class StringArrayBuffer implements Iterator<String> {
     private String[] buffer = new String[10];
-    private String[] toArrayBuffer = new String[0];
     private int size = 0;
     private int index = 0;
 
@@ -73,6 +76,46 @@ public class StringArrayBuffer implements Iterator<String> {
     }
 
     /**
+     * Sets the next IntVector3 value
+     * 
+     * @param value to set
+     */
+    public void putIntVector3(IntVector3 v) {
+        putInt(v.x);
+        putInt(v.y);
+        putInt(v.z);
+    }
+
+    /**
+     * Sets the next Vector value
+     * 
+     * @param value to set
+     */
+    public void putVector(Vector v) {
+        putDouble(v.getX());
+        putDouble(v.getY());
+        putDouble(v.getZ());
+    }
+
+    /**
+     * Sets the next Double value
+     * 
+     * @param value to set
+     */
+    public void putDouble(double value) {
+        put(Double.toString(value));
+    }
+
+    /**
+     * Sets the next Integer value
+     * 
+     * @param value to set
+     */
+    public void putInt(int value) {
+        put(Integer.toString(value));
+    }
+
+    /**
      * Sets the next String value
      * 
      * @param value to set
@@ -88,6 +131,62 @@ public class StringArrayBuffer implements Iterator<String> {
      */
     public String peek() {
         return get(this.index);
+    }
+
+    /**
+     * Gets the next IntVector3 value, which consists of three integer values (x/y/z)
+     * 
+     * @return next IntVector3 value
+     * @throws SyntaxException if the three next values are not Integer
+     */
+    public IntVector3 nextIntVector3() throws SyntaxException {
+        return new IntVector3(nextInt(), nextInt(), nextInt());
+    }
+
+    /**
+     * Gets the next Vector value, which consists of three double values (x/y/z)
+     * 
+     * @return next Vector value
+     * @throws SyntaxException if the three next values are not Double
+     */
+    public Vector nextVector() throws SyntaxException {
+        return new Vector(nextDouble(), nextDouble(), nextDouble());
+    }
+
+    /**
+     * Gets the next Double value
+     * 
+     * @return next Double value
+     * @throws SyntaxException if the value is not an Double
+     */
+    public double nextDouble() throws SyntaxException {
+        String value = next();
+        if (value.isEmpty()) {
+            throw new SyntaxException(-1, this.index, "Empty value, number expected");
+        }
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException ex) {
+            throw new SyntaxException(-1, this.index, "Value is not a number");
+        }
+    }
+
+    /**
+     * Gets the next Integer value
+     * 
+     * @return next Integer value
+     * @throws SyntaxException if the value is not an Integer
+     */
+    public int nextInt() throws SyntaxException {
+        String value = next();
+        if (value.isEmpty()) {
+            throw new SyntaxException(-1, this.index, "Empty value, number expected");
+        }
+        try {
+            return Integer.parseInt(next());
+        } catch (NumberFormatException ex) {
+            throw new SyntaxException(-1, this.index, "Value is not a number");
+        }
     }
 
     /**

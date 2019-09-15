@@ -10,7 +10,9 @@ import java.util.function.Supplier;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
+import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.opencsv.CSVReader;
 
@@ -28,6 +30,7 @@ public class TrackCoasterCSV {
         registerEntry(NodeEntry::new);
         registerEntry(RootNodeEntry::new);
         registerEntry(LinkNodeEntry::new);
+        registerEntry(PlayerOrigin::new);
         registerEntry(NoLimits2Entry::new);
     }
 
@@ -40,15 +43,15 @@ public class TrackCoasterCSV {
      * @throws EntrySyntaxException if there is a syntax error in the CSV
      * @throws IOException if reading fails due to an I/O error
      */
-    public static CSVEntry readNext(CSVReader reader, StringArrayBuffer buffer) throws EntrySyntaxException, IOException {
+    public static CSVEntry readNext(CSVReader reader, StringArrayBuffer buffer) throws SyntaxException, IOException {
         String[] lines;
         while ((lines = reader.readNext()) != null) {
             buffer.load(lines);
             CSVEntry entry;
             try {
                 entry = decode(buffer);
-            } catch (EntrySyntaxException ex) {
-                throw new EntrySyntaxException("At L" + reader.getLinesRead() + ": " + ex.getMessage());
+            } catch (SyntaxException ex) {
+                throw ex.setLine((int) reader.getLinesRead());
             }
             if (entry != null) {
                 return entry;
@@ -64,7 +67,7 @@ public class TrackCoasterCSV {
      * @return decoded entry, null if no entry was identified inside the buffer
      * @throws EntrySyntaxException if decoding the entry fails
      */
-    public static CSVEntry decode(StringArrayBuffer buffer) throws EntrySyntaxException {
+    public static CSVEntry decode(StringArrayBuffer buffer) throws SyntaxException {
         for (Map.Entry<CSVEntry, Supplier<CSVEntry>> registeredEntry : _entryTypes) {
             if (registeredEntry.getKey().detect(buffer)) {
                 CSVEntry entry = registeredEntry.getValue().get();
@@ -92,10 +95,9 @@ public class TrackCoasterCSV {
          * Reads the data in the buffer into this entry
          * 
          * @param buffer to read from
-         * @return True if read without syntax errors, False if the data is wrong
          * @throws EntrySyntaxException when the buffer stores data the entry cannot read
          */
-        public abstract void read(StringArrayBuffer buffer) throws EntrySyntaxException;
+        public abstract void read(StringArrayBuffer buffer) throws SyntaxException;
 
         /**
          * Writes this entry to the buffer
@@ -140,41 +142,25 @@ public class TrackCoasterCSV {
         }
 
         @Override
-        public void read(StringArrayBuffer buffer) throws EntrySyntaxException {
-            try {
-                buffer.skipNext(1); // Type
-                this.pos = new Vector( Double.parseDouble(buffer.next()),
-                                       Double.parseDouble(buffer.next()),
-                                       Double.parseDouble(buffer.next()) );
-                this.up = new Vector( Double.parseDouble(buffer.next()),
-                                      Double.parseDouble(buffer.next()),
-                                      Double.parseDouble(buffer.next()) );
-                if (buffer.hasNext()) {
-                    this.rail = new IntVector3( Integer.parseInt(buffer.next()),
-                                                Integer.parseInt(buffer.next()),
-                                                Integer.parseInt(buffer.next()) );
-                } else {
-                    buffer.skipNext(3);
-                    this.rail = null;
-                }
-            } catch (NumberFormatException ex) {
-                throw new EntrySyntaxException(getClass().getSimpleName() + " failed to parse number");
+        public void read(StringArrayBuffer buffer) throws SyntaxException {
+            buffer.skipNext(1); // Type
+            this.pos = buffer.nextVector();
+            this.up = buffer.nextVector();
+            if (buffer.hasNext()) {
+                this.rail = buffer.nextIntVector3();
+            } else {
+                buffer.skipNext(3);
+                this.rail = null;
             }
         }
 
         @Override
         public void write(StringArrayBuffer buffer) {
             buffer.put(getType());
-            buffer.put(Double.toString(this.pos.getX()));
-            buffer.put(Double.toString(this.pos.getY()));
-            buffer.put(Double.toString(this.pos.getZ()));
-            buffer.put(Double.toString(this.up.getX()));
-            buffer.put(Double.toString(this.up.getY()));
-            buffer.put(Double.toString(this.up.getZ()));
+            buffer.putVector(this.pos);
+            buffer.putVector(this.up);
             if (this.rail != null) {
-                buffer.put(Integer.toString(this.rail.x));
-                buffer.put(Integer.toString(this.rail.y));
-                buffer.put(Integer.toString(this.rail.z));
+                buffer.putIntVector3(this.rail);
             } else {
                 buffer.skipNext(3);
             }
@@ -229,24 +215,12 @@ public class TrackCoasterCSV {
         }
 
         @Override
-        public void read(StringArrayBuffer buffer) throws EntrySyntaxException {
-            try {
-                this.no = Integer.parseInt(buffer.next());
-                this.pos = new Vector( Double.parseDouble(buffer.next()),
-                                       Double.parseDouble(buffer.next()),
-                                       Double.parseDouble(buffer.next()) );
-                this.front = new Vector( Double.parseDouble(buffer.next()),
-                                         Double.parseDouble(buffer.next()),
-                                         Double.parseDouble(buffer.next()) );
-                this.left = new Vector( Double.parseDouble(buffer.next()),
-                                        Double.parseDouble(buffer.next()),
-                                        Double.parseDouble(buffer.next()) );
-                this.up = new Vector( Double.parseDouble(buffer.next()),
-                                      Double.parseDouble(buffer.next()),
-                                      Double.parseDouble(buffer.next()) );
-            } catch (NumberFormatException ex) {
-                throw new EntrySyntaxException(getClass().getSimpleName() + " failed to parse number");
-            }
+        public void read(StringArrayBuffer buffer) throws SyntaxException {
+            this.no = buffer.nextInt();
+            this.pos = buffer.nextVector();
+            this.front = buffer.nextVector();
+            this.left = buffer.nextVector();
+            this.up = buffer.nextVector();
         }
 
         @Override
@@ -264,17 +238,6 @@ public class TrackCoasterCSV {
             buffer.put(Double.toString(this.up.getX()));
             buffer.put(Double.toString(this.up.getY()));
             buffer.put(Double.toString(this.up.getZ()));
-        }
-    }
-
-    /**
-     * Exception thrown when an entry could not be parsed from a line in the CSV file
-     */
-    public static class EntrySyntaxException extends Exception {
-        private static final long serialVersionUID = 1277434257635748172L;
-
-        public EntrySyntaxException(String message) {
-            super(message);
         }
     }
 }

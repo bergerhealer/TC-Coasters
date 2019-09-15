@@ -10,6 +10,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
+import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.opencsv.CSVReader;
 
 /**
@@ -28,7 +29,7 @@ public class TrackCoasterCSVReader {
         this.pendingLinks = new ArrayList<PendingLink>();
     }
 
-    public void read() throws IOException, TrackCoasterCSV.EntrySyntaxException {
+    public void read() throws IOException, SyntaxException {
         this.pendingLinks.clear();
         TrackNode prevNode = null;
         TrackCoasterCSV.CSVEntry entry;

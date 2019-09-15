@@ -28,6 +28,17 @@ public class TrackCoasterCSVWriter {
     }
 
     /**
+     * Writes a new CSV Entry
+     * 
+     * @param entry to write
+     */
+    public void write(TrackCoasterCSV.CSVEntry entry) {
+        this.buffer.clear();
+        entry.write(this.buffer);
+        this.writer.writeNext(this.buffer.toArray());
+    }
+
+    /**
      * Writes a new chain of CSV entries starting iteration from a start node.
      * 
      * @param startNode
@@ -134,12 +145,6 @@ public class TrackCoasterCSVWriter {
         link_entry.up = node.getOrientation();
         link_entry.rail = null;
         this.write(link_entry);
-    }
-
-    private void write(TrackCoasterCSV.CSVEntry entry) {
-        this.buffer.clear();
-        entry.write(this.buffer);
-        this.writer.writeNext(this.buffer.toArray());
     }
 
     public static enum Mode {
