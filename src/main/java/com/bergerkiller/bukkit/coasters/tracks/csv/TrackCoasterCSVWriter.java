@@ -9,6 +9,7 @@ import java.util.Set;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.opencsv.CSVWriter;
 
 /**
@@ -17,9 +18,9 @@ import com.opencsv.CSVWriter;
 public class TrackCoasterCSVWriter {
     private final TrackCoaster coaster;
     private final CSVWriter writer;
+    private final StringArrayBuffer buffer = new StringArrayBuffer();
     private final Set<TrackNode> writtenNodes = new HashSet<TrackNode>();
     private final Set<TrackConnection> writtenConnections = new HashSet<TrackConnection>();
-    private final TrackCoasterCSVEntry entry = new TrackCoasterCSVEntry();
 
     public TrackCoasterCSVWriter(TrackCoaster coaster, CSVWriter writer) {
         this.coaster = coaster;
@@ -46,9 +47,9 @@ public class TrackCoasterCSVWriter {
             }
 
             // Write out the ROOT node
-            entry.setType(TrackCoasterCSVEntry.Type.ROOT);
-            entry.setFromNode(startNode);
-            entry.writeTo(this.writer);
+            TrackCoasterCSV.RootNodeEntry root_entry = new TrackCoasterCSV.RootNodeEntry();
+            root_entry.setFromNode(startNode);
+            this.write(root_entry);
 
             // Write out all the links - in order
             for (TrackConnection conn : connections) {
@@ -91,13 +92,14 @@ public class TrackCoasterCSVWriter {
             // If previous == null, this is a ROOT csv entry.
             // Otherwise, this is a NODE csv entry.
             this.writtenNodes.add(startNode);
+            TrackCoasterCSV.BaseNodeEntry node_entry;
             if (previous == null) {
-                entry.setType(TrackCoasterCSVEntry.Type.ROOT);
+                node_entry = new TrackCoasterCSV.RootNodeEntry();
             } else {
-                entry.setType(TrackCoasterCSVEntry.Type.NODE);
+                node_entry = new TrackCoasterCSV.NodeEntry();
             }
-            entry.setFromNode(startNode);
-            entry.writeTo(this.writer);
+            node_entry.setFromNode(startNode);
+            this.write(node_entry);
 
             // Write a LINK entry for all connections to nodes that are not this coaster,
             // or link to nodes we have already written and risk being forgotten about.
@@ -126,12 +128,18 @@ public class TrackCoasterCSVWriter {
         }
     }
 
-    private final void writeLink(TrackNode node) throws IOException {
-        entry.setType(TrackCoasterCSVEntry.Type.LINK);
-        entry.setPosition(node.getPosition());
-        entry.setOrientation(node.getOrientation());
-        entry.setRailBlock(null);
-        entry.writeTo(this.writer);
+    private void writeLink(TrackNode node) throws IOException {
+        TrackCoasterCSV.LinkNodeEntry link_entry = new TrackCoasterCSV.LinkNodeEntry();
+        link_entry.pos = node.getPosition();
+        link_entry.up = node.getOrientation();
+        link_entry.rail = null;
+        this.write(link_entry);
+    }
+
+    private void write(TrackCoasterCSV.CSVEntry entry) {
+        this.buffer.clear();
+        entry.write(this.buffer);
+        this.writer.writeNext(this.buffer.toArray());
     }
 
     public static enum Mode {

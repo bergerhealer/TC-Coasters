@@ -9,6 +9,7 @@ import org.bukkit.util.Vector;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.opencsv.CSVReader;
 
 /**
@@ -17,35 +18,42 @@ import com.opencsv.CSVReader;
 public class TrackCoasterCSVReader {
     private final TrackCoaster coaster;
     private final CSVReader reader;
-    private final List<PendingLink> pendingLinks = new ArrayList<PendingLink>();
+    private final StringArrayBuffer buffer;
+    private final List<PendingLink> pendingLinks;
 
     public TrackCoasterCSVReader(TrackCoaster coaster, CSVReader reader) {
         this.coaster = coaster;
         this.reader = reader;
+        this.buffer = new StringArrayBuffer();
+        this.pendingLinks = new ArrayList<PendingLink>();
     }
 
-    public void read() throws IOException {
+    public void read() throws IOException, TrackCoasterCSV.EntrySyntaxException {
         this.pendingLinks.clear();
         TrackNode prevNode = null;
-        TrackCoasterCSVEntry entry = new TrackCoasterCSVEntry();
-        while (entry.readFrom(reader)) {
-            TrackCoasterCSVEntry.Type type = entry.getType();
-            Vector position = entry.getPosition();
-            if (position == null) {
-                continue; // failure to read position, entry is useless now...
-            }
-            if (type == TrackCoasterCSVEntry.Type.ROOT || type == TrackCoasterCSVEntry.Type.NODE) {
-                // Adding new nodes, where NODE connects to the previous node loaded
-                Vector orientation = entry.getOrientation();
-                TrackNode node = this.coaster.createNewNode(position, orientation);
-                node.setRailBlock(entry.getRailBlock());
-                if (prevNode != null && type == TrackCoasterCSVEntry.Type.NODE) {
+        TrackCoasterCSV.CSVEntry entry;
+        while ((entry = TrackCoasterCSV.readNext(this.reader, this.buffer)) != null) {
+            if (entry instanceof TrackCoasterCSV.BaseNodeEntry) {
+                TrackCoasterCSV.BaseNodeEntry nodeEntry = (TrackCoasterCSV.BaseNodeEntry) entry;
+                if (nodeEntry instanceof TrackCoasterCSV.LinkNodeEntry) {
+                    // Create a connection between the previous node and the node of this entry
+                    this.pendingLinks.add(new PendingLink(prevNode, nodeEntry.pos));
+                } else {
+                    // Adding new nodes, where NODE connects to the previous node loaded
+                    TrackNode node = this.coaster.createNewNode(nodeEntry.pos, nodeEntry.up);
+                    node.setRailBlock(nodeEntry.rail);
+                    if (prevNode != null && !(nodeEntry instanceof TrackCoasterCSV.RootNodeEntry)) {
+                        this.coaster.getTracks().connect(prevNode, node);
+                    }
+                    prevNode = node;
+                }
+            } else if (entry instanceof TrackCoasterCSV.NoLimits2Entry) {
+                TrackCoasterCSV.NoLimits2Entry nle = (TrackCoasterCSV.NoLimits2Entry) entry;
+                TrackNode node = this.coaster.createNewNode(nle.pos, nle.up);
+                if (prevNode != null) {
                     this.coaster.getTracks().connect(prevNode, node);
                 }
                 prevNode = node;
-            } else if (type == TrackCoasterCSVEntry.Type.LINK && prevNode != null) {
-                // Create a connection between the previous node and the node of this entry
-                this.pendingLinks.add(new PendingLink(prevNode, position));
             }
         }
     }
