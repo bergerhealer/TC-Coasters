@@ -59,9 +59,9 @@ public class CSVSeparatorDetectorStream extends InputStream {
             if (ch == '\t') {
                 num_tabs++;
             } else if (ch == ',') {
-                num_spaces++;
-            } else if (ch == ' ') {
                 num_commas++;
+            } else if (ch == ' ') {
+                num_spaces++;
             }
         }
 
