@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.util;
 
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -12,7 +13,7 @@ import com.bergerkiller.bukkit.common.math.Matrix4x4;
  * The position is restricted to full block coordinates, and the orientation
  * is only full 90-degree angles.
  */
-public class PlayerOrigin extends TrackCoasterCSV.CSVEntry {
+public class PlayerOrigin extends TrackCoasterCSV.CSVEntry implements PlayerOriginHolder {
     private IntVector3 position;
     private IntVector3 orientation;
 
@@ -22,6 +23,11 @@ public class PlayerOrigin extends TrackCoasterCSV.CSVEntry {
 
     public IntVector3 getOrientation() {
         return this.orientation;
+    }
+
+    public void setForNode(Vector position) {
+        this.position = new IntVector3(position.getBlockX(), position.getBlockY(), position.getBlockZ());
+        this.orientation = IntVector3.ZERO;
     }
 
     public void setForPlayer(Player player) {
@@ -73,6 +79,11 @@ public class PlayerOrigin extends TrackCoasterCSV.CSVEntry {
     }
 
     @Override
+    public PlayerOrigin getOrigin() {
+        return this;
+    }
+
+    @Override
     public boolean detect(StringArrayBuffer buffer) {
         return buffer.get(0).equals("ORIGIN");
     }
@@ -91,6 +102,12 @@ public class PlayerOrigin extends TrackCoasterCSV.CSVEntry {
         buffer.put("ORIGIN");
         buffer.putIntVector3(this.position);
         buffer.putIntVector3(this.orientation);
+    }
+
+    public static PlayerOrigin getForNode(Vector position) {
+        PlayerOrigin origin = new PlayerOrigin();
+        origin.setForNode(position);
+        return origin;
     }
 
     public static PlayerOrigin getForPlayer(Player player) {

@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
@@ -9,6 +10,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
 import org.bukkit.Bukkit;
@@ -25,9 +27,13 @@ import org.bukkit.util.Vector;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
+import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster.CoasterLoadException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldImpl;
+import com.bergerkiller.bukkit.common.Hastebin;
+import com.bergerkiller.bukkit.common.Hastebin.DownloadResult;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
@@ -42,12 +48,14 @@ import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
+import com.google.common.base.Charsets;
 
 public class TCCoasters extends JavaPlugin {
     private static final double DEFAULT_SMOOTHNESS = 10000.0;
     private static final boolean DEFAULT_GLOWING_SELECTIONS = true;
     private Task updateTask;
     private Task autosaveTask;
+    private final Hastebin hastebin = new Hastebin(this);
     private final TCCoastersListener listener = new TCCoastersListener(this);
     private final TCCoastersInteractionListener interactionListener = new TCCoastersInteractionListener(this);
     private final Map<Player, PlayerEditState> editStates = new HashMap<Player, PlayerEditState>();
@@ -200,6 +208,9 @@ public class TCCoasters extends JavaPlugin {
         config.setHeader("glowing-selections", "\nSpecifies if selected nodes should be glowing.");
         config.addHeader("glowing-selections", "Glowing nodes are visible through walls.");
         this.glowingSelections = config.get("glowing-selections", DEFAULT_GLOWING_SELECTIONS);
+        config.setHeader("hastebinServer", "\nThe hastebin server which is used to upload coaster tracks");
+        config.addHeader("hastebinServer", "This will be used when using the /tcc export command");
+        this.hastebin.setServer(config.get("hastebinServer", "https://paste.traincarts.net"));
         config.save();
 
         // Autosave every 30 seconds approximately
@@ -403,6 +414,24 @@ public class TCCoasters extends JavaPlugin {
             } else {
                 sender.sendMessage("Clipboard is empty, nothing has been pasted!");
             }
+        } else if (args.length > 0 && args[0].equals("import")) {
+            this.hastebin.download(args[1]).thenAccept(new Consumer<Hastebin.DownloadResult>() {
+                @Override
+                public void accept(DownloadResult t) {
+                    if (!t.success()) {
+                        sender.sendMessage(ChatColor.RED + "Failed to import coaster: " + t.error());
+                        return;
+                    }
+                    // https://paste.traincarts.net/uyileririx
+                    TrackCoaster coaster = state.getTracks().createNewEmpty(generateNewCoasterName());
+                    try {
+                        coaster.loadFromStream(new ByteArrayInputStream(t.content().getBytes(Charsets.UTF_8)), PlayerOrigin.getForPlayer(state.getPlayer()));
+                        sender.sendMessage(ChatColor.GREEN + "Coaster with " + coaster.getNodes().size() + " nodes imported!");
+                    } catch (CoasterLoadException ex) {
+                        sender.sendMessage(ChatColor.RED + ex.getMessage());
+                    }
+                }
+            });
         } else if (args.length > 0 && LogicUtil.contains(args[0], "orientation", "ori", "rot", "rotation", "rotate")) {
             if (state.getEditedNodes().isEmpty()) {
                 sender.sendMessage("You don't have any nodes selected!");

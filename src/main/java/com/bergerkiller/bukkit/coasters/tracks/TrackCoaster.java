@@ -1,9 +1,12 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -14,9 +17,14 @@ import org.bukkit.util.Vector;
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVReader;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVWriter;
+import com.bergerkiller.bukkit.coasters.util.CSVSeparatorDetectorStream;
+import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.opencsv.CSVParser;
+import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReader;
+import com.opencsv.CSVReaderBuilder;
 import com.opencsv.CSVWriter;
 
 /**
@@ -28,7 +36,7 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
     private List<TrackNode> _nodes;
     private boolean _changed = false;
 
-    public TrackCoaster(CoasterWorldAccess.Component world, String name) {
+    protected TrackCoaster(CoasterWorldAccess.Component world, String name) {
         super(world);
         this._name = name;
         this._nodes = new ArrayList<TrackNode>();
@@ -156,27 +164,59 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
             }
         }
 
-        try (CSVReader reader = new CSVReader(new FileReader(realFile))) {
-            // This writer helper class stores state about what nodes and connections still need to be written
-            TrackCoasterCSVReader coasterReader = new TrackCoasterCSVReader(this, reader);
-
-            coasterReader.read();
-            coasterReader.createPendingLinks();
-
-            // Note: on failure not all nodes may be loaded, but at least some is.
-        } catch (SyntaxException ex) {
+        // Load from file
+        try {
+            this.loadFromStream(new FileInputStream(realFile));
+        } catch (CoasterLoadException e) {
+            this.getPlugin().getLogger().log(Level.SEVERE, e.getMessage());
+        } catch (FileNotFoundException e) {
             this.getPlugin().getLogger().log(Level.SEVERE,
-                    "Syntax error while loading coaster " + this.getName() + " " + ex.getMessage());
-        } catch (IOException ex) {
-            this.getPlugin().getLogger().log(Level.SEVERE,
-                    "An I/O Error occurred while loading coaster " + this.getName(), ex);
-        } catch (Throwable t) {
-            this.getPlugin().getLogger().log(Level.SEVERE,
-                    "An unexpected error occurred while loading coaster " + this.getName(), t);
+                    "Failed to find file trying to load coaster " + this.getName());
         }
 
         // Coaster loaded. Any post-ops?
         this.markUnchanged();
+    }
+
+    /**
+     * Loads this coaster by reading CSV data from a reader
+     * 
+     * @param inputStream to read from
+     */
+    public void loadFromStream(InputStream inputStream) throws CoasterLoadException {
+        this.loadFromStream(inputStream, null);
+    }
+
+    /**
+     * Loads this coaster by reading CSV data from a reader
+     * 
+     * @param inputStream to read from
+     * @param origin relative to which to place the coaster
+     */
+    public void loadFromStream(InputStream inputStream, PlayerOrigin origin) throws CoasterLoadException {
+        try (CSVSeparatorDetectorStream csvInputStream = new CSVSeparatorDetectorStream(inputStream)) {
+            CSVParser csv_parser = (new CSVParserBuilder())
+                    .withSeparator(csvInputStream.getSeparator())
+                    .withQuoteChar('\"')
+                    .withEscapeChar('\\')
+                    .build();
+            CSVReader csv_reader = (new CSVReaderBuilder(new InputStreamReader(csvInputStream, "UTF-8")))
+                    .withCSVParser(csv_parser)
+                    .build();
+
+            // This writer helper class stores state about what nodes and connections still need to be written
+            TrackCoasterCSVReader coasterReader = new TrackCoasterCSVReader(this, csv_reader);
+            coasterReader.setOrigin(origin);
+            coasterReader.read();
+
+            // Note: on failure not all nodes may be loaded, but at least some is.
+        } catch (SyntaxException ex) {
+            throw new CoasterLoadException("Syntax error while loading coaster " + this.getName() + " " + ex.getMessage());
+        } catch (IOException ex) {
+            throw new CoasterLoadException("An I/O Error occurred while loading coaster " + this.getName(), ex);
+        } catch (Throwable t) {
+            throw new CoasterLoadException("An unexpected error occurred while loading coaster " + this.getName(), t);
+        }
     }
 
     /**
@@ -252,4 +292,18 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
         }
     }
 
+    /**
+     * Exception thrown when a coaster cannot be loaded
+     */
+    public static class CoasterLoadException extends Exception {
+        private static final long serialVersionUID = 7975001382148776707L;
+
+        public CoasterLoadException(String message) {
+            super(message);
+        }
+
+        public CoasterLoadException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
 }

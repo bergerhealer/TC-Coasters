@@ -162,12 +162,12 @@ public class StringArrayBuffer implements Iterator<String> {
     public double nextDouble() throws SyntaxException {
         String value = next();
         if (value.isEmpty()) {
-            throw new SyntaxException(-1, this.index, "Empty value, number expected");
+            throw new SyntaxException(-1, this.index+1, "Empty value, number expected");
         }
         try {
             return Double.parseDouble(value);
         } catch (NumberFormatException ex) {
-            throw new SyntaxException(-1, this.index, "Value is not a number");
+            throw new SyntaxException(-1, this.index+1, "Value is not a number");
         }
     }
 
@@ -180,12 +180,12 @@ public class StringArrayBuffer implements Iterator<String> {
     public int nextInt() throws SyntaxException {
         String value = next();
         if (value.isEmpty()) {
-            throw new SyntaxException(-1, this.index, "Empty value, number expected");
+            throw new SyntaxException(-1, this.index+1, "Empty value, number expected");
         }
         try {
-            return Integer.parseInt(next());
+            return Integer.parseInt(value);
         } catch (NumberFormatException ex) {
-            throw new SyntaxException(-1, this.index, "Value is not a number");
+            throw new SyntaxException(-1, this.index+1, "Value is not a number");
         }
     }
 

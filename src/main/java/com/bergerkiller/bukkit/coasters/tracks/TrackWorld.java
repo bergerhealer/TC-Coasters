@@ -148,12 +148,26 @@ public class TrackWorld extends CoasterWorldAccess.Component {
      * @return new track coaster
      */
     public TrackCoaster createNew(String coasterName, TrackNodeState state) {
+        TrackCoaster coaster = this.createNewEmpty(coasterName);
+        coaster.createNewNode(state);
+        return coaster;
+    }
+
+    /**
+     * Creates a new empty coaster with no initial nodes.
+     * Coaster name can be specified. If the coaster by this name already exists,
+     * it is returned instead. If no node is added to this coaster and it remains empty,
+     * it will not be saved in the future.
+     * 
+     * @param coasterName
+     * @return new track coaster
+     */
+    public TrackCoaster createNewEmpty(String coasterName) {
         TrackCoaster coaster = this.findCoaster(coasterName);
         if (coaster == null) {
             coaster = new TrackCoaster(this, coasterName);
             this._coasters.add(coaster);
         }
-        coaster.createNewNode(state);
         return coaster;
     }
 

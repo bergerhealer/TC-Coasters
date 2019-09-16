@@ -10,7 +10,9 @@ import java.util.function.Supplier;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
+import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -118,7 +120,7 @@ public class TrackCoasterCSV {
      * Base class for an entry that refers to a node of the track.
      * All the preserved state of a node are stored in here.
      */
-    public static abstract class BaseNodeEntry extends CSVEntry {
+    public static abstract class BaseNodeEntry extends CSVEntry implements PlayerOriginHolder {
         public Vector pos;
         public Vector up;
         public IntVector3 rail;
@@ -135,6 +137,20 @@ public class TrackCoasterCSV {
          * @return type name
          */
         public abstract String getType();
+
+        /**
+         * Converts this entry to a TrackNodeState object
+         * 
+         * @return state
+         */
+        public TrackNodeState toState() {
+            return TrackNodeState.create(this.pos, this.up, this.rail);
+        }
+
+        @Override
+        public PlayerOrigin getOrigin() {
+            return PlayerOrigin.getForNode(this.pos);
+        }
 
         @Override
         public boolean detect(StringArrayBuffer buffer) {
@@ -190,12 +206,26 @@ public class TrackCoasterCSV {
 
     // For future reference: the nl2 park file format
     // https://github.com/geforcefan/libnolimits
-    public static class NoLimits2Entry extends CSVEntry {
+    public static class NoLimits2Entry extends CSVEntry implements PlayerOriginHolder {
         public int no;
         public Vector pos;
         public Vector front;
         public Vector left;
         public Vector up;
+
+        /**
+         * Converts this entry to a TrackNodeState object
+         * 
+         * @return state
+         */
+        public TrackNodeState toState() {
+            return TrackNodeState.create(this.pos, this.up, null);
+        }
+
+        @Override
+        public PlayerOrigin getOrigin() {
+            return PlayerOrigin.getForNode(this.pos);
+        }
 
         @Override
         public boolean detect(StringArrayBuffer buffer) {
@@ -225,19 +255,11 @@ public class TrackCoasterCSV {
 
         @Override
         public void write(StringArrayBuffer buffer) {
-            buffer.put(Integer.toString(this.no));
-            buffer.put(Double.toString(this.pos.getX()));
-            buffer.put(Double.toString(this.pos.getY()));
-            buffer.put(Double.toString(this.pos.getZ()));
-            buffer.put(Double.toString(this.front.getX()));
-            buffer.put(Double.toString(this.front.getY()));
-            buffer.put(Double.toString(this.front.getZ()));
-            buffer.put(Double.toString(this.left.getX()));
-            buffer.put(Double.toString(this.left.getY()));
-            buffer.put(Double.toString(this.left.getZ()));
-            buffer.put(Double.toString(this.up.getX()));
-            buffer.put(Double.toString(this.up.getY()));
-            buffer.put(Double.toString(this.up.getZ()));
+            buffer.putInt(this.no);
+            buffer.putVector(this.pos);
+            buffer.putVector(this.front);
+            buffer.putVector(this.left);
+            buffer.putVector(this.up);
         }
     }
 }
