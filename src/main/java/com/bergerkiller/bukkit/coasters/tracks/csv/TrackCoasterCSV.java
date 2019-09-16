@@ -183,6 +183,13 @@ public class TrackCoasterCSV {
         }
     }
 
+    public static final class RootNodeEntry extends BaseNodeEntry {
+        @Override
+        public String getType() {
+            return "ROOT";
+        }
+    }
+
     public static final class NodeEntry extends BaseNodeEntry {
         @Override
         public String getType() {
@@ -190,17 +197,29 @@ public class TrackCoasterCSV {
         }
     }
 
-    public static final class LinkNodeEntry extends BaseNodeEntry {
-        @Override
-        public String getType() {
-            return "LINK";
-        }
-    }
+    public static final class LinkNodeEntry extends CSVEntry implements PlayerOriginHolder {
+        public Vector pos;
 
-    public static final class RootNodeEntry extends BaseNodeEntry {
         @Override
-        public String getType() {
-            return "ROOT";
+        public PlayerOrigin getOrigin() {
+            return PlayerOrigin.getForNode(this.pos);
+        }
+
+        @Override
+        public boolean detect(StringArrayBuffer buffer) {
+            return buffer.get(0).equals("LINK");
+        }
+
+        @Override
+        public void read(StringArrayBuffer buffer) throws SyntaxException {
+            buffer.skipNext(1); // Type
+            this.pos = buffer.nextVector();
+        }
+
+        @Override
+        public void write(StringArrayBuffer buffer) {
+            buffer.put("LINK");
+            buffer.putVector(this.pos);
         }
     }
 

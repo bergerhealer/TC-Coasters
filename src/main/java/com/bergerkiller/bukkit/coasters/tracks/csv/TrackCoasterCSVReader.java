@@ -24,14 +24,12 @@ public class TrackCoasterCSVReader {
     private final TrackCoaster coaster;
     private final CSVReader reader;
     private final StringArrayBuffer buffer;
-    private final List<PendingLink> pendingLinks;
     private PlayerOrigin origin = null;
 
     public TrackCoasterCSVReader(TrackCoaster coaster, CSVReader reader) {
         this.coaster = coaster;
         this.reader = reader;
         this.buffer = new StringArrayBuffer();
-        this.pendingLinks = new ArrayList<PendingLink>();
     }
 
     /**
@@ -47,7 +45,7 @@ public class TrackCoasterCSVReader {
     }
 
     public void read() throws IOException, SyntaxException {
-        this.pendingLinks.clear();
+        List<PendingLink> pendingLinks = new ArrayList<PendingLink>();
         TrackNode prevNode = null;
         Matrix4x4 transform = null;
 
@@ -60,6 +58,18 @@ public class TrackCoasterCSVReader {
                 transform = ((PlayerOriginHolder) entry).getOrigin().getTransformTo(this.origin);
             }
 
+            // LINK entries are added to the pendingLinks list and added later, in the same order
+            if (entry instanceof TrackCoasterCSV.LinkNodeEntry) {
+                Vector pos = ((TrackCoasterCSV.LinkNodeEntry) entry).pos;
+                if (transform != null) {
+                    pos = pos.clone();
+                    transform.transformPoint(pos);
+                }
+                pendingLinks.add(new PendingLink(prevNode, pos));
+                continue;
+            }
+
+            // ROOT and NODE entries are created, where NODE connects to the previous node (chain)
             if (entry instanceof TrackCoasterCSV.BaseNodeEntry) {
                 TrackCoasterCSV.BaseNodeEntry nodeEntry = (TrackCoasterCSV.BaseNodeEntry) entry;
                 TrackNodeState state = nodeEntry.toState();
@@ -67,18 +77,18 @@ public class TrackCoasterCSVReader {
                     state = state.transform(transform);
                 }
 
-                if (nodeEntry instanceof TrackCoasterCSV.LinkNodeEntry) {
-                    // Create a connection between the previous node and the node of this entry
-                    this.pendingLinks.add(new PendingLink(prevNode, state.position));
-                } else {
-                    // Adding new nodes, where NODE connects to the previous node loaded
-                    TrackNode node = this.coaster.createNewNode(state);
-                    if (prevNode != null && !(nodeEntry instanceof TrackCoasterCSV.RootNodeEntry)) {
-                        this.coaster.getTracks().connect(prevNode, node);
-                    }
-                    prevNode = node;
+                // Adding new nodes, where NODE connects to the previous node loaded
+                TrackNode node = this.coaster.createNewNode(state);
+                if (prevNode != null && !(nodeEntry instanceof TrackCoasterCSV.RootNodeEntry)) {
+                    this.coaster.getTracks().connect(prevNode, node);
                 }
-            } else if (entry instanceof TrackCoasterCSV.NoLimits2Entry) {
+                prevNode = node;
+                continue;
+            }
+
+            // Special support for NoLimits2 CSV format
+            // TODO: Does the first node connect to the last node?
+            if (entry instanceof TrackCoasterCSV.NoLimits2Entry) {
                 TrackCoasterCSV.NoLimits2Entry nle = (TrackCoasterCSV.NoLimits2Entry) entry;
                 TrackNodeState state = nle.toState();
                 if (transform != null) {
@@ -90,11 +100,12 @@ public class TrackCoasterCSVReader {
                     this.coaster.getTracks().connect(prevNode, node);
                 }
                 prevNode = node;
+                continue;
             }
         }
 
         // Create all pending connections
-        for (PendingLink link : this.pendingLinks) {
+        for (PendingLink link : pendingLinks) {
             TrackNode target = this.coaster.getTracks().findNodeExact(link.targetNodePos);
             if (target != null) {
                 TrackConnection conn = this.coaster.getTracks().connect(link.node, target);

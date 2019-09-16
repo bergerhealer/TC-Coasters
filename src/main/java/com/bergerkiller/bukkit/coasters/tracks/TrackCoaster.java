@@ -3,7 +3,7 @@ package com.bergerkiller.bukkit.coasters.tracks;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -25,7 +25,6 @@ import com.opencsv.CSVParser;
 import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
-import com.opencsv.CSVWriter;
 
 /**
  * All the nodes belonging to a single coaster.
@@ -197,8 +196,10 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
         try (CSVSeparatorDetectorStream csvInputStream = new CSVSeparatorDetectorStream(inputStream)) {
             CSVParser csv_parser = (new CSVParserBuilder())
                     .withSeparator(csvInputStream.getSeparator())
-                    .withQuoteChar('\"')
+                    .withQuoteChar('"')
                     .withEscapeChar('\\')
+                    .withIgnoreQuotations(false)
+                    .withIgnoreLeadingWhiteSpace(true)
                     .build();
             CSVReader csv_reader = (new CSVReaderBuilder(new InputStreamReader(csvInputStream, "UTF-8")))
                     .withCSVParser(csv_parser)
@@ -236,28 +237,8 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
         File folder = this.getTracks().getConfigFolder();
         File tmpFile = new File(folder, baseName + ".csv.tmp");
         File realFile = new File(folder, baseName + ".csv");
-        try (CSVWriter writer = new CSVWriter(new FileWriter(tmpFile, false))) {
-            // This writer helper class stores state about what nodes and connections still need to be written
-            TrackCoasterCSVWriter coasterWriter = new TrackCoasterCSVWriter(this, writer);
-
-            // Go by all junctions and write their state out first
-            // This preserves switching direction: the first 2 connections are selected
-            for (TrackNode node : this.getNodes()) {
-                coasterWriter.writeFrom(node, TrackCoasterCSVWriter.Mode.JUNCTIONS_ONLY);
-            }
-
-            // Go by all nodes and first save the chain from all nodes with one or less neighbours.
-            // These are the end nodes of a chain of nodes, and are almost always a valid start of a new chain.
-            for (TrackNode node : this.getNodes()) {
-                coasterWriter.writeFrom(node, TrackCoasterCSVWriter.Mode.ROOTS_ONLY);
-            }
-
-            // Clean up any remaining unwritten nodes, such as nodes in the middle of a chain
-            for (TrackNode node : this.getNodes()) {
-                coasterWriter.writeFrom(node, TrackCoasterCSVWriter.Mode.NORMAL);
-            }
-
-            // Yay!
+        try (TrackCoasterCSVWriter writer = new TrackCoasterCSVWriter(new FileOutputStream(tmpFile, false))) {
+            writer.writeAll(this.getNodes());
             success = true;
         } catch (IOException ex) {
             this.getPlugin().getLogger().log(Level.SEVERE,
