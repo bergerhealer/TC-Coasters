@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.tracks.csv;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -27,7 +28,7 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
     private final List<TrackConnection> currConnections = new ArrayList<TrackConnection>();
 
     public TrackCoasterCSVWriter(OutputStream outputStream) {
-        this.writer = new CSVWriter(new OutputStreamWriter(outputStream));;
+        this.writer = new CSVWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
     }
 
     @Override

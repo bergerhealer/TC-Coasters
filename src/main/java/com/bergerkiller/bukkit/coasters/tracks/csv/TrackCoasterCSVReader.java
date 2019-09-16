@@ -1,6 +1,9 @@
 package com.bergerkiller.bukkit.coasters.tracks.csv;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,26 +13,46 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
+import com.bergerkiller.bukkit.coasters.util.CSVSeparatorDetectorStream;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
+import com.opencsv.CSVParser;
+import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReader;
+import com.opencsv.CSVReaderBuilder;
 
 /**
  * Helper class for building a coaster from a csv file
  */
-public class TrackCoasterCSVReader {
-    private final TrackCoaster coaster;
+public class TrackCoasterCSVReader implements AutoCloseable {
     private final CSVReader reader;
+    private final TrackCoaster coaster;
     private final StringArrayBuffer buffer;
     private PlayerOrigin origin = null;
 
-    public TrackCoasterCSVReader(TrackCoaster coaster, CSVReader reader) {
+    public TrackCoasterCSVReader(InputStream inputStream, TrackCoaster coaster) throws IOException {
+        CSVSeparatorDetectorStream detectorInput = new CSVSeparatorDetectorStream(inputStream);
+        CSVParser csv_parser = (new CSVParserBuilder())
+                .withSeparator(detectorInput.getSeparator())
+                .withQuoteChar('"')
+                .withEscapeChar('\\')
+                .withIgnoreQuotations(false)
+                .withIgnoreLeadingWhiteSpace(true)
+                .build();
+        this.reader = (new CSVReaderBuilder(new InputStreamReader(detectorInput, StandardCharsets.UTF_8)))
+                .withCSVParser(csv_parser)
+                .build();
+
         this.coaster = coaster;
-        this.reader = reader;
         this.buffer = new StringArrayBuffer();
+    }
+
+    @Override
+    public void close() throws IOException {
+        this.reader.close();
     }
 
     /**

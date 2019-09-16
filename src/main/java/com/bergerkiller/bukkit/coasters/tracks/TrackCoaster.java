@@ -6,7 +6,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -17,14 +16,9 @@ import org.bukkit.util.Vector;
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVReader;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVWriter;
-import com.bergerkiller.bukkit.coasters.util.CSVSeparatorDetectorStream;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
-import com.opencsv.CSVParser;
-import com.opencsv.CSVParserBuilder;
-import com.opencsv.CSVReader;
-import com.opencsv.CSVReaderBuilder;
 
 /**
  * All the nodes belonging to a single coaster.
@@ -193,24 +187,11 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
      * @param origin relative to which to place the coaster
      */
     public void loadFromStream(InputStream inputStream, PlayerOrigin origin) throws CoasterLoadException {
-        try (CSVSeparatorDetectorStream csvInputStream = new CSVSeparatorDetectorStream(inputStream)) {
-            CSVParser csv_parser = (new CSVParserBuilder())
-                    .withSeparator(csvInputStream.getSeparator())
-                    .withQuoteChar('"')
-                    .withEscapeChar('\\')
-                    .withIgnoreQuotations(false)
-                    .withIgnoreLeadingWhiteSpace(true)
-                    .build();
-            CSVReader csv_reader = (new CSVReaderBuilder(new InputStreamReader(csvInputStream, "UTF-8")))
-                    .withCSVParser(csv_parser)
-                    .build();
+        try (TrackCoasterCSVReader reader = new TrackCoasterCSVReader(inputStream, this)) {
+            reader.setOrigin(origin);
+            reader.read();
 
-            // This writer helper class stores state about what nodes and connections still need to be written
-            TrackCoasterCSVReader coasterReader = new TrackCoasterCSVReader(this, csv_reader);
-            coasterReader.setOrigin(origin);
-            coasterReader.read();
-
-            // Note: on failure not all nodes may be loaded, but at least some is.
+            // Note: on failure not all nodes may be loaded, but at least some are.
         } catch (SyntaxException ex) {
             throw new CoasterLoadException("Syntax error while loading coaster " + this.getName() + " " + ex.getMessage());
         } catch (IOException ex) {
