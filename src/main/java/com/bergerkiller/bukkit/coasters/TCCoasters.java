@@ -432,6 +432,11 @@ public class TCCoasters extends PluginBase {
                 sender.sendMessage(ChatColor.YELLOW + "Selected coasters have been " + ChatColor.GREEN + "UNLOCKED");
             }
         } else if (args.length > 0 && args[0].equals("import")) {
+            TCCoastersPermissions.IMPORT.handle(sender);
+            if (args.length == 1) {
+                sender.sendMessage(ChatColor.RED + "Please specify the URL to a Hastebin-hosted paste to download from");
+                return true;
+            }
             this.hastebin.download(args[1]).thenAccept(new Consumer<Hastebin.DownloadResult>() {
                 @Override
                 public void accept(DownloadResult t) {
@@ -439,17 +444,21 @@ public class TCCoasters extends PluginBase {
                         sender.sendMessage(ChatColor.RED + "Failed to import coaster: " + t.error());
                         return;
                     }
-                    // https://paste.traincarts.net/uyileririx
                     TrackCoaster coaster = state.getTracks().createNewEmpty(generateNewCoasterName());
                     try {
                         coaster.loadFromStream(new ByteArrayInputStream(t.content().getBytes(Charsets.UTF_8)), PlayerOrigin.getForPlayer(state.getPlayer()));
-                        sender.sendMessage(ChatColor.GREEN + "Coaster with " + coaster.getNodes().size() + " nodes imported!");
+                        if (coaster.getNodes().isEmpty()) {
+                            sender.sendMessage(ChatColor.RED + "Failed to decode any coaster nodes!");
+                        } else {
+                            sender.sendMessage(ChatColor.GREEN + "Coaster with " + coaster.getNodes().size() + " nodes imported!");
+                        }
                     } catch (CoasterLoadException ex) {
                         sender.sendMessage(ChatColor.RED + ex.getMessage());
                     }
                 }
             });
         } else if (args.length > 0 && args[0].equals("export")) {
+            TCCoastersPermissions.EXPORT.handle(sender);
             if (!state.hasEditedNodes()) {
                 sender.sendMessage("No track nodes selected, nothing has been exported!");
             } else {
