@@ -32,7 +32,7 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
  * A single node of track of a rollercoaster. Stores the 3D position
  * and the 'up' vector.
  */
-public class TrackNode implements CoasterWorldAccess {
+public class TrackNode implements CoasterWorldAccess, Lockable {
     private TrackCoaster _coaster;
     private Vector _pos, _up, _up_visual, _dir;
     private IntVector3 _railBlock;
@@ -669,6 +669,11 @@ public class TrackNode implements CoasterWorldAccess {
     @Override
     public TrackRailsWorld getRails() {
         return this._coaster.getRails();
+    }
+
+    @Override
+    public boolean isLocked() {
+        return this._coaster.isLocked();
     }
 
 }

@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
@@ -17,7 +18,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
-import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -29,11 +29,15 @@ import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster.CoasterLoadException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVWriter;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldImpl;
+import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.Hastebin;
 import com.bergerkiller.bukkit.common.Hastebin.DownloadResult;
+import com.bergerkiller.bukkit.common.Hastebin.UploadResult;
+import com.bergerkiller.bukkit.common.PluginBase;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
@@ -50,7 +54,7 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
 import com.google.common.base.Charsets;
 
-public class TCCoasters extends JavaPlugin {
+public class TCCoasters extends PluginBase {
     private static final double DEFAULT_SMOOTHNESS = 10000.0;
     private static final boolean DEFAULT_GLOWING_SELECTIONS = true;
     private Task updateTask;
@@ -177,7 +181,7 @@ public class TCCoasters extends JavaPlugin {
     }
 
     @Override
-    public void onEnable() {
+    public void enable() {
         this.listener.enable();
         this.interactionListener.enable();
         this.updateTask = new Task(this) {
@@ -229,7 +233,7 @@ public class TCCoasters extends JavaPlugin {
     }
 
     @Override
-    public void onDisable() {
+    public void disable() {
         this.listener.disable();
         this.interactionListener.disable();
         this.updateTask.stop();
@@ -246,18 +250,12 @@ public class TCCoasters extends JavaPlugin {
         }
     }
 
-    /**
-     * Checks whether a player has permission to use this plugin
-     * 
-     * @param sender
-     * @return True if permission is granted
-     */
-    public boolean hasPermission(CommandSender sender) {
-        // Im lazy, ok?
-        return !(sender instanceof Player) || sender.hasPermission("train.coasters.use") || sender.isOp();
+    @Override
+    public void permissions() {
+        this.loadPermissions(TCCoastersPermissions.class);
     }
 
-    public boolean globalCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean globalCommand(CommandSender sender, String label, String[] args) {
         if (args.length > 0 && LogicUtil.contains(args[0], "load", "reload")) {
             sender.sendMessage("Loading all tracks from disk now");
 
@@ -339,12 +337,12 @@ public class TCCoasters extends JavaPlugin {
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!hasPermission(sender)) {
+    public boolean command(CommandSender sender, String command, String[] args) {
+        if (!TCCoastersPermissions.USE.has(sender)) {
             sender.sendMessage(ChatColor.RED + "Sorry, no permission for this.");
             return true;
         }
-        if (globalCommand(sender, command, label, args)) {
+        if (globalCommand(sender, command, args)) {
             return true;
         } else if (!(sender instanceof Player)) {
             sender.sendMessage("This command is only for players");
@@ -358,7 +356,7 @@ public class TCCoasters extends JavaPlugin {
             sender.sendMessage("Creating a new track node at your position");
             state.createTrack();
         } else if (args.length > 0 && args[0].equals("delete")) {
-            if (state.getEditedNodes().isEmpty()) {
+            if (!state.hasEditedNodes()) {
                 sender.sendMessage("No track nodes selected, nothing has been deleted!");
             } else {
                 sender.sendMessage("Deleting " + state.getEditedNodes().size() + " track nodes!");
@@ -414,6 +412,25 @@ public class TCCoasters extends JavaPlugin {
             } else {
                 sender.sendMessage("Clipboard is empty, nothing has been pasted!");
             }
+        } else if (args.length > 0 && args[0].equals("lock")) {
+            if (!TCCoastersPermissions.LOCK.has(sender)) {
+                sender.sendMessage(ChatColor.RED + "You do not have permission to lock coasters");
+                return true;
+            } else {
+                for (TrackCoaster coaster : state.getEditedCoasters()) {
+                    coaster.setLocked(true);
+                }
+                sender.sendMessage(ChatColor.YELLOW + "Selected coasters have been " + ChatColor.RED + "LOCKED");
+            }
+        } else if (args.length > 0 && args[0].equals("unlock")) {
+            if (!TCCoastersPermissions.LOCK.has(sender)) {
+                sender.sendMessage(ChatColor.RED + "You do not have permission to unlock coasters");
+            } else {
+                for (TrackCoaster coaster : state.getEditedCoasters()) {
+                    coaster.setLocked(false);
+                }
+                sender.sendMessage(ChatColor.YELLOW + "Selected coasters have been " + ChatColor.GREEN + "UNLOCKED");
+            }
         } else if (args.length > 0 && args[0].equals("import")) {
             this.hastebin.download(args[1]).thenAccept(new Consumer<Hastebin.DownloadResult>() {
                 @Override
@@ -432,7 +449,37 @@ public class TCCoasters extends JavaPlugin {
                     }
                 }
             });
+        } else if (args.length > 0 && args[0].equals("export")) {
+            if (!state.hasEditedNodes()) {
+                sender.sendMessage("No track nodes selected, nothing has been exported!");
+            } else {
+                String content;
+                try {
+                    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                    try (TrackCoasterCSVWriter writer = new TrackCoasterCSVWriter(stream)) {
+                        writer.write(PlayerOrigin.getForPlayer(state.getPlayer()));
+                        writer.writeAll(state.getEditedNodes());
+                    }
+                    content = stream.toString("UTF-8");
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                    sender.sendMessage(ChatColor.RED + "Failed to export: " + t.getMessage());
+                    return true;
+                }
+                this.hastebin.upload(content).thenAccept(new Consumer<Hastebin.UploadResult>() {
+                    @Override
+                    public void accept(UploadResult t) {
+                        if (t.success()) {
+                            sender.sendMessage(ChatColor.GREEN + "Tracks exported: " + t.url());
+                        } else {
+                            sender.sendMessage(ChatColor.RED + "Failed to export: " + t.error());
+                        }
+                    }
+                });
+                return true;
+            }
         } else if (args.length > 0 && LogicUtil.contains(args[0], "orientation", "ori", "rot", "rotation", "rotate")) {
+            state.deselectLockedNodes();
             if (state.getEditedNodes().isEmpty()) {
                 sender.sendMessage("You don't have any nodes selected!");
                 return true;
@@ -484,6 +531,7 @@ public class TCCoasters extends JavaPlugin {
                 sender.sendMessage(ChatColor.GREEN + "Current track orientation is " + ori_str);
             }
         } else if (args.length > 0 && LogicUtil.contains(args[0], "rail", "rails", "railblock", "railsblock")) {
+            state.deselectLockedNodes();
             if (state.getEditedNodes().isEmpty()) {
                 sender.sendMessage("You don't have any nodes selected!");
                 return true;
@@ -541,7 +589,7 @@ public class TCCoasters extends JavaPlugin {
     }
 
     public boolean isHoldingEditTool(Player player) {
-        if (!this.hasPermission(player)) {
+        if (!TCCoastersPermissions.USE.has(player)) {
             return false;
         }
 
@@ -614,4 +662,10 @@ public class TCCoasters extends JavaPlugin {
             return escapedName;
         }
     }
+
+    @Override
+    public int getMinimumLibVersion() {
+        return Common.VERSION;
+    }
+
 }

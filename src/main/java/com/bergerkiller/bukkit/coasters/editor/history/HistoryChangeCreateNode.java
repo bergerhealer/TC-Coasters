@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.editor.history;
 
+import com.bergerkiller.bukkit.coasters.tracks.TrackLockedException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
@@ -23,10 +24,13 @@ public class HistoryChangeCreateNode extends HistoryChange {
     }
 
     @Override
-    protected void run(boolean undo) {
+    protected void run(boolean undo) throws TrackLockedException {
         if (undo) {
             TrackNode nodeToDelete = this.world.getTracks().findNodeExact(this.state.position);
             if (nodeToDelete != null && nodeToDelete.getCoaster().getName().equals(this.coasterName)) {
+                if (nodeToDelete.isLocked()) {
+                    throw new TrackLockedException();
+                }
                 nodeToDelete.remove();
             }
         } else {

@@ -13,6 +13,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
+import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.LockCoasterEntry;
 import com.bergerkiller.bukkit.coasters.util.CSVSeparatorDetectorStream;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
@@ -72,6 +73,9 @@ public class TrackCoasterCSVReader implements AutoCloseable {
         TrackNode prevNode = null;
         Matrix4x4 transform = null;
 
+        // By default not locked
+        this.coaster.setLocked(false);
+
         // Read all the entries we can from the CSV reader
         TrackCoasterCSV.CSVEntry entry;
         while ((entry = TrackCoasterCSV.readNext(this.reader, this.buffer)) != null) {
@@ -123,6 +127,12 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                     this.coaster.getTracks().connect(prevNode, node);
                 }
                 prevNode = node;
+                continue;
+            }
+
+            // Locks the coaster
+            if (entry instanceof LockCoasterEntry) {
+                this.coaster.setLocked(true);
                 continue;
             }
         }

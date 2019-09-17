@@ -4,6 +4,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 
+import com.bergerkiller.bukkit.coasters.tracks.TrackLockedException;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 
 /**
@@ -21,28 +22,59 @@ public abstract class HistoryChange extends HistoryChangeCollection {
      * To be implemented to perform the changes
      * 
      * @param undo whether undoing instead of redoing
+     * @throws TrackLockedException if a coaster is being modified that is locked
      */
-    protected abstract void run(boolean undo);
+    protected abstract void run(boolean undo) throws TrackLockedException;
 
     /**
-     * Performs the history change
+     * Performs the history change.
+     * Does a best-effort in the event of locked coasters.
+     * 
+     * @throws TrackLockedException if some changes failed to be made because a coaster is locked
      */
-    public final void redo() {
-        this.run(false);
+    public final void redo() throws TrackLockedException {
+        boolean someTracksLocked = false;
+        try {
+            this.run(false);
+        } catch (TrackLockedException ex) {
+            someTracksLocked = true;
+        }
         for (HistoryChange child : this.children) {
-            child.redo();
+            try {
+                child.redo();
+            } catch (TrackLockedException ex) {
+                someTracksLocked = true;
+            }
+        }
+        if (someTracksLocked) {
+            throw new TrackLockedException();
         }
     }
 
     /**
-     * Undoes the history change
+     * Undoes the history change.
+     * Does a best-effort in the event of locked coasters.
+     * 
+     * @throws TrackLockedException if some changes failed to be made because a coaster is locked
      */
-    public final void undo() {
+    public final void undo() throws TrackLockedException {
+        boolean someTracksLocked = false;
         ListIterator<HistoryChange> iter = this.children.listIterator(this.children.size());
         while (iter.hasPrevious()) {
-            iter.previous().undo();
+            try {
+                iter.previous().undo();
+            } catch (TrackLockedException ex) {
+                someTracksLocked = true;
+            }
         }
-        this.run(true);
+        try {
+            this.run(true);
+        } catch (TrackLockedException ex) {
+            someTracksLocked = true;
+        }
+        if (someTracksLocked) {
+            throw new TrackLockedException();
+        }
     }
 
     /**

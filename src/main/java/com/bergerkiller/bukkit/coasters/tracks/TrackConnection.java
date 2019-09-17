@@ -15,7 +15,7 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 /**
  * The connection between two track nodes
  */
-public class TrackConnection {
+public class TrackConnection implements Lockable {
     protected static final TrackConnection[] EMPTY_ARR = new TrackConnection[0];
     protected final EndPoint _endA;
     protected final EndPoint _endB;
@@ -64,6 +64,11 @@ public class TrackConnection {
 
     public boolean isInterGroup() {
         return this._endA.node.getCoaster() != this._endB.node.getCoaster();
+    }
+
+    @Override
+    public boolean isLocked() {
+        return this._endA.node.isLocked() || this._endB.node.isLocked();
     }
 
     public void setSelected(boolean selected) {

@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.editor.history;
 
+import com.bergerkiller.bukkit.coasters.tracks.TrackLockedException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
@@ -26,10 +27,13 @@ public class HistoryChangeNode extends HistoryChange {
     }
 
     @Override
-    protected final void run(boolean undo) {
+    protected final void run(boolean undo) throws TrackLockedException {
         if (undo) {
             TrackNode node = world.getTracks().findNodeExact(this.to.position);
             if (node != null) {
+                if (node.isLocked()) {
+                    throw new TrackLockedException();
+                }
                 node.setPosition(this.from.position);
                 node.setOrientation(this.from.orientation);
                 node.setRailBlock(this.from.railBlock);
@@ -37,6 +41,9 @@ public class HistoryChangeNode extends HistoryChange {
         } else {
             TrackNode node = world.getTracks().findNodeExact(this.from.position);
             if (node != null) {
+                if (node.isLocked()) {
+                    throw new TrackLockedException();
+                }
                 node.setPosition(this.to.position);
                 node.setOrientation(this.to.orientation);
                 node.setRailBlock(this.to.railBlock);

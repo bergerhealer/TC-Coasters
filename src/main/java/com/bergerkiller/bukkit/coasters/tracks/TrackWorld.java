@@ -22,13 +22,13 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 public class TrackWorld extends CoasterWorldAccess.Component {
     private final List<TrackCoaster> _coasters;
     private final Set<TrackNode> _changedNodes;
-    private boolean _is_loading;
+    private final List<TrackNode> _changedNodesLive;
 
     public TrackWorld(CoasterWorldAccess world) {
         super(world);
         this._coasters = new ArrayList<TrackCoaster>();
         this._changedNodes = new HashSet<TrackNode>();
-        this._is_loading = false;
+        this._changedNodesLive = new ArrayList<TrackNode>();
     }
 
     /**
@@ -323,9 +323,6 @@ public class TrackWorld extends CoasterWorldAccess.Component {
      * Deletes all coasters from this world
      */
     public void clear() {
-        // Mark loading to avoid slow tracking of changed nodes during clearing
-        this._is_loading = true;
-
         // Perform clearing logic
         for (TrackCoaster coaster : this._coasters) {
             coaster.clear();
@@ -334,9 +331,6 @@ public class TrackWorld extends CoasterWorldAccess.Component {
         this._changedNodes.clear();
 
         this.getRails().clear();
-
-        // Done.
-        this._is_loading = false;
     }
 
     /**
@@ -344,9 +338,6 @@ public class TrackWorld extends CoasterWorldAccess.Component {
      */
     public void load() {
         this.clear();
-
-        // Mark loading to avoid slow tracking of changed nodes during load
-        this._is_loading = true;
 
         // List all coasters saved on disk. List both .csv and .csv.tmp coasters.
         HashSet<String> coasterNames = new HashSet<String>();
@@ -370,12 +361,6 @@ public class TrackWorld extends CoasterWorldAccess.Component {
         for (TrackCoaster coaster : this._coasters) {
             coaster.markUnchanged();
         }
-
-        // Force a refresh of all nodes contained
-        this._is_loading = false;
-        for (TrackCoaster coaster : this._coasters) {
-            this._changedNodes.addAll(coaster.getNodes());
-        }
     }
 
     /**
@@ -383,6 +368,24 @@ public class TrackWorld extends CoasterWorldAccess.Component {
      */
     public void updateAll() {
         if (!this._changedNodes.isEmpty()) {
+            // For two cycles, add the neighbours of the nodes we have already collected
+            // this is because a node change has a ripple effect that extends two connected nodes down
+            this._changedNodesLive.addAll(this._changedNodes);
+            for (int n = 0; n < 2; n++) {
+                int size = this._changedNodesLive.size();
+                for (int i = 0; i < size; i++) {
+                    TrackNode node = this._changedNodesLive.get(i);
+                    for (TrackConnection conn_a : node._connections) {
+                        TrackNode other = conn_a.getOtherNode(node);
+                        if (this._changedNodes.add(other)) {
+                            this._changedNodesLive.add(other);
+                        }
+                    }
+                }
+                this._changedNodesLive.subList(0, size).clear();
+            }
+            this._changedNodesLive.clear();
+
             // Refresh all the node's shape and track the connections that also changed
             HashSet<TrackConnection> changedConnections = new HashSet<TrackConnection>(this._changedNodes.size()+1);
             for (TrackNode changedNode : this._changedNodes) {
@@ -410,19 +413,7 @@ public class TrackWorld extends CoasterWorldAccess.Component {
      * @param node
      */
     public void scheduleNodeRefresh(TrackNode node) {
-        if (!this._is_loading) {
-            this._changedNodes.add(node);
-            for (TrackConnection conn_a : node._connections) {
-                TrackNode other_a = conn_a.getOtherNode(node);
-                this._changedNodes.add(other_a);
-                for (TrackConnection conn_b : other_a._connections) {
-                    if (conn_a != conn_b) {
-                        TrackNode other_b = conn_b.getOtherNode(other_a);
-                        this._changedNodes.add(other_b);
-                    }
-                }
-            }
-        }
+        this._changedNodes.add(node);
     }
 
     /**
@@ -431,9 +422,7 @@ public class TrackWorld extends CoasterWorldAccess.Component {
      * @param node
      */
     public void cancelNodeRefresh(TrackNode node) {
-        if (!this._is_loading) {
-            this._changedNodes.remove(node);
-        }
+        this._changedNodes.remove(node);
     }
 
     /**

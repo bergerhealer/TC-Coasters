@@ -4,11 +4,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -71,7 +73,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         this.plugin = plugin;
         this.player = player;
         this.input = new PlayerEditInput(player);
-        this.history = new PlayerEditHistory();
+        this.history = new PlayerEditHistory(player);
         this.clipboard = new PlayerEditClipboard(this);
     }
 
@@ -191,6 +193,19 @@ public class PlayerEditState implements CoasterWorldAccess {
     }
 
     /**
+     * Gets a set of all the coasters of which a node is being edited
+     * 
+     * @return edited coasters
+     */
+    public Set<TrackCoaster> getEditedCoasters() {
+        HashSet<TrackCoaster> coasters = new HashSet<TrackCoaster>();
+        for (TrackNode node : getEditedNodes()) {
+            coasters.add(node.getCoaster());
+        }
+        return coasters;
+    }
+
+    /**
      * Gets the last node that was clicked by the player to be edited
      * 
      * @return last edited node, null if no nodes are being edited.
@@ -205,6 +220,32 @@ public class PlayerEditState implements CoasterWorldAccess {
 
     public boolean hasEditedNodes() {
         return !this.editedNodes.isEmpty();
+    }
+
+    /**
+     * Deselects all nodes that we cannot actually edit, because the coaster they
+     * are part of is locked.
+     * 
+     * @return True if nodes were deselected
+     */
+    public boolean deselectLockedNodes() {
+        boolean hadLockedNodes = false;
+        Iterator<TrackNode> iter = this.editedNodes.keySet().iterator();
+        while (iter.hasNext()) {
+            TrackNode node = iter.next();
+            if (node.isLocked()) {
+                iter.remove();
+                hadLockedNodes = true;
+                node.onStateUpdated(this.player);
+                this.lastEdited = node;
+            }
+        }
+        if (hadLockedNodes) {
+            this.lastEditTime = System.currentTimeMillis();
+            this.changed = true;
+            this.player.sendMessage(ChatColor.RED + "This coaster is locked!");
+        }
+        return hadLockedNodes;
     }
 
     public void setMode(Mode mode) {
@@ -460,6 +501,9 @@ public class PlayerEditState implements CoasterWorldAccess {
      * to the now-deleted tracks. This allows repeated deletion to 'walk' and delete.
      */
     public void deleteTrack() {
+        // Deselect nodes we cannot delete or modify
+        this.deselectLockedNodes();
+
         // Track all changes
         HistoryChange changes = this.getHistory().addChangeGroup();
 
@@ -537,6 +581,9 @@ public class PlayerEditState implements CoasterWorldAccess {
      * @param new_rail to set to, null to reset
      */
     public void setRailBlock(IntVector3 new_rail) {
+        // Deselect nodes we cannot edit
+        this.deselectLockedNodes();
+
         // Reset
         if (new_rail == null) {
             HistoryChange changes = null;
@@ -588,6 +635,9 @@ public class PlayerEditState implements CoasterWorldAccess {
      * @param orientation vector to set to
      */
     public void setOrientation(Vector orientation) {
+        // Deselect locked nodes that we cannot edit
+        this.deselectLockedNodes();
+
         // Apply to all nodes
         HistoryChange changes = null;
         for (TrackNode node : this.getEditedNodes()) {
@@ -703,6 +753,9 @@ public class PlayerEditState implements CoasterWorldAccess {
     private void createNewNode(Vector pos, Vector ori, boolean inAir) {
         TrackWorld tracks = getTracks();
 
+        // Deselect nodes that are locked, to prevent modification
+        this.deselectLockedNodes();
+
         // Not editing any new nodes, create a completely new coaster and node
         if (!this.hasEditedNodes()) {
             TrackNode newNode = tracks.createNew(pos).getNodes().get(0);
@@ -795,6 +848,9 @@ public class PlayerEditState implements CoasterWorldAccess {
     }
 
     public void changePositionOrientation() {
+        // Deselect locked nodes that we cannot edit
+        this.deselectLockedNodes();
+
         if (!this.hasEditedNodes()) {
             return;
         }
@@ -882,6 +938,9 @@ public class PlayerEditState implements CoasterWorldAccess {
 
     // when player releases the right-click mouse button
     private void onEditingFinished() {
+        // Deselect locked nodes that we cannot edit
+        this.deselectLockedNodes();
+
         // When drag-dropping a node onto a node, 'merge' the two
         // Do so by connecting all other neighbours of the dragged node to the node
         if (this.getMode() == Mode.POSITION && this.getEditedNodes().size() == 1) {

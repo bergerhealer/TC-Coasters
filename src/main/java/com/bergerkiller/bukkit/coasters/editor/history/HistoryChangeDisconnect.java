@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.editor.history;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
+import com.bergerkiller.bukkit.coasters.tracks.TrackLockedException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 
@@ -15,7 +16,7 @@ public class HistoryChangeDisconnect extends HistoryChangeConnect {
     }
 
     @Override
-    protected void run(boolean undo) {
+    protected void run(boolean undo) throws TrackLockedException {
         super.run(!undo);
     }
 }

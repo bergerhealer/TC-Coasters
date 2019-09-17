@@ -6,6 +6,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -47,7 +48,7 @@ public class TCCoastersDisplay extends MapDisplay {
         super.onTick();
 
         // Detect changes in permission to revoke/return permissions
-        if (this.getPlugin().hasPermission(this.getPlayer()) != this._hasPermission) {
+        if (TCCoastersPermissions.USE.has(this.getPlayer()) != this._hasPermission) {
             this.setRunning(false);
             this.setRunning(true);
         }
@@ -61,7 +62,7 @@ public class TCCoastersDisplay extends MapDisplay {
         this.setUpdateWithoutViewers(false);
 
         // When no permission, simply show nothing on the map
-        this._hasPermission = this.getPlugin().hasPermission(this.getPlayer());
+        this._hasPermission = TCCoastersPermissions.USE.has(this.getPlayer());
         if (!this._hasPermission) {
             getLayer(1).draw(MapFont.MINECRAFT, 5, 5, MapColorPalette.COLOR_RED, "No Permission");
             return;
@@ -209,6 +210,7 @@ public class TCCoastersDisplay extends MapDisplay {
     }
 
     private void alignPosition(char axis, double value) {
+        getState().deselectLockedNodes();
         for (TrackNode node : getState().getEditedNodes()) {
             Vector v = node.getPosition().clone();
             if (axis == 'x') {

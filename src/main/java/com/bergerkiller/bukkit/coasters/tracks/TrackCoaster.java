@@ -14,6 +14,7 @@ import org.bukkit.util.FileUtil;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVReader;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVWriter;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
@@ -24,10 +25,11 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
  * All the nodes belonging to a single coaster.
  * Properties applied to all the nodes of the coaster are stored here.
  */
-public class TrackCoaster extends CoasterWorldAccess.Component {
+public class TrackCoaster extends CoasterWorldAccess.Component implements Lockable {
     private String _name;
     private List<TrackNode> _nodes;
     private boolean _changed = false;
+    private boolean _locked = false;
 
     protected TrackCoaster(CoasterWorldAccess.Component world, String name) {
         super(world);
@@ -104,6 +106,24 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
 
     public TrackNode createNewNode(Vector position, Vector up) {
         return createNewNode(TrackNodeState.create(position, up, null));
+    }
+
+    @Override
+    public boolean isLocked() {
+        return this._locked;
+    }
+
+    /**
+     * Sets whether this coaster is locked.
+     * A locked coaster cannot be modified by players until unlocked.
+     * 
+     * @param locked
+     */
+    public void setLocked(boolean locked) {
+        if (this._locked != locked) {
+            this._locked = locked;
+            this.markChanged();
+        }
     }
 
     /**
@@ -219,6 +239,9 @@ public class TrackCoaster extends CoasterWorldAccess.Component {
         File tmpFile = new File(folder, baseName + ".csv.tmp");
         File realFile = new File(folder, baseName + ".csv");
         try (TrackCoasterCSVWriter writer = new TrackCoasterCSVWriter(new FileOutputStream(tmpFile, false))) {
+            if (this.isLocked()) {
+                writer.write(new TrackCoasterCSV.LockCoasterEntry());
+            }
             writer.writeAll(this.getNodes());
             success = true;
         } catch (IOException ex) {
