@@ -2,7 +2,6 @@ package com.bergerkiller.bukkit.coasters.tracks.csv;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -11,6 +10,7 @@ import java.util.List;
 import java.util.Set;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.opencsv.CSVWriter;
@@ -29,7 +29,15 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
     private boolean writeLinksToForeignNodes = true;
 
     public TrackCoasterCSVWriter(OutputStream outputStream) {
-        this.writer = new CSVWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
+        this(outputStream, ',');
+    }
+
+    public TrackCoasterCSVWriter(OutputStream outputStream, char separator) {
+        java.io.Writer writer = new java.io.OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
+        char quotechar = '"';
+        char escapechar = '\\';
+        String lineEnd = "\r\n";
+        this.writer = new CSVWriter(writer, separator, quotechar, escapechar, lineEnd);
     }
 
     /**
@@ -45,6 +53,51 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
     @Override
     public void close() throws IOException {
         this.writer.close();
+    }
+
+    /**
+     * Writes all nodes specified to the CSV Output Stream in NoLimits2's CSV format.
+     * Junctions cannot be represented in this format. For this reason, the longest chain
+     * is selected in the source.
+     * 
+     * @param nodes to write
+     * @throws IOException
+     */
+    public void writeAllNoLimits2(Collection<TrackNode> nodes) throws IOException {
+        // Write header
+        this.writer.writeNext(new String[] {"No.","PosX","PosY","PosZ","FrontX","FrontY","FrontZ","LeftX","LeftY","LeftZ","UpX","UpY","UpZ"});
+
+        // Find the longest chain of nodes we can write out
+        // This 'cuts off' junctions that lead to short ends
+        // We cannot represent such junctions in this format anyway
+        NodeChain chain = findLongestChain(nodes);
+        if (chain == null) {
+            return;
+        }
+        TrackNode node = chain.startNode;
+
+        // Write the first node
+        TrackCoasterCSV.NoLimits2Entry entry = new TrackCoasterCSV.NoLimits2Entry();
+        entry.no = 1;
+        {
+            entry.pos = node.getPosition();
+            if (chain.links.isEmpty()) {
+                entry.setOrientation(node.getDirection(), node.getOrientation());
+            } else {
+                TrackConnectionPath.EndPoint firstStartPoint = chain.links.get(0).getEndPoint(node);
+                entry.setOrientation(firstStartPoint.getDirection(), node.getOrientation());
+            }
+            this.write(entry);
+        }
+
+        // Write following links of the chain
+        for (TrackConnection connection : chain.links) {
+            node = connection.getOtherNode(node);
+            entry.pos = node.getPosition();
+            entry.setOrientation(connection.getEndPoint(node).getDirection(), node.getOrientation());
+            entry.no++;
+            this.write(entry);
+        }
     }
 
     /**
@@ -87,7 +140,7 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
     public void write(TrackCoasterCSV.CSVEntry entry) {
         this.buffer.clear();
         entry.write(this.buffer);
-        this.writer.writeNext(this.buffer.toArray());
+        this.writer.writeNext(this.buffer.toArray(), entry.applyQuotes());
     }
 
     /**
@@ -208,5 +261,86 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
         JUNCTIONS_ONLY,
         ROOTS_ONLY,
         NORMAL
+    }
+
+    private static NodeChain findLongestChain(Collection<TrackNode> nodes) {
+        NodeChain longestChain = null;
+        for (TrackNode possible : nodes) {
+            if (longestChain == null) {
+                longestChain = new NodeChain(possible, nodes);
+                longestChain = findLongestChain(longestChain);
+            } else if (possible.getConnections().size() != 2 || !longestChain.remaining.contains(possible)) {
+                NodeChain possibleChain = new NodeChain(possible, nodes);
+                possibleChain = findLongestChain(possibleChain);
+                if (possibleChain.links.size() > longestChain.links.size()) {
+                    longestChain = possibleChain;
+                }
+            }
+        }
+        return longestChain;
+    }
+
+    private static NodeChain findLongestChain(NodeChain start) {
+        ArrayList<TrackConnection> nextNodeOptions = new ArrayList<TrackConnection>();
+
+        // Walk as many nodes as we can
+        while (true) {
+            nextNodeOptions.clear();
+            for (TrackConnection connection : start.lastNode.getConnections()) {
+                TrackNode nextNode = connection.getOtherNode(start.lastNode);
+                if (start.remaining.contains(nextNode)) {
+                    nextNodeOptions.add(connection);
+                }
+            }
+            if (nextNodeOptions.size() == 1) {
+                start.add(nextNodeOptions.get(0));
+            } else {
+                break;
+            }
+        }
+
+        // Compress
+        start.links.trimToSize();
+
+        // Walk again for all remaining options
+        NodeChain result = start;
+        for (TrackConnection nextNodeConnection : nextNodeOptions) {
+            NodeChain nextChain = new NodeChain(start);
+            nextChain.add(nextNodeConnection);
+            nextChain = findLongestChain(nextChain);
+            if (nextChain.links.size() > result.links.size()) {
+                result = nextChain;
+            }
+        }
+
+        // Return result with longest chain
+        return result;
+    }
+
+    private static class NodeChain {
+        public final TrackNode startNode;
+        public TrackNode lastNode;
+        public final HashSet<TrackNode> remaining;
+        public final ArrayList<TrackConnection> links;
+
+        public NodeChain(TrackNode startNode, Collection<TrackNode> nodes) {
+            this.startNode = startNode;
+            this.lastNode = startNode;
+            this.remaining = new HashSet<TrackNode>(nodes);
+            this.links = new ArrayList<TrackConnection>();
+        }
+
+        public NodeChain(NodeChain source) {
+            this.startNode = source.startNode;
+            this.lastNode = source.lastNode;
+            this.remaining = new HashSet<TrackNode>(source.remaining);
+            this.links = new ArrayList<TrackConnection>(source.links);
+        }
+
+        public void add(TrackConnection connection) {
+            this.lastNode = connection.getOtherNode(this.lastNode);
+            this.remaining.remove(this.lastNode);
+            this.links.add(connection);
+        }
     }
 }

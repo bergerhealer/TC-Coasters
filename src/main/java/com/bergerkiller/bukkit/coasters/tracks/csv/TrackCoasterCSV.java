@@ -16,6 +16,7 @@ import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.opencsv.CSVReader;
 
 /**
@@ -85,6 +86,13 @@ public class TrackCoasterCSV {
      * Base type for a CSV entry
      */
     public static abstract class CSVEntry {
+        /**
+         * Gets whether quotes must be applied when writing out this entry
+         * 
+         * @return True if quotes must be applied
+         */
+        public boolean applyQuotes() { return true; }
+
         /**
          * Checks a buffer to see if it matches the formatting of this kind of entry.
          * This method should not modify the internal state of this entry.
@@ -252,6 +260,27 @@ public class TrackCoasterCSV {
         public Vector up;
 
         /**
+         * Sets the orientation of this node, which updates the front/left/up vectors
+         * 
+         * @param direction
+         * @param up
+         */
+        public void setOrientation(Vector direction, Vector up) {
+            this.setOrientation(Quaternion.fromLookDirection(direction, up));
+        }
+
+        /**
+         * Sets the orientation of this node, which updates the front/left/up vectors
+         * 
+         * @param orientation
+         */
+        public void setOrientation(Quaternion orientation) {
+            this.front = orientation.forwardVector();
+            this.left = orientation.rightVector().multiply(-1.0);
+            this.up = orientation.upVector();
+        }
+
+        /**
          * Converts this entry to a TrackNodeState object
          * 
          * @return state
@@ -263,6 +292,11 @@ public class TrackCoasterCSV {
         @Override
         public PlayerOrigin getOrigin() {
             return PlayerOrigin.getForNode(this.pos);
+        }
+
+        @Override
+        public boolean applyQuotes() {
+            return false;
         }
 
         @Override

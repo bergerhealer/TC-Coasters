@@ -49,6 +49,16 @@ public class TrackConnection implements Lockable {
     }
 
     /**
+     * Gets the endpoint of node making up this connection pair
+     * 
+     * @param node to get the end point for
+     * @return end point
+     */
+    public TrackConnectionPath.EndPoint getEndPoint(TrackNode node) {
+        return (this._endA.node == node) ? this._endA : this._endB;
+    }
+
+    /**
      * Gets the other end of the connection, given a node
      * 
      * @param node

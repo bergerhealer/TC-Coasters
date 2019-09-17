@@ -462,13 +462,20 @@ public class TCCoasters extends PluginBase {
             if (!state.hasEditedNodes()) {
                 sender.sendMessage("No track nodes selected, nothing has been exported!");
             } else {
+                boolean nolimits2Format = (args.length > 1 && LogicUtil.containsIgnoreCase(args[1], "nl2", "nolimits", "nolimits2"));
                 String content;
                 try {
                     ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                    try (TrackCoasterCSVWriter writer = new TrackCoasterCSVWriter(stream)) {
-                        writer.setWriteLinksToForeignNodes(false);
-                        writer.write(PlayerOrigin.getForPlayer(state.getPlayer()));
-                        writer.writeAll(state.getEditedNodes());
+                    try (TrackCoasterCSVWriter writer = new TrackCoasterCSVWriter(stream, nolimits2Format ? '\t' : ',')) {
+                        if (nolimits2Format) {
+                            // NoLimits2 format
+                            writer.writeAllNoLimits2(state.getEditedNodes());
+                        } else {
+                            // Normal TCC format
+                            writer.setWriteLinksToForeignNodes(false);
+                            writer.write(PlayerOrigin.getForPlayer(state.getPlayer()));
+                            writer.writeAll(state.getEditedNodes());
+                        }
                     }
                     content = stream.toString("UTF-8");
                 } catch (Throwable t) {
