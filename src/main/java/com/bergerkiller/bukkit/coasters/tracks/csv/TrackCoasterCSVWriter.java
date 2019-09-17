@@ -26,9 +26,20 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
     private final Set<TrackNode> writtenNodes = new HashSet<TrackNode>();
     private final Set<TrackConnection> writtenConnections = new HashSet<TrackConnection>();
     private final List<TrackConnection> currConnections = new ArrayList<TrackConnection>();
+    private boolean writeLinksToForeignNodes = true;
 
     public TrackCoasterCSVWriter(OutputStream outputStream) {
         this.writer = new CSVWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Sets whether links from nodes being written to nodes that are not being
+     * written are included.
+     * 
+     * @param write option
+     */
+    public void setWriteLinksToForeignNodes(boolean write) {
+        this.writeLinksToForeignNodes = write;
     }
 
     @Override
@@ -96,10 +107,24 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
                 if (startNode.getConnections().size() <= 2) {
                     break;
                 }
-                this.currConnections.addAll(startNode.getConnections());
+                if (this.writeLinksToForeignNodes) {
+                    this.currConnections.addAll(startNode.getConnections());
+                } else {
+                    for (TrackConnection connection : startNode.getConnections()) {
+                        if (this.writtenNodes.contains(connection.getOtherNode(startNode))) {
+                            this.currConnections.add(connection);
+                        }
+                    }
+                    if (this.currConnections.size() <= 2) {
+                        break;
+                    }
+                }
             } else {
                 // Find connections we have not yet written out
                 for (TrackConnection connection : startNode.getConnections()) {
+                    if (!this.writeLinksToForeignNodes && !this.writtenNodes.contains(connection.getOtherNode(startNode))) {
+                        continue;
+                    }
                     if (!this.writtenConnections.contains(connection)) {
                         this.currConnections.add(connection);
                     }

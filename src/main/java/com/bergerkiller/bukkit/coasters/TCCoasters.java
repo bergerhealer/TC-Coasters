@@ -457,6 +457,7 @@ public class TCCoasters extends PluginBase {
                 try {
                     ByteArrayOutputStream stream = new ByteArrayOutputStream();
                     try (TrackCoasterCSVWriter writer = new TrackCoasterCSVWriter(stream)) {
+                        writer.setWriteLinksToForeignNodes(false);
                         writer.write(PlayerOrigin.getForPlayer(state.getPlayer()));
                         writer.writeAll(state.getEditedNodes());
                     }
