@@ -487,7 +487,7 @@ public class TCCoasters extends PluginBase {
                     @Override
                     public void accept(UploadResult t) {
                         if (t.success()) {
-                            sender.sendMessage(ChatColor.GREEN + "Tracks exported: " + t.url());
+                            sender.sendMessage(ChatColor.GREEN + "Tracks exported: " + ChatColor.WHITE + ChatColor.UNDERLINE + t.url());
                         } else {
                             sender.sendMessage(ChatColor.RED + "Failed to export: " + t.error());
                         }
