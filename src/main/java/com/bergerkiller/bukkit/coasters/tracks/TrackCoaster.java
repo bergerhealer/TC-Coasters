@@ -217,6 +217,7 @@ public class TrackCoaster extends CoasterWorldAccess.Component implements Lockab
         } catch (IOException ex) {
             throw new CoasterLoadException("An I/O Error occurred while loading coaster " + this.getName(), ex);
         } catch (Throwable t) {
+            t.printStackTrace();
             throw new CoasterLoadException("An unexpected error occurred while loading coaster " + this.getName(), t);
         }
     }

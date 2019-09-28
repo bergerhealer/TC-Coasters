@@ -65,8 +65,10 @@ public class CSVSeparatorDetectorStream extends InputStream {
             }
         }
 
-        this._prebuffer_bytes = prebuffer.toByteArray();
-        this._prebuffer_pos = 0;
+        if (prebuffer.size() > 0) {
+            this._prebuffer_bytes = prebuffer.toByteArray();
+            this._prebuffer_pos = 0;
+        }
         if (num_tabs > num_spaces && num_tabs > num_commas) {
             return '\t';
         } else if (num_spaces > num_commas) {
@@ -94,7 +96,7 @@ public class CSVSeparatorDetectorStream extends InputStream {
         if (this._prebuffer_bytes == null) {
             return this._input.read(b);
         } else {
-            return super.read(b);
+            return this.read(b, 0, b.length);
         }
     }
 
