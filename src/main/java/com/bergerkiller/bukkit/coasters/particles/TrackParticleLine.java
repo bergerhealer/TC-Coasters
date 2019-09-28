@@ -6,6 +6,7 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
@@ -25,14 +26,25 @@ public class TrackParticleLine extends TrackParticle {
     private static final Vector OFFSET1 = new Vector(0.7, 0.16, -0.5);
     private static final Vector OFFSET2 = new Vector(0.0, -1.1, -0.2);
     private static final double VIEW_RADIUS = 128.0;
-    private Vector p1 = null, p2 = null;
+    private DoubleOctree.Entry<TrackParticle> p1, p2;
     private int e1 = -1, e2 = -1;
     private boolean positionChanged = false;
     private boolean needsRespawn = false;
 
-    public TrackParticleLine(TrackParticleWorld world, Vector p1, Vector p2) {
-        super(world);
+    public TrackParticleLine(Vector p1, Vector p2) {
         this.setPositions(p1, p2);
+    }
+
+    @Override
+    protected void onAdded() {
+        addPosition(this.p1);
+        addPosition(this.p2);
+    }
+
+    @Override
+    protected void onRemoved() {
+        removePosition(this.p1);
+        removePosition(this.p2);
     }
 
     public void setPositions(Vector p1, Vector p2) {
@@ -45,17 +57,17 @@ public class TrackParticleLine extends TrackParticle {
 
         if (this.p1 == null || this.p2 == null) {
             // First time updating - set initial positions
-            this.p1 = p1.clone();
-            this.p2 = p2.clone();
-        } else if (!this.p1.equals(p1) || !this.p2.equals(p2)) {
+            this.p1 = DoubleOctree.Entry.create(p1, this);
+            this.p2 = DoubleOctree.Entry.create(p2, this);
+        } else if (!this.p1.equalsCoord(p1) || !this.p2.equalsCoord(p2)) {
             // When p1 and p2 swap around, respawn everything to prevent visual glitches
-            this.needsRespawn = p1.distanceSquared(this.p1) > p1.distanceSquared(this.p2) &&
-                                p2.distanceSquared(this.p2) > p2.distanceSquared(this.p1);
+            this.needsRespawn = this.p1.distanceSquared(p1) > this.p2.distanceSquared(p1) &&
+                                this.p2.distanceSquared(p2) > this.p1.distanceSquared(p2);
 
             // Mark position changed and update points
             this.positionChanged = true;
-            this.p1 = p1.clone();
-            this.p2 = p2.clone();
+            this.p1 = updatePosition(this.p1, p1);
+            this.p2 = updatePosition(this.p2, p2);
         }
     }
 

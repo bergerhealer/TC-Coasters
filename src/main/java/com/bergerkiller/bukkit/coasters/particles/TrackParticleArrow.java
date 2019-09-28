@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
@@ -29,21 +30,30 @@ public class TrackParticleArrow extends TrackParticle {
     private static final double VIEW_RADIUS = 64.0;
     private final ProtocolPosition prot = new ProtocolPosition();
     private TrackParticleItemType itemType = TrackParticleItemType.LEVER;
-    private Vector position;
+    private DoubleOctree.Entry<TrackParticle> position;
     private Quaternion orientation;
     private boolean positionChanged = false;
     private boolean itemChanged = false;
     private int entityId = -1;
 
-    protected TrackParticleArrow(TrackParticleWorld world, Vector position, Quaternion orientation) {
-        super(world);
-        this.position = position.clone();
+    protected TrackParticleArrow(Vector position, Quaternion orientation) {
+        this.position = DoubleOctree.Entry.create(position, this);
         this.orientation = orientation.clone();
     }
 
+    @Override
+    protected void onAdded() {
+        addPosition(this.position);
+    }
+
+    @Override
+    protected void onRemoved() {
+        removePosition(this.position);
+    }
+
     public void setPosition(Vector position) {
-        if (!position.equals(this.position)) {
-            this.position = position.clone();
+        if (!this.position.equalsCoord(position)) {
+            this.position = updatePosition(this.position, position);
             this.positionChanged = true;
         }
     }
@@ -82,7 +92,7 @@ public class TrackParticleArrow extends TrackParticle {
             this.positionChanged = false;
 
             if (this.entityId != -1) {
-                this.prot.calculate(this.position, this.orientation);
+                this.prot.calculate(this.position.toVector(), this.orientation);
 
                 PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
                         this.entityId,
@@ -142,7 +152,7 @@ public class TrackParticleArrow extends TrackParticle {
 
         TrackParticleState state = getState(viewer);
 
-        prot.calculate(this.position, this.orientation);
+        prot.calculate(this.position.toVector(), this.orientation);
 
         PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.T.newHandleNull();
         spawnPacket.setEntityId(this.entityId);

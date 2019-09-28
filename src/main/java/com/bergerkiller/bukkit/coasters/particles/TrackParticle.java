@@ -4,6 +4,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.collections.ImmutablePlayerSet;
+import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.generated.net.minecraft.server.PacketHandle;
 
@@ -13,13 +14,9 @@ import com.bergerkiller.generated.net.minecraft.server.PacketHandle;
  * particle is spawned and kept updated for the player.
  */
 public abstract class TrackParticle {
-    private final TrackParticleWorld world;
+    protected TrackParticleWorld world;
     private ImmutablePlayerSet viewers = ImmutablePlayerSet.EMPTY;
     private TrackParticleState.Source stateSource = TrackParticleState.SOURCE_NONE;
-
-    public TrackParticle(TrackParticleWorld world) {
-        this.world = world;
-    }
 
     public TrackParticleWorld getWorld() {
         return this.world;
@@ -30,13 +27,24 @@ public abstract class TrackParticle {
     }
 
     /**
+     * Called when the particle is added to a world
+     */
+    protected void onAdded() {
+    }
+
+    /**
+     * Called right before a particle is removed from a world
+     */
+    protected void onRemoved() {
+    }
+
+    /**
      * Updates whether a particle is visible or not to a player, spawning or de-spawning it
      * 
      * @param viewer
      * @param viewerPosition of the viewer, null to hide forcibly
      */
-    public final void updateFor(Player viewer, Vector viewerPosition) {
-        boolean visible = (viewer.getWorld() == this.world.getWorld()) && viewerPosition != null && isVisible(viewer, viewerPosition);
+    public final void changeVisibility(Player viewer, boolean visible) {
         ImmutablePlayerSet new_viewers = this.viewers.addOrRemove(viewer, visible);
         if (this.viewers != new_viewers) {
             this.viewers = new_viewers;
@@ -83,9 +91,15 @@ public abstract class TrackParticle {
     public void onStateUpdated(Player viewer) {
     }
 
-    public boolean isVisible(Player viewer, Vector viewerPosition) {
-        double d = getViewDistance();
-        return distanceSquared(viewerPosition) <= (d * d);
+    /**
+     * Checks whether this particle is being displayed for a player.
+     * By default returns true, can be overridden to conditionally show or hide particles.
+     * 
+     * @param viewer
+     * @return True if visible
+     */
+    public boolean isVisible(Player viewer) {
+        return true;
     }
 
     public final boolean isNearby(Vector viewerPosition) {
@@ -98,4 +112,31 @@ public abstract class TrackParticle {
     public abstract void makeHiddenFor(Player viewer);
     public abstract void updateAppearance();
     public abstract boolean usesEntityId(int entityId);
+
+    protected void addPosition(DoubleOctree.Entry<TrackParticle> pos) {
+        if (this.world != null) {
+            this.world.particles.addEntry(pos);
+        }
+    }
+
+    protected void removePosition(DoubleOctree.Entry<TrackParticle> pos) {
+        if (this.world != null) {
+            this.world.particles.removeEntry(pos);
+        }
+    }
+
+    protected DoubleOctree.Entry<TrackParticle> updatePosition(DoubleOctree.Entry<TrackParticle> oldPos, Vector newPos) {
+        return updatePosition(oldPos, DoubleOctree.Entry.create(newPos, this));
+    }
+
+    protected DoubleOctree.Entry<TrackParticle> updatePosition(DoubleOctree.Entry<TrackParticle> oldPos, double newX, double newY, double newZ) {
+        return updatePosition(oldPos, DoubleOctree.Entry.create(newX, newY, newZ, this));
+    }
+
+    protected DoubleOctree.Entry<TrackParticle> updatePosition(DoubleOctree.Entry<TrackParticle> oldPos, DoubleOctree.Entry<TrackParticle> newPos) {
+        if (this.world != null) {
+            this.world.particles.moveEntry(oldPos, newPos);
+        }
+        return newPos;
+    }
 }

@@ -6,6 +6,7 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
@@ -23,22 +24,29 @@ public class TrackParticleItem extends TrackParticle {
     private static final Vector OFFSET = new Vector(0.0, -0.34, 0.0);
     private static final double VIEW_RADIUS = 25.0;
     private TrackParticleItemType itemType = TrackParticleItemType.DEFAULT;
-    private Vector position;
+    private DoubleOctree.Entry<TrackParticle> position;
     private int entityId = -1;
     private UUID entityUUID = null;
     private boolean positionChanged = false;
     private boolean itemChanged = false;
 
-    public TrackParticleItem(TrackParticleWorld world, Vector position) {
-        super(world);
-        this.position = position.clone();
+    public TrackParticleItem(Vector position) {
+        this.position = DoubleOctree.Entry.create(position, this);
+    }
+
+    @Override
+    protected void onAdded() {
+        addPosition(this.position);
+    }
+
+    @Override
+    protected void onRemoved() {
+        removePosition(this.position);
     }
 
     public void setPosition(Vector position) {
-        if (position.distanceSquared(this.position) > (0.001 * 0.001)) {
-            this.position.setX(position.getX());
-            this.position.setY(position.getY());
-            this.position.setZ(position.getZ());
+        if (this.position.distanceSquared(position) > (0.001 * 0.001)) {
+            this.position = updatePosition(this.position, position);
             this.positionChanged = true;
         }
     }

@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
@@ -19,36 +20,39 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityTelepo
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityHandle;
 
 public class TrackParticleLitBlock extends TrackParticle {
-    private IntVector3 block;
+    private DoubleOctree.Entry<TrackParticle> position;
     private int entityId = -1;
     private boolean positionChanged = false;
 
-    public TrackParticleLitBlock(TrackParticleWorld world, IntVector3 block) {
-        super(world);
-        this.block = block;
+    public TrackParticleLitBlock(IntVector3 block) {
+        this.position = DoubleOctree.Entry.create(block.midX(), block.y, block.midZ(), this);
+    }
+
+    @Override
+    protected void onAdded() {
+        addPosition(this.position);
+    }
+
+    @Override
+    protected void onRemoved() {
+        removePosition(this.position);
     }
 
     public void setBlock(IntVector3 block) {
-        if (block != null && !this.block.equals(block)) {
-            this.block = block;
+        if (block != null && !this.position.equalsBlockCoord(block)) {
+            this.position = updatePosition(this.position, DoubleOctree.Entry.create(block.midX(), block.y, block.midZ(), this));
             this.positionChanged = true;
         }
     }
 
     @Override
-    public boolean isVisible(Player viewer, Vector viewerPosition) {
-        if (getState(viewer) == TrackParticleState.HIDDEN) {
-            return false;
-        }
-        return super.isVisible(viewer, viewerPosition);
+    public boolean isVisible(Player viewer) {
+        return getState(viewer) != TrackParticleState.HIDDEN;
     }
 
     @Override
     public double distanceSquared(Vector viewerPosition) {
-        double dx = (viewerPosition.getX() - block.x);
-        double dy = (viewerPosition.getY() - block.y);
-        double dz = (viewerPosition.getZ() - block.z);
-        return dx*dx + dy*dy + dz*dz;
+        return this.position.distanceSquared(viewerPosition);
     }
 
     @Override
@@ -65,9 +69,9 @@ public class TrackParticleLitBlock extends TrackParticle {
         PacketPlayOutSpawnEntityHandle packet = PacketPlayOutSpawnEntityHandle.T.newHandleNull();
         packet.setEntityId(this.entityId);
         packet.setEntityUUID(UUID.randomUUID());
-        packet.setPosX(this.block.x + 0.5);
-        packet.setPosY(this.block.y + 0.0);
-        packet.setPosZ(this.block.z + 0.5);
+        packet.setPosX(this.position.getX());
+        packet.setPosY(this.position.getY());
+        packet.setPosZ(this.position.getZ());
         packet.setEntityType(EntityType.FALLING_BLOCK);
         packet.setFallingBlockData(getMat(viewer));
         PacketUtil.sendPacket(viewer, packet);
@@ -90,7 +94,7 @@ public class TrackParticleLitBlock extends TrackParticle {
         super.onStateUpdated(viewer);
         if (this.getViewers().contains(viewer)) {
             makeHiddenFor(viewer);
-            if (this.isVisible(viewer, viewer.getEyeLocation().toVector())) {
+            if (this.isVisible(viewer)) {
                 makeVisibleFor(viewer);
             }
         }
@@ -103,9 +107,9 @@ public class TrackParticleLitBlock extends TrackParticle {
             if (this.entityId != -1) {
                 PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
                         this.entityId,
-                        this.block.x + 0.5,
-                        this.block.y + 0.0,
-                        this.block.z + 0.5,
+                        this.position.getX(),
+                        this.position.getY(),
+                        this.position.getZ(),
                         0.0f, 0.0f, false);
                 broadcastPacket(tpPacket);
             }

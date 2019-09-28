@@ -1,6 +1,5 @@
 package com.bergerkiller.bukkit.coasters;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.UnsupportedEncodingException;
@@ -52,11 +51,11 @@ import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
-import com.google.common.base.Charsets;
 
 public class TCCoasters extends PluginBase {
     private static final double DEFAULT_SMOOTHNESS = 10000.0;
     private static final boolean DEFAULT_GLOWING_SELECTIONS = true;
+    private static final int DEFAULT_PARTICLE_VIEW_RANGE = 64;
     private Task updateTask;
     private Task autosaveTask;
     private final Hastebin hastebin = new Hastebin(this);
@@ -66,6 +65,7 @@ public class TCCoasters extends PluginBase {
     private final Map<World, CoasterWorldImpl> worlds = new HashMap<World, CoasterWorldImpl>();
     private double smoothness = DEFAULT_SMOOTHNESS;
     private boolean glowingSelections = DEFAULT_GLOWING_SELECTIONS;
+    private int particleViewRange = DEFAULT_PARTICLE_VIEW_RANGE;
 
     public void unloadWorld(World world) {
         CoasterWorldImpl coasterWorld = worlds.get(world);
@@ -180,6 +180,16 @@ public class TCCoasters extends PluginBase {
         return this.glowingSelections;
     }
 
+    /**
+     * Gets the particle view range. Players can see particles when
+     * below this distance away from a particle.
+     * 
+     * @return particle view range
+     */
+    public int getParticleViewRange() {
+        return this.particleViewRange;
+    }
+
     @Override
     public void enable() {
         this.listener.enable();
@@ -215,6 +225,9 @@ public class TCCoasters extends PluginBase {
         config.setHeader("hastebinServer", "\nThe hastebin server which is used to upload coaster tracks");
         config.addHeader("hastebinServer", "This will be used when using the /tcc export command");
         this.hastebin.setServer(config.get("hastebinServer", "https://paste.traincarts.net"));
+        config.setHeader("particleViewRange", "\nMaximum block distance away from particles where players can see them");
+        config.addHeader("particleViewRange", "Lowering this range may help reduce lag in the client if a lot of particles are displayed");
+        this.particleViewRange = config.get("particleViewRange", DEFAULT_PARTICLE_VIEW_RANGE);
         config.save();
 
         // Autosave every 30 seconds approximately
@@ -446,7 +459,7 @@ public class TCCoasters extends PluginBase {
                     }
                     TrackCoaster coaster = state.getTracks().createNewEmpty(generateNewCoasterName());
                     try {
-                        coaster.loadFromStream(new ByteArrayInputStream(t.content().getBytes(Charsets.UTF_8)), PlayerOrigin.getForPlayer(state.getPlayer()));
+                        coaster.loadFromStream(t.contentInputStream(), PlayerOrigin.getForPlayer(state.getPlayer()));
                         if (coaster.getNodes().isEmpty()) {
                             sender.sendMessage(ChatColor.RED + "Failed to decode any coaster nodes!");
                         } else {

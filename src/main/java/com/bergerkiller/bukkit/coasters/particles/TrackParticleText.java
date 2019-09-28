@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
@@ -37,21 +38,30 @@ public class TrackParticleText extends TrackParticle {
     private UUID entityUUID = null;
     private ChatColor textColor = ChatColor.BLACK;
     private String text;
-    private Vector position;
+    private DoubleOctree.Entry<TrackParticle> position;
     private boolean positionChanged = false;
     private boolean textChanged = false;
     private boolean textColorChanged = false;
 
     protected TrackParticleText(TrackParticleWorld world, Vector position, String text) {
-        super(world);
-        this.position = position.clone();
+        this.position = DoubleOctree.Entry.create(position, this);
         this.text = text;
         this.textColor = getTextColor(this.text);
     }
 
+    @Override
+    protected void onAdded() {
+        addPosition(this.position);
+    }
+
+    @Override
+    protected void onRemoved() {
+        removePosition(this.position);
+    }
+
     public void setPosition(Vector position) {
-        if (!position.equals(this.position)) {
-            this.position = position.clone();
+        if (!this.position.equalsCoord(position)) {
+            this.position = updatePosition(this.position, position);
             this.positionChanged = true;
         }
     }
