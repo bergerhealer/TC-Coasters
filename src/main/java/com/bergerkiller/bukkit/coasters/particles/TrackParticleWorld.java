@@ -73,6 +73,19 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
         this.particles.clear();
     }
 
+    /**
+     * Forces a search for new particles around a player.
+     * Normally this search only happens when a player moves.
+     * 
+     * @param viewer
+     */
+    public void scheduleViewerUpdate(Player viewer) {
+        ViewerParticleList viewed = this.viewers.get(viewer);
+        if (viewed != null) {
+            viewed.block = null;
+        }
+    }
+
     public void updateAll() {
         // Refresh for all players that are online
         for (Player viewer : Bukkit.getOnlinePlayers()) {

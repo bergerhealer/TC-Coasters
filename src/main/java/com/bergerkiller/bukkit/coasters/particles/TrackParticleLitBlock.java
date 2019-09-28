@@ -92,11 +92,12 @@ public class TrackParticleLitBlock extends TrackParticle {
     @Override
     public void onStateUpdated(Player viewer) {
         super.onStateUpdated(viewer);
-        if (this.getViewers().contains(viewer)) {
-            makeHiddenFor(viewer);
-            if (this.isVisible(viewer)) {
-                makeVisibleFor(viewer);
-            }
+        boolean viewed = this.getViewers().contains(viewer);
+        if (viewed != this.isVisible(viewer)) {
+            this.getWorld().scheduleViewerUpdate(viewer);
+        } else if (viewed) {
+            this.makeHiddenFor(viewer);
+            this.makeVisibleFor(viewer);
         }
     }
 
