@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
@@ -131,13 +132,37 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
             Integer updateObject = Integer.valueOf(this.updateCtr++);
             viewed.block = viewerBlock;
             int cuboid_range = this.getPlugin().getParticleViewRange();
+            int maxParticles = this.getPlugin().getMaximumParticleCount();
             IntVector3 range_min = viewerBlock.subtract(cuboid_range, cuboid_range, cuboid_range);
             IntVector3 range_max = viewerBlock.add(cuboid_range, cuboid_range, cuboid_range);
+            int numParticles = 0;
+            boolean reachedLimit = false;
             for (TrackParticle particle : this.particles.cuboid(range_min, range_max)) {
-                if (particle.isVisible(viewer) && viewed.particles.put(particle, updateObject) == null) {
+                if (!particle.isVisible(viewer)) {
+                    continue;
+                }
+
+                // Limit what can be displayed
+                if (++numParticles > maxParticles) {
+                    reachedLimit = true;
+                    break;
+                }
+
+                // Add to the particle mapping. If adding for the first time, make it visible.
+                if (viewed.particles.put(particle, updateObject) == null) {
                     particle.changeVisibility(viewer, true);
                 }
             }
+
+            // If limit is reached (for the first time) and not too short of a time passed, send a message
+            if (reachedLimit) {
+                long now = System.currentTimeMillis();
+                if (!viewed.reachedLimit && (viewed.reachedLimitAt == 0 || (now - viewed.reachedLimitAt) > 30000)) {
+                    viewer.sendMessage(ChatColor.RED + "[TC-Coasters] You have reached the particle limit of " + maxParticles + "!");
+                }
+                viewed.reachedLimitAt = now;
+            }
+            viewed.reachedLimit = reachedLimit;
 
             // Particles that are no longer in view have an outdated Integer update object
             {
@@ -213,5 +238,7 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
     private static class ViewerParticleList {
         public IntVector3 block = null;
         public Map<TrackParticle, Integer> particles = new HashMap<>();
+        public boolean reachedLimit = false;
+        public long reachedLimitAt = 0;
     }
 }

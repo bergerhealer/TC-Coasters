@@ -56,6 +56,7 @@ public class TCCoasters extends PluginBase {
     private static final double DEFAULT_SMOOTHNESS = 10000.0;
     private static final boolean DEFAULT_GLOWING_SELECTIONS = true;
     private static final int DEFAULT_PARTICLE_VIEW_RANGE = 64;
+    private static final int DEFAULT_MAXIMUM_PARTICLE_COUNT = 5000;
     private Task updateTask;
     private Task autosaveTask;
     private final Hastebin hastebin = new Hastebin(this);
@@ -66,6 +67,7 @@ public class TCCoasters extends PluginBase {
     private double smoothness = DEFAULT_SMOOTHNESS;
     private boolean glowingSelections = DEFAULT_GLOWING_SELECTIONS;
     private int particleViewRange = DEFAULT_PARTICLE_VIEW_RANGE;
+    private int maximumParticleCount = DEFAULT_MAXIMUM_PARTICLE_COUNT;
 
     public void unloadWorld(World world) {
         CoasterWorldImpl coasterWorld = worlds.get(world);
@@ -190,6 +192,15 @@ public class TCCoasters extends PluginBase {
         return this.particleViewRange;
     }
 
+    /**
+     * Gets the maximum number of particles that can be visible to a player at once
+     * 
+     * @return maximum particle count
+     */
+    public int getMaximumParticleCount() {
+        return this.maximumParticleCount;
+    }
+
     @Override
     public void enable() {
         this.listener.enable();
@@ -228,6 +239,10 @@ public class TCCoasters extends PluginBase {
         config.setHeader("particleViewRange", "\nMaximum block distance away from particles where players can see them");
         config.addHeader("particleViewRange", "Lowering this range may help reduce lag in the client if a lot of particles are displayed");
         this.particleViewRange = config.get("particleViewRange", DEFAULT_PARTICLE_VIEW_RANGE);
+        config.setHeader("maximumParticleCount", "\nMaximum number of particles that can be visible to a player at one time");
+        config.addHeader("maximumParticleCount", "When more particles are visible than this, the player sees a warning, and some particles are hidden");
+        config.addHeader("maximumParticleCount", "This can be used to prevent a total lag-out of the client when accidentally creating a lot of track");
+        this.maximumParticleCount = config.get("maximumParticleCount", DEFAULT_MAXIMUM_PARTICLE_COUNT);
         config.save();
 
         // Autosave every 30 seconds approximately
