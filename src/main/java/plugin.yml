@@ -9,11 +9,5 @@ api-version: 1.13
 commands:
     tccoasters:
         aliases: [coaster, tcc]
-        description: Add and remove coasters
-        usage: TBD
-        permission: train.coasters.use
-permissions:
-    train.coasters.use:
-        description: Allows players to use the TC Coasters commands
-        default: op
-        
+        description: Main command for using the plugin
+        usage: Use /tcc give to start
