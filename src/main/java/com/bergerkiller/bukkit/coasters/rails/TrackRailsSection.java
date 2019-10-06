@@ -37,6 +37,12 @@ public class TrackRailsSection {
      * The path is a primary path (selected junction)
      */
     public final boolean primary;
+    /**
+     * The server tick when this section was last chosen.
+     * Is used to make sure junctions within the same block stay functional
+     * and don't cause trains to snap to the other junction when crossing it.
+     */
+    public int tickLastPicked = 0;
 
     public TrackRailsSection(TrackRailsSection original, RailPath path) {
         this.node = original.node;
@@ -80,14 +86,14 @@ public class TrackRailsSection {
         //                   pos.motX + "/" + pos.motY + "/" + pos.motZ);
     }
 
-    public double calcCost(RailState state) {
-        Vector v = state.railPosition();
+    public double distanceSq(Vector railPosition) {
         RailPath.Position pos = new RailPath.Position();
-        pos.posX = v.getX();
-        pos.posY = v.getY();
-        pos.posZ = v.getZ();
+        pos.posX = railPosition.getX();
+        pos.posY = railPosition.getY();
+        pos.posZ = railPosition.getZ();
         this.path.moveRelative(pos, 0.0);
-        return MathUtil.distanceSquared(pos.posX, pos.posY, pos.posZ, v.getX(), v.getY(), v.getZ());
+        return MathUtil.distanceSquared(pos.posX, pos.posY, pos.posZ,
+                                        railPosition.getX(), railPosition.getY(), railPosition.getZ());
     }
 
     /**

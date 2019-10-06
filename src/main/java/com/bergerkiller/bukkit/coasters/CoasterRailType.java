@@ -8,12 +8,14 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsSection;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
+import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
@@ -144,39 +146,35 @@ public class CoasterRailType extends RailType {
     @Override
     public RailLogic getLogic(RailState state) {
         List<TrackRailsSection> rails = getRails(state.railBlock().getWorld()).findAtRails(state.railBlock());
-        if (rails.size() >= 1) {
-            TrackRailsSection section = rails.get(0);
-            if (rails.size() >= 2) {
-                double minCost = section.calcCost(state);
-                for (int i = 1; i < rails.size(); i++) {
-                    TrackRailsSection other = rails.get(i);
-                    if (other.primary) {
-                        double cost = other.calcCost(state);
-                        if (cost < minCost) {
-                            minCost = cost;
-                            section = other;
-                        }
-                    }
-                }
+        if (rails.isEmpty()) {
+            return RailLogicAir.INSTANCE;
+        }
 
-                // Try non-primary rails when cost is above single movement threshold (0.4)
-                if (minCost > (0.4*0.4)) {
-                    for (int i = 1; i < rails.size(); i++) {
-                        TrackRailsSection other = rails.get(i);
-                        if (!other.primary) {
-                            double cost = other.calcCost(state);
-                            if (cost < minCost) {
-                                minCost = cost;
-                                section = other;
-                            }
-                        }
-                    }
+        int serverTicks = CommonUtil.getServerTicks();
+        TrackRailsSection section = rails.get(0);
+        if (rails.size() >= 2) {
+            final double distSqResolution = (0.4*0.4);
+            Vector railPosition = state.railPosition();
+            double sectionDistSq = section.distanceSq(railPosition);
+            for (int i = 1; i < rails.size(); i++) {
+                TrackRailsSection other = rails.get(i);
+                double otherDistSq = other.distanceSq(railPosition);
+
+                // When below a movement resolution, check which section we picked previously by tracking server ticks
+                // This makes sure a train continues using a junction it was already using
+                // If this is above the threshold, instead check which section is closer to the train
+                boolean isBelowResolution = (sectionDistSq < distSqResolution && otherDistSq < distSqResolution);
+                if (isBelowResolution ?
+                        (other.tickLastPicked > section.tickLastPicked && other.tickLastPicked >= (serverTicks-1)) :
+                        (otherDistSq < sectionDistSq))
+                {
+                    section = other;
+                    sectionDistSq = otherDistSq;
                 }
             }
-            //section.test(state);
-            return new CoasterRailLogic(section);
         }
-        return RailLogicAir.INSTANCE;
+        section.tickLastPicked = serverTicks;
+        return new CoasterRailLogic(section);
     }
 
     @Override
