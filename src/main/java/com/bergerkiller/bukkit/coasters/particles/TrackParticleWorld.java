@@ -197,8 +197,11 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
      * @param viewer
      */
     public void hideAllFor(Player viewer) {
-        for (TrackParticle particle : getViewedParticles(viewer)) {
-            particle.changeVisibility(viewer, false);
+        ViewerParticleList viewed = this.viewers.remove(viewer);
+        if (viewed != null) {
+            for (TrackParticle particle : viewed.particles.keySet()) {
+                particle.changeVisibility(viewer, false);
+            }
         }
     }
 
