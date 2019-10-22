@@ -14,7 +14,7 @@ public class CoasterRailLogic extends RailLogic {
 
     @Override
     public RailPath getPath() {
-        return this.section.path;
+        return this.section.path_extended;
     }
 
 }
