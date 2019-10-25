@@ -16,6 +16,7 @@ import org.bukkit.util.Vector;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.util.RailSectionBlockIterator;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
@@ -193,66 +194,10 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
 
         // For all segments of the path, store the block positions being covered in the lookup table
         for (RailPath.Segment segment : section.path.getSegments()) {
-            double smallStep = 1e-10;
-            double smallStep_x = smallStep * segment.dt_norm.x;
-            double smallStep_y = smallStep * segment.dt_norm.y;
-            double smallStep_z = smallStep * segment.dt_norm.z;
-            BlockRelativePosition position = new BlockRelativePosition();
-            position.x = section.rails.x + segment.p0.x;
-            position.y = section.rails.y + segment.p0.y;
-            position.z = section.rails.z + segment.p0.z;
-            position.update();
-
-            // Initial
-            addToSectionsByBlock(position, section);
-
-            double remaining = segment.l;
-            while (remaining > 0.0) {
-                // Check distance until next block edge
-                double move = Double.MAX_VALUE;
-
-                // Check move distance till x-edge of block
-                if (segment.dt_norm.x > 1e-10) {
-                    move = Math.min(move, (1.0 - position.x) / segment.dt_norm.x);
-                } else if (segment.dt_norm.x < -1e-10) {
-                    move = Math.min(move, position.x / -segment.dt_norm.x);
-                }
-
-                // Check move distance till y-edge of block
-                if (segment.dt_norm.y > 1e-10) {
-                    move = Math.min(move, (1.0 - position.y) / segment.dt_norm.y);
-                } else if (segment.dt_norm.y < -1e-10) {
-                    move = Math.min(move, position.y / -segment.dt_norm.y);
-                }
-
-                // Check move distance till z-edge of block
-                if (segment.dt_norm.z > 1e-10) {
-                    move = Math.min(move, (1.0 - position.z) / segment.dt_norm.z);
-                } else if (segment.dt_norm.z < -1e-10) {
-                    move = Math.min(move, position.z / -segment.dt_norm.z);
-                }
-
-                // Abort when reaching end of segment
-                if (move > remaining) {
-                    break;
-                }
-
-                // Move distance to next block
-                remaining -= move;
-                position.x += move * segment.dt_norm.x;
-                position.y += move * segment.dt_norm.y;
-                position.z += move * segment.dt_norm.z;
-                addToSectionsByBlock(position, section);
-
-                // Move a very small amount of extra distance to avoid infinite loops and plug holes
-                position.x += smallStep_x;
-                position.y += smallStep_y;
-                position.z += smallStep_z;
-                remaining -= smallStep;
-                if (position.update()) {
-                    addToSectionsByBlock(position, section);
-                }
-            }
+            RailSectionBlockIterator iter = new RailSectionBlockIterator(segment, section.rails);
+            do {
+                addToMap(sectionsByBlock, iter.block(), section);
+            } while (iter.next());
         }
     }
 
