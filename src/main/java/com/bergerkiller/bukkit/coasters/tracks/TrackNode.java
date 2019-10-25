@@ -535,13 +535,13 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
      * 
      * @return rail path
      */
-    public RailPath buildPath(boolean extended) {
+    public RailPath buildPath() {
         if (this._connections.length == 0) {
-            return buildPath(null, null, extended);
+            return buildPath(null, null);
         } else if (this._connections.length == 1) {
-            return buildPath(this._connections[0], null, extended);
+            return buildPath(this._connections[0], null);
         } else {
-            return buildPath(this._connections[0], this._connections[1], extended);
+            return buildPath(this._connections[0], this._connections[1]);
         }
     }
 
@@ -552,7 +552,7 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
      * @param connection_b second connection to include in the path, null to ignore
      * @return rail path
      */
-    public RailPath buildPath(TrackConnection connection_a, TrackConnection connection_b, boolean extended) {
+    public RailPath buildPath(TrackConnection connection_a, TrackConnection connection_b) {
         if (connection_a == null && connection_b == null) {
             return RailPath.EMPTY;
         }
@@ -562,9 +562,9 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
 
         if (connection_a != null) {
             if (connection_a.getNodeA() == this) {
-                connection_a.buildPath(points, railsPos, getPlugin().getSmoothness(), extended ? 0.7 : 0.5, 0.0);
+                connection_a.buildPath(points, railsPos, getPlugin().getSmoothness(), 0.5, 0.0);
             } else {
-                connection_a.buildPath(points, railsPos, getPlugin().getSmoothness(), extended ? 0.3 : 0.5, 1.0);
+                connection_a.buildPath(points, railsPos, getPlugin().getSmoothness(), 0.5, 1.0);
             }
         }
         if (connection_b != null) {
@@ -575,9 +575,9 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
             }
 
             if (connection_b.getNodeA() == this) {
-                connection_b.buildPath(points, railsPos, getPlugin().getSmoothness(), 0.0, extended ? 0.7 : 0.5);
+                connection_b.buildPath(points, railsPos, getPlugin().getSmoothness(), 0.0, 0.5);
             } else {
-                connection_b.buildPath(points, railsPos, getPlugin().getSmoothness(), 1.0, extended ? 0.3 : 0.5);
+                connection_b.buildPath(points, railsPos, getPlugin().getSmoothness(), 1.0, 0.5);
             }
         }
 

@@ -34,10 +34,6 @@ public class TrackRailsSection {
      */
     public final RailPath path;
     /**
-     * Same as {@link #path} but slightly longer on both ends
-     */
-    public final RailPath path_extended;
-    /**
      * The path is a primary path (selected junction)
      */
     public final boolean primary;
@@ -48,20 +44,18 @@ public class TrackRailsSection {
      */
     public int tickLastPicked = 0;
 
-    public TrackRailsSection(TrackRailsSection original, RailPath path, RailPath path_extended) {
+    public TrackRailsSection(TrackRailsSection original, RailPath path) {
         this.node = original.node;
         this.rails = original.rails;
         this.path = path;
         this.primary = original.primary;
-        this.path_extended = path_extended;
     }
 
-    public TrackRailsSection(TrackNode node, RailPath path, RailPath path_extended, boolean primary) {
+    public TrackRailsSection(TrackNode node, RailPath path, boolean primary) {
         this.node = node;
         this.rails = node.getRailBlock(true);
         this.path = path;
         this.primary = primary;
-        this.path_extended = path_extended;
     }
 
     public BlockFace getMovementDirection() {

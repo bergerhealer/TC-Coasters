@@ -93,7 +93,7 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
         }
 
         // First 1 or 2 connections, which connect to each other and are selected
-        addSectionToMap(new TrackRailsSection(node, node.buildPath(false), node.buildPath(true), true));
+        addSectionToMap(new TrackRailsSection(node, node.buildPath(), true));
 
         // All other kinds of connections lead to their best fit
         if (connections.size() > 2) {
@@ -108,7 +108,7 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
                 } else {
                     other = connections.get(0);
                 }
-                addSectionToMap(new TrackRailsSection(node, node.buildPath(conn, other, false), node.buildPath(conn, other, true), false));
+                addSectionToMap(new TrackRailsSection(node, node.buildPath(conn, other), false));
             }
         }
     }

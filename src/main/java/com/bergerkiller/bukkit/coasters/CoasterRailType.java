@@ -163,9 +163,7 @@ public class CoasterRailType extends RailType {
                 // When below a movement resolution, check which section we picked previously by tracking server ticks
                 // This makes sure a train continues using a junction it was already using
                 // If this is above the threshold, instead check which section is closer to the train
-                // Only do this logic for when sections actually share the same node with more than two connections (junctions)
-                boolean isBelowResolution = (sectionDistSq < distSqResolution && otherDistSq < distSqResolution)
-                        && section.node == other.node && section.node.getConnections().size() > 2;
+                boolean isBelowResolution = (sectionDistSq < distSqResolution && otherDistSq < distSqResolution);
                 if (isBelowResolution ?
                         (other.tickLastPicked > section.tickLastPicked && other.tickLastPicked >= (serverTicks-1)) :
                         (otherDistSq < sectionDistSq))

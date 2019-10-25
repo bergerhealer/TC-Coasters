@@ -402,7 +402,7 @@ public class TCCoasters extends PluginBase {
             sender.sendMessage("Logging paths of all selected nodes");
             for (TrackNode node : this.getEditState(p).getEditedNodes()) {
                 System.out.println("Path for: " + node.getPosition());
-                for (RailPath.Point point : node.buildPath(false).getPoints()) {
+                for (RailPath.Point point : node.buildPath().getPoints()) {
                     System.out.println(point);
                 }
             }
