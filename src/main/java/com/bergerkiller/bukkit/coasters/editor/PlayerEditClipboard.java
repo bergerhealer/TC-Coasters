@@ -112,7 +112,7 @@ public class PlayerEditClipboard {
             // Edit the newly created nodes
             this._state.clearEditedNodes();
             for (TrackNode node : coaster.getNodes()) {
-                this._state.setEditing(node, true);
+                this._state.selectNode(node);
             }
         } catch (ChangeCancelledException ex) {
             // Roll back all changes and rethrow

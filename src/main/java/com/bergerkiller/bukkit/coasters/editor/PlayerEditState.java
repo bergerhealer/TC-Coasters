@@ -25,6 +25,7 @@ import com.bergerkiller.bukkit.coasters.TCCoastersUtil.TargetedBlockInfo;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
+import com.bergerkiller.bukkit.coasters.events.CoasterSelectNodeEvent;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
@@ -39,6 +40,7 @@ import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.map.MapPlayerInput;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
+import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
@@ -271,6 +273,27 @@ public class PlayerEditState implements CoasterWorldAccess {
         this.afterEditMode = mode;
     }
 
+    /**
+     * Tries to select a node for editing. If not already editing,
+     * an event is fired to check whether selecting the node is permitted
+     * 
+     * @param node The node to select
+     * @return True if the node was selected or was already selected, False if this was disallowed
+     */
+    public boolean selectNode(TrackNode node) {
+        if (node == null) {
+            throw new IllegalArgumentException("Node can not be null");
+        }
+        if (this.editedNodes.containsKey(node)) {
+            return true;
+        }
+        if (CommonUtil.callEvent(new CoasterSelectNodeEvent(this.player, node)).isCancelled()) {
+            return false;
+        }
+        this.setEditing(node, true);
+        return true;
+    }
+
     public void setEditing(TrackNode node, boolean editing) {
         if (node == null) {
             throw new IllegalArgumentException("Node can not be null");
@@ -392,7 +415,11 @@ public class PlayerEditState implements CoasterWorldAccess {
             }
 
             // Toggle edit state
-            setEditing(bestNode, !isEditing(bestNode));
+            if (isEditing(bestNode)) {
+                setEditing(bestNode, false);
+            } else {
+                selectNode(bestNode);
+            }
 
         } else if (isEditing(bestNode)) {
             // Mass-selection mode
@@ -423,7 +450,7 @@ public class PlayerEditState implements CoasterWorldAccess {
 
         while (!pending.isEmpty()) {
             TrackNode node = pending.remove(0);
-            setEditing(node, true);
+            selectNode(node);
             for (TrackNode neighbour : node.getNeighbours()) {
                 if (!isEditing(neighbour)) {
                     pending.add(neighbour);
@@ -446,7 +473,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         // Now do stuff with the found path, if found
         if (bestPath != null) {
             for (TrackNode node : bestPath.path) {
-                this.setEditing(node, true);
+                this.selectNode(node);
             }
         }
     }
@@ -554,7 +581,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         for (TrackNode node : toDelete) {
             for (TrackNode neighbour : node.getNeighbours()) {
                 if (!toDelete.contains(neighbour)) {
-                    this.setEditing(neighbour, true);
+                    this.selectNode(neighbour);
                 }
             }
         }
@@ -695,7 +722,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             TrackNode lookingAt = findLookingAt();
             if (lookingAt != null) {
                 this.clearEditedNodes();
-                this.setEditing(lookingAt, true);
+                this.selectNode(lookingAt);
                 pos = lookingAt.getPosition().clone();
 
                 // Node: introduce a tiny offset to pos, otherwise
@@ -788,7 +815,7 @@ public class PlayerEditState implements CoasterWorldAccess {
                 newNode.setOrientation(ori);
             }
             this.getHistory().addChangeCreateNode(this.player, newNode);
-            setEditing(newNode, true);
+            this.selectNode(newNode);
             return;
         }
 
