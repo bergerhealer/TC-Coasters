@@ -89,4 +89,9 @@ public abstract class HistoryChange extends HistoryChangeCollection {
         this.children.add(childChange);
         return childChange;
     }
+
+    @Override
+    public void removeChange(HistoryChange childChange) {
+        this.children.remove(childChange);
+    }
 }

@@ -15,7 +15,6 @@ public class RailSectionBlockIterator {
     private double remaining;
 
     public RailSectionBlockIterator(RailPath.Segment segment, IntVector3 rails) {
-        final double padding = 0.1;
         this.dx = segment.dt_norm.x;
         this.dy = segment.dt_norm.y;
         this.dz = segment.dt_norm.z;

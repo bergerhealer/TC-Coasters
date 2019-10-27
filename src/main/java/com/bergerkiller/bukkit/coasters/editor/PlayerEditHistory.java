@@ -35,6 +35,11 @@ public class PlayerEditHistory extends HistoryChangeCollection {
         return change;
     }
 
+    @Override
+    public void removeChange(HistoryChange change) {
+        this.history.remove(change);
+    }
+
     /**
      * Undoes the last change.
      * 

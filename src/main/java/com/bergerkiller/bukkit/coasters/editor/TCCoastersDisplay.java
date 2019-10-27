@@ -7,6 +7,7 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
+import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -106,7 +107,11 @@ public class TCCoastersDisplay extends MapDisplay {
 
             @Override
             public void onActivate() {
-                getState().resetRailsBlocks();
+                try {
+                    getState().resetRailsBlocks();
+                } catch (ChangeCancelledException e) {
+                    // Not possible
+                }
             }
         }).setBounds(10, 10, 100, 12);
 
@@ -129,10 +134,14 @@ public class TCCoastersDisplay extends MapDisplay {
                 @Override
                 public void onValueChanged() {
                     if (finished_loading.get()) {
-                        getState().setRailBlock(new IntVector3(
-                                coord_boxes[0].getValue(),
-                                coord_boxes[1].getValue(),
-                                coord_boxes[2].getValue()));
+                        try {
+                            getState().setRailBlock(new IntVector3(
+                                    coord_boxes[0].getValue(),
+                                    coord_boxes[1].getValue(),
+                                    coord_boxes[2].getValue()));
+                        } catch (ChangeCancelledException e) {
+                            // Not possible
+                        }
                     }
                 }
 

@@ -144,6 +144,13 @@ public class TrackCoaster extends CoasterWorldAccess.Component implements Lockab
     }
 
     /**
+     * Removes this coaster from the world, clearing all nodes contained within
+     */
+    public void remove() {
+        getTracks().removeCoaster(this);
+    }
+
+    /**
      * Removes all nodes and connections of this coaster
      */
     public void clear() {

@@ -117,6 +117,16 @@ public class TrackWorld extends CoasterWorldAccess.Component {
     }
 
     /**
+     * Removes a coaster from this world, removing all nodes contained within
+     * 
+     * @param coaster  The coaster to remove
+     */
+    public void removeCoaster(TrackCoaster coaster) {
+        coaster.clear();
+        this._coasters.remove(coaster);
+    }
+
+    /**
      * Creates a very new coaster, with only a single track node.
      * It will have an auto-generated name.
      * 
@@ -151,6 +161,15 @@ public class TrackWorld extends CoasterWorldAccess.Component {
         TrackCoaster coaster = this.createNewEmpty(coasterName);
         coaster.createNewNode(state);
         return coaster;
+    }
+
+    /**
+     * Creates a new empty coaster with no initial nodes and a default generated name
+     * 
+     * @return new track coaster
+     */
+    public TrackCoaster createNewEmpty() {
+        return this.createNewEmpty(this.getPlugin().generateNewCoasterName());
     }
 
     /**

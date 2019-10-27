@@ -7,6 +7,7 @@ import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
@@ -25,6 +26,9 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
+import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
+import com.bergerkiller.bukkit.coasters.events.CoasterCopyEvent;
+import com.bergerkiller.bukkit.coasters.events.CoasterImportEvent;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster.CoasterLoadException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
@@ -381,14 +385,22 @@ public class TCCoasters extends PluginBase {
         PlayerEditState state = this.getEditState(p);
 
         if (args.length > 0 && args[0].equals("create")) {
-            sender.sendMessage("Creating a new track node at your position");
-            state.createTrack();
+            try {
+                state.createTrack();
+                sender.sendMessage("Created a new track node at your position");
+            } catch (ChangeCancelledException e) {
+                sender.sendMessage(ChatColor.RED + "A new track node could not be created here");
+            }
         } else if (args.length > 0 && args[0].equals("delete")) {
             if (!state.hasEditedNodes()) {
                 sender.sendMessage("No track nodes selected, nothing has been deleted!");
             } else {
-                sender.sendMessage("Deleting " + state.getEditedNodes().size() + " track nodes!");
-                state.deleteTrack();
+                try {
+                    state.deleteTrack();
+                    sender.sendMessage("Deleted " + state.getEditedNodes().size() + " track nodes!");
+                } catch (ChangeCancelledException e) {
+                    sender.sendMessage(ChatColor.RED + "Failed to delete some of the track nodes!");
+                }
             }
         } else if (args.length > 0 && args[0].equals("give")) {
             sender.sendMessage("Gave you a track editor map!");
@@ -428,15 +440,23 @@ public class TCCoasters extends PluginBase {
         } else if (args.length > 0 && args[0].equals("cut")) {
             state.getClipboard().copy();
             if (state.getClipboard().isFilled()) {
-                sender.sendMessage(state.getClipboard().getNodeCount() + " track nodes cut from the world and saved to the clipboard!");
-                state.deleteTrack();
+                try {
+                    state.deleteTrack();
+                    sender.sendMessage(state.getClipboard().getNodeCount() + " track nodes cut from the world and saved to the clipboard!");
+                } catch (ChangeCancelledException e) {
+                    sender.sendMessage(ChatColor.RED + "Some track nodes could not be cut from the world!");
+                }
             } else {
                 sender.sendMessage("No tracks selected, clipboard cleared!");
             }
         } else if (args.length > 0 && args[0].equals("paste")) {
             if (state.getClipboard().isFilled()) {
-                state.getClipboard().paste();
-                sender.sendMessage(state.getClipboard().getNodeCount() + " track nodes pasted from the clipboard at your position!");
+                try {
+                    state.getClipboard().paste();
+                    sender.sendMessage(state.getClipboard().getNodeCount() + " track nodes pasted from the clipboard at your position!");
+                } catch (ChangeCancelledException e) {
+                    sender.sendMessage(ChatColor.RED + "The track nodes could not be pasted here");
+                }
             } else {
                 sender.sendMessage("Clipboard is empty, nothing has been pasted!");
             }
@@ -477,52 +497,77 @@ public class TCCoasters extends PluginBase {
                         coaster.loadFromStream(t.contentInputStream(), PlayerOrigin.getForPlayer(state.getPlayer()));
                         if (coaster.getNodes().isEmpty()) {
                             sender.sendMessage(ChatColor.RED + "Failed to decode any coaster nodes!");
-                        } else {
-                            sender.sendMessage(ChatColor.GREEN + "Coaster with " + coaster.getNodes().size() + " nodes imported!");
+                            coaster.remove();
+                            return;
                         }
                     } catch (CoasterLoadException ex) {
                         sender.sendMessage(ChatColor.RED + ex.getMessage());
+                        if (coaster.getNodes().isEmpty()) {
+                            coaster.remove();
+                            return;
+                        }
                     }
+
+                    // Handle event
+                    if (CommonUtil.callEvent(new CoasterImportEvent(p, coaster)).isCancelled()) {
+                        sender.sendMessage(ChatColor.RED + "Coaster could not be imported here!");
+                        coaster.remove();
+                        return;
+                    }
+                    if (coaster.getNodes().isEmpty()) {
+                        sender.sendMessage(ChatColor.RED + "None of the nodes could be imported here!");
+                        coaster.remove();
+                        return;
+                    }
+
+                    sender.sendMessage(ChatColor.GREEN + "Coaster with " + coaster.getNodes().size() + " nodes imported!");
                 }
             });
         } else if (args.length > 0 && args[0].equals("export")) {
             TCCoastersPermissions.EXPORT.handle(sender);
             if (!state.hasEditedNodes()) {
-                sender.sendMessage("No track nodes selected, nothing has been exported!");
-            } else {
-                boolean nolimits2Format = (args.length > 1 && LogicUtil.containsIgnoreCase(args[1], "nl2", "nolimits", "nolimits2"));
-                String content;
-                try {
-                    ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                    try (TrackCoasterCSVWriter writer = new TrackCoasterCSVWriter(stream, nolimits2Format ? '\t' : ',')) {
-                        if (nolimits2Format) {
-                            // NoLimits2 format
-                            writer.writeAllNoLimits2(state.getEditedNodes());
-                        } else {
-                            // Normal TCC format
-                            writer.setWriteLinksToForeignNodes(false);
-                            writer.write(PlayerOrigin.getForPlayer(state.getPlayer()));
-                            writer.writeAll(state.getEditedNodes());
-                        }
-                    }
-                    content = stream.toString("UTF-8");
-                } catch (Throwable t) {
-                    t.printStackTrace();
-                    sender.sendMessage(ChatColor.RED + "Failed to export: " + t.getMessage());
-                    return true;
-                }
-                this.hastebin.upload(content).thenAccept(new Consumer<Hastebin.UploadResult>() {
-                    @Override
-                    public void accept(UploadResult t) {
-                        if (t.success()) {
-                            sender.sendMessage(ChatColor.GREEN + "Tracks exported: " + ChatColor.WHITE + ChatColor.UNDERLINE + t.url());
-                        } else {
-                            sender.sendMessage(ChatColor.RED + "Failed to export: " + t.error());
-                        }
-                    }
-                });
+                sender.sendMessage(ChatColor.RED + "No track nodes selected, nothing has been exported!");
                 return true;
             }
+
+            HashSet<TrackNode> exportedNodes = new HashSet<TrackNode>(state.getEditedNodes());
+            CoasterCopyEvent event = CommonUtil.callEvent(new CoasterCopyEvent(p, exportedNodes, true));
+            if (event.isCancelled() || exportedNodes.isEmpty()) {
+                sender.sendMessage(ChatColor.RED + "These nodes could not be exported!");
+            }
+
+            boolean nolimits2Format = (args.length > 1 && LogicUtil.containsIgnoreCase(args[1], "nl2", "nolimits", "nolimits2"));
+            String content;
+            try {
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                try (TrackCoasterCSVWriter writer = new TrackCoasterCSVWriter(stream, nolimits2Format ? '\t' : ',')) {
+                    if (nolimits2Format) {
+                        // NoLimits2 format
+                        writer.writeAllNoLimits2(exportedNodes);
+                    } else {
+                        // Normal TCC format
+                        writer.setWriteLinksToForeignNodes(false);
+                        writer.write(PlayerOrigin.getForPlayer(state.getPlayer()));
+                        writer.writeAll(exportedNodes);
+                    }
+                }
+                content = stream.toString("UTF-8");
+            } catch (Throwable t) {
+                t.printStackTrace();
+                sender.sendMessage(ChatColor.RED + "Failed to export: " + t.getMessage());
+                return true;
+            }
+            this.hastebin.upload(content).thenAccept(new Consumer<Hastebin.UploadResult>() {
+                @Override
+                public void accept(UploadResult t) {
+                    if (t.success()) {
+                        sender.sendMessage(ChatColor.GREEN + "Tracks exported: " + ChatColor.WHITE + ChatColor.UNDERLINE + t.url());
+                    } else {
+                        sender.sendMessage(ChatColor.RED + "Failed to export: " + t.error());
+                    }
+                }
+            });
+            return true;
         } else if (args.length > 0 && LogicUtil.contains(args[0], "orientation", "ori", "rot", "rotation", "rotate")) {
             state.deselectLockedNodes();
             if (state.getEditedNodes().isEmpty()) {
@@ -531,38 +576,43 @@ public class TCCoasters extends PluginBase {
             }
 
             // Argument is specified; set it
-            if (args.length >= 4) {
-                // X/Y/Z specified
-                double x = ParseUtil.parseDouble(args[1], 0.0);
-                double y = ParseUtil.parseDouble(args[2], 0.0);
-                double z = ParseUtil.parseDouble(args[3], 0.0);
-                state.setOrientation(new Vector(x, y, z));
-            } else if (args.length >= 2) {
-                // FACE or angle specified
-                BlockFace parsedFace = null;
-                String input = args[1].toLowerCase(Locale.ENGLISH);
-                for (BlockFace face : BlockFace.values()) {
-                    if (face.name().toLowerCase(Locale.ENGLISH).equals(input)) {
-                        parsedFace = face;
-                        break;
+            try {
+                if (args.length >= 4) {
+                    // X/Y/Z specified
+                    double x = ParseUtil.parseDouble(args[1], 0.0);
+                    double y = ParseUtil.parseDouble(args[2], 0.0);
+                    double z = ParseUtil.parseDouble(args[3], 0.0);
+                    state.setOrientation(new Vector(x, y, z));
+                } else if (args.length >= 2) {
+                    // FACE or angle specified
+                    BlockFace parsedFace = null;
+                    String input = args[1].toLowerCase(Locale.ENGLISH);
+                    for (BlockFace face : BlockFace.values()) {
+                        if (face.name().toLowerCase(Locale.ENGLISH).equals(input)) {
+                            parsedFace = face;
+                            break;
+                        }
+                    }
+                    if (parsedFace != null) {
+                        state.setOrientation(FaceUtil.faceToVector(parsedFace));
+                    } else if (ParseUtil.isNumeric(input)) {
+                        // Angle offset applies to the 'up' orientation
+                        // Compute average forward direction vector of selected nodes
+                        Vector forward = new Vector();
+                        for (TrackNode node : state.getEditedNodes()) {
+                            forward.add(node.getDirection());
+                        }
+                        double angle = ParseUtil.parseDouble(input, 0.0);
+                        Quaternion q = Quaternion.fromLookDirection(forward, new Vector(0, 1, 0));
+                        q.rotateZ(angle);
+                        state.setOrientation(q.upVector());
+                    } else {
+                        sender.sendMessage(ChatColor.RED + "Input value " + input + " not understood");
                     }
                 }
-                if (parsedFace != null) {
-                    state.setOrientation(FaceUtil.faceToVector(parsedFace));
-                } else if (ParseUtil.isNumeric(input)) {
-                    // Angle offset applies to the 'up' orientation
-                    // Compute average forward direction vector of selected nodes
-                    Vector forward = new Vector();
-                    for (TrackNode node : state.getEditedNodes()) {
-                        forward.add(node.getDirection());
-                    }
-                    double angle = ParseUtil.parseDouble(input, 0.0);
-                    Quaternion q = Quaternion.fromLookDirection(forward, new Vector(0, 1, 0));
-                    q.rotateZ(angle);
-                    state.setOrientation(q.upVector());
-                } else {
-                    sender.sendMessage(ChatColor.RED + "Input value " + input + " not understood");
-                }
+            } catch (ChangeCancelledException ex) {
+                sender.sendMessage(ChatColor.RED + "The orienation of this node could not be changed");
+                return true;
             }
 
             // Display feedback to user
@@ -583,32 +633,37 @@ public class TCCoasters extends PluginBase {
             }
 
             // Argument is specified; set it
-            if (args.length >= 4) {
-                // X/Y/Z specified
-                int x = ParseUtil.parseInt(args[1], 0);
-                int y = ParseUtil.parseInt(args[2], 0);
-                int z = ParseUtil.parseInt(args[3], 0);
-                state.setRailBlock(new IntVector3(x, y, z));
-            } else if (args.length >= 2) {
-                // BlockFace translate or 'Reset'
-                BlockFace parsedFace = null;
-                String input = args[1].toLowerCase(Locale.ENGLISH);
-                for (BlockFace face : BlockFace.values()) {
-                    if (face.name().toLowerCase(Locale.ENGLISH).equals(input)) {
-                        parsedFace = face;
-                        break;
+            try {
+                if (args.length >= 4) {
+                    // X/Y/Z specified
+                    int x = ParseUtil.parseInt(args[1], 0);
+                    int y = ParseUtil.parseInt(args[2], 0);
+                    int z = ParseUtil.parseInt(args[3], 0);
+                    state.setRailBlock(new IntVector3(x, y, z));
+                } else if (args.length >= 2) {
+                    // BlockFace translate or 'Reset'
+                    BlockFace parsedFace = null;
+                    String input = args[1].toLowerCase(Locale.ENGLISH);
+                    for (BlockFace face : BlockFace.values()) {
+                        if (face.name().toLowerCase(Locale.ENGLISH).equals(input)) {
+                            parsedFace = face;
+                            break;
+                        }
+                    }
+                    if (parsedFace != null) {
+                        IntVector3 old = state.getLastEditedNode().getRailBlock(true);
+                        state.setRailBlock(old.add(parsedFace));
+                        sender.sendMessage(ChatColor.YELLOW + "Rail block moved one block " + parsedFace);
+                    } else if (input.equals("reset")) {
+                        state.resetRailsBlocks();
+                        sender.sendMessage(ChatColor.YELLOW + "Rail block position reset");
+                    } else {
+                        sender.sendMessage(ChatColor.RED + "Input value " + input + " not understood");
                     }
                 }
-                if (parsedFace != null) {
-                    sender.sendMessage(ChatColor.YELLOW + "Rail block moved one block " + parsedFace);
-                    IntVector3 old = state.getLastEditedNode().getRailBlock(true);
-                    state.setRailBlock(old.add(parsedFace));
-                } else if (input.equals("reset")) {
-                    sender.sendMessage(ChatColor.YELLOW + "Rail block position reset");
-                    state.resetRailsBlocks();
-                } else {
-                    sender.sendMessage(ChatColor.RED + "Input value " + input + " not understood");
-                }
+            } catch (ChangeCancelledException ex) {
+                sender.sendMessage(ChatColor.RED + "The rail block of this node could not be changed");
+                return true;
             }
 
             // Display feedback to user

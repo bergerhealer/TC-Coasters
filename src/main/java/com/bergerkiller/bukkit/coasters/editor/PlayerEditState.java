@@ -22,7 +22,9 @@ import org.bukkit.util.Vector;
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil.TargetedBlockInfo;
+import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
+import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
@@ -41,6 +43,7 @@ import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
+import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
 
@@ -321,7 +324,11 @@ public class PlayerEditState implements CoasterWorldAccess {
             } else {
                 pos = this.getNewNodePos();
             }
-            this.createNewNode(pos, null, false);
+            try {
+                this.createNewNode(pos, null, false);
+            } catch (ChangeCancelledException e) {
+                // Do nothing, the left click simply didn't do anything.
+            }
             return true;
         }
 
@@ -463,14 +470,22 @@ public class PlayerEditState implements CoasterWorldAccess {
             this.input.update();
             this.changed = true;
             if (this.input.heldDuration() >= EDIT_AUTO_TIMEOUT) {
-                if (this.heldDownTicks == 0 || this.editMode.autoActivate(this.heldDownTicks)) {
-                    this.updateEditing();
+                try {
+                    if (this.heldDownTicks == 0 || this.editMode.autoActivate(this.heldDownTicks)) {
+                        this.updateEditing();
+                    }
+                    this.heldDownTicks++;
+                } catch (ChangeCancelledException ex) {
+                    this.clearEditedNodes();
                 }
-                this.heldDownTicks++;
             }
         } else {
             if (this.heldDownTicks > 0) {
-                this.onEditingFinished();
+                try {
+                    this.onEditingFinished();
+                } catch (ChangeCancelledException e) {
+                    this.clearEditedNodes();
+                }
                 this.heldDownTicks = 0;
                 this.targetedBlock = null;
             }
@@ -480,7 +495,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         }
     }
 
-    private void updateEditing() {
+    private void updateEditing() throws ChangeCancelledException {
         if (this.editMode == Mode.CREATE) {
             // Create new tracks
             createTrack();
@@ -500,7 +515,7 @@ public class PlayerEditState implements CoasterWorldAccess {
      * Deletes all selected tracks and selects the track that is connected
      * to the now-deleted tracks. This allows repeated deletion to 'walk' and delete.
      */
-    public void deleteTrack() {
+    public void deleteTrack() throws ChangeCancelledException {
         // Deselect nodes we cannot delete or modify
         this.deselectLockedNodes();
 
@@ -513,10 +528,11 @@ public class PlayerEditState implements CoasterWorldAccess {
         // Disconnect nodes when adjacent nodes are selected
         boolean disconnectedNodes = false;
         for (TrackNode node : toDelete) {
-            for (TrackNode neigh : node.getNeighbours()) {
+            for (TrackConnection connection : node.getConnections()) {
+                TrackNode neigh = connection.getOtherNode(node);
                 if (toDelete.contains(neigh)) {
+                    changes.addChangeDisconnect(this.player, connection);
                     node.getTracks().disconnect(node, neigh);
-                    changes.addChangeDisconnect(node, neigh);
                     disconnectedNodes = true;
                 }
             }
@@ -526,7 +542,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             for (TrackNode node : toDelete) {
                 if (node.getConnections().isEmpty()) {
                     this.setEditing(node, false);
-                    changes.addChangeDeleteNode(node);
+                    changes.addChangeDeleteNode(this.player, node);
                     node.remove();
                 }
             }
@@ -545,7 +561,7 @@ public class PlayerEditState implements CoasterWorldAccess {
 
         // Delete all nodes to be deleted
         for (TrackNode node : toDelete) {
-            changes.addChangeDeleteNode(node);
+            changes.addChangeDeleteNode(this.player, node);
             node.remove();
         }
     }
@@ -554,7 +570,7 @@ public class PlayerEditState implements CoasterWorldAccess {
      * Resets the rails blocks of all selected nodes, causing them to be
      * the same as the position of the rails node itself.
      */
-    public void resetRailsBlocks() {
+    public void resetRailsBlocks() throws ChangeCancelledException {
         setRailBlock(null);
     }
 
@@ -562,7 +578,7 @@ public class PlayerEditState implements CoasterWorldAccess {
      * Sets the rails block to what the player last right-clicked,
      * or otherwise to where the player is looking.
      */
-    public void setRailBlock() {
+    public void setRailBlock() throws ChangeCancelledException {
         // New rails block to use
         IntVector3 new_rail;
         if (this.targetedBlock != null) {
@@ -580,20 +596,18 @@ public class PlayerEditState implements CoasterWorldAccess {
      * 
      * @param new_rail to set to, null to reset
      */
-    public void setRailBlock(IntVector3 new_rail) {
+    public void setRailBlock(IntVector3 new_rail) throws ChangeCancelledException {
         // Deselect nodes we cannot edit
         this.deselectLockedNodes();
 
         // Reset
         if (new_rail == null) {
-            HistoryChange changes = null;
-            for (TrackNode node : this.getEditedNodes()) {
-                if (node.getRailBlock(false) != null) {
-                    if (changes == null) {
-                        changes = this.getHistory().addChangeGroup();
-                    }
-                    changes.addChangeSetRail(node, null);
-                    node.setRailBlock(null);
+            if (this.editedNodes.size() == 1) {
+                setRailForNode(this.getHistory(), this.getEditedNodes().iterator().next(), new_rail);
+            } else {
+                HistoryChange changes = this.getHistory().addChangeGroup();
+                for (TrackNode node : this.getEditedNodes()) {
+                    setRailForNode(changes, node, new_rail);
                 }
             }
             return;
@@ -606,11 +620,7 @@ public class PlayerEditState implements CoasterWorldAccess {
 
         // Simplified when its just one node
         if (this.editedNodes.size() == 1) {
-            IntVector3 old_rail = lastEdited.getRailBlock(false);
-            if (!LogicUtil.bothNullOrEqual(old_rail, new_rail)) {
-                this.getHistory().addChangeSetRail(lastEdited, new_rail);
-                lastEdited.setRailBlock(new_rail);
-            }
+            setRailForNode(this.getHistory(), lastEdited, new_rail);
             return;
         }
 
@@ -624,8 +634,23 @@ public class PlayerEditState implements CoasterWorldAccess {
         HistoryChange changes = this.getHistory().addChangeGroup();
         for (TrackNode node : this.getEditedNodes()) {
             IntVector3 node_new_rail = node.getRailBlock(true).add(diff);
-            changes.addChangeSetRail(node, node_new_rail);
-            node.setRailBlock(node_new_rail);
+            setRailForNode(changes, node, node_new_rail);
+        }
+    }
+
+    private void setRailForNode(HistoryChangeCollection changes, TrackNode node, IntVector3 new_rail) throws ChangeCancelledException {
+        IntVector3 old_rail = node.getRailBlock(false);
+        if (LogicUtil.bothNullOrEqual(old_rail, new_rail)) {
+            return;
+        }
+
+        changes.addChangeBeforeSetRail(this.player, node, null);
+        node.setRailBlock(new_rail);
+        try {
+            changes.handleChangeAfterSetRail(this.player, node, old_rail);
+        } catch (ChangeCancelledException ex) {
+            node.setRailBlock(old_rail);
+            throw ex;
         }
     }
 
@@ -634,20 +659,21 @@ public class PlayerEditState implements CoasterWorldAccess {
      * 
      * @param orientation vector to set to
      */
-    public void setOrientation(Vector orientation) {
+    public void setOrientation(Vector orientation) throws ChangeCancelledException {
         // Deselect locked nodes that we cannot edit
         this.deselectLockedNodes();
 
         // Apply to all nodes
         HistoryChange changes = null;
         for (TrackNode node : this.getEditedNodes()) {
-            TrackNodeState startState = node.getState();
-            node.setOrientation(orientation);
-
             if (changes == null) {
                 changes = this.getHistory().addChangeGroup();
             }
-            changes.addChangePostMoveNode(node, startState);
+
+            changes.handleChangeBefore(this.player, node);
+            TrackNodeState startState = node.getState();
+            node.setOrientation(orientation);
+            changes.addChangeAfterChangingNode(this.player, node, startState);
         }
     }
 
@@ -655,7 +681,7 @@ public class PlayerEditState implements CoasterWorldAccess {
      * Creates a new track node, connecting with already selected track nodes.
      * The created track node is selected to allow chaining create node calls.
      */
-    public void createTrack() {
+    public void createTrack() throws ChangeCancelledException {
         // For the first click, check if the player is looking exactly at a particular connection or node
         // If so, create a node on this connection or node and switch mode to position adjustment
         // This allows for a kind of click-drag creation design
@@ -687,8 +713,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             if (clickedRailType != RailType.NONE) {
                 // Load the path for the rails clicked
                 RailState state = new RailState();
-                state.setRailBlock(this.targetedBlock);
-                state.setRailType(clickedRailType);
+                state.setRailPiece(RailPiece.create(clickedRailType, this.targetedBlock));
                 state.position().setLocation(clickedRailType.getSpawnLocation(this.targetedBlock, this.targetedBlockFace));
                 state.position().setMotion(this.targetedBlockFace);
                 state.initEnterDirection();
@@ -750,7 +775,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         return eyeLoc.toVector().add(eyeLoc.getDirection().multiply(0.5));
     }
 
-    private void createNewNode(Vector pos, Vector ori, boolean inAir) {
+    private void createNewNode(Vector pos, Vector ori, boolean inAir) throws ChangeCancelledException {
         TrackWorld tracks = getTracks();
 
         // Deselect nodes that are locked, to prevent modification
@@ -762,7 +787,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             if (ori != null) {
                 newNode.setOrientation(ori);
             }
-            this.getHistory().addChangeCreateNode(newNode);
+            this.getHistory().addChangeCreateNode(this.player, newNode);
             setEditing(newNode, true);
             return;
         }
@@ -791,14 +816,14 @@ public class PlayerEditState implements CoasterWorldAccess {
             this.setEditing(conn.getNodeA(), false);
             this.setEditing(conn.getNodeB(), false);
 
-            changes.addChangeDisconnect(conn);
+            changes.addChangeDisconnect(this.player, conn);
             conn.remove();
 
             TrackNode newNode = conn.getNodeA().getCoaster().createNewNode(newNodePos, newNodeOri);
-            changes.addChangeCreateNode(newNode);
+            changes.addChangeCreateNode(this.player, newNode);
 
-            changes.addChangeConnect(tracks.connect(conn.getNodeA(), newNode));
-            changes.addChangeConnect(tracks.connect(newNode, conn.getNodeB()));
+            changes.addChangeConnect(this.player, tracks.connect(conn.getNodeA(), newNode));
+            changes.addChangeConnect(this.player, tracks.connect(newNode, conn.getNodeB()));
             createdConnNodes.add(newNode);
         }
 
@@ -814,8 +839,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             TrackNode prevNode = null;
             for (TrackNode node : getEditedNodes()) {
                 if (prevNode != null) {
-                    tracks.connect(prevNode, node);
-                    changes.addChangeConnect(prevNode, node);
+                    changes.addChangeConnect(this.player, tracks.connect(prevNode, node));
                 }
                 prevNode = node;
             }
@@ -828,11 +852,10 @@ public class PlayerEditState implements CoasterWorldAccess {
                     if (ori != null) {
                         newNode.setOrientation(ori);
                     }
-                    changes.addChangeCreateNode(newNode);
-                    changes.addChangeConnect(newNode, node);
+                    changes.addChangeCreateNode(this.player, newNode);
+                    changes.addChangeConnect(this.player, newNode, node);
                 } else {
-                    tracks.connect(node, newNode);
-                    changes.addChangeConnect(newNode, node);
+                    changes.addChangeConnect(this.player, tracks.connect(node, newNode));
                 }
             }
             clearEditedNodes();
@@ -878,8 +901,20 @@ public class PlayerEditState implements CoasterWorldAccess {
         }
 
         // Ensure moveBegin() is called once
+        List<TrackNode> cancelled = Collections.emptyList();
         for (PlayerEditNode editNode : this.editedNodes.values()) {
-            editNode.moveBegin();
+            if (!editNode.moveBegin(this.player)) {
+                if (cancelled.isEmpty()) {
+                    cancelled = new ArrayList<TrackNode>();
+                }
+                cancelled.add(editNode.node);
+            }
+        }
+        for (TrackNode cancelledNode : cancelled) {
+            this.setEditing(cancelledNode, false);
+        }
+        if (!this.hasEditedNodes()) {
+            return;
         }
 
         // Calculate the transformation performed as a result of the player 'looking'
@@ -937,7 +972,7 @@ public class PlayerEditState implements CoasterWorldAccess {
     }
 
     // when player releases the right-click mouse button
-    private void onEditingFinished() {
+    private void onEditingFinished() throws ChangeCancelledException {
         // Deselect locked nodes that we cannot edit
         this.deselectLockedNodes();
 
@@ -947,6 +982,11 @@ public class PlayerEditState implements CoasterWorldAccess {
             TrackWorld tracks = this.getTracks();
             PlayerEditNode draggedNode = this.editedNodes.values().iterator().next();
             TrackNode droppedNode = null;
+
+            // If we never even began moving this node, do nothing
+            if (!draggedNode.hasMoveBegun()) {
+                return;
+            }
 
             // Get all nodes nearby the position, sorted from close to far
             final Vector pos = draggedNode.node.getPosition();
@@ -969,36 +1009,45 @@ public class PlayerEditState implements CoasterWorldAccess {
 
             // Merge if found
             if (droppedNode != null) {
-                List<TrackNode> connectedNodes = draggedNode.node.getNeighbours();
+                try {
+                    List<TrackNode> connectedNodes = draggedNode.node.getNeighbours();
 
-                // Track all the changes we are doing down below.
-                HistoryChange changes = this.getHistory().addChangePostMoveNode(
-                        draggedNode.node, draggedNode.startState);
+                    // Track all the changes we are doing down below.
+                    HistoryChange changes = this.getHistory().addChangeAfterChangingNode(
+                            this.player, draggedNode.node, draggedNode.startState);
 
-                // Delete dragged node
-                changes.addChangeDeleteNode(draggedNode.node);
-                draggedNode.node.remove();
+                    // Delete dragged node
+                    changes.addChangeDeleteNode(this.player, draggedNode.node);
+                    draggedNode.node.remove();
 
-                // Connect all that was connected to it, with the one dropped on
-                for (TrackNode connected : connectedNodes) {
-                    if (connected != droppedNode) {
-                        changes.addChangeConnect(droppedNode, connected);
-                        tracks.connect(droppedNode, connected);
+                    // Connect all that was connected to it, with the one dropped on
+                    for (TrackNode connected : connectedNodes) {
+                        if (connected != droppedNode) {
+                            changes.addChangeConnect(this.player, tracks.connect(droppedNode, connected));
+                        }
                     }
-                }
 
-                // Do not do the standard position/orientation change saving down below
-                draggedNode.moveEnd();
-                return;
+                    // Do not do the standard position/orientation change saving down below
+                    return;
+                } finally {
+                    draggedNode.moveEnd();
+                }
             }
         }
 
         // For position/orientation, store the changes
         if (this.isMode(Mode.POSITION, Mode.ORIENTATION)) {
             HistoryChange changes = this.getHistory().addChangeGroup();
-            for (PlayerEditNode editNode : this.editedNodes.values()) {
-                changes.addChangePostMoveNode(editNode.node, editNode.startState);
-                editNode.moveEnd();
+            try {
+                for (PlayerEditNode editNode : this.editedNodes.values()) {
+                    if (editNode.hasMoveBegun()) {
+                        changes.addChangeAfterChangingNode(this.player, editNode.node, editNode.startState);
+                    }
+                }
+            } finally {
+                for (PlayerEditNode editNode : this.editedNodes.values()) {
+                    editNode.moveEnd();
+                }
             }
         }
     }

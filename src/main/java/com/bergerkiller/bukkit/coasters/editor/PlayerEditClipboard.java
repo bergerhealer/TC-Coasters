@@ -5,7 +5,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.bukkit.entity.Player;
+
+import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
+import com.bergerkiller.bukkit.coasters.events.CoasterCopyEvent;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
@@ -14,6 +18,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
+import com.bergerkiller.bukkit.common.utils.CommonUtil;
 
 /**
  * Stores the nodes and connections between nodes copied to the clipboard.
@@ -26,6 +31,10 @@ public class PlayerEditClipboard {
 
     protected PlayerEditClipboard(PlayerEditState state) {
         this._state = state;
+    }
+
+    public Player getPlayer() {
+        return _state.getPlayer();
     }
 
     /**
@@ -50,13 +59,19 @@ public class PlayerEditClipboard {
      * Copies all nodes and connections between them that are selected by the player
      */
     public void copy() {
-        this._origin.setForPlayer(this._state.getPlayer());
+        this._origin.setForPlayer(getPlayer());
         this._nodes.clear();
         this._connections.clear();
-        for (TrackNode node : this._state.getEditedNodes()) {
+
+        HashSet<TrackNode> editedNodes = new HashSet<TrackNode>(this._state.getEditedNodes());
+        if (CommonUtil.callEvent(new CoasterCopyEvent(getPlayer(), editedNodes, false)).isCancelled()) {
+            return;
+        }
+
+        for (TrackNode node : editedNodes) {
             this._nodes.add(node.getState());
             for (TrackConnection connection : node.getConnections()) {
-                if (this._state.isEditing(connection.getOtherNode(node))) {
+                if (editedNodes.contains(connection.getOtherNode(node))) {
                     this._connections.add(TrackConnectionState.create(connection));
                 }
             }
@@ -67,7 +82,7 @@ public class PlayerEditClipboard {
      * Creates a new coaster at the current position of the player using the
      * nodes last copied. If no nodes were copied, this function does nothing.
      */
-    public void paste() {
+    public void paste() throws ChangeCancelledException {
         if (!this.isFilled()) {
             return;
         }
@@ -78,26 +93,32 @@ public class PlayerEditClipboard {
         // Create new coaster and all nodes on the clipboard
         HistoryChange history = this._state.getHistory().addChangeGroup();
         TrackWorld tracks = this._state.getTracks();
-        TrackCoaster coaster = tracks.createNew(this._nodes.get(0).transform(transform));
-        for (int i = 1; i < this._nodes.size(); i++) {
-            coaster.createNewNode(this._nodes.get(i).transform(transform));
-        }
-        for (TrackNode node : coaster.getNodes()) {
-            history.addChangeCreateNode(node);
-        }
+        TrackCoaster coaster = tracks.createNewEmpty();
 
-        // Create connections
-        for (TrackConnectionState connectionState : this._connections) {
-            TrackConnection connection = tracks.connect(connectionState.transform(transform));
-            if (connection != null) {
-                history.addChangeConnect(connection);
+        try {
+            // Create nodes
+            for (TrackNodeState node_state : this._nodes) {
+                history.addChangeCreateNode(getPlayer(), coaster.createNewNode(node_state));
             }
-        }
 
-        // Edit the newly created nodes
-        this._state.clearEditedNodes();
-        for (TrackNode node : coaster.getNodes()) {
-            this._state.setEditing(node, true);
+            // Create connections
+            for (TrackConnectionState connectionState : this._connections) {
+                TrackConnection connection = tracks.connect(connectionState.transform(transform));
+                if (connection != null) {
+                    history.addChangeConnect(getPlayer(), connection);
+                }
+            }
+
+            // Edit the newly created nodes
+            this._state.clearEditedNodes();
+            for (TrackNode node : coaster.getNodes()) {
+                this._state.setEditing(node, true);
+            }
+        } catch (ChangeCancelledException ex) {
+            // Roll back all changes and rethrow
+            this._state.getHistory().removeChange(history);
+            tracks.removeCoaster(coaster);
+            throw ex;
         }
     }
 }
