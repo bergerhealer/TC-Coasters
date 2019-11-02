@@ -396,8 +396,9 @@ public class TCCoasters extends PluginBase {
                 sender.sendMessage("No track nodes selected, nothing has been deleted!");
             } else {
                 try {
+                    int numDeleted = state.getEditedNodes().size();
                     state.deleteTrack();
-                    sender.sendMessage("Deleted " + state.getEditedNodes().size() + " track nodes!");
+                    sender.sendMessage("Deleted " + numDeleted + " track nodes!");
                 } catch (ChangeCancelledException e) {
                     sender.sendMessage(ChatColor.RED + "Failed to delete some of the track nodes!");
                 }
