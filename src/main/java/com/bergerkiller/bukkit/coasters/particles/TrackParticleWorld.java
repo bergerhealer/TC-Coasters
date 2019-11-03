@@ -30,8 +30,12 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
         super(world);
     }
 
+    public TrackParticleText addParticleTextNoItem(Vector position, String text) {
+        return addParticle(new TrackParticleText(this, position, text, false));
+    }
+
     public TrackParticleText addParticleText(Vector position, String text) {
-        return addParticle(new TrackParticleText(this, position, text));
+        return addParticle(new TrackParticleText(this, position, text, true));
     }
 
     public TrackParticleLine addParticleLine(Vector p1, Vector p2) {

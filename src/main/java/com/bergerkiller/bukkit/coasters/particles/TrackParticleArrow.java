@@ -69,6 +69,10 @@ public class TrackParticleArrow extends TrackParticle {
         }
     }
 
+    public Quaternion getOrientation() {
+        return this.orientation;
+    }
+
     public void setItemType(TrackParticleItemType itemType) {
         if (!this.itemType.equals(itemType)) {
             this.itemType = itemType;

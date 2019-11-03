@@ -12,6 +12,7 @@ import java.util.Set;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.opencsv.CSVWriter;
 
@@ -209,6 +210,14 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
             }
             node_entry.setFromNode(startNode);
             this.write(node_entry);
+
+            // If any exist, add animation node state entries
+            for (TrackNodeAnimationState animState : startNode.getAnimationStates()) {
+                TrackCoasterCSV.AnimationStateNodeEntry anim_entry = new TrackCoasterCSV.AnimationStateNodeEntry();
+                anim_entry.name = animState.name;
+                anim_entry.setFromState(animState.state);
+                this.write(anim_entry);
+            }
 
             // In junctions only mode, we write out all connections in order
             // After that, we stop.

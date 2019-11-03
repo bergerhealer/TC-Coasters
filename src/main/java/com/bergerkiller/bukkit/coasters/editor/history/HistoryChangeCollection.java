@@ -81,9 +81,7 @@ public abstract class HistoryChangeCollection {
             handleEvent(new CoasterAfterChangeNodeEvent(who, node, startState));
         } catch (ChangeCancelledException ex) {
             // Revert the changes
-            node.setPosition(startState.position);
-            node.setOrientation(startState.orientation);
-            node.setRailBlock(startState.railBlock);
+            node.setState(startState);
             throw ex;
         }
 

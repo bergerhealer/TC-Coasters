@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.world;
 import org.bukkit.World;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.animation.TrackAnimationWorld;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
@@ -16,6 +17,7 @@ public class CoasterWorldImpl implements CoasterWorldAccess {
     private final TrackWorld _tracks;
     private final TrackParticleWorld _particles;
     private final TrackRailsWorld _rails;
+    private final TrackAnimationWorld _animations;
 
     public CoasterWorldImpl(TCCoasters plugin, World world) {
         this._plugin = plugin;
@@ -23,6 +25,7 @@ public class CoasterWorldImpl implements CoasterWorldAccess {
         this._tracks = new TrackWorld(this);
         this._particles = new TrackParticleWorld(this);
         this._rails = new TrackRailsWorld(this);
+        this._animations = new TrackAnimationWorld(this);
     }
 
     @Override
@@ -48,6 +51,11 @@ public class CoasterWorldImpl implements CoasterWorldAccess {
     @Override
     public TrackRailsWorld getRails() {
         return this._rails;
+    }
+
+    @Override
+    public TrackAnimationWorld getAnimations() {
+        return this._animations;
     }
 
     /**
@@ -83,6 +91,7 @@ public class CoasterWorldImpl implements CoasterWorldAccess {
      * Called every tick to update the underlying objects
      */
     public void updateAll() {
+        getAnimations().updateAll();
         getTracks().updateAll();
         getParticles().updateAll();
     }

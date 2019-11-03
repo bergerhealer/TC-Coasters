@@ -34,9 +34,7 @@ public class HistoryChangeNode extends HistoryChange {
                 if (node.isLocked()) {
                     throw new TrackLockedException();
                 }
-                node.setPosition(this.from.position);
-                node.setOrientation(this.from.orientation);
-                node.setRailBlock(this.from.railBlock);
+                node.setState(this.from);
             }
         } else {
             TrackNode node = world.getTracks().findNodeExact(this.from.position);
@@ -44,9 +42,7 @@ public class HistoryChangeNode extends HistoryChange {
                 if (node.isLocked()) {
                     throw new TrackLockedException();
                 }
-                node.setPosition(this.to.position);
-                node.setOrientation(this.to.orientation);
-                node.setRailBlock(this.to.railBlock);
+                node.setState(this.to);
             }
         }
     }

@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.world;
 import org.bukkit.World;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.animation.TrackAnimationWorld;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
@@ -47,6 +48,13 @@ public interface CoasterWorldAccess {
     TrackRailsWorld getRails();
 
     /**
+     * Gets access to the animation states for nodes on a world
+     * 
+     * @return animations
+     */
+    TrackAnimationWorld getAnimations();
+
+    /**
      * Component of a Coaster World. Simplifies access to world-specific operations.
      */
     public static class Component implements CoasterWorldAccess {
@@ -79,6 +87,11 @@ public interface CoasterWorldAccess {
         @Override
         public TrackRailsWorld getRails() {
             return this._world.getRails();
+        }
+
+        @Override
+        public TrackAnimationWorld getAnimations() {
+            return this._world.getAnimations();
         }
     }
 }

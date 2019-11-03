@@ -96,6 +96,15 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                 continue;
             }
 
+            // ANIM entries are animation states that refer to the previously written node
+            if (entry instanceof TrackCoasterCSV.AnimationStateNodeEntry) {
+                TrackCoasterCSV.AnimationStateNodeEntry animEntry = (TrackCoasterCSV.AnimationStateNodeEntry) entry;
+                if (prevNode != null) {
+                    prevNode.addAnimationState(animEntry.name, animEntry.createState());
+                }
+                continue;
+            }
+
             // ROOT and NODE entries are created, where NODE connects to the previous node (chain)
             if (entry instanceof TrackCoasterCSV.BaseNodeEntry) {
                 TrackCoasterCSV.BaseNodeEntry nodeEntry = (TrackCoasterCSV.BaseNodeEntry) entry;

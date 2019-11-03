@@ -12,6 +12,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.animation.TrackAnimationWorld;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleArrow;
@@ -36,6 +37,8 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
     private TrackCoaster _coaster;
     private Vector _pos, _up, _up_visual, _dir;
     private IntVector3 _railBlock;
+    // Named target states of this track node, which can be used for animations
+    private TrackNodeAnimationState[] _animationStates;
     //private TrackParticleItem _particle;
     private TrackParticleArrow _upParticleArrow;
     private List<TrackParticleText> _junctionParticles;
@@ -52,6 +55,7 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
         this._coaster = group;
         this._pos = state.position;
         this._connections = TrackConnection.EMPTY_ARR;
+        this._animationStates = TrackNodeAnimationState.EMPTY_ARR;
         if (state.orientation.lengthSquared() < 1e-10) {
             this._up = new Vector(0.0, 0.0, 0.0);
         } else {
@@ -105,6 +109,12 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
 
     public TrackNodeState getState() {
         return TrackNodeState.create(this);
+    }
+
+    public void setState(TrackNodeState state) {
+        this.setPosition(state.position);
+        this.setOrientation(state.orientation);
+        this.setRailBlock(state.railBlock);
     }
 
     public void markChanged() {
@@ -463,6 +473,65 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
         return Arrays.asList(result);
     }
 
+    /**
+     * Animates this node's position towards a target state, by name.
+     * 
+     * @param name      The name of the state to animate towards
+     * @param duration  The duration in seconds the animation should take, 0 for instant
+     * @return True if the animation state by this name exists, and the animation is now playing
+     */
+    public boolean playAnimation(String name, double duration) {
+        for (TrackNodeAnimationState animState : this._animationStates) {
+            if (animState.name.equals(name)) {
+                getAnimations().animate(this, animState.state, duration);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean removeAnimationState(String name) {
+        for (int i = 0; i < this._animationStates.length; i++) {
+            if (this._animationStates[i].name.equals(name)) {
+                this._animationStates[i].destroyParticles();
+                this._animationStates = LogicUtil.removeArrayElement(this._animationStates, i);
+                for (int j = i; j < this._animationStates.length; j++) {
+                    this._animationStates[j].updateIndex(j);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void addAnimationState(String name) {
+        addAnimationState(name, this.getState());
+    }
+
+    public void addAnimationState(String name, TrackNodeState state) {
+        // Overwrite existing
+        for (int i = 0; i < this._animationStates.length; i++) {
+            if (this._animationStates[i].name.equals(name)) {
+                this._animationStates[i].destroyParticles();
+                this._animationStates[i] = TrackNodeAnimationState.create(name,this,state,i);
+                return;
+            }
+        }
+
+        // Add new
+        int new_len = this._animationStates.length + 1;
+        this._animationStates = Arrays.copyOf(this._animationStates, new_len);
+        this._animationStates[new_len-1] = TrackNodeAnimationState.create(name,this,state,new_len-1);
+    }
+
+    public List<TrackNodeAnimationState> getAnimationStates() {
+        if (this._animationStates.length == 0) {
+            return Collections.emptyList();
+        } else {
+            return Arrays.asList(this._animationStates); 
+        }
+    }
+
     public double getJunctionViewDistance(Matrix4x4 cameraTransform, TrackConnection connection) {
         return getViewDistance(cameraTransform, connection.getNearEndPosition(this));
     }
@@ -498,6 +567,9 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
             particle.remove();
         }
         this._junctionParticles = Collections.emptyList();
+        for (TrackNodeAnimationState animState : this._animationStates) {
+            animState.destroyParticles();
+        }
     }
 
     /**
@@ -669,6 +741,11 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
     @Override
     public TrackRailsWorld getRails() {
         return this._coaster.getRails();
+    }
+
+    @Override
+    public TrackAnimationWorld getAnimations() {
+        return this._coaster.getAnimations();
     }
 
     @Override

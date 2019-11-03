@@ -33,6 +33,7 @@ public class TrackCoasterCSV {
         registerEntry(NodeEntry::new);
         registerEntry(RootNodeEntry::new);
         registerEntry(LinkNodeEntry::new);
+        registerEntry(AnimationStateNodeEntry::new);
         registerEntry(PlayerOrigin::new);
         registerEntry(LockCoasterEntry::new);
         registerEntry(NoLimits2Entry::new);
@@ -140,6 +141,16 @@ public class TrackCoasterCSV {
             this.rail = node.getRailBlock(false);
         }
 
+        public void setFromState(TrackNodeState state) {
+            this.pos = state.position;
+            this.up = state.orientation;
+            this.rail = state.railBlock;
+        }
+
+        public TrackNodeState createState() {
+            return TrackNodeState.create(this.pos, this.up, this.rail);
+        }
+
         /**
          * Gets the type name of this base node entry
          * 
@@ -203,6 +214,27 @@ public class TrackCoasterCSV {
         @Override
         public String getType() {
             return "NODE";
+        }
+    }
+
+    public static final class AnimationStateNodeEntry extends BaseNodeEntry {
+        public String name;
+
+        @Override
+        public String getType() {
+            return "ANIM";
+        }
+
+        @Override
+        public void read(StringArrayBuffer buffer) throws SyntaxException {
+            super.read(buffer);
+            this.name = buffer.next();
+        }
+
+        @Override
+        public void write(StringArrayBuffer buffer) {
+            super.write(buffer);
+            buffer.put(this.name);
         }
     }
 

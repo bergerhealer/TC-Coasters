@@ -626,6 +626,53 @@ public class TCCoasters extends PluginBase {
             } else {
                 sender.sendMessage(ChatColor.GREEN + "Current track orientation is " + ori_str);
             }
+        } else if (args.length > 0 && args[0].equalsIgnoreCase("animation")) {
+            if (args.length < 3) {
+                sender.sendMessage(ChatColor.RED + "Invalid number of arguments specified!");
+                sender.sendMessage(ChatColor.RED + "/tcc animation [add/remove] [name]");
+                sender.sendMessage(ChatColor.RED + "/tcc animation play [name] (duration)");
+                return true;
+            }
+            state.deselectLockedNodes();
+            if (state.getEditedNodes().isEmpty()) {
+                sender.sendMessage("You don't have any nodes selected!");
+                return true;
+            }
+            String animName = args[2];
+            if (LogicUtil.containsIgnoreCase(args[1], "add", "create", "new")) {
+                for (TrackNode node : state.getEditedNodes()) {
+                    node.addAnimationState(animName);
+                }
+                sender.sendMessage("Animation '" + animName + "' added to " + state.getEditedNodes().size() + " nodes!");
+            } else if (LogicUtil.containsIgnoreCase(args[1], "remove", "delete")) {
+                int removedCount = 0;
+                for (TrackNode node : state.getEditedNodes()) {
+                    if (node.removeAnimationState(animName)) {
+                        removedCount++;
+                    }
+                }
+                if (removedCount == 0) {
+                    sender.sendMessage(ChatColor.RED + "Animation '" + animName + "' was not added to the selected nodes!");
+                } else {
+                    sender.sendMessage("Animation '" + animName + "' added to " + removedCount + " nodes!");
+                }
+            } else if (LogicUtil.containsIgnoreCase(args[1], "play", "run")) {
+                double duration = 0.0;
+                if (args.length >= 4) {
+                    duration = ParseUtil.parseDouble(args[3], 0.0);
+                }
+                int playingCount = 0;
+                for (TrackNode node : state.getEditedNodes()) {
+                    if (node.playAnimation(animName, duration)) {
+                        playingCount++;
+                    }
+                }
+                if (playingCount == 0) {
+                    sender.sendMessage(ChatColor.RED + "Animation '" + animName + "' was not added to the selected nodes!");
+                } else {
+                    sender.sendMessage("Animation '" + animName + "' is now playing for " + playingCount + " nodes!");
+                }
+            }
         } else if (args.length > 0 && LogicUtil.contains(args[0], "rail", "rails", "railblock", "railsblock")) {
             state.deselectLockedNodes();
             if (state.getEditedNodes().isEmpty()) {

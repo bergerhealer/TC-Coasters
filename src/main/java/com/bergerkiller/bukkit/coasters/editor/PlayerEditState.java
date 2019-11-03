@@ -22,6 +22,7 @@ import org.bukkit.util.Vector;
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil.TargetedBlockInfo;
+import com.bergerkiller.bukkit.coasters.animation.TrackAnimationWorld;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
@@ -1157,5 +1158,10 @@ public class PlayerEditState implements CoasterWorldAccess {
     @Override
     public TrackRailsWorld getRails() {
         return this.getCoasterWorld().getRails();
+    }
+
+    @Override
+    public TrackAnimationWorld getAnimations() {
+        return this.getCoasterWorld().getAnimations();
     }
 }
