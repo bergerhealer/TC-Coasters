@@ -3,7 +3,10 @@ package com.bergerkiller.bukkit.coasters.rails;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
+import org.bukkit.Location;
+import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
 
@@ -97,6 +100,15 @@ public class TrackRailsSection {
     }
 
     /**
+     * Gets a stream of all the track nodes represented in this section of track
+     * 
+     * @return stream of nodes
+     */
+    public Stream<TrackNode> getNodes() {
+        return Stream.of(this.node);
+    }
+
+    /**
      * Gets whether a list of nodes contains a node of this section
      * 
      * @param nodes
@@ -136,4 +148,15 @@ public class TrackRailsSection {
         return Collections.singletonList(this);
     }
 
+    /**
+     * Gets the desired spawn location of this track section
+     * 
+     * @param railBlock
+     * @param orientation vector
+     * @return spawn location
+     */
+    public Location getSpawnLocation(Block railBlock, Vector orientation) {
+        // Single node, pick node position
+        return this.node.getSpawnLocation(orientation);
+    }
 }

@@ -3,6 +3,11 @@ package com.bergerkiller.bukkit.coasters.rails;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Stream;
+
+import org.bukkit.Location;
+import org.bukkit.block.Block;
+import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
@@ -24,6 +29,11 @@ public class TrackRailsSectionLinked extends TrackRailsSection {
     }
 
     @Override
+    public Stream<TrackNode> getNodes() {
+        return sections.stream().flatMap(section -> section.getNodes());
+    }
+
+    @Override
     public boolean containsNode(Collection<TrackNode> nodes) {
         for (TrackRailsSection section : sections) {
             if (nodes.contains(section.node)) {
@@ -42,6 +52,57 @@ public class TrackRailsSectionLinked extends TrackRailsSection {
     public boolean isConnectedWith(TrackRailsSection section) {
         return this.sections.get(0).isConnectedWith(section) ||
                this.sections.get(this.sections.size()-1).isConnectedWith(section);
+    }
+
+    @Override
+    public Location getSpawnLocation(Block railBlock, Vector orientation) {
+        // We want to find the middle between the positions of the nodes of this section
+        TrackNode firstNode = this.sections.get(0).node;
+        TrackNode lastNode = this.sections.get(this.sections.size()-1).node;
+        RailPath.Position startPos = RailPath.Position.fromPosDir(firstNode.getPosition(), firstNode.getDirection());
+        RailPath.Position endPos = RailPath.Position.fromPosDir(lastNode.getPosition(), lastNode.getDirection());
+
+        // Snap the start position onto the path
+        this.path.move(startPos, railBlock, 0.0);
+
+        // Compute the total distance to reach endPos
+        double totalDistance = 0.0;
+        {
+            RailPath.Position pos = startPos.clone();
+            boolean triedInverted = false;
+            for (int n = 0; n < 10000; n++) {
+                double remaining = pos.distance(endPos);
+                if (remaining < 1e-10) {
+                    break;
+                }
+                double moved = this.path.move(pos, railBlock, remaining);
+                if (moved >= (remaining - 1e-10)) {
+                    totalDistance += moved;
+                    continue;
+                }
+
+                // Could not move the full distance. Something is wrong.
+                if (triedInverted) {
+                    // It's just not possible. What.
+                    break;
+                } else {
+                    // Try inverted
+                    triedInverted = true;
+                    startPos.invertMotion();
+                    pos = startPos.clone();
+                    totalDistance = 0.0;
+                }
+            }
+        }
+
+        // Now move half this total distance to find the middle
+        this.path.move(startPos, railBlock, 0.5 * totalDistance);
+
+        // Convert position on path to a spawn Location
+        if (startPos.motDot(orientation) < 0.0) {
+            startPos.invertMotion();
+        }
+        return startPos.toLocation(railBlock).setDirection(startPos.getMotion());
     }
 
     private static TrackRailsSection findBestSection(List<TrackRailsSection> sections) {

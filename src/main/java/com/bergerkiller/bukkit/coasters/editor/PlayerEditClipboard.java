@@ -1,8 +1,10 @@
 package com.bergerkiller.bukkit.coasters.editor;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.bukkit.entity.Player;
@@ -14,6 +16,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
@@ -28,6 +31,7 @@ public class PlayerEditClipboard {
     private final PlayerOrigin _origin = new PlayerOrigin();
     private final List<TrackNodeState> _nodes = new ArrayList<TrackNodeState>();
     private final Set<TrackConnectionState> _connections = new HashSet<TrackConnectionState>();
+    private final Map<TrackNodeState, TrackNodeAnimationState[]> _animations = new HashMap<>();
 
     protected PlayerEditClipboard(PlayerEditState state) {
         this._state = state;
@@ -62,6 +66,7 @@ public class PlayerEditClipboard {
         this._origin.setForPlayer(getPlayer());
         this._nodes.clear();
         this._connections.clear();
+        this._animations.clear();
 
         HashSet<TrackNode> editedNodes = new HashSet<TrackNode>(this._state.getEditedNodes());
         if (CommonUtil.callEvent(new CoasterCopyEvent(getPlayer(), editedNodes, false)).isCancelled()) {
@@ -69,7 +74,13 @@ public class PlayerEditClipboard {
         }
 
         for (TrackNode node : editedNodes) {
-            this._nodes.add(node.getState());
+            TrackNodeState nodeState = node.getState();
+            this._nodes.add(nodeState);
+
+            if (!node.getAnimationStates().isEmpty()) {
+                this._animations.put(nodeState, node.getAnimationStates().toArray(new TrackNodeAnimationState[0]));
+            }
+
             for (TrackConnection connection : node.getConnections()) {
                 if (editedNodes.contains(connection.getOtherNode(node))) {
                     this._connections.add(TrackConnectionState.create(connection));
@@ -98,7 +109,16 @@ public class PlayerEditClipboard {
         try {
             // Create nodes
             for (TrackNodeState node_state : this._nodes) {
-                history.addChangeCreateNode(getPlayer(), coaster.createNewNode(node_state));
+                TrackNode node = coaster.createNewNode(node_state.transform(transform));
+                history.addChangeCreateNode(getPlayer(), node);
+
+                // Assign animations for this node
+                TrackNodeAnimationState[] animations = this._animations.get(node_state);
+                if (animations != null) {
+                    for (TrackNodeAnimationState anim : animations) {
+                        node.addAnimationState(anim.name, anim.state.transform(transform));
+                    }
+                }
             }
 
             // Create connections

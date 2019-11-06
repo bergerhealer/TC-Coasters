@@ -29,6 +29,7 @@ import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.events.CoasterCopyEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterImportEvent;
+import com.bergerkiller.bukkit.coasters.signs.SignActionTrackAnimate;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster.CoasterLoadException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
@@ -55,6 +56,7 @@ import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
+import com.bergerkiller.bukkit.tc.signactions.SignAction;
 
 public class TCCoasters extends PluginBase {
     private static final double DEFAULT_SMOOTHNESS = 10000.0;
@@ -63,6 +65,8 @@ public class TCCoasters extends PluginBase {
     private static final int DEFAULT_MAXIMUM_PARTICLE_COUNT = 5000;
     private Task updateTask;
     private Task autosaveTask;
+    private final CoasterRailType coasterRailType = new CoasterRailType(this);
+    private final SignActionTrackAnimate trackAnimateAction = new SignActionTrackAnimate();
     private final Hastebin hastebin = new Hastebin(this);
     private final TCCoastersListener listener = new TCCoastersListener(this);
     private final TCCoastersInteractionListener interactionListener = new TCCoastersInteractionListener(this);
@@ -253,7 +257,10 @@ public class TCCoasters extends PluginBase {
         this.autosaveTask = new AutosaveTask(this).start(30*20, 30*20);
 
         // Magic!
-        RailType.register(new CoasterRailType(this), false);
+        RailType.register(this.coasterRailType, false);
+
+        // More magic!
+        SignAction.register(this.trackAnimateAction);
 
         // Load all coasters from csv
         for (World world : Bukkit.getWorlds()) {
@@ -275,6 +282,10 @@ public class TCCoasters extends PluginBase {
         for (Player player : new ArrayList<Player>(this.editStates.keySet())) {
             this.logoutPlayer(player);
         }
+
+        // Unregister ourselves
+        SignAction.unregister(this.trackAnimateAction);
+        RailType.unregister(this.coasterRailType);
 
         // Clean up when disabling (save dirty coasters + despawn particles)
         for (World world : Bukkit.getWorlds()) {

@@ -2,7 +2,9 @@ package com.bergerkiller.bukkit.coasters;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -11,6 +13,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsSection;
+import com.bergerkiller.bukkit.coasters.rails.TrackRailsSectionLinked;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
@@ -143,9 +146,34 @@ public class CoasterRailType extends RailType {
         return BlockFace.DOWN;
     }
 
+    /**
+     * Gets all the track nodes active at a rail block
+     * 
+     * @param railBlock
+     * @return list of track nodes
+     */
+    public List<TrackNode> getNodes(Block railBlock) {
+        List<TrackRailsSection> sections = getRailSections(railBlock);
+        if (sections.isEmpty()) {
+            return Collections.emptyList();
+        } else {
+            return sections.stream().flatMap(section -> section.getNodes()).collect(Collectors.toList());
+        }
+    }
+
+    /**
+     * Gets all the rail sections active at a rail block
+     * 
+     * @param railBlock
+     * @return list of rail sections
+     */
+    public List<TrackRailsSection> getRailSections(Block railBlock) {
+        return getRails(railBlock.getWorld()).findAtRails(railBlock);
+    }
+
     @Override
     public RailLogic getLogic(RailState state) {
-        List<TrackRailsSection> rails = getRails(state.railBlock().getWorld()).findAtRails(state.railBlock());
+        List<TrackRailsSection> rails = getRailSections(state.railBlock());
         if (rails.isEmpty()) {
             return RailLogicAir.INSTANCE;
         }
@@ -163,7 +191,7 @@ public class CoasterRailType extends RailType {
                 // When below a movement resolution, check which section we picked previously by tracking server ticks
                 // This makes sure a train continues using a junction it was already using
                 // If this is above the threshold, instead check which section is closer to the train
-                boolean isBelowResolution = (sectionDistSq < distSqResolution && otherDistSq < distSqResolution);
+                boolean isBelowResolution = (state.member() != null && sectionDistSq < distSqResolution && otherDistSq < distSqResolution);
                 if (isBelowResolution ?
                         (other.tickLastPicked > section.tickLastPicked && other.tickLastPicked >= (serverTicks-1)) :
                         (otherDistSq < sectionDistSq))
@@ -173,7 +201,9 @@ public class CoasterRailType extends RailType {
                 }
             }
         }
-        section.tickLastPicked = serverTicks;
+        if (state.member() != null) {
+            section.tickLastPicked = serverTicks;
+        }
         return new CoasterRailLogic(section);
     }
 
@@ -183,7 +213,27 @@ public class CoasterRailType extends RailType {
         if (rails.isEmpty()) {
             return super.getSpawnLocation(railsBlock, orientation);
         } else {
-            return rails.get(0).node.getSpawnLocation(FaceUtil.faceToVector(orientation));
+            // Compute the spawn location when a single rails section exists
+            Vector orientationVec = FaceUtil.faceToVector(orientation);
+            Iterator<TrackRailsSection> iter = rails.iterator();
+            Location spawnLoc = iter.next().getSpawnLocation(railsBlock, orientationVec);
+
+            // Pick the rails section spawn location that is nearest to the rails block
+            // This way it remains possible to dictate where is spawned using locality
+            if (iter.hasNext()) {
+                Location railsPos = railsBlock.getLocation().add(0.5, 0.5, 0.5);
+                double lowestDistanceSq = spawnLoc.distanceSquared(railsPos);
+                while (iter.hasNext()) {
+                    Location loc = iter.next().getSpawnLocation(railsBlock, orientationVec);
+                    double distSq = loc.distance(railsPos);
+                    if (distSq < lowestDistanceSq) {
+                        lowestDistanceSq = distSq;
+                        spawnLoc = loc;
+                    }
+                }
+            }
+
+            return spawnLoc;
         }
     }
 
