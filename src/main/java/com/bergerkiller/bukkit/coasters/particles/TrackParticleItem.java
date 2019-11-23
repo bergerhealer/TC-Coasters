@@ -48,6 +48,7 @@ public class TrackParticleItem extends TrackParticle {
         if (this.position.distanceSquared(position) > (0.001 * 0.001)) {
             this.position = updatePosition(this.position, position);
             this.positionChanged = true;
+            this.scheduleUpdateAppearance();
         }
     }
 
@@ -55,6 +56,7 @@ public class TrackParticleItem extends TrackParticle {
         if (!this.itemType.equals(itemType)) {
             this.itemType = itemType;
             this.itemChanged = true;
+            this.scheduleUpdateAppearance();
         }
     }
 

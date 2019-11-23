@@ -1,8 +1,10 @@
 package com.bergerkiller.bukkit.coasters.particles;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -25,6 +27,7 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
     private final Map<Player, ViewerParticleList> viewers = new HashMap<>();
     private int updateCtr = 0;
     private boolean forceViewerUpdate = false;
+    protected final List<TrackParticle> appearanceUpdates = new ArrayList<>();
 
     public TrackParticleWorld(CoasterWorldAccess world) {
         super(world);
@@ -108,8 +111,16 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
             }
         }
 
-        for (TrackParticle particle : this.particles.values()) {
-            particle.updateAppearance();
+        // For all particles that need an update, update the appearance now
+        // Note: use a a for i loop because new items may be added to the list while iterating
+        if (!this.appearanceUpdates.isEmpty()) {
+            int size = this.appearanceUpdates.size();
+            for (int i = 0; i < size; i++) {
+                TrackParticle particle = this.appearanceUpdates.get(i);
+                particle.updateAppearanceQueued = false;
+                particle.updateAppearance();
+            }
+            this.appearanceUpdates.subList(0, size).clear();
         }
     }
 

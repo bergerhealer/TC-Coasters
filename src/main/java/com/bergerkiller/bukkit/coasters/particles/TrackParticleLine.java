@@ -68,6 +68,7 @@ public class TrackParticleLine extends TrackParticle {
             this.positionChanged = true;
             this.p1 = updatePosition(this.p1, p1);
             this.p2 = updatePosition(this.p2, p2);
+            this.scheduleUpdateAppearance();
         }
     }
 

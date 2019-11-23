@@ -67,6 +67,7 @@ public class TrackParticleText extends TrackParticle {
         if (!this.position.equalsCoord(position)) {
             this.position = updatePosition(this.position, position);
             this.positionChanged = true;
+            this.scheduleUpdateAppearance();
         }
     }
 
@@ -79,6 +80,7 @@ public class TrackParticleText extends TrackParticle {
                 this.textColor = color;
                 this.textColorChanged = true;
             }
+            this.scheduleUpdateAppearance();
         }
     }
 

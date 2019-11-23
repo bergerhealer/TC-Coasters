@@ -55,6 +55,7 @@ public class TrackParticleArrow extends TrackParticle {
         if (!this.position.equalsCoord(position)) {
             this.position = updatePosition(this.position, position);
             this.positionChanged = true;
+            this.scheduleUpdateAppearance();
         }
     }
 
@@ -66,6 +67,7 @@ public class TrackParticleArrow extends TrackParticle {
         if (!orientation.equals(this.orientation)) {
             this.orientation = orientation.clone();
             this.positionChanged = true;
+            this.scheduleUpdateAppearance();
         }
     }
 
@@ -77,6 +79,7 @@ public class TrackParticleArrow extends TrackParticle {
         if (!this.itemType.equals(itemType)) {
             this.itemType = itemType;
             this.itemChanged = true;
+            this.scheduleUpdateAppearance();
         }
     }
 

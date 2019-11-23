@@ -17,6 +17,7 @@ public abstract class TrackParticle {
     protected TrackParticleWorld world;
     private ImmutablePlayerSet viewers = ImmutablePlayerSet.EMPTY;
     private TrackParticleState.Source stateSource = TrackParticleState.SOURCE_NONE;
+    protected boolean updateAppearanceQueued = false;
 
     public TrackParticleWorld getWorld() {
         return this.world;
@@ -112,6 +113,13 @@ public abstract class TrackParticle {
     public abstract void makeHiddenFor(Player viewer);
     public abstract void updateAppearance();
     public abstract boolean usesEntityId(int entityId);
+
+    protected void scheduleUpdateAppearance() {
+        if (!this.updateAppearanceQueued) {
+            this.updateAppearanceQueued = true;
+            this.world.appearanceUpdates.add(this);
+        }
+    }
 
     protected void addPosition(DoubleOctree.Entry<TrackParticle> pos) {
         if (this.world != null) {

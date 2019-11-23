@@ -42,6 +42,7 @@ public class TrackParticleLitBlock extends TrackParticle {
         if (block != null && !this.position.equalsBlockCoord(block)) {
             this.position = updatePosition(this.position, DoubleOctree.Entry.create(block.midX(), block.y, block.midZ(), this));
             this.positionChanged = true;
+            this.scheduleUpdateAppearance();
         }
     }
 
