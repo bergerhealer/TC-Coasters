@@ -50,9 +50,6 @@ public class TrackAnimationWorld extends CoasterWorldAccess.Component {
                 if (connectionPoints.put(conn, Collections.emptyList()) == null) {
                     findMembersOn(conn).forEach(state -> {
                         TrackMemberState old_state = members.put(state.member, state);
-                        if (old_state != null && old_state.isOnPath() && state.isOnPath()) {
-                            System.out.println("BAD!");
-                        }
                         if (old_state != null && old_state.isOnPath() && !state.isOnPath()) {
                             members.put(old_state.member, old_state);
                         }

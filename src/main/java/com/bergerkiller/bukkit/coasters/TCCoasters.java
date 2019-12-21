@@ -665,7 +665,7 @@ public class TCCoasters extends PluginBase {
                 if (removedCount == 0) {
                     sender.sendMessage(ChatColor.RED + "Animation '" + animName + "' was not added to the selected nodes!");
                 } else {
-                    sender.sendMessage("Animation '" + animName + "' added to " + removedCount + " nodes!");
+                    sender.sendMessage("Animation '" + animName + "' removed for " + removedCount + " nodes!");
                 }
             } else if (LogicUtil.containsIgnoreCase(args[1], "play", "run")) {
                 double duration = 0.0;
