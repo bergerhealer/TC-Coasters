@@ -145,8 +145,7 @@ public class TrackParticleText extends TrackParticle {
             spawnPacket.setMotZ(0.0);
             spawnPacket.setPitch(0.0f);
             spawnPacket.setYaw(0.0f);
-            spawnPacket.setDataWatcher(metadata);
-            PacketUtil.sendPacket(viewer, spawnPacket);
+            PacketUtil.sendEntityLivingSpawnPacket(viewer, spawnPacket, metadata);
         }
     }
 

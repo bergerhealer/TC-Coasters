@@ -132,35 +132,35 @@ public class TrackParticleLine extends TrackParticle {
         }
 
         PacketPlayOutSpawnEntityLivingHandle p1 = PacketPlayOutSpawnEntityLivingHandle.createNew();
+        DataWatcher p1_meta = new DataWatcher();
         p1.setEntityId(this.e1);
         p1.setEntityUUID(UUID.randomUUID());
         p1.setPosX(this.p1.getX() + OFFSET1.getX());
         p1.setPosY(this.p1.getY() + OFFSET1.getY());
         p1.setPosZ(this.p1.getZ() + OFFSET1.getZ());
         p1.setEntityType(EntityType.BAT);
-        p1.setDataWatcher(new DataWatcher());
-        p1.getDataWatcher().set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
-        p1.getDataWatcher().set(EntityHandle.DATA_SILENT, true);
-        p1.getDataWatcher().set(EntityInsentientHandle.DATA_INSENTIENT_FLAGS, (byte) EntityInsentientHandle.DATA_INSENTIENT_FLAG_NOAI);
-        p1.getDataWatcher().set(EntityLivingHandle.DATA_NO_GRAVITY, true);
-        p1.getDataWatcher().set(EntityBatHandle.DATA_BAT_FLAGS, (byte) 0);
+        p1_meta.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
+        p1_meta.set(EntityHandle.DATA_SILENT, true);
+        p1_meta.set(EntityInsentientHandle.DATA_INSENTIENT_FLAGS, (byte) EntityInsentientHandle.DATA_INSENTIENT_FLAG_NOAI);
+        p1_meta.set(EntityLivingHandle.DATA_NO_GRAVITY, true);
+        p1_meta.set(EntityBatHandle.DATA_BAT_FLAGS, (byte) 0);
 
         PacketPlayOutSpawnEntityLivingHandle p2 = PacketPlayOutSpawnEntityLivingHandle.createNew();
+        DataWatcher p2_meta = new DataWatcher();
         p2.setEntityId(this.e2);
         p2.setEntityUUID(UUID.randomUUID());
         p2.setPosX(this.p2.getX() + OFFSET2.getX());
         p2.setPosY(this.p2.getY() + OFFSET2.getY());
         p2.setPosZ(this.p2.getZ() + OFFSET2.getZ());
         p2.setEntityType(EntityType.BAT);
-        p2.setDataWatcher(new DataWatcher());
-        p2.getDataWatcher().set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
-        p2.getDataWatcher().set(EntityHandle.DATA_SILENT, true);
-        p2.getDataWatcher().set(EntityInsentientHandle.DATA_INSENTIENT_FLAGS, (byte) EntityInsentientHandle.DATA_INSENTIENT_FLAG_NOAI);
-        p2.getDataWatcher().set(EntityLivingHandle.DATA_NO_GRAVITY, true);
-        p2.getDataWatcher().set(EntityBatHandle.DATA_BAT_FLAGS, (byte) 0);
+        p2_meta.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
+        p2_meta.set(EntityHandle.DATA_SILENT, true);
+        p2_meta.set(EntityInsentientHandle.DATA_INSENTIENT_FLAGS, (byte) EntityInsentientHandle.DATA_INSENTIENT_FLAG_NOAI);
+        p2_meta.set(EntityLivingHandle.DATA_NO_GRAVITY, true);
+        p2_meta.set(EntityBatHandle.DATA_BAT_FLAGS, (byte) 0);
 
-        PacketUtil.sendPacket(viewer, p1);
-        PacketUtil.sendPacket(viewer, p2);
+        PacketUtil.sendEntityLivingSpawnPacket(viewer, p1, p1_meta);
+        PacketUtil.sendEntityLivingSpawnPacket(viewer, p2, p2_meta);
 
         PacketPlayOutAttachEntityHandle ap1 = PacketPlayOutAttachEntityHandle.T.newHandleNull();
         ap1.setVehicleId(this.e1);
