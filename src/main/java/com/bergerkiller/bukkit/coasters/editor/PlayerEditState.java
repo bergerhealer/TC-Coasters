@@ -968,10 +968,14 @@ public class PlayerEditState implements CoasterWorldAccess {
                     editNode.dragPosition = editNode.node.getPosition().clone();
                 }
 
-                // Transform position
+                // Transform position and compute direction using player view position relative to the node
                 changes.transformPoint(editNode.dragPosition);
                 Vector position = editNode.dragPosition.clone();
                 Vector orientation = editNode.startState.orientation.clone();
+                Vector direction = position.clone().subtract(this.player.getEyeLocation().toVector()).normalize();
+                if (Double.isNaN(direction.getX())) {
+                    direction = this.player.getEyeLocation().getDirection();
+                }
 
                 // Snap position against the side of a block
                 // Then, look for other rails blocks and attach to it
@@ -984,7 +988,7 @@ public class PlayerEditState implements CoasterWorldAccess {
                     if (TCCoastersUtil.snapToCoasterRails(editNode.node, position, orientation)) {
                         // Play particle effects to indicate we are snapping to the coaster rails
                         PlayerUtil.spawnDustParticles(this.player, position, Color.RED);
-                    } else if (TCCoastersUtil.snapToRails(getWorld(), editNode.node.getRailBlock(true), position, orientation)) {
+                    } else if (TCCoastersUtil.snapToRails(getWorld(), editNode.node.getRailBlock(true), position, direction, orientation)) {
                         // Play particle effects to indicate we are snapping to the rails
                         PlayerUtil.spawnDustParticles(this.player, position, Color.PURPLE);
                     }

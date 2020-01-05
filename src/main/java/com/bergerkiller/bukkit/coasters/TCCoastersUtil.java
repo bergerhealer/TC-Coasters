@@ -154,13 +154,14 @@ public class TCCoastersUtil {
         return false;
     }
 
-    public static boolean snapToRails(World world, IntVector3 ignoreNodeBlock, Vector position, Vector orientation) {
+    public static boolean snapToRails(World world, IntVector3 ignoreNodeBlock, Vector position, Vector direction, Vector orientation) {
         // Snap to normal/other types of rails
         Block positionBlock = world.getBlockAt(position.getBlockX(), position.getBlockY(), position.getBlockZ());
         RailState state = new RailState();
         state.position().posX = position.getX();
         state.position().posY = position.getY();
         state.position().posZ = position.getZ();
+        state.position().setMotion(direction);
         state.setRailPiece(RailPiece.create(RailType.NONE, positionBlock));
         if (RailType.loadRailInformation(state)) {
             if (state.railType() instanceof CoasterRailType) {
