@@ -14,7 +14,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.LockCoasterEntry;
-import com.bergerkiller.bukkit.coasters.util.CSVSeparatorDetectorStream;
+import com.bergerkiller.bukkit.coasters.util.CSVFormatDetectorStream;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
@@ -30,24 +30,24 @@ import com.opencsv.CSVReaderBuilder;
  */
 public class TrackCoasterCSVReader implements AutoCloseable {
     private final CSVReader reader;
-    private final TrackCoaster coaster;
     private final StringArrayBuffer buffer;
     private PlayerOrigin origin = null;
 
-    public TrackCoasterCSVReader(InputStream inputStream, TrackCoaster coaster) throws IOException {
-        CSVSeparatorDetectorStream detectorInput = new CSVSeparatorDetectorStream(inputStream);
+    public TrackCoasterCSVReader(InputStream inputStream) throws IOException {
+        CSVFormatDetectorStream detectorInput = new CSVFormatDetectorStream(inputStream);
+        detectorInput.detect();
+
         CSVParser csv_parser = (new CSVParserBuilder())
                 .withSeparator(detectorInput.getSeparator())
                 .withQuoteChar('"')
                 .withEscapeChar('\\')
-                .withIgnoreQuotations(false)
+                .withIgnoreQuotations(detectorInput.getIgnoreQuotes())
                 .withIgnoreLeadingWhiteSpace(true)
                 .build();
         this.reader = (new CSVReaderBuilder(new InputStreamReader(detectorInput, StandardCharsets.UTF_8)))
                 .withCSVParser(csv_parser)
                 .build();
 
-        this.coaster = coaster;
         this.buffer = new StringArrayBuffer();
     }
 
@@ -68,17 +68,36 @@ public class TrackCoasterCSVReader implements AutoCloseable {
         this.origin = origin;
     }
 
-    public void read() throws IOException, SyntaxException {
+    /**
+     * Reads the next entry in the CSV file, decoding it into a CSVEntry.
+     * If the end of the file was reached, null is returned.
+     * 
+     * @return entry
+     * @throws IOException
+     * @throws SyntaxException
+     */
+    public TrackCoasterCSV.CSVEntry readNextEntry() throws IOException, SyntaxException {
+        return TrackCoasterCSV.readNext(this.reader, this.buffer);
+    }
+
+    /**
+     * Reads the full CSV file and creates the coaster described in it
+     * 
+     * @param coaster to fill with nodes and connections
+     * @throws IOException
+     * @throws SyntaxException
+     */
+    public void create(TrackCoaster coaster) throws IOException, SyntaxException {
         List<PendingLink> pendingLinks = new ArrayList<PendingLink>();
         TrackNode prevNode = null;
         Matrix4x4 transform = null;
 
         // By default not locked
-        this.coaster.setLocked(false);
+        coaster.setLocked(false);
 
         // Read all the entries we can from the CSV reader
         TrackCoasterCSV.CSVEntry entry;
-        while ((entry = TrackCoasterCSV.readNext(this.reader, this.buffer)) != null) {
+        while ((entry = readNextEntry()) != null) {
             // Read the origin of the coaster from the csv
             // The first line that refers to an origin is used
             if (this.origin != null && transform == null && entry instanceof PlayerOriginHolder) {
@@ -114,9 +133,9 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                 }
 
                 // Adding new nodes, where NODE connects to the previous node loaded
-                TrackNode node = this.coaster.createNewNode(state);
+                TrackNode node = coaster.createNewNode(state);
                 if (prevNode != null && !(nodeEntry instanceof TrackCoasterCSV.RootNodeEntry)) {
-                    this.coaster.getTracks().connect(prevNode, node);
+                    coaster.getTracks().connect(prevNode, node);
                 }
                 prevNode = node;
                 continue;
@@ -131,9 +150,9 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                     state = state.transform(transform);
                 }
 
-                TrackNode node = this.coaster.createNewNode(state);
+                TrackNode node = coaster.createNewNode(state);
                 if (prevNode != null) {
-                    this.coaster.getTracks().connect(prevNode, node);
+                    coaster.getTracks().connect(prevNode, node);
                 }
                 prevNode = node;
                 continue;
@@ -141,16 +160,16 @@ public class TrackCoasterCSVReader implements AutoCloseable {
 
             // Locks the coaster
             if (entry instanceof LockCoasterEntry) {
-                this.coaster.setLocked(true);
+                coaster.setLocked(true);
                 continue;
             }
         }
 
         // Create all pending connections
         for (PendingLink link : pendingLinks) {
-            TrackNode target = this.coaster.getTracks().findNodeExact(link.targetNodePos);
+            TrackNode target = coaster.getTracks().findNodeExact(link.targetNodePos);
             if (target != null) {
-                TrackConnection conn = this.coaster.getTracks().connect(link.node, target);
+                TrackConnection conn = coaster.getTracks().connect(link.node, target);
                 link.node.pushBackJunction(conn); // Ensures preserved order of connections
                 continue;
             }

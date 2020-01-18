@@ -214,9 +214,9 @@ public class TrackCoaster extends CoasterWorldAccess.Component implements Lockab
      * @param origin relative to which to place the coaster
      */
     public void loadFromStream(InputStream inputStream, PlayerOrigin origin) throws CoasterLoadException {
-        try (TrackCoasterCSVReader reader = new TrackCoasterCSVReader(inputStream, this)) {
+        try (TrackCoasterCSVReader reader = new TrackCoasterCSVReader(inputStream)) {
             reader.setOrigin(origin);
-            reader.read();
+            reader.create(this);
 
             // Note: on failure not all nodes may be loaded, but at least some are.
         } catch (SyntaxException ex) {
