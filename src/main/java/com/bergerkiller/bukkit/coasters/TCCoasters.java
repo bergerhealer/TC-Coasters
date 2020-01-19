@@ -12,6 +12,7 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
 import org.bukkit.Bukkit;
@@ -20,7 +21,9 @@ import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
@@ -63,6 +66,7 @@ public class TCCoasters extends PluginBase {
     private static final boolean DEFAULT_GLOWING_SELECTIONS = true;
     private static final int DEFAULT_PARTICLE_VIEW_RANGE = 64;
     private static final int DEFAULT_MAXIMUM_PARTICLE_COUNT = 5000;
+    private static final boolean DEFAULT_PLOTSQUARED_ENABLED = false;
     private Task updateTask;
     private Task autosaveTask;
     private final CoasterRailType coasterRailType = new CoasterRailType(this);
@@ -76,6 +80,8 @@ public class TCCoasters extends PluginBase {
     private boolean glowingSelections = DEFAULT_GLOWING_SELECTIONS;
     private int particleViewRange = DEFAULT_PARTICLE_VIEW_RANGE;
     private int maximumParticleCount = DEFAULT_MAXIMUM_PARTICLE_COUNT;
+    private boolean plotSquaredEnabled = DEFAULT_PLOTSQUARED_ENABLED;
+    private Listener plotSquaredHandler = null;
 
     public void unloadWorld(World world) {
         CoasterWorldImpl coasterWorld = worlds.get(world);
@@ -251,6 +257,9 @@ public class TCCoasters extends PluginBase {
         config.addHeader("maximumParticleCount", "When more particles are visible than this, the player sees a warning, and some particles are hidden");
         config.addHeader("maximumParticleCount", "This can be used to prevent a total lag-out of the client when accidentally creating a lot of track");
         this.maximumParticleCount = config.get("maximumParticleCount", DEFAULT_MAXIMUM_PARTICLE_COUNT);
+        config.setHeader("plotSquaredEnabled", "\nWhether track editing permission integration with PlotSquared is enabled");
+        config.addHeader("plotSquaredEnabled", "Players will be unable to edit coasters outside of their personal plot");
+        this.plotSquaredEnabled = config.get("plotSquaredEnabled", DEFAULT_PLOTSQUARED_ENABLED);
         config.save();
 
         // Autosave every 30 seconds approximately
@@ -290,6 +299,24 @@ public class TCCoasters extends PluginBase {
         // Clean up when disabling (save dirty coasters + despawn particles)
         for (World world : Bukkit.getWorlds()) {
             unloadWorld(world);
+        }
+    }
+
+    @Override
+    public void updateDependency(Plugin plugin, String pluginName, boolean enabled) {
+        if (pluginName.equals("PlotSquared")) {
+            boolean available = enabled && this.plotSquaredEnabled;
+            if (available != (this.plotSquaredHandler != null)) {
+                if (available) {
+                    this.plotSquaredHandler = new PlotSquaredHandler();
+                    this.register(this.plotSquaredHandler);
+                    this.log(Level.INFO, "PlotSquared support enabled!");
+                } else {
+                    CommonUtil.unregisterListener(this.plotSquaredHandler);
+                    this.plotSquaredHandler = null;
+                    this.log(Level.INFO, "PlotSquared support disabled!");
+                }
+            }
         }
     }
 
