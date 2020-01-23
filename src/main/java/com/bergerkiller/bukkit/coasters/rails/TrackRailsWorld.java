@@ -197,7 +197,13 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
             RailSectionBlockIterator iter = new RailSectionBlockIterator(segment, section.rails);
             do {
                 addToMap(sectionsByBlock, iter.block(), section);
+                for (IntVector3 around : iter.around(0.4)) {
+                    addToMap(sectionsByBlock, around, section);
+                }
             } while (iter.next());
+            for (IntVector3 around : iter.aroundEnd(0.4)) {
+                addToMap(sectionsByBlock, around, section);
+            }
         }
     }
 
