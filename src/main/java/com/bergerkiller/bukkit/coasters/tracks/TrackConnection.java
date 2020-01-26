@@ -198,9 +198,15 @@ public class TrackConnection implements Lockable {
             return;
         }
 
+        // Stop if already same
+        if (t0 == t1) {
+            return;
+        }
+
+        final double epsilon = 1.1102230246251565E-16;
         double threshold = 1.0 / smoothness;
         double curr_t0 = t0;
-        while (curr_t0 != t1) {
+        while (true) {
             double curr_t1 = t1;
             do {
                 // When error is small enough, stop
@@ -214,12 +220,17 @@ public class TrackConnection implements Lockable {
                 // If the delta is so small curr_t0 equals curr_t1 this loop breaks.
                 //System.out.println("ERROR TOO BIG DELTA=" + (curr_t1 - curr_t0) + " ERROR " + error);
                 curr_t1 = 0.5 * (curr_t1 + curr_t0);
-            } while (curr_t1 != curr_t0);
+            } while (Math.abs(curr_t1 - curr_t0) > epsilon);
 
-            // Next curr_t0
-            curr_t0 = curr_t1;
-
-            points.add(getPathPoint(railsPos, curr_t0));
+            if (Math.abs(t1 - curr_t1) > epsilon) {
+                // Different, add point and loop again
+                points.add(getPathPoint(railsPos, curr_t1));
+                curr_t0 = curr_t1;
+            } else {
+                // Same, add t1 and stop
+                points.add(getPathPoint(railsPos, t1));
+                break;
+            }
         }
 
         // System.out.println("ADDED " + points.size() + " POINTS");

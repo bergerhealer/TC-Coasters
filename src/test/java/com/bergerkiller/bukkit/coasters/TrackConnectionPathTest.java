@@ -2,7 +2,10 @@ package com.bergerkiller.bukkit.coasters;
 
 import static org.junit.Assert.*;
 
+import java.util.Random;
+
 import org.bukkit.util.Vector;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionPath;
@@ -150,6 +153,32 @@ public class TrackConnectionPathTest {
         assertEquals(0.0, path.getLinearError(0.5, 1.0), 1e-20);
         assertEquals(0.0, path.getLinearError(0.0, 1.0), 1e-20);
         assertEquals(0.0, path.getLinearError(1.0, 0.0), 1e-20);
+    }
+
+    @Ignore
+    @Test
+    public void testTrackPathBuildEpsilon() {
+        Random r = new Random();
+        int n = 0;
+        final double epsilon = 1.1102230246251565E-16;
+        while (n < 10000000) {
+            double input_t0 = r.nextDouble();
+            double input_t1 = r.nextDouble();
+            double curr_t0 = input_t0;
+            double curr_t1 = input_t1;
+            int ctr = 0;
+            do {
+                // Error too large, choose halfway between curr_t0 and curr_t1 and try again
+                // If the delta is so small curr_t0 equals curr_t1 this loop breaks.
+                //System.out.println("ERROR TOO BIG DELTA=" + (curr_t1 - curr_t0) + " ERROR " + error);
+                curr_t1 = 0.5 * (curr_t1 + curr_t0);
+                if(++ctr >= 100000000) {
+                    fail("FAILED AT [" + n + "] " + input_t0 + "/" + input_t1 + "  ->  " + (curr_t1-curr_t0));
+                }
+            } while (Math.abs(curr_t1-curr_t0) > epsilon);
+            
+            n++;
+        }
     }
 
     private void assertVectorEquals(Vector v, double x, double y, double z) {
