@@ -17,6 +17,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
@@ -78,7 +79,12 @@ public class PlayerEditClipboard {
             this._nodes.add(nodeState);
 
             if (!node.getAnimationStates().isEmpty()) {
-                this._animations.put(nodeState, node.getAnimationStates().toArray(new TrackNodeAnimationState[0]));
+                List<TrackNodeAnimationState> node_anims = node.getAnimationStates();
+                TrackNodeAnimationState[] animations = new TrackNodeAnimationState[node_anims.size()];
+                for (int i = 0; i < animations.length; i++) {
+                    animations[i] = node_anims.get(i).dereference();
+                }
+                this._animations.put(nodeState, animations);
             }
 
             for (TrackConnection connection : node.getConnections()) {
@@ -116,7 +122,11 @@ public class PlayerEditClipboard {
                 TrackNodeAnimationState[] animations = this._animations.get(node_state);
                 if (animations != null) {
                     for (TrackNodeAnimationState anim : animations) {
-                        node.addAnimationState(anim.name, anim.state.transform(transform));
+                        TrackNodeReference[] connections = new TrackNodeReference[anim.connections.length];
+                        for (int i = 0; i < connections.length; i++) {
+                            connections[i] = anim.connections[i].transform(tracks, transform);
+                        }
+                        node.updateAnimationState(anim.name, anim.state.transform(transform), connections);
                     }
                 }
             }
@@ -128,6 +138,9 @@ public class PlayerEditClipboard {
                     history.addChangeConnect(getPlayer(), connection);
                 }
             }
+
+            // Initialize coaster animation state connections
+            coaster.refreshConnections();
 
             // Edit the newly created nodes
             this._state.clearEditedNodes();

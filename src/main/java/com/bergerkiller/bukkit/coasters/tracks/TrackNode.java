@@ -125,6 +125,15 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
         getCoaster().removeNode(this);
     }
 
+    /**
+     * Gets whether this TrackNode was removed and is no longer bound to any world
+     * 
+     * @return True if removed
+     */
+    public boolean isRemoved() {
+        return this._coaster == null;
+    }
+
     public void setPosition(Vector position) {
         if (!this._pos.equals(position)) {
             this._pos = position.clone();
@@ -242,6 +251,8 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
         if (this._connections[1] == connection) {
             this._connections[1] = this._connections[0];
             this._connections[0] = connection;
+            this.scheduleRefresh();
+            this.markChanged();
             return;
         }
 
@@ -483,7 +494,11 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
     public boolean playAnimation(String name, double duration) {
         for (TrackNodeAnimationState animState : this._animationStates) {
             if (animState.name.equals(name)) {
-                getAnimations().animate(this, animState.state, duration);
+                if (this.doAnimationStatesChangeConnections()) {
+                    getAnimations().animate(this, animState.state, animState.connections, duration);
+                } else {
+                    getAnimations().animate(this, animState.state, null, duration);
+                }
                 return true;
             }
         }
@@ -504,16 +519,22 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
         return false;
     }
 
-    public void addAnimationState(String name) {
-        addAnimationState(name, this.getState());
+    public void updateAnimationState(String name) {
+        // Collect the current connections that are made
+        TrackNodeReference[] connectedNodes = new TrackNodeReference[this._connections.length];
+        for (int i = 0; i < this._connections.length; i++) {
+            connectedNodes[i] = new TrackNodeReference(this._connections[i].getOtherNode(this));
+        }
+
+        updateAnimationState(name, this.getState(), connectedNodes);
     }
 
-    public void addAnimationState(String name, TrackNodeState state) {
+    public void updateAnimationState(String name, TrackNodeState state, TrackNodeReference[] connections) {
         // Overwrite existing
         for (int i = 0; i < this._animationStates.length; i++) {
             if (this._animationStates[i].name.equals(name)) {
                 this._animationStates[i].destroyParticles();
-                this._animationStates[i] = TrackNodeAnimationState.create(name,this,state,i);
+                this._animationStates[i] = TrackNodeAnimationState.create(name,this,state,connections,i);
                 return;
             }
         }
@@ -521,7 +542,50 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
         // Add new
         int new_len = this._animationStates.length + 1;
         this._animationStates = Arrays.copyOf(this._animationStates, new_len);
-        this._animationStates[new_len-1] = TrackNodeAnimationState.create(name,this,state,new_len-1);
+        this._animationStates[new_len-1] = TrackNodeAnimationState.create(name,this,state,connections,new_len-1);
+    }
+
+    /**
+     * Gets whether any of the configured animation states alter the connections with this node.
+     * 
+     * @return True if connections are made and broken when animations are played
+     */
+    public boolean doAnimationStatesChangeConnections() {
+        if (this._connections.length == 2) {
+            // When 2 connections exist, we are more lenient with the order of those connections
+            TrackNode node_a = this._connections[0].getOtherNode(this);
+            TrackNode node_b = this._connections[1].getOtherNode(this);
+            for (TrackNodeAnimationState state : this._animationStates) {
+                if (state.connections.length != 2) {
+                    return true; // Different than normal number of connections
+                }
+                TrackNode conn_node_a = state.connections[0].getNode();
+                TrackNode conn_node_b = state.connections[1].getNode();
+                if (conn_node_a != node_a && conn_node_a != node_b) {
+                    return true; // Connection with first node either doesn't exist or is different
+                }
+                if (conn_node_b != node_a && conn_node_b != node_b) {
+                    return true; // Connection with second node either doesn't exist or is different
+                }
+            }
+        } else {
+            // When 0, 1, 3 or more connections exist, a change in order also means animations change connections
+            for (TrackNodeAnimationState state : this._animationStates) {
+                if (state.connections.length != this._connections.length) {
+                    return true; // Different than normal number of connections
+                }
+                for (int i = 0; i < this._connections.length; i++) {
+                    if (state.connections[i].getNode() != this._connections[i].getOtherNode(this)) {
+                        return true; // Connection either doesn't exist or is different, or order differs
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean hasAnimationStates() {
+        return this._animationStates.length > 0;
     }
 
     public List<TrackNodeAnimationState> getAnimationStates() {
@@ -558,6 +622,11 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
 
         // Calculate 2d distance
         return Math.sqrt(pos.getX() * pos.getX() + pos.getY() * pos.getY()) / lim;
+    }
+
+    protected void onRemoved() {
+        destroyParticles();
+        _coaster = null; // mark removed by breaking reference to coaster
     }
 
     public void destroyParticles() {
@@ -605,7 +674,7 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
                 TrackNodeAnimationState old_state = this._animationStates[i];
                 old_state.destroyParticles();
                 this._animationStates[i] = TrackNodeAnimationState.create(
-                        old_state.name, this, old_state.state.changeRail(railBlock), i);
+                        old_state.name, this, old_state.state.changeRail(railBlock), old_state.connections, i);
             }
         }
     }

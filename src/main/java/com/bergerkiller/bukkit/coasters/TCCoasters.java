@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -36,6 +37,7 @@ import com.bergerkiller.bukkit.coasters.signs.SignActionTrackAnimate;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster.CoasterLoadException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVWriter;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
@@ -665,24 +667,19 @@ public class TCCoasters extends PluginBase {
                 sender.sendMessage(ChatColor.GREEN + "Current track orientation is " + ori_str);
             }
         } else if (args.length > 0 && args[0].equalsIgnoreCase("animation")) {
-            if (args.length < 3) {
-                sender.sendMessage(ChatColor.RED + "Invalid number of arguments specified!");
-                sender.sendMessage(ChatColor.RED + "/tcc animation [add/remove] [name]");
-                sender.sendMessage(ChatColor.RED + "/tcc animation play [name] (duration)");
-                return true;
-            }
             state.deselectLockedNodes();
             if (state.getEditedNodes().isEmpty()) {
                 sender.sendMessage("You don't have any nodes selected!");
                 return true;
             }
-            String animName = args[2];
-            if (LogicUtil.containsIgnoreCase(args[1], "add", "create", "new")) {
+            if (args.length >= 3 && LogicUtil.containsIgnoreCase(args[1], "add", "create", "new")) {
+                String animName = args[2];
                 for (TrackNode node : state.getEditedNodes()) {
-                    node.addAnimationState(animName);
+                    node.updateAnimationState(animName);
                 }
                 sender.sendMessage("Animation '" + animName + "' added to " + state.getEditedNodes().size() + " nodes!");
-            } else if (LogicUtil.containsIgnoreCase(args[1], "remove", "delete")) {
+            } else if (args.length >= 3 && LogicUtil.containsIgnoreCase(args[1], "remove", "delete")) {
+                String animName = args[2];
                 int removedCount = 0;
                 for (TrackNode node : state.getEditedNodes()) {
                     if (node.removeAnimationState(animName)) {
@@ -694,7 +691,15 @@ public class TCCoasters extends PluginBase {
                 } else {
                     sender.sendMessage("Animation '" + animName + "' removed for " + removedCount + " nodes!");
                 }
-            } else if (LogicUtil.containsIgnoreCase(args[1], "play", "run")) {
+            } else if (args.length >= 2 && LogicUtil.containsIgnoreCase(args[1], "clear")) {
+                for (TrackNode node : state.getEditedNodes()) {
+                    for (TrackNodeAnimationState anim_state : new ArrayList<>(node.getAnimationStates())) {
+                        node.removeAnimationState(anim_state.name);
+                    }
+                }
+                sender.sendMessage("Animations cleared for " + state.getEditedNodes().size() + " nodes!");
+            } else if (args.length >= 3 && LogicUtil.containsIgnoreCase(args[1], "play", "run")) {
+                String animName = args[2];
                 double duration = 0.0;
                 if (args.length >= 4) {
                     duration = ParseUtil.parseDouble(args[3], 0.0);
@@ -710,6 +715,11 @@ public class TCCoasters extends PluginBase {
                 } else {
                     sender.sendMessage("Animation '" + animName + "' is now playing for " + playingCount + " nodes!");
                 }
+            } else {
+                sender.sendMessage(ChatColor.RED + "Invalid number of arguments specified!");
+                sender.sendMessage(ChatColor.RED + "/tcc animation [add/remove] [name]");
+                sender.sendMessage(ChatColor.RED + "/tcc animation play [name] (duration)");
+                sender.sendMessage(ChatColor.RED + "/tcc animation clear");
             }
         } else if (args.length > 0 && LogicUtil.contains(args[0], "rail", "rails", "railblock", "railsblock")) {
             state.deselectLockedNodes();

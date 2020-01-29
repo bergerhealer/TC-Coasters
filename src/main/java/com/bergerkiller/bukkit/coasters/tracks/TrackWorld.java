@@ -222,6 +222,21 @@ public class TrackWorld extends CoasterWorldAccess.Component {
     }
 
     /**
+     * Changes the connections a node has with other nodes. This removes all previous
+     * connections and creates new ones to all the connected nodes specified.
+     * 
+     * @param node
+     * @param connectedNodes
+     */
+    public void resetConnections(TrackNode node, List<TrackNode> connectedNodes) {
+        //TODO: Some connections may not change, and this can be optimized!
+        disconnectAll(node);
+        for (TrackNode connectedNode : connectedNodes) {
+            connect(node, connectedNode);
+        }
+    }
+
+    /**
      * Attempts making a connection using the connection state provided.
      * If no nodes exist at the positions inside the state, the operation fails and null is returned.
      * 
@@ -378,6 +393,7 @@ public class TrackWorld extends CoasterWorldAccess.Component {
 
         // Mark all coasters as unchanged
         for (TrackCoaster coaster : this._coasters) {
+            coaster.refreshConnections();
             coaster.markUnchanged();
         }
     }

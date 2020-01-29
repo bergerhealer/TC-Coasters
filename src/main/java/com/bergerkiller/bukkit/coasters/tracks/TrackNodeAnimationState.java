@@ -12,18 +12,42 @@ public class TrackNodeAnimationState {
     protected static final TrackNodeAnimationState[] EMPTY_ARR = new TrackNodeAnimationState[0];
     public final String name;
     public final TrackNodeState state;
+    public final TrackNodeReference[] connections;
     private TrackParticleArrow _upParticleArrow;
     private TrackParticleText _nameLabelParticleText;
 
-    private TrackNodeAnimationState(String name, TrackNode node, TrackNodeState state, int index) {
+    // For dereference()
+    private TrackNodeAnimationState(TrackNodeAnimationState original, TrackNodeReference[] dereferenced_connections) {
+        this.name = original.name;
+        this.state = original.state;
+        this.connections = dereferenced_connections;
+        this._upParticleArrow = null;
+        this._nameLabelParticleText = null;
+    }
+
+    private TrackNodeAnimationState(String name, TrackNode node, TrackNodeState state, TrackNodeReference[] connections, int index) {
         this.name = name;
         this.state = state;
+        this.connections = connections;
         this._upParticleArrow = node.getParticles().addParticleArrow(state.position, node.getDirection(), state.orientation);
 
         String text = TrackParticleText.getOrdinalText(index, this.name);
         Vector textPos = state.position.clone();
         textPos.add(this._upParticleArrow.getOrientation().upVector().multiply(0.6));
         this._nameLabelParticleText = node.getParticles().addParticleTextNoItem(textPos, text);
+    }
+
+    /**
+     * Breaks the reference to nodes, storing position instead
+     * 
+     * @return altered animation state that is dereferenced
+     */
+    public TrackNodeAnimationState dereference() {
+        TrackNodeReference[] dereferenced_connections = new TrackNodeReference[connections.length];
+        for (int i = 0; i < dereferenced_connections.length; i++) {
+            dereferenced_connections[i] = dereferenced_connections[i].dereference();
+        }
+        return new TrackNodeAnimationState(this, dereferenced_connections);
     }
 
     public void updateIndex(int new_index) {
@@ -35,7 +59,7 @@ public class TrackNodeAnimationState {
         this._nameLabelParticleText.remove();
     }
 
-    public static TrackNodeAnimationState create(String name, TrackNode node, TrackNodeState state, int index) {
-        return new TrackNodeAnimationState(name, node, state, index);
+    public static TrackNodeAnimationState create(String name, TrackNode node, TrackNodeState state, TrackNodeReference[] connections, int index) {
+        return new TrackNodeAnimationState(name, node, state, connections, index);
     }
 }

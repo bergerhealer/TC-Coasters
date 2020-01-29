@@ -13,6 +13,7 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -33,8 +34,8 @@ public class TrackAnimationWorld extends CoasterWorldAccess.Component {
         super(world);
     }
 
-    public void animate(TrackNode node, TrackNodeState target, double duration) {
-        _animations.put(node, new TrackAnimation(node, target, MathUtil.floor(duration * 20.0)));
+    public void animate(TrackNode node, TrackNodeState target, TrackNodeReference[] node_connections, double duration) {
+        _animations.put(node, new TrackAnimation(node, target, node_connections, MathUtil.floor(duration * 20.0)));
     }
 
     public void updateAll() {
@@ -65,6 +66,16 @@ public class TrackAnimationWorld extends CoasterWorldAccess.Component {
             if (anim.ticks++ >= anim.ticks_total) {
                 // Set to target
                 anim.node.setState(anim.target);
+                if (anim.target_connections != null) {
+                    List<TrackNode> connectedNodes = new ArrayList<TrackNode>(anim.target_connections.length);
+                    for (TrackNodeReference connection : anim.target_connections) {
+                        TrackNode connected = connection.getNode();
+                        if (connected != null) {
+                            connectedNodes.add(connected);
+                        }
+                    }
+                    anim.node.getTracks().resetConnections(anim.node, connectedNodes);
+                }
                 anim_iter.remove();
             } else {
                 // Update using lerp

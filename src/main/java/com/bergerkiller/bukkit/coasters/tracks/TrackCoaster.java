@@ -82,7 +82,7 @@ public class TrackCoaster extends CoasterWorldAccess.Component implements Lockab
     public void removeNode(TrackNode node) {
         if (this._nodes.remove(node)) {
             this.getTracks().disconnectAll(node);
-            node.destroyParticles();
+            node.onRemoved();
             this.getTracks().cancelNodeRefresh(node);
             this.getRails().purge(node);
             this.getPlugin().removeNodeFromEditStates(node);
@@ -156,9 +156,22 @@ public class TrackCoaster extends CoasterWorldAccess.Component implements Lockab
     public void clear() {
         for (TrackNode node : this._nodes) {
             this.getTracks().disconnectAll(node);
-            node.destroyParticles();
+            node.onRemoved();
         }
         this._nodes.clear();
+    }
+
+    /**
+     * Refreshes connections made between nodes
+     */
+    public void refreshConnections() {
+        for (TrackNode node : getNodes()) {
+            for (TrackNodeAnimationState state : node.getAnimationStates()) {
+                for (TrackNodeReference connection : state.connections) {
+                    connection.getNode();
+                }
+            }
+        }
     }
 
     /**

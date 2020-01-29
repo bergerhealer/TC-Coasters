@@ -34,6 +34,7 @@ public class TrackCoasterCSV {
         registerEntry(RootNodeEntry::new);
         registerEntry(LinkNodeEntry::new);
         registerEntry(AnimationStateNodeEntry::new);
+        registerEntry(AnimationStateLinkNodeEntry::new);
         registerEntry(PlayerOrigin::new);
         registerEntry(LockCoasterEntry::new);
         registerEntry(NoLimits2Entry::new);
@@ -235,6 +236,32 @@ public class TrackCoasterCSV {
         public void write(StringArrayBuffer buffer) {
             super.write(buffer);
             buffer.put(this.name);
+        }
+    }
+
+    public static final class AnimationStateLinkNodeEntry extends CSVEntry implements PlayerOriginHolder {
+        public Vector pos;
+
+        @Override
+        public PlayerOrigin getOrigin() {
+            return PlayerOrigin.getForNode(this.pos);
+        }
+
+        @Override
+        public boolean detect(StringArrayBuffer buffer) {
+            return buffer.get(0).equals("ANIMLINK");
+        }
+
+        @Override
+        public void read(StringArrayBuffer buffer) throws SyntaxException {
+            buffer.skipNext(1); // Type
+            this.pos = buffer.nextVector();
+        }
+
+        @Override
+        public void write(StringArrayBuffer buffer) {
+            buffer.put("ANIMLINK");
+            buffer.putVector(this.pos);
         }
     }
 
