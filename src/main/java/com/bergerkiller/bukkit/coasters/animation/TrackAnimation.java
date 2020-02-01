@@ -18,6 +18,14 @@ public class TrackAnimation {
         this.target = target;
         this.target_connections = target_connections;
         this.ticks_total = ticks_total;
-        this.ticks = 0;
+        this.ticks = 1;
+    }
+
+    public boolean isAtStart() {
+        return this.ticks == 1;
+    }
+
+    public boolean isAtEnd() {
+        return this.ticks >= this.ticks_total;
     }
 }

@@ -63,10 +63,11 @@ public class TrackAnimationWorld extends CoasterWorldAccess.Component {
         Iterator<TrackAnimation> anim_iter = _animations.values().iterator();
         while (anim_iter.hasNext()) {
             TrackAnimation anim = anim_iter.next();
-            if (anim.ticks++ >= anim.ticks_total) {
-                // Set to target
-                anim.node.setState(anim.target);
-                if (anim.target_connections != null) {
+
+            // Refresh connections at the start and end of the animation
+            if (anim.target_connections != null) {
+                if (anim.isAtEnd()) {
+                    // Set all connections to the one specified in the animation
                     List<TrackNode> connectedNodes = new ArrayList<TrackNode>(anim.target_connections.length);
                     for (TrackNodeReference connection : anim.target_connections) {
                         TrackNode connected = connection.getNode();
@@ -75,7 +76,29 @@ public class TrackAnimationWorld extends CoasterWorldAccess.Component {
                         }
                     }
                     anim.node.getTracks().resetConnections(anim.node, connectedNodes);
+                } else if (anim.isAtStart()) {
+                    // Remove all connections not part of the target animation state
+                    for (TrackConnection conn : anim.node.getConnections()) {
+                        TrackNode conn_node = conn.getOtherNode(anim.node);
+
+                        boolean exists = false;
+                        for (TrackNodeReference target_connection : anim.target_connections) {
+                            if (target_connection.getNode() == conn_node) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            conn.remove();
+                        }
+                    }
                 }
+            }
+
+            // Update state of the node
+            if (anim.isAtEnd()) {
+                // Set to target
+                anim.node.setState(anim.target);
                 anim_iter.remove();
             } else {
                 // Update using lerp
@@ -89,6 +112,7 @@ public class TrackAnimationWorld extends CoasterWorldAccess.Component {
                 anim.node.setPosition(pos);
                 anim.node.setOrientation(up);
             }
+            anim.ticks++;
         }
 
         // Compute new position on the new, adjusted tracks
