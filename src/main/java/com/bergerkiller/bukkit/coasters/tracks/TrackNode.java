@@ -13,6 +13,7 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.animation.TrackAnimationWorld;
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleArrow;
@@ -93,7 +94,7 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
             @Override
             public TrackParticleState getState(Player viewer) {
                 PlayerEditState editState = getPlugin().getEditState(viewer);
-                if (editState.isMode(PlayerEditState.Mode.RAILS)) {
+                if (editState.isMode(PlayerEditMode.RAILS)) {
                     return editState.isEditing(TrackNode.this) ? 
                             TrackParticleState.SELECTED : TrackParticleState.DEFAULT;
                 } else {

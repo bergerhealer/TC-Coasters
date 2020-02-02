@@ -216,6 +216,7 @@ public class TrackParticleText extends TrackParticle {
         return color;
     }
 
+    @SuppressWarnings("deprecation")
     private static final ItemStack getItem(ChatColor color) {
         // Find the item that matches
         ItemStack item = _colorItemCache.get(color);

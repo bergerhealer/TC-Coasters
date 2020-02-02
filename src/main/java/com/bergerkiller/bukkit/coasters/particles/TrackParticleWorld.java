@@ -13,7 +13,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
@@ -126,7 +126,7 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
 
     public void update(Player viewer) {
         boolean viewerSeesWorld = (viewer.getWorld() == this.getWorld() &&
-                this.getPlugin().getEditState(viewer).getMode() != PlayerEditState.Mode.DISABLED);
+                this.getPlugin().getEditState(viewer).getMode() != PlayerEditMode.DISABLED);
 
         if (viewerSeesWorld) {
             // Get state

@@ -15,6 +15,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil.TargetedBlockInfo;
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -120,7 +121,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
         // If particles aren't at all shown to players, ignore all handling of this event
         // This is a performance enhancement
         PlayerEditState state = this.plugin.getEditState(event.getPlayer());
-        if (state.getMode() == PlayerEditState.Mode.DISABLED) {
+        if (state.getMode() == PlayerEditMode.DISABLED) {
             return;
         }
 

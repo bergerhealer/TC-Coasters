@@ -13,7 +13,6 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsSection;
-import com.bergerkiller.bukkit.coasters.rails.TrackRailsSectionLinked;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;

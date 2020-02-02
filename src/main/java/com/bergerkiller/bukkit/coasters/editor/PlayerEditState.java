@@ -66,8 +66,8 @@ public class PlayerEditState implements CoasterWorldAccess {
     private CoasterWorldAccess cachedCoasterWorld = null;
     private TrackNode lastEdited = null;
     private long lastEditTime = System.currentTimeMillis();
-    private Mode editMode = Mode.DISABLED;
-    private Mode afterEditMode = null;
+    private PlayerEditMode editMode = PlayerEditMode.DISABLED;
+    private PlayerEditMode afterEditMode = null;
     private int heldDownTicks = 0;
     private boolean changed = false;
     private Matrix4x4 editStartTransform = null;
@@ -88,7 +88,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         if (config.exists()) {
             config.load();
 
-            this.editMode = config.get("mode", Mode.DISABLED);
+            this.editMode = config.get("mode", PlayerEditMode.DISABLED);
             this.editedNodes.clear();
             List<String> editNodePositions = config.getList("editedNodes", String.class);
             if (editNodePositions != null && !editNodePositions.isEmpty()) {
@@ -186,11 +186,11 @@ public class PlayerEditState implements CoasterWorldAccess {
         return bestNode;
     }
 
-    public Mode getMode() {
+    public PlayerEditMode getMode() {
         return this.editMode;
     }
 
-    public boolean isMode(Mode... modes) {
+    public boolean isMode(PlayerEditMode... modes) {
         return LogicUtil.contains(this.editMode, modes);
     }
 
@@ -254,7 +254,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         return hadLockedNodes;
     }
 
-    public void setMode(Mode mode) {
+    public void setMode(PlayerEditMode mode) {
         this.afterEditMode = null;
         if (this.editMode != mode) {
             this.editMode = mode;
@@ -270,7 +270,7 @@ public class PlayerEditState implements CoasterWorldAccess {
      * 
      * @param mode
      */
-    public void setAfterEditMode(Mode mode) {
+    public void setAfterEditMode(PlayerEditMode mode) {
         this.afterEditMode = mode;
     }
 
@@ -345,7 +345,7 @@ public class PlayerEditState implements CoasterWorldAccess {
 
     public boolean onLeftClick() {
         // When holding right-click and clicking left-click in position mode, create a new node and drag that
-        if (this.getMode() == Mode.POSITION && this.isHoldingRightClick()) {
+        if (this.getMode() == PlayerEditMode.POSITION && this.isHoldingRightClick()) {
             Vector pos;
             if (this.getEditedNodes().size() == 1) {
                 pos = this.getEditedNodes().iterator().next().getPosition();
@@ -528,13 +528,13 @@ public class PlayerEditState implements CoasterWorldAccess {
     }
 
     private void updateEditing() throws ChangeCancelledException {
-        if (this.editMode == Mode.CREATE) {
+        if (this.editMode == PlayerEditMode.CREATE) {
             // Create new tracks
             createTrack();
-        } else if (this.editMode == Mode.DELETE) {
+        } else if (this.editMode == PlayerEditMode.DELETE) {
             // Delete tracks
             deleteTrack();
-        } else if (this.editMode == Mode.RAILS) {
+        } else if (this.editMode == PlayerEditMode.RAILS) {
             // Set rails block to the block clicked
             setRailBlock();
         } else {
@@ -795,10 +795,10 @@ public class PlayerEditState implements CoasterWorldAccess {
 
         // If drag mode, switch to POSITION mode and initiate the drag
         if (dragAfterCreate) {
-            this.setMode(Mode.POSITION);
+            this.setMode(PlayerEditMode.POSITION);
             this.editStartTransform = this.input.get().clone();
             this.editRotInfo = this.editStartTransform.toVector();
-            this.setAfterEditMode(Mode.CREATE);
+            this.setAfterEditMode(PlayerEditMode.CREATE);
         }
     }
 
@@ -959,7 +959,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             changes.multiply(m);
         }
 
-        if (this.getMode() == Mode.ORIENTATION) {
+        if (this.getMode() == PlayerEditMode.ORIENTATION) {
             changes.transformPoint(this.editRotInfo);
             for (PlayerEditNode editNode : this.editedNodes.values()) {
                 editNode.node.setOrientation(this.editRotInfo.clone().subtract(editNode.node.getPosition()));
@@ -1014,7 +1014,7 @@ public class PlayerEditState implements CoasterWorldAccess {
 
         // When drag-dropping a node onto a node, 'merge' the two
         // Do so by connecting all other neighbours of the dragged node to the node
-        if (this.getMode() == Mode.POSITION && this.getEditedNodes().size() == 1) {
+        if (this.getMode() == PlayerEditMode.POSITION && this.getEditedNodes().size() == 1) {
             TrackWorld tracks = this.getTracks();
             PlayerEditNode draggedNode = this.editedNodes.values().iterator().next();
             TrackNode droppedNode = null;
@@ -1072,7 +1072,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         }
 
         // For position/orientation, store the changes
-        if (this.isMode(Mode.POSITION, Mode.ORIENTATION)) {
+        if (this.isMode(PlayerEditMode.POSITION, PlayerEditMode.ORIENTATION)) {
             HistoryChange changes = this.getHistory().addChangeGroup();
             try {
                 for (PlayerEditNode editNode : this.editedNodes.values()) {
@@ -1085,46 +1085,6 @@ public class PlayerEditState implements CoasterWorldAccess {
                     editNode.moveEnd();
                 }
             }
-        }
-    }
-
-    public static enum Mode {
-        DISABLED("Disabled (hidden)", 0, 1),
-        CREATE("Create Track", 20, 4),
-        POSITION("Change Position", 0, 1),
-        ORIENTATION("Change Orientation", 0, 1),
-        RAILS("Change Rails Block", 0, 1),
-        DELETE("Delete Track", 10, 3);
-
-        private final int _autoInterval;
-        private final int _autoDelay;
-        private final String _name;
-
-        // name: displayed in the UI
-        // autoDelay: how many ticks of holding right-click until continuously activating
-        // autoInterval: tick interval of activation while holding right-click
-        private Mode(String name, int autoDelay, int autoInterval) {
-            this._name = name;
-            this._autoDelay = autoDelay;
-            this._autoInterval = autoInterval;
-        }
-
-        public boolean autoActivate(int tick) {
-            tick -= this._autoDelay;
-            return tick >= 0 && (_autoInterval <= 0 || (tick % _autoInterval) == 0);
-        }
-
-        public String getName() {
-            return this._name;
-        }
-
-        public static Mode fromName(String name) {
-            for (Mode mode : values()) {
-                if (mode.getName().equals(name)) {
-                    return mode;
-                }
-            }
-            return CREATE;
         }
     }
 

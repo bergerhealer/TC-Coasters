@@ -118,13 +118,17 @@ public class TCCoasters extends PluginBase {
         return CommonUtil.unsafeCast(this.worlds.values());
     }
 
-    public void removeNodeFromEditStates(TrackNode node) {
+    public synchronized void removeNodeFromEditStates(TrackNode node) {
         for (PlayerEditState state : editStates.values()) {
             state.setEditing(node, false);
         }
     }
 
-    public PlayerEditState getEditState(Player player) {
+    public synchronized List<Player> getPlayersWithEditStates() {
+        return new ArrayList<Player>(editStates.keySet());
+    }
+
+    public synchronized PlayerEditState getEditState(Player player) {
         PlayerEditState state = editStates.get(player);
         if (state == null) {
             state = new PlayerEditState(this, player);
@@ -134,7 +138,7 @@ public class TCCoasters extends PluginBase {
         return state;
     }
 
-    public void logoutPlayer(Player player) {
+    public synchronized void logoutPlayer(Player player) {
         PlayerEditState state = editStates.get(player);
         if (state != null) {
             state.save();
@@ -228,13 +232,15 @@ public class TCCoasters extends PluginBase {
                     coasterWorld.updateAll();
                 }
 
-                Iterator<PlayerEditState> iter = editStates.values().iterator();
-                while (iter.hasNext()) {
-                    PlayerEditState state = iter.next();
-                    if (!state.getPlayer().isOnline()) {
-                        iter.remove();
-                    } else {
-                        state.update();
+                synchronized (TCCoasters.this) {
+                    Iterator<PlayerEditState> iter = editStates.values().iterator();
+                    while (iter.hasNext()) {
+                        PlayerEditState state = iter.next();
+                        if (!state.getPlayer().isOnline()) {
+                            iter.remove();
+                        } else {
+                            state.update();
+                        }
                     }
                 }
             }
@@ -290,7 +296,7 @@ public class TCCoasters extends PluginBase {
         this.autosaveTask.stop();
 
         // Log off all players
-        for (Player player : new ArrayList<Player>(this.editStates.keySet())) {
+        for (Player player : getPlayersWithEditStates()) {
             this.logoutPlayer(player);
         }
 
@@ -332,7 +338,7 @@ public class TCCoasters extends PluginBase {
             sender.sendMessage("Loading all tracks from disk now");
 
             // First, log out all players to guarantee their state is saved and then reset
-            for (Player player : new ArrayList<Player>(this.editStates.keySet())) {
+            for (Player player : getPlayersWithEditStates()) {
                 this.logoutPlayer(player);
             }
 
@@ -396,7 +402,7 @@ public class TCCoasters extends PluginBase {
 
             sender.sendMessage((this.glowingSelections ? "Enabled" : "Disabled") + " glowing selections");
             for (Player player : Bukkit.getOnlinePlayers()) {
-                PlayerEditState editState = editStates.get(player);
+                PlayerEditState editState = getEditState(player);
                 if (editState != null) {
                     for (TrackNode node : editState.getEditedNodes()) {
                         node.onStateUpdated(player);
@@ -813,12 +819,15 @@ public class TCCoasters extends PluginBase {
                 coasterWorld.saveChanges();
             }
 
-            Iterator<PlayerEditState> iter = ((TCCoasters) this.getPlugin()).editStates.values().iterator();
-            while (iter.hasNext()) {
-                PlayerEditState state = iter.next();
-                state.save();
-                if (!state.getPlayer().isOnline()) {
-                    iter.remove();
+            TCCoasters plugin = (TCCoasters) this.getPlugin();
+            synchronized (plugin) {
+                Iterator<PlayerEditState> iter = plugin.editStates.values().iterator();
+                while (iter.hasNext()) {
+                    PlayerEditState state = iter.next();
+                    state.save();
+                    if (!state.getPlayer().isOnline()) {
+                        iter.remove();
+                    }
                 }
             }
         }
