@@ -259,6 +259,12 @@ public class PlayerEditState implements CoasterWorldAccess {
         if (this.editMode != mode) {
             this.editMode = mode;
             this.changed = true;
+
+            // Mode change may have changed what particles are visible
+            this.getParticles().scheduleViewerUpdate(this.player);
+            this.getParticles().update(this.player);
+
+            // Refresh the nodes and their particles based on the mode
             for (TrackNode node : this.getEditedNodes()) {
                 node.onStateUpdated(this.player);
             }
