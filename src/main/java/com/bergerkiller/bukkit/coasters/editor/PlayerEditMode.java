@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.editor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 
+import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
@@ -12,13 +13,14 @@ import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetButton;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetTabView;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetText;
+import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetNumberBox;
 
 public enum PlayerEditMode {
     DISABLED("Disabled (hidden)", 0, 1, PlayerEditMode::createEmptyView),
     CREATE("Create Track", 20, 4, PlayerEditMode::createEmptyView),
     POSITION("Change Position", 0, 1, PlayerEditMode::createPositionView),
-    ORIENTATION("Change Orientation", 0, 1, PlayerEditMode::createEmptyView),
+    ORIENTATION("Change Orientation", 0, 1, PlayerEditMode::createOrientationView),
     RAILS("Change Rails Block", 0, 1, PlayerEditMode::createRailsView),
     DELETE("Delete Track", 10, 3, PlayerEditMode::createEmptyView);
 
@@ -119,6 +121,36 @@ public enum PlayerEditMode {
         }
     }
 
+    private static void createOrientationView(MapWidgetTabView.Tab tab, PlayerEditState state) {
+        final int ADJ_BTN_WIDTH = 38;
+        final int ADJ_BTN_HEIGHT = 12;
+        int x = 0;
+        int y = 5;
+        for (BlockFace face : new BlockFace[] {
+                BlockFace.UP, BlockFace.NORTH, BlockFace.EAST,
+                BlockFace.DOWN, BlockFace.SOUTH, BlockFace.WEST})
+        {
+            // Add button
+            tab.addWidget(new MapWidgetButton() {
+                @Override
+                public void onActivate() {
+                    try {
+                        state.setOrientation(FaceUtil.faceToVector(face));
+                    } catch (ChangeCancelledException e) {
+                        // Not possible
+                    }
+                }
+            }).setText(face.name()).setBounds(x, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
+
+            // Next x/y position
+            x += ADJ_BTN_WIDTH + 2;
+            if (face == BlockFace.EAST) {
+                y += ADJ_BTN_HEIGHT + 2;
+                x = 0;
+            }
+        }
+    }
+
     private static void createRailsView(MapWidgetTabView.Tab tab, PlayerEditState state) {
         tab.addWidget(new MapWidgetButton() {
             @Override
@@ -164,6 +196,13 @@ public enum PlayerEditMode {
                             // Not possible
                         }
                     }
+                }
+
+                // Overrides on new version of TrainCarts!
+                //@Override
+                @SuppressWarnings("unused")
+                public String getValueText() {
+                    return Integer.toString((int) getValue());
                 }
 
                 @Override
