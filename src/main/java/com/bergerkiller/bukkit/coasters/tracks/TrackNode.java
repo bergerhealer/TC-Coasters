@@ -670,12 +670,14 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
 
             // Refresh rail block of animations, too.
             // TODO: is this always desired, or should there be an option not to?
+            /*
             for (int i = 0; i < this._animationStates.length; i++) {
                 TrackNodeAnimationState old_state = this._animationStates[i];
                 old_state.destroyParticles();
                 this._animationStates[i] = TrackNodeAnimationState.create(
                         old_state.name, this, old_state.state.changeRail(railBlock), old_state.connections, i);
             }
+            */
         }
     }
 
