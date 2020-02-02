@@ -311,7 +311,11 @@ public class PlayerEditState implements CoasterWorldAccess {
             changed = (this.editedNodes.remove(node) != null);
         }
         if (changed) {
-            node.onStateUpdated(this.player);
+            // Can be caused by the node being removed, handle that here
+            if (!node.isRemoved()) {
+                node.onStateUpdated(this.player);
+            }
+
             this.lastEdited = node;
             this.lastEditTime = System.currentTimeMillis();
             this.changed = true;

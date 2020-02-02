@@ -395,11 +395,12 @@ public class TCCoasters extends PluginBase {
             }
 
             sender.sendMessage((this.glowingSelections ? "Enabled" : "Disabled") + " glowing selections");
-            if (sender instanceof Player) {
-                Player player = (Player) sender;
-                PlayerEditState editState = getEditState(player);
-                for (TrackNode node : editState.getEditedNodes()) {
-                    node.onStateUpdated(player);
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                PlayerEditState editState = editStates.get(player);
+                if (editState != null) {
+                    for (TrackNode node : editState.getEditedNodes()) {
+                        node.onStateUpdated(player);
+                    }
                 }
             }
         } else {
