@@ -2,11 +2,11 @@ package com.bergerkiller.bukkit.coasters.particles;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -24,7 +24,7 @@ import com.bergerkiller.bukkit.common.math.Quaternion;
  */
 public class TrackParticleWorld extends CoasterWorldAccess.Component {
     public DoubleOctree<TrackParticle> particles = new DoubleOctree<TrackParticle>();
-    private final Map<Player, ViewerParticleList> viewers = new HashMap<>();
+    private final Map<Player, ViewerParticleList> viewers = new ConcurrentHashMap<>(16, 0.75f, 1);
     private int updateCtr = 0;
     private boolean forceViewerUpdate = false;
     protected final List<TrackParticle> appearanceUpdates = new ArrayList<>();
@@ -196,14 +196,16 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
     }
 
     /**
-     * Gets a set of all particles a player can see
+     * Gets a set of all particles a player can see.
+     * This method is thread-safe, it can be called from another thread.
+     * The returned set is readonly.
      * 
      * @param viewer
      * @return set of viewed particles
      */
     public Set<TrackParticle> getViewedParticles(Player viewer) {
         ViewerParticleList viewed = this.viewers.get(viewer);
-        return (viewed == null) ? Collections.emptySet() : viewed.particles.keySet();
+        return (viewed == null) ? Collections.emptySet() : Collections.unmodifiableSet(viewed.particles.keySet());
     }
 
     /**
@@ -221,7 +223,8 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
     }
 
     /**
-     * Checks whether a particular entity Id is a particle a player can see
+     * Checks whether a particular entity Id is a particle a player can see.
+     * This method is thread-safe, it can be called from another thread.
      * 
      * @param viewer
      * @param entityId
@@ -238,7 +241,7 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
 
     /**
      * Checks whether a particle is nearby the player somewhere.
-     * This is used as a check when fixing interaction with blocks.
+     * This method is thread-safe, it can be called from another thread.
      * 
      * @param viewer
      * @return True if a particle is nearby
@@ -255,7 +258,7 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
 
     private static class ViewerParticleList {
         public IntVector3 block = null;
-        public Map<TrackParticle, Integer> particles = new HashMap<>();
+        public final Map<TrackParticle, Integer> particles = new ConcurrentHashMap<>(16, 0.75f, 1);
         public boolean reachedLimit = false;
         public long reachedLimitAt = 0;
     }
