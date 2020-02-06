@@ -9,7 +9,6 @@ import java.io.UnsupportedEncodingException;
 import org.bukkit.util.Vector;
 import org.junit.Test;
 
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.AnimationStateNodeEntry;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.CSVEntry;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.LinkNodeEntry;

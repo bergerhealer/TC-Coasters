@@ -13,6 +13,8 @@ import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.events.CoasterConnectionEvent;
+import com.bergerkiller.bukkit.coasters.events.CoasterNodeEvent;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 
 public class TCCoastersListener implements Listener {
@@ -48,6 +50,22 @@ public class TCCoastersListener implements Listener {
         if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             state.setTargetedBlock(event.getClickedBlock(), event.getBlockFace());
             event.setCancelled(state.onRightClick());
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onCoasterNodeEvent(CoasterNodeEvent event) {
+        if (!this.plugin.hasUsePermission(event.getPlayer())) {
+            this.plugin.sendNoPermissionMessage(event.getPlayer(), TCCoastersLocalization.NO_PERMISSION);
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onCoasterConnectionEvent(CoasterConnectionEvent event) {
+        if (!this.plugin.hasUsePermission(event.getPlayer())) {
+            this.plugin.sendNoPermissionMessage(event.getPlayer(), TCCoastersLocalization.NO_PERMISSION);
+            event.setCancelled(true);
         }
     }
 

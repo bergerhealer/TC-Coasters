@@ -3,7 +3,6 @@ package com.bergerkiller.bukkit.coasters.editor;
 import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
-import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
@@ -31,7 +30,7 @@ public class TCCoastersDisplay extends MapDisplay {
         super.onTick();
 
         // Detect changes in permission to revoke/return permissions
-        if (TCCoastersPermissions.USE.has(this.getPlayer()) != this._hasPermission) {
+        if (getPlugin().hasUsePermission(this.getPlayer()) != this._hasPermission) {
             this.setRunning(false);
             this.setRunning(true);
         }
@@ -45,7 +44,7 @@ public class TCCoastersDisplay extends MapDisplay {
         this.setUpdateWithoutViewers(false);
 
         // When no permission, simply show nothing on the map
-        this._hasPermission = TCCoastersPermissions.USE.has(this.getPlayer());
+        this._hasPermission = getPlugin().hasUsePermission(this.getPlayer());
         if (!this._hasPermission) {
             getLayer(1).draw(MapFont.MINECRAFT, 5, 5, MapColorPalette.COLOR_RED, "No Permission");
             return;

@@ -50,6 +50,7 @@ import com.bergerkiller.bukkit.common.PluginBase;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
+import com.bergerkiller.bukkit.common.localization.LocalizationEnum;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
@@ -78,6 +79,7 @@ public class TCCoasters extends PluginBase {
     private final TCCoastersInteractionListener interactionListener = new TCCoastersInteractionListener(this);
     private final Map<Player, PlayerEditState> editStates = new HashMap<Player, PlayerEditState>();
     private final Map<World, CoasterWorldImpl> worlds = new HashMap<World, CoasterWorldImpl>();
+    private final Map<Player, Integer> noPermDebounceMap = new HashMap<Player, Integer>();
     private double smoothness = DEFAULT_SMOOTHNESS;
     private boolean glowingSelections = DEFAULT_GLOWING_SELECTIONS;
     private int particleViewRange = DEFAULT_PARTICLE_VIEW_RANGE;
@@ -203,6 +205,15 @@ public class TCCoasters extends PluginBase {
     }
 
     /**
+     * Whether PlotSquared is enabled in the configuration and the plugin is loaded
+     * 
+     * @return True if plot squared is enabled
+     */
+    public boolean isPlotSquaredEnabled() {
+        return this.plotSquaredEnabled && this.plotSquaredHandler != null;
+    }
+
+    /**
      * Gets the particle view range. Players can see particles when
      * below this distance away from a particle.
      * 
@@ -230,6 +241,17 @@ public class TCCoasters extends PluginBase {
             public void run() {
                 for (CoasterWorldImpl coasterWorld : worlds.values()) {
                     coasterWorld.updateAll();
+                }
+
+                // Clean this up
+                if (!noPermDebounceMap.isEmpty()) {
+                    int time = CommonUtil.getServerTicks();
+                    Iterator<Integer> iter = noPermDebounceMap.values().iterator();
+                    while (iter.hasNext()) {
+                        if (iter.next().intValue() <= time) {
+                            iter.remove();
+                        }
+                    }
                 }
 
                 synchronized (TCCoasters.this) {
@@ -316,7 +338,7 @@ public class TCCoasters extends PluginBase {
             boolean available = enabled && this.plotSquaredEnabled;
             if (available != (this.plotSquaredHandler != null)) {
                 if (available) {
-                    this.plotSquaredHandler = new PlotSquaredHandler();
+                    this.plotSquaredHandler = new PlotSquaredHandler(this);
                     this.register(this.plotSquaredHandler);
                     this.log(Level.INFO, "PlotSquared support enabled!");
                 } else {
@@ -331,6 +353,11 @@ public class TCCoasters extends PluginBase {
     @Override
     public void permissions() {
         this.loadPermissions(TCCoastersPermissions.class);
+    }
+
+    @Override
+    public void localization() {
+        this.loadLocales(TCCoastersLocalization.class);
     }
 
     public boolean globalCommand(CommandSender sender, String label, String[] args) {
@@ -417,8 +444,8 @@ public class TCCoasters extends PluginBase {
 
     @Override
     public boolean command(CommandSender sender, String command, String[] args) {
-        if (!TCCoastersPermissions.USE.has(sender)) {
-            sender.sendMessage(ChatColor.RED + "Sorry, no permission for this.");
+        if (!hasUsePermission(sender)) {
+            TCCoastersLocalization.NO_PERMISSION.message(sender);
             return true;
         }
         if (globalCommand(sender, command, args)) {
@@ -791,8 +818,30 @@ public class TCCoasters extends PluginBase {
         }
     }
 
+    /**
+     * Sends a 'no permission' message to a player, which includes debouncing to prevent spam
+     * 
+     * @param player
+     * @param message
+     */
+    public void sendNoPermissionMessage(Player player, LocalizationEnum message) {
+        Integer prev = noPermDebounceMap.put(player, Integer.valueOf(CommonUtil.getServerTicks() + 20));
+        if (prev == null) {
+            message.message(player);
+        }
+    }
+
+    public boolean hasUsePermission(CommandSender sender) {
+        if (!TCCoastersPermissions.USE.has(sender)) {
+            if (!this.isPlotSquaredEnabled() || !TCCoastersPermissions.PLOTSQUARED_USE.has(sender)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public boolean isHoldingEditTool(Player player) {
-        if (!TCCoastersPermissions.USE.has(player)) {
+        if (!hasUsePermission(player)) {
             return false;
         }
 

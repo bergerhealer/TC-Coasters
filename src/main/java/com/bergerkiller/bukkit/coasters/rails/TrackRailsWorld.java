@@ -271,6 +271,7 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
         }
     }
 
+    @SuppressWarnings("unused")
     private void addToSectionsByBlock(BlockRelativePosition position, TrackRailsSection section) {
         int min_x = position.block_x;
         int max_x = position.block_x;
@@ -355,6 +356,7 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
      * the small position relative to the block (double). The x/y/z will
      * always fall between 0.0 and 1.0 after each update().
      */
+    @SuppressWarnings("unused")
     private static class BlockRelativePosition {
         public double x, y, z;
         public int block_x = 0;
