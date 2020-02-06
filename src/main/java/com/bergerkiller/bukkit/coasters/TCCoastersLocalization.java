@@ -7,7 +7,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class TCCoastersLocalization extends LocalizationEnum {
     public static final TCCoastersLocalization NO_PERMISSION = new TCCoastersLocalization("use.noperm", ChatColor.RED + "You do not have permission to modify TC-Coasters track!");
-    public static final TCCoastersLocalization PLOTSQUARED_NO_PERMISSION = new TCCoastersLocalization("plotsquared.use.noperm", ChatColor.RED + "This is not inside your plot! You only have permission to modify TC-Coasters track inside your own plots!");
+    public static final TCCoastersLocalization PLOTSQUARED_NO_PERMISSION = new TCCoastersLocalization("plotsquared.use.noperm", ChatColor.RED + "You are not allowed to edit TC-Coasters track on this plot!");
 
     private TCCoastersLocalization(String name, String defValue) {
         super(name, defValue);
