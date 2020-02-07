@@ -126,7 +126,7 @@ public class PlayerEditClipboard {
                         for (int i = 0; i < connections.length; i++) {
                             connections[i] = anim.connections[i].transform(tracks, transform);
                         }
-                        node.updateAnimationState(anim.name, anim.state.transform(transform), connections);
+                        node.setAnimationState(anim.name, anim.state.transform(transform), connections);
                     }
                 }
             }

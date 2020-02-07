@@ -134,7 +134,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                     for (int i = 0; i < connections.length; i++) {
                         connections[i] = new TrackNodeReference(coaster.getTracks(), prevNode_pendingLinks.get(i).targetNodePos);
                     }
-                    prevNode.updateAnimationState(animEntry.name, animEntry.createState(), connections);
+                    prevNode.setAnimationState(animEntry.name, animEntry.createState(), connections);
                 }
                 continue;
             }
@@ -150,7 +150,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                         List<TrackNodeAnimationState> states = new ArrayList<>(prevNode.getAnimationStates());
                         for (TrackNodeAnimationState oldState : states) {
                             if (oldState.connections.length != 0) {
-                                prevNode.updateAnimationState(oldState.name, oldState.state, new TrackNodeReference[0]);
+                                prevNode.setAnimationState(oldState.name, oldState.state, new TrackNodeReference[0]);
                             }
                         }
                     }
@@ -161,7 +161,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                         TrackNodeAnimationState lastAddedState = states.get(states.size()-1);
                         TrackNodeReference new_link = new TrackNodeReference(coaster.getTracks(), animLinkEntry.pos);
                         TrackNodeReference[] new_connections = LogicUtil.appendArray(lastAddedState.connections, new_link);
-                        prevNode.updateAnimationState(lastAddedState.name, lastAddedState.state, new_connections);
+                        prevNode.setAnimationState(lastAddedState.name, lastAddedState.state, new_connections);
                     }
                 }
             }
@@ -241,7 +241,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
     private void addConnectionToAnimationStates(TrackNode node, TrackNodeReference reference) {
         for (TrackNodeAnimationState state : new ArrayList<>(node.getAnimationStates())) {
             TrackNodeReference[] new_connections = LogicUtil.appendArray(state.connections, reference);
-            node.updateAnimationState(state.name, state.state, new_connections);
+            node.setAnimationState(state.name, state.state, new_connections);
         }
     }
 

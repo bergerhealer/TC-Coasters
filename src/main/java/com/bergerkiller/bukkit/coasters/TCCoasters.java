@@ -120,9 +120,9 @@ public class TCCoasters extends PluginBase {
         return CommonUtil.unsafeCast(this.worlds.values());
     }
 
-    public synchronized void removeNodeFromEditStates(TrackNode node) {
-        for (PlayerEditState state : editStates.values()) {
-            state.setEditing(node, false);
+    public synchronized void forAllEditStates(Consumer<PlayerEditState> function) {
+        for (PlayerEditState editState : editStates.values()) {
+            function.accept(editState);
         }
     }
 
@@ -709,7 +709,7 @@ public class TCCoasters extends PluginBase {
             if (args.length >= 3 && LogicUtil.containsIgnoreCase(args[1], "add", "create", "new")) {
                 String animName = args[2];
                 for (TrackNode node : state.getEditedNodes()) {
-                    node.updateAnimationState(animName);
+                    node.saveAnimationState(animName);
                 }
                 sender.sendMessage("Animation '" + animName + "' added to " + state.getEditedNodes().size() + " nodes!");
             } else if (args.length >= 3 && LogicUtil.containsIgnoreCase(args[1], "remove", "delete")) {
@@ -749,9 +749,16 @@ public class TCCoasters extends PluginBase {
                 } else {
                     sender.sendMessage("Animation '" + animName + "' is now playing for " + playingCount + " nodes!");
                 }
+            } else if (args.length >= 3 && LogicUtil.containsIgnoreCase(args[1], "select", "edit")) {
+                String animName = args[2];
+                state.setSelectedAnimation(animName);
+                sender.sendMessage(ChatColor.GREEN + "Selected track animation '" + animName + "'!");
+                if (state.getSelectedAnimationNodes().isEmpty()) {
+                    sender.sendMessage(ChatColor.YELLOW + "None of your selected nodes contain this animation!");
+                }
             } else {
                 sender.sendMessage(ChatColor.RED + "Invalid number of arguments specified!");
-                sender.sendMessage(ChatColor.RED + "/tcc animation [add/remove] [name]");
+                sender.sendMessage(ChatColor.RED + "/tcc animation [add/remove/select] [name]");
                 sender.sendMessage(ChatColor.RED + "/tcc animation play [name] (duration)");
                 sender.sendMessage(ChatColor.RED + "/tcc animation clear");
             }

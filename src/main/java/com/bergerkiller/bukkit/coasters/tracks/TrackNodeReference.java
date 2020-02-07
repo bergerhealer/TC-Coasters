@@ -92,4 +92,23 @@ public class TrackNodeReference {
         transform.transformPoint(new_position);
         return new TrackNodeReference(world, new_position);
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        } else if (o instanceof TrackNodeReference) {
+            TrackNodeReference other = (TrackNodeReference) o;
+            if (this.node != null) {
+                return this.node == other.getNode();
+            } else if (other.node != null) {
+                return other.node == other.getNode();
+            } else {
+                return this.world.getWorld() == other.world.getWorld() &&
+                       this.position.equals(other.position);
+            }
+        } else {
+            return false;
+        }
+    }
 }

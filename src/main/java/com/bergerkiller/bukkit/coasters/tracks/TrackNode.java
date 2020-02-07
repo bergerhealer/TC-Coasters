@@ -514,23 +514,37 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
                 for (int j = i; j < this._animationStates.length; j++) {
                     this._animationStates[j].updateIndex(j);
                 }
+                this.getPlugin().forAllEditStates(editState -> editState.notifyNodeAnimationRemoved(TrackNode.this, name));
                 return true;
             }
         }
         return false;
     }
 
-    public void updateAnimationState(String name) {
+    /**
+     * Saves the current position, orientation, rail block and connections as an animation state.
+     * Any previous animation state of the same name is overwritten.
+     * 
+     * @param name
+     */
+    public void saveAnimationState(String name) {
         // Collect the current connections that are made
         TrackNodeReference[] connectedNodes = new TrackNodeReference[this._connections.length];
         for (int i = 0; i < this._connections.length; i++) {
             connectedNodes[i] = new TrackNodeReference(this._connections[i].getOtherNode(this));
         }
 
-        updateAnimationState(name, this.getState(), connectedNodes);
+        setAnimationState(name, this.getState(), connectedNodes);
     }
 
-    public void updateAnimationState(String name, TrackNodeState state, TrackNodeReference[] connections) {
+    /**
+     * Adds or updates an animation state by name.
+     * 
+     * @param name The name of the animation
+     * @param state The position, orientation and rail block information
+     * @param connections The connections made while this animation is active
+     */
+    public void setAnimationState(String name, TrackNodeState state, TrackNodeReference[] connections) {
         // Overwrite existing
         for (int i = 0; i < this._animationStates.length; i++) {
             if (this._animationStates[i].name.equals(name)) {
@@ -544,6 +558,54 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
         int new_len = this._animationStates.length + 1;
         this._animationStates = Arrays.copyOf(this._animationStates, new_len);
         this._animationStates[new_len-1] = TrackNodeAnimationState.create(name,this,state,connections,new_len-1);
+
+        // Refresh any player edit states so they become aware of this animation
+        this.getPlugin().forAllEditStates(editState -> editState.notifyNodeAnimationAdded(this, name));
+    }
+
+    /**
+     * Adds a connection with another node to an animation state, or to all of them if name is null
+     * 
+     * @param name The name of the animation state to add the connection to, null to add to all of them
+     * @param node The node to add
+     */
+    public void addAnimationStateConnection(String name, TrackNodeReference node) {
+        if (!this.hasAnimationStates()) {
+            return;
+        }
+
+        // Remove any previous connection that exists
+        removeAnimationStateConnection(name, node);
+
+        // Append the new connection
+        node.getNode();
+        for (int i = 0; i < this._animationStates.length; i++) {
+            TrackNodeAnimationState old_state = this._animationStates[i];
+            if (name == null || name.equals(old_state.name)) {
+                TrackNodeReference[] new_connections = LogicUtil.appendArray(old_state.connections, node);
+                old_state.destroyParticles();
+                this._animationStates[i] = TrackNodeAnimationState.create(old_state.name,this,old_state.state,new_connections,i);
+            }
+        }
+    }
+
+    /**
+     * Removes a connection with another node from an animation state, or from all of them if name is null
+     * 
+     * @param name The name of the animation state to remove the connection from, null to remove from all of them
+     * @param node The node to remove
+     */
+    public void removeAnimationStateConnection(String name, TrackNodeReference node) {
+        for (int i = 0; i < this._animationStates.length; i++) {
+            TrackNodeAnimationState old_state = this._animationStates[i];
+            if (name == null || name.equals(old_state.name)) {
+                TrackNodeReference[] new_connections = LogicUtil.removeArrayElement(old_state.connections, node);
+                if (new_connections != old_state.connections) {
+                    old_state.destroyParticles();
+                    this._animationStates[i] = TrackNodeAnimationState.create(old_state.name,this,old_state.state,new_connections,i);
+                }
+            }
+        }
     }
 
     /**
@@ -595,6 +657,17 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
         } else {
             return Arrays.asList(this._animationStates); 
         }
+    }
+
+    public TrackNodeAnimationState findAnimationState(String name) {
+        if (name != null) {
+            for (TrackNodeAnimationState state : this._animationStates) {
+                if (state.name.equals(name)) {
+                    return state;
+                }
+            }
+        }
+        return null;
     }
 
     public double getJunctionViewDistance(Matrix4x4 cameraTransform, TrackConnection connection) {
@@ -668,15 +741,6 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
             this._blockParticle.setBlock(this.getRailBlock(true));
             this.markChanged();
             this.scheduleRefresh();
-
-            // Refresh rail block of animations, too.
-            // TODO: is this always desired, or should there be an option not to?
-            for (int i = 0; i < this._animationStates.length; i++) {
-                TrackNodeAnimationState old_state = this._animationStates[i];
-                old_state.destroyParticles();
-                this._animationStates[i] = TrackNodeAnimationState.create(
-                        old_state.name, this, old_state.state.changeRail(railBlock), old_state.connections, i);
-            }
         }
     }
 

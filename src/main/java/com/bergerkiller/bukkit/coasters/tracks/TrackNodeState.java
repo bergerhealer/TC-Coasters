@@ -81,6 +81,14 @@ public final class TrackNodeState {
         return new TrackNodeState(position, orientation, railBlock);
     }
 
+    public TrackNodeState changePosition(Vector new_position) {
+        return new TrackNodeState(new_position, this.orientation, this.railBlock);
+    }
+
+    public TrackNodeState changeOrientation(Vector new_orientation) {
+        return new TrackNodeState(this.position, new_orientation, this.railBlock);
+    }
+
     public TrackNodeState changeRail(IntVector3 new_rail) {
         return new TrackNodeState(this.position, this.orientation, new_rail);
     }

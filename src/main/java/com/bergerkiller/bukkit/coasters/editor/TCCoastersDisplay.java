@@ -4,10 +4,12 @@ import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.common.events.map.MapStatusEvent;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.map.MapFont;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetTabView;
+import com.bergerkiller.bukkit.common.map.widgets.MapWidgetText;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetSelectionBox;
 
 public class TCCoastersDisplay extends MapDisplay {
@@ -21,7 +23,7 @@ public class TCCoastersDisplay extends MapDisplay {
                 mode.createView(this.addTab(), state);
             }
             this.setSelectedIndex(state.getMode().ordinal());
-            this.setBounds(5, 20, 128-10, 90);
+            this.setBounds(5, 20, 128-10, 100);
         }
     };
 
@@ -69,6 +71,29 @@ public class TCCoastersDisplay extends MapDisplay {
             public void onSelectedItemChanged() {
                 getState().setMode(PlayerEditMode.fromName(this.getSelectedItem()));
                 tabView.setSelectedIndex(getState().getMode().ordinal());
+            }
+        });
+
+        // Displays the currently selected animation, if one is selected
+        this.addWidget(new MapWidgetText() {
+            @Override
+            public void onAttached() {
+                this.setBounds(1, 128-8, 126, 8);
+                super.onAttached();
+            }
+
+            @Override
+            public void onStatusChanged(MapStatusEvent event) {
+                super.onStatusChanged(event);
+                if (event.isName("PlayerEditState::EditedAnimationNamesChanged")) {
+                    PlayerEditState state = getState();
+                    this.setVisible(state.getSelectedAnimation() != null);
+                    if (this.isVisible()) {
+                        this.setText("Animation: " + state.getSelectedAnimation());
+                        this.setColor(state.getSelectedAnimationNodes().isEmpty() ?
+                                MapColorPalette.COLOR_BLACK : MapColorPalette.COLOR_RED);
+                    }
+                }
             }
         });
     }

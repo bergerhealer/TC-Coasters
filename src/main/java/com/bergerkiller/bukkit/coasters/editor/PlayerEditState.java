@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.editor;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -32,6 +33,8 @@ import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
@@ -49,6 +52,8 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
+import com.google.common.collect.Ordering;
+import com.google.common.collect.TreeMultimap;
 
 /**
  * The track editing state of a single player.
@@ -63,6 +68,7 @@ public class PlayerEditState implements CoasterWorldAccess {
     private final PlayerEditHistory history;
     private final PlayerEditClipboard clipboard;
     private final Map<TrackNode, PlayerEditNode> editedNodes = new LinkedHashMap<TrackNode, PlayerEditNode>();
+    private final TreeMultimap<String, TrackNode> editedNodesByAnimationName = TreeMultimap.create(Ordering.natural(), Ordering.arbitrary());
     private CoasterWorldAccess cachedCoasterWorld = null;
     private TrackNode lastEdited = null;
     private long lastEditTime = System.currentTimeMillis();
@@ -70,10 +76,12 @@ public class PlayerEditState implements CoasterWorldAccess {
     private PlayerEditMode afterEditMode = null;
     private int heldDownTicks = 0;
     private boolean changed = false;
+    private boolean editedAnimationNamesChanged = false;
     private Matrix4x4 editStartTransform = null;
     private Vector editRotInfo = new Vector(); // virtual coordinate of the vector
     private Block targetedBlock = null;
     private BlockFace targetedBlockFace = BlockFace.UP;
+    private String selectedAnimation = null;
 
     public PlayerEditState(TCCoasters plugin, Player player) {
         this.plugin = plugin;
@@ -89,7 +97,10 @@ public class PlayerEditState implements CoasterWorldAccess {
             config.load();
 
             this.editMode = config.get("mode", PlayerEditMode.DISABLED);
+            this.selectedAnimation = config.get("selectedAnimation", String.class, null);
             this.editedNodes.clear();
+            this.editedNodesByAnimationName.clear();
+            this.editedAnimationNamesChanged = true;
             List<String> editNodePositions = config.getList("editedNodes", String.class);
             if (editNodePositions != null && !editNodePositions.isEmpty()) {
                 for (String nodeStr : editNodePositions) {
@@ -103,6 +114,9 @@ public class PlayerEditState implements CoasterWorldAccess {
                             TrackNode node = getTracks().findNodeExact(new Vector(x, y, z));
                             if (node != null) {
                                 this.editedNodes.put(node, new PlayerEditNode(node));
+                                for (TrackNodeAnimationState animation : node.getAnimationStates()) {
+                                    this.editedNodesByAnimationName.put(animation.name, node);
+                                }
                             }
                         } catch (NumberFormatException ex) {}
                     }
@@ -125,6 +139,11 @@ public class PlayerEditState implements CoasterWorldAccess {
             editedNodeNames.add(p.getX() + "_" + p.getY() + "_" + p.getZ());
         }
         config.set("editedNodes", editedNodeNames);
+        if (this.selectedAnimation == null) {
+            config.remove("selectedAnimation");
+        } else {
+            config.set("selectedAnimation", this.selectedAnimation);
+        }
         config.save();
     }
 
@@ -152,12 +171,82 @@ public class PlayerEditState implements CoasterWorldAccess {
         if (!this.editedNodes.isEmpty()) {
             ArrayList<TrackNode> oldNodes = new ArrayList<TrackNode>(this.getEditedNodes());
             this.editedNodes.clear();
+            this.editedAnimationNamesChanged |= !this.editedNodesByAnimationName.isEmpty();
+            this.editedNodesByAnimationName.clear();
             this.lastEdited = null;
             this.changed = true;
             for (TrackNode oldNode : oldNodes) {
                 oldNode.onStateUpdated(this.player);
             }
         }
+    }
+
+    /**
+     * Called when an animation is added to a node. For internal use.
+     * 
+     * @param node
+     * @param animationName
+     */
+    public void notifyNodeAnimationAdded(TrackNode node, String animationName) {
+        Set<TrackNode> nodes = this.editedNodesByAnimationName.get(animationName);
+        this.editedAnimationNamesChanged |= (nodes.add(node) && nodes.size() == 1);
+    }
+
+    /**
+     * Called when an animation is removed for a node. For internal use.
+     * 
+     * @param node
+     * @param animationName
+     */
+    public void notifyNodeAnimationRemoved(TrackNode node, String animationName) {
+        Set<TrackNode> nodes = this.editedNodesByAnimationName.get(animationName);
+        this.editedAnimationNamesChanged |= (nodes.remove(node) && nodes.isEmpty());
+    }
+
+    /**
+     * Gets an alphabetically sorted collection of distinct animation names present in the currently edited nodes
+     * 
+     * @return edited animation names
+     */
+    public Collection<String> getEditedAnimationNames() {
+        return this.editedNodesByAnimationName.keySet();
+    }
+
+    /**
+     * Sets the name of an animation to assign to the selected nodes while editing them.
+     * Keeps changes to position, orientation, connections and rail block synchronized.
+     * Set to null to stop editing animations.
+     * 
+     * @param animationName
+     */
+    public void setSelectedAnimation(String animationName) {
+        if (!LogicUtil.bothNullOrEqual(this.selectedAnimation, animationName)) {
+            this.selectedAnimation = animationName;
+            this.editedAnimationNamesChanged = true;
+            if (animationName != null) {
+                for (TrackNode node : this.getSelectedAnimationNodes()) {
+                    node.playAnimation(animationName, 0.0);
+                }
+            }
+        }
+    }
+
+    /**
+     * Gets the name of the animation being edited. Is null if no animation is being edited.
+     * 
+     * @return selected animation name
+     */
+    public String getSelectedAnimation() {
+        return this.selectedAnimation;
+    }
+
+    /**
+     * Gets a set of nodes that contain the animation with the name that is currently selected
+     * 
+     * @return selected animation nodes
+     */
+    public Set<TrackNode> getSelectedAnimationNodes() {
+        return this.editedNodesByAnimationName.get(this.selectedAnimation);
     }
 
     /**
@@ -244,6 +333,7 @@ public class PlayerEditState implements CoasterWorldAccess {
                 hadLockedNodes = true;
                 node.onStateUpdated(this.player);
                 this.lastEdited = node;
+                this.editedAnimationNamesChanged |= node.hasAnimationStates();
             }
         }
         if (hadLockedNodes) {
@@ -320,6 +410,14 @@ public class PlayerEditState implements CoasterWorldAccess {
             // Can be caused by the node being removed, handle that here
             if (!node.isRemoved()) {
                 node.onStateUpdated(this.player);
+            }
+            for (TrackNodeAnimationState state : node.getAnimationStates()) {
+                Set<TrackNode> values = this.editedNodesByAnimationName.get(state.name);
+                if (editing && values.add(node)) {
+                    this.editedAnimationNamesChanged |= (values.size() == 1);
+                } else if (!editing && values.remove(node)) {
+                    this.editedAnimationNamesChanged |= values.isEmpty();
+                }
             }
 
             this.lastEdited = node;
@@ -531,6 +629,10 @@ public class PlayerEditState implements CoasterWorldAccess {
                 this.setMode(this.afterEditMode);
             }
         }
+        if (this.editedAnimationNamesChanged) {
+            this.editedAnimationNamesChanged = false;
+            this.onEditedAnimationNamedChanged();
+        }
     }
 
     private void updateEditing() throws ChangeCancelledException {
@@ -571,6 +673,8 @@ public class PlayerEditState implements CoasterWorldAccess {
                 if (toDelete.contains(neigh)) {
                     changes.addChangeDisconnect(this.player, connection);
                     node.getTracks().disconnect(node, neigh);
+                    removeConnectionForAnimationStates(node, neigh);
+                    removeConnectionForAnimationStates(neigh, node);
                     disconnectedNodes = true;
                 }
             }
@@ -690,6 +794,18 @@ public class PlayerEditState implements CoasterWorldAccess {
             node.setRailBlock(old_rail);
             throw ex;
         }
+
+        TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
+        if (animState != null) {
+            // Refresh selected animation state of node too, if one is selected for this node
+            // Leave other animation states alone
+            node.setAnimationState(animState.name, animState.state.changeRail(new_rail), animState.connections);
+        } else {
+            // No animation is selected for this node, presume the rail block should be updated for all animation states
+            for (TrackNodeAnimationState state : node.getAnimationStates()) {
+                node.setAnimationState(state.name, state.state.changeRail(new_rail), state.connections);
+            }
+        }
     }
 
     /**
@@ -712,6 +828,12 @@ public class PlayerEditState implements CoasterWorldAccess {
             TrackNodeState startState = node.getState();
             node.setOrientation(orientation);
             changes.addChangeAfterChangingNode(this.player, node, startState);
+
+            // Refresh selected animation state of node too, if one is selected for this node
+            TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
+            if (animState != null) {
+                node.setAnimationState(animState.name, animState.state.changeOrientation(orientation), animState.connections);
+            }
         }
     }
 
@@ -878,6 +1000,8 @@ public class PlayerEditState implements CoasterWorldAccess {
             for (TrackNode node : getEditedNodes()) {
                 if (prevNode != null) {
                     changes.addChangeConnect(this.player, tracks.connect(prevNode, node));
+                    addConnectionForAnimationStates(prevNode, node);
+                    addConnectionForAnimationStates(node, prevNode);
                 }
                 prevNode = node;
             }
@@ -895,6 +1019,7 @@ public class PlayerEditState implements CoasterWorldAccess {
                 } else {
                     changes.addChangeConnect(this.player, tracks.connect(node, newNode));
                 }
+                addConnectionForAnimationStates(node, newNode);
             }
             clearEditedNodes();
             if (newNode != null) {
@@ -1013,6 +1138,13 @@ public class PlayerEditState implements CoasterWorldAccess {
         this.editStartTransform = current.clone();
     }
 
+    // when the list of animations in selected nodes changes
+    private void onEditedAnimationNamedChanged() {
+        for (TCCoastersDisplay display : MapDisplay.getAllDisplays(TCCoastersDisplay.class)) {
+            display.sendStatusChange("PlayerEditState::EditedAnimationNamesChanged");
+        }
+    }
+
     // when player releases the right-click mouse button
     private void onEditingFinished() throws ChangeCancelledException {
         // Deselect locked nodes that we cannot edit
@@ -1066,6 +1198,8 @@ public class PlayerEditState implements CoasterWorldAccess {
                     for (TrackNode connected : connectedNodes) {
                         if (connected != droppedNode) {
                             changes.addChangeConnect(this.player, tracks.connect(droppedNode, connected));
+                            addConnectionForAnimationStates(droppedNode, connected);
+                            addConnectionForAnimationStates(connected, droppedNode);
                         }
                     }
 
@@ -1084,6 +1218,14 @@ public class PlayerEditState implements CoasterWorldAccess {
                 for (PlayerEditNode editNode : this.editedNodes.values()) {
                     if (editNode.hasMoveBegun()) {
                         changes.addChangeAfterChangingNode(this.player, editNode.node, editNode.startState);
+
+                        // Update position and orientation of animation state, if one is selected
+                        TrackNodeAnimationState animState = editNode.node.findAnimationState(this.selectedAnimation);
+                        if (animState != null) {
+                            editNode.node.setAnimationState(animState.name,
+                                                            editNode.node.getState().changeRail(animState.state.railBlock),
+                                                            animState.connections);
+                        }
                     }
                 }
             } finally {
@@ -1094,7 +1236,39 @@ public class PlayerEditState implements CoasterWorldAccess {
         }
     }
 
-    // CoasterWorldAccess
+    /**
+     * Adds connections to the target node for all animation states defined in the node
+     * 
+     * @param node
+     * @param target
+     */
+    private void addConnectionForAnimationStates(TrackNode node, TrackNode target) {
+        TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
+        if (animState != null) {
+            // Only add connection for this one animation state
+            node.addAnimationStateConnection(animState.name, new TrackNodeReference(target));
+        } else {
+            // Add connection to all animation states
+            node.addAnimationStateConnection(null, new TrackNodeReference(target));
+        }
+    }
+
+    /**
+     * Removes connections to the target node for all animation states defined in the node
+     * 
+     * @param node
+     * @param target
+     */
+    private void removeConnectionForAnimationStates(TrackNode node, TrackNode target) {
+        TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
+        if (animState != null) {
+            // Only add connection for this one animation state
+            node.removeAnimationStateConnection(animState.name, new TrackNodeReference(target));
+        } else {
+            // Add connection to all animation states
+            node.removeAnimationStateConnection(null, new TrackNodeReference(target));
+        }
+    }
 
     /**
      * Gets the coaster world the player is currently on

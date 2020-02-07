@@ -8,6 +8,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class TCCoastersLocalization extends LocalizationEnum {
     public static final TCCoastersLocalization NO_PERMISSION = new TCCoastersLocalization("use.noperm", ChatColor.RED + "You do not have permission to modify TC-Coasters track!");
     public static final TCCoastersLocalization PLOTSQUARED_NO_PERMISSION = new TCCoastersLocalization("plotsquared.use.noperm", ChatColor.RED + "You are not allowed to edit TC-Coasters track on this plot!");
+    public static final TCCoastersLocalization ANIMATION_ADD = new TCCoastersLocalization("animation.add", ChatColor.GREEN + "Animation %0% added to %1% selected node(s)!");
+    public static final TCCoastersLocalization ANIMATION_REMOVE = new TCCoastersLocalization("animation.remove", ChatColor.YELLOW + "Animation %0% removed from %1% selected node(s)!");
 
     private TCCoastersLocalization(String name, String defValue) {
         super(name, defValue);

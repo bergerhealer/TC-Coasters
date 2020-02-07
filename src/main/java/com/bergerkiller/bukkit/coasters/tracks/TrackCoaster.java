@@ -85,7 +85,7 @@ public class TrackCoaster extends CoasterWorldAccess.Component implements Lockab
             node.onRemoved();
             this.getTracks().cancelNodeRefresh(node);
             this.getRails().purge(node);
-            this.getPlugin().removeNodeFromEditStates(node);
+            this.getPlugin().forAllEditStates(editState -> editState.setEditing(node, false));
             this.markChanged();
         }
     }

@@ -1,27 +1,34 @@
 package com.bergerkiller.bukkit.coasters.editor;
 
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 
 import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.events.map.MapStatusEvent;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetButton;
+import com.bergerkiller.bukkit.common.map.widgets.MapWidgetSubmitText;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetTabView;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetText;
+import com.bergerkiller.bukkit.common.resources.CommonSounds;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetNumberBox;
+import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetSelectionBox;
 
 public enum PlayerEditMode {
     DISABLED("Disabled (hidden)", 0, 1, PlayerEditMode::createEmptyView),
     CREATE("Create Track", 20, 4, PlayerEditMode::createEmptyView),
     POSITION("Change Position", 0, 1, PlayerEditMode::createPositionView),
     ORIENTATION("Change Orientation", 0, 1, PlayerEditMode::createOrientationView),
-    RAILS("Change Rails Block", 0, 1, PlayerEditMode::createRailsView),
+    RAILS("Change Rail Block", 0, 1, PlayerEditMode::createRailsView),
+    ANIMATION("Manage Animations", 0, 1, PlayerEditMode::createAnimationsView),
     DELETE("Delete Track", 10, 3, PlayerEditMode::createEmptyView);
 
     private final int _autoInterval;
@@ -240,5 +247,118 @@ public enum PlayerEditMode {
             y += 14;
         }
         finished_loading.set(true);
+    }
+
+    private static void createAnimationsView(MapWidgetTabView.Tab tab, PlayerEditState state) {
+        final MapWidgetSubmitText addNodeAskText = tab.addWidget(new MapWidgetSubmitText() {
+            @Override
+            public void onAttached() {
+                this.setDescription("Enter animation name");
+            }
+
+            @Override
+            public void onAccept(String text) {
+                for (TrackNode node : state.getEditedNodes()) {
+                    node.saveAnimationState(text);
+                }
+                state.setSelectedAnimation(text);
+                TCCoastersLocalization.ANIMATION_ADD.message(state.getPlayer(), text, Integer.toString(state.getEditedNodes().size()));
+                getDisplay().playSound(CommonSounds.CLICK);
+            }
+        });
+
+        tab.addWidget(new MapWidgetButton() {
+            @Override
+            public void onAttached() {
+                this.setText("Add");
+                super.onAttached();
+            }
+
+            @Override
+            public void onActivate() {
+                addNodeAskText.activate();
+            }
+        }).setBounds(11, 34, 43, 12);
+
+        final MapWidgetButton removeButton = tab.addWidget(new MapWidgetButton() {
+            @Override
+            public void onAttached() {
+                this.setText("Remove");
+                super.onAttached();
+            }
+
+            @Override
+            public void onActivate() {
+                String name = state.getSelectedAnimation();
+                if (name != null) {
+                    ArrayList<TrackNode> nodes = new ArrayList<TrackNode>(state.getSelectedAnimationNodes());
+                    for (TrackNode node : nodes) {
+                        node.removeAnimationState(name);
+                    }
+                    state.setSelectedAnimation(null);
+                    TCCoastersLocalization.ANIMATION_REMOVE.message(state.getPlayer(), name, Integer.toString(nodes.size()));
+                    getDisplay().playSound(CommonSounds.EXTINGUISH);
+
+                    // Focus animation selection menu. Kinda hard to do as we don't have a final field for it :(
+                    tab.getWidget(4).focus();
+                }
+            }
+        });
+        removeButton.setBounds(62, 34, 43, 12);
+
+        tab.addWidget(new MapWidgetText() {
+            @Override
+            public void onAttached() {
+                this.setColor(MapColorPalette.COLOR_YELLOW);
+                this.setText("Selected animation:");
+            }
+        }).setBounds(13, 3, 100, 12);
+
+        tab.addWidget(new MapWidgetSelectionBox() {
+            private boolean ignoreSelectedItemChange = false;
+
+            @Override
+            public void onAttached() {
+                this.loadItems();
+                super.onAttached();
+            }
+
+            @Override
+            public void onStatusChanged(MapStatusEvent event) {
+                super.onStatusChanged(event);
+                if (event.isName("PlayerEditState::EditedAnimationNamesChanged")) {
+                    loadItems();
+                }
+            }
+
+            @Override
+            public void onSelectedItemChanged() {
+                boolean isAnimationSelected = (this.getSelectedIndex() >= 1);
+                if (!this.ignoreSelectedItemChange) {
+                    state.setSelectedAnimation(isAnimationSelected ? this.getSelectedItem() : null);
+                }
+                removeButton.setEnabled(isAnimationSelected);
+            }
+
+            @Override
+            public void onActivate() {
+                state.setSelectedAnimation(null);
+                getDisplay().playSound(CommonSounds.EXTINGUISH);
+            }
+
+            private void loadItems() {
+                this.ignoreSelectedItemChange = true;
+                this.clearItems();
+                this.addItem("<None>");
+                this.setSelectedIndex(0);
+                for (String animationName : state.getEditedAnimationNames()) {
+                    this.addItem(animationName);
+                    if (animationName.equals(state.getSelectedAnimation())) {
+                        this.setSelectedItem(animationName);
+                    }
+                }
+                this.ignoreSelectedItemChange = false;
+            }
+        }).setBounds(12, 14, 94, 12);
     }
 }
