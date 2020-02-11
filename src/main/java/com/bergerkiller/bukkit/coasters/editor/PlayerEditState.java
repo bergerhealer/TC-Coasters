@@ -730,7 +730,7 @@ public class PlayerEditState implements CoasterWorldAccess {
             Vector pos = eyeLoc.toVector().add(eyeLoc.getDirection().multiply(1.5));
             new_rail = new IntVector3(pos.getBlockX(), pos.getBlockY(), pos.getBlockZ());
         }
-        setRailBlock(new_rail);
+        setRailBlock(new_rail, this.player.isSneaking());
     }
 
     /**
@@ -739,6 +739,16 @@ public class PlayerEditState implements CoasterWorldAccess {
      * @param new_rail to set to, null to reset
      */
     public void setRailBlock(IntVector3 new_rail) throws ChangeCancelledException {
+        setRailBlock(new_rail, false);
+    }
+
+    /**
+     * Sets the rails block to the rail block coordinates specified
+     * 
+     * @param new_rail to set to, null to reset
+     * @param relative whether the rail blocks of all nodes should maintain the same relative positions
+     */
+    public void setRailBlock(IntVector3 new_rail, boolean relative) throws ChangeCancelledException {
         // Deselect nodes we cannot edit
         this.deselectLockedNodes();
 
@@ -766,17 +776,25 @@ public class PlayerEditState implements CoasterWorldAccess {
             return;
         }
 
-        // Use last selected node as a basis for the movement
-        IntVector3 diff = new_rail.subtract(lastEdited.getRailBlock(true));
-        if (diff.equals(IntVector3.ZERO)) {
-            return; // No changes
-        }
+        if (relative) {
+            // Use last selected node as a basis for the movement
+            IntVector3 diff = new_rail.subtract(lastEdited.getRailBlock(true));
+            if (diff.equals(IntVector3.ZERO)) {
+                return; // No changes
+            }
 
-        // Offset all edited nodes by diff
-        HistoryChange changes = this.getHistory().addChangeGroup();
-        for (TrackNode node : this.getEditedNodes()) {
-            IntVector3 node_new_rail = node.getRailBlock(true).add(diff);
-            setRailForNode(changes, node, node_new_rail);
+            // Offset all edited nodes by diff
+            HistoryChange changes = this.getHistory().addChangeGroup();
+            for (TrackNode node : this.getEditedNodes()) {
+                IntVector3 node_new_rail = node.getRailBlock(true).add(diff);
+                setRailForNode(changes, node, node_new_rail);
+            }
+        } else {
+            // Set the same rails block for all selected nodes
+            HistoryChange changes = this.getHistory().addChangeGroup();
+            for (TrackNode node : this.getEditedNodes()) {
+                setRailForNode(changes, node, new_rail);
+            }
         }
     }
 
