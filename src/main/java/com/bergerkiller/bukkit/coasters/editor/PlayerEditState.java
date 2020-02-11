@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
@@ -822,6 +823,37 @@ public class PlayerEditState implements CoasterWorldAccess {
             // No animation is selected for this node, presume the rail block should be updated for all animation states
             for (TrackNodeAnimationState state : node.getAnimationStates()) {
                 node.setAnimationState(state.name, state.state.changeRail(new_rail), state.connections);
+            }
+        }
+    }
+
+    /**
+     * Transforms the position of all selected nodes using a transformation function
+     * 
+     * @param manipulator The function that transforms the input Vector
+     * @throws ChangeCancelledException
+     */
+    public void transformPosition(Consumer<Vector> manipulator) throws ChangeCancelledException {
+        // Deselect locked nodes that we cannot edit
+        this.deselectLockedNodes();
+
+        HistoryChange changes = null;
+        for (TrackNode node : this.getEditedNodes()) {
+            if (changes == null) {
+                changes = this.getHistory().addChangeGroup();
+            }
+
+            changes.handleChangeBefore(this.player, node);
+            TrackNodeState startState = node.getState();
+            Vector pos = node.getPosition().clone();
+            manipulator.accept(pos);
+            node.setPosition(pos);
+            changes.addChangeAfterChangingNode(this.player, node, startState);
+
+            // Refresh selected animation state of node too, if one is selected for this node
+            TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
+            if (animState != null) {
+                node.setAnimationState(animState.name, animState.state.changePosition(pos), animState.connections);
             }
         }
     }

@@ -643,6 +643,82 @@ public class TCCoasters extends PluginBase {
                 }
             });
             return true;
+        } else if (args.length > 0 && LogicUtil.contains(args[0], "posx", "posy", "posz", "setx", "sety", "setz")) {
+            if (args.length == 1) {
+                sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " (add) [value]");
+                sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " average");
+                return true;
+            }
+
+            boolean add = LogicUtil.contains(args[1], "add", "rel", "relative", "move", "off", "offset");
+            boolean avg = LogicUtil.contains(args[1], "avg", "average");
+            if (add && args.length == 2) {
+                sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " add [value]");
+                return true;
+            }
+
+            state.deselectLockedNodes();
+            if (state.getEditedNodes().isEmpty()) {
+                sender.sendMessage("You don't have any nodes selected!");
+                return true;
+            }
+
+            boolean modify_x = LogicUtil.contains(args[0], "posx", "setx");
+            boolean modify_y = LogicUtil.contains(args[0], "posy", "sety");
+            boolean modify_z = LogicUtil.contains(args[0], "posz", "setz");
+
+            final double value;
+            if (avg) {
+                // Compute average value for the selected axis
+                double averageValue = 0.0;
+                for (TrackNode node : state.getEditedNodes()) {
+                    if (modify_x) {
+                        averageValue += node.getPosition().getX();
+                    } else if (modify_y) {
+                        averageValue += node.getPosition().getY();
+                    } else if (modify_z) {
+                        averageValue += node.getPosition().getZ();
+                    }
+                }
+                value = averageValue / state.getEditedNodes().size();
+            } else {
+                // User input
+                value = ParseUtil.parseDouble(add ? args[2] : args[1], Double.NaN);
+                if (Double.isNaN(value)) {
+                    sender.sendMessage(ChatColor.RED + "Invalid value specified!");
+                    return true;
+                }
+            }
+
+            // Perform the actual operation on the x,y or z coordinates of the selected nodes
+            try {
+                if (add) {
+                    if (modify_x) {
+                        state.transformPosition(pos -> pos.setX(pos.getX() + value));
+                        sender.sendMessage(ChatColor.GREEN + "Added "+ value + " to the X-Position of all selected nodes!");
+                    } else if (modify_y) {
+                        state.transformPosition(pos -> pos.setY(pos.getY() + value));
+                        sender.sendMessage(ChatColor.GREEN + "Added "+ value + " to the Y-Position of all selected nodes!");
+                    } else if (modify_z) {
+                        state.transformPosition(pos -> pos.setZ(pos.getZ() + value));
+                        sender.sendMessage(ChatColor.GREEN + "Added "+ value + " to the Z-Position of all selected nodes!");
+                    }
+                } else {
+                    if (modify_x) {
+                        state.transformPosition(pos -> pos.setX(value));
+                        sender.sendMessage(ChatColor.GREEN + "The X-Position of all the selected nodes has been set to " + value + "!");
+                    } else if (modify_y) {
+                        state.transformPosition(pos -> pos.setY(value));
+                        sender.sendMessage(ChatColor.GREEN + "The Y-Position of all the selected nodes has been set to " + value + "!");
+                    } else if (modify_z) {
+                        state.transformPosition(pos -> pos.setZ(value));
+                        sender.sendMessage(ChatColor.GREEN + "The Z-Position of all the selected nodes has been set to " + value + "!");
+                    }
+                }
+            } catch (ChangeCancelledException ex) {
+                sender.sendMessage(ChatColor.RED + "The position of one or more nodes could not be changed");
+                return true;
+            }
         } else if (args.length > 0 && LogicUtil.contains(args[0], "orientation", "ori", "rot", "rotation", "rotate")) {
             state.deselectLockedNodes();
             if (state.getEditedNodes().isEmpty()) {
