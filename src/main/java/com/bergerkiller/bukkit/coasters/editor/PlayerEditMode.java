@@ -114,18 +114,15 @@ public enum PlayerEditMode {
     }
 
     private static void alignPosition(PlayerEditState state, char axis, double value) {
-        state.deselectLockedNodes();
-        for (TrackNode node : state.getEditedNodes()) {
-            Vector v = node.getPosition().clone();
+        try {
             if (axis == 'x') {
-                v.setX(v.getBlockX() + value);
+                state.transformPosition(position -> position.setX(position.getBlockX() + value));
             } else if (axis == 'y') {
-                v.setY(v.getBlockY() + value);
+                state.transformPosition(position -> position.setY(position.getBlockY() + value));
             } else if (axis == 'z') {
-                v.setZ(v.getBlockZ() + value);
+                state.transformPosition(position -> position.setZ(position.getBlockZ() + value));
             }
-            node.setPosition(v);
-        }
+        } catch (ChangeCancelledException ex) {}
     }
 
     private static void createOrientationView(MapWidgetTabView.Tab tab, PlayerEditState state) {
