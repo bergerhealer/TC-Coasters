@@ -5,7 +5,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 
 import org.bukkit.block.BlockFace;
-import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;

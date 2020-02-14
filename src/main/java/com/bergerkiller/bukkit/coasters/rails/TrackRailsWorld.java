@@ -1,10 +1,11 @@
 package com.bergerkiller.bukkit.coasters.rails;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -19,16 +20,22 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.util.RailSectionBlockIterator;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
-import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.LinkedListMultimap;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.SetMultimap;
 
 /**
  * Tracks the lookup of rails information from block positions on a single world
  */
 public class TrackRailsWorld extends CoasterWorldAccess.Component {
-    private final Map<IntVector3, List<TrackRailsSection>> sectionsByRails = new HashMap<IntVector3, List<TrackRailsSection>>();
-    private final Map<IntVector3, List<TrackRailsSection>> sectionsByBlock = new HashMap<IntVector3, List<TrackRailsSection>>();
+    private final ListMultimap<IntVector3, TrackRailsSection> sectionsByRails = LinkedListMultimap.create(10000);
+    private final SetMultimap<IntVector3, TrackRailsSection> sectionsByBlock = HashMultimap.create(10000, 2);
+    private final Map<TrackNode, TrackNodeMeta> trackNodeMeta = new IdentityHashMap<TrackNode, TrackNodeMeta>();
+    private final HashSet<IntVector3> addedTrackBlocks = new HashSet<IntVector3>();
+    private final HashSet<IntVector3> addedTrackRails = new HashSet<IntVector3>();
 
     public TrackRailsWorld(CoasterWorldAccess world) {
         super(world);
@@ -39,16 +46,16 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
         this.sectionsByRails.clear();
     }
 
-    public List<TrackRailsSection> findAtBlock(Block block) {
-        return LogicUtil.fixNull(sectionsByBlock.get(new IntVector3(block)), Collections.<TrackRailsSection>emptyList());
+    public Collection<TrackRailsSection> findAtBlock(Block block) {
+        return sectionsByBlock.get(new IntVector3(block));
     }
 
     public List<TrackRailsSection> findAtRails(Block railsBlock) {
-        return LogicUtil.fixNull(sectionsByRails.get(new IntVector3(railsBlock)), Collections.<TrackRailsSection>emptyList());
+        return sectionsByRails.get(new IntVector3(railsBlock));
     }
 
     public List<TrackRailsSection> findAtRails(int x, int y, int z) {
-        return LogicUtil.fixNull(sectionsByRails.get(new IntVector3(x, y, z)), Collections.<TrackRailsSection>emptyList());
+        return sectionsByRails.get(new IntVector3(x, y, z));
     }
 
     /**
@@ -78,39 +85,67 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
      * @param nodes
      */
     public void purge(Collection<TrackNode> nodes) {
-        HashSet<TrackRailsSection> sectionsToReAdd = new HashSet<TrackRailsSection>();
-        removeFromMap(sectionsByRails, nodes, sectionsToReAdd);
-        removeFromMap(sectionsByBlock, nodes, sectionsToReAdd);
-        for (TrackRailsSection reAdd : sectionsToReAdd) {
-            addSectionToMap(reAdd);
+        try {
+            // Collect all block and rail coordinates affected
+            for (TrackNode node : nodes) {
+                TrackNodeMeta meta = trackNodeMeta.remove(node);
+                if (meta != null) {
+                    addedTrackRails.add(meta.rails);
+                    addedTrackBlocks.addAll(Arrays.asList(meta.blocks));
+                }
+            }
+
+            // Remove from the found coordinates
+            HashSet<TrackRailsSection> sectionsToReAdd = new HashSet<TrackRailsSection>();
+            for (IntVector3 railBlock : addedTrackRails) {
+                removeFromMap(sectionsByRails.get(railBlock), nodes, sectionsToReAdd);
+            }
+            for (IntVector3 posBlock : addedTrackBlocks) {
+                removeFromMap(sectionsByBlock.get(posBlock), nodes, sectionsToReAdd);
+            }
+
+            // Re-add sections that were merged
+            for (TrackRailsSection reAdd : sectionsToReAdd) {
+                addSectionToMap(reAdd);
+            }
+        } finally {
+            addedTrackRails.clear();
+            addedTrackBlocks.clear();
         }
     }
 
     public void store(TrackNode node) {
-        // If no connections, don't map it in the world at all - it does nothing
-        List<TrackConnection> connections = node.getConnections();
-        if (connections.isEmpty()) {
-            return;
-        }
-
-        // First 1 or 2 connections, which connect to each other and are selected
-        addSectionToMap(new TrackRailsSection(node, node.buildPath(), true));
-
-        // All other kinds of connections lead to their best fit
-        if (connections.size() > 2) {
-            Vector dir0 = connections.get(0).getDirection(node);
-            Vector dir1 = connections.get(1).getDirection(node);
-            for (int i = 2; i < connections.size(); i++) {
-                TrackConnection conn = connections.get(i);
-                TrackConnection other;
-                Vector dir = conn.getDirection(node);
-                if (dir0.dot(dir) > dir1.dot(dir)) {
-                    other = connections.get(1);
-                } else {
-                    other = connections.get(0);
-                }
-                addSectionToMap(new TrackRailsSection(node, node.buildPath(conn, other), false));
+        try {
+            // If no connections, don't map it in the world at all - it does nothing
+            List<TrackConnection> connections = node.getConnections();
+            if (connections.isEmpty()) {
+                return;
             }
+
+            // First 1 or 2 connections, which connect to each other and are selected
+            addSectionToMap(new TrackRailsSection(node, node.buildPath(), true));
+
+            // All other kinds of connections lead to their best fit
+            if (connections.size() > 2) {
+                Vector dir0 = connections.get(0).getDirection(node);
+                Vector dir1 = connections.get(1).getDirection(node);
+                for (int i = 2; i < connections.size(); i++) {
+                    TrackConnection conn = connections.get(i);
+                    TrackConnection other;
+                    Vector dir = conn.getDirection(node);
+                    if (dir0.dot(dir) > dir1.dot(dir)) {
+                        other = connections.get(1);
+                    } else {
+                        other = connections.get(0);
+                    }
+                    addSectionToMap(new TrackRailsSection(node, node.buildPath(conn, other), false));
+                }
+            }
+
+            // Map all added nodes to the track node
+            trackNodeMeta.put(node, new TrackNodeMeta(node.getRailBlock(true), addedTrackBlocks));
+        } finally {
+            addedTrackBlocks.clear();
         }
     }
 
@@ -120,16 +155,10 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
         // Only do this for primary sections, never for non-primary (junctions) to prevent issues.
         {
             List<TrackRailsSection> sectionsAtRails = sectionsByRails.get(section.rails);
-            if (sectionsAtRails == null) {
+            if (sectionsAtRails.isEmpty()) {
                 // No sections here, store it and nothing special
-                sectionsByRails.put(section.rails, Collections.singletonList(section));
+                sectionsAtRails.add(section);
             } else {
-                // Make the list mutable first
-                if (sectionsAtRails.size() == 1) {
-                    sectionsAtRails = new ArrayList<TrackRailsSection>(sectionsAtRails);
-                    sectionsByRails.put(section.rails, sectionsAtRails);
-                }
-
                 // Try to merge it with existing track sections at these rails
                 if (section.primary) {
                     List<TrackRailsSection> sectionsToMerge = new ArrayList<TrackRailsSection>(2);
@@ -174,7 +203,12 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
 
                         // Remove sections we are replacing from the by-block-position mapping
                         for (TrackRailsSection mergedSection : sectionsToMerge) {
-                            removeFromSectionsByBlock(mergedSection);
+                            TrackNodeMeta meta = trackNodeMeta.get(mergedSection.node);
+                            if (meta != null) {
+                                for (IntVector3 posBlock : meta.blocks) {
+                                    sectionsByBlock.get(posBlock).remove(mergedSection);
+                                }
+                            }
                         }
 
                         // Now create a single linked section from all the sections we've gathered
@@ -183,12 +217,7 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
                 }
 
                 // Add section to list
-                // If the list is presently empty (after a merge), store a singleton list instead
-                if (sectionsAtRails.isEmpty()) {
-                    sectionsByRails.put(section.rails, Collections.singletonList(section));
-                } else {
-                    sectionsAtRails.add(section);
-                }
+                sectionsAtRails.add(section);
             }
         }
 
@@ -196,82 +225,65 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
         for (RailPath.Segment segment : section.path.getSegments()) {
             RailSectionBlockIterator iter = new RailSectionBlockIterator(segment, section.rails);
             do {
-                addToMap(sectionsByBlock, iter.block(), section);
+                mapSectionToBlock(iter.block(), section);
                 for (IntVector3 around : iter.around(0.4)) {
-                    addToMap(sectionsByBlock, around, section);
+                    mapSectionToBlock(around, section);
                 }
             } while (iter.next());
             for (IntVector3 around : iter.aroundEnd(0.4)) {
-                addToMap(sectionsByBlock, around, section);
+                mapSectionToBlock(around, section);
             }
         }
     }
 
-    private static void removeFromMap(Map<IntVector3, List<TrackRailsSection>> map, Collection<TrackNode> nodes, Set<TrackRailsSection> sectionsToReAdd) {
-        Iterator<List<TrackRailsSection>> iter = map.values().iterator();
-        while (iter.hasNext()) {
-            List<TrackRailsSection> sections = iter.next();
-            if (sections.size() == 1) {
-                // Single section (or linked section) is stored
-                TrackRailsSection section = sections.get(0);
-                if (!section.containsNode(nodes)) {
-                    continue;
-                }
+    private void mapSectionToBlock(IntVector3 key, TrackRailsSection section) {
+        if (sectionsByBlock.get(key).add(section)) {
+            addedTrackBlocks.add(key);
+        }
+    }
 
-                // Sub-sections that should not be removed, should be re-added later
-                if (section instanceof TrackRailsSectionLinked) { // optimization. Can remove.
-                    for (TrackRailsSection part : section.getAllSections()) {
-                        if (!part.containsNode(nodes)) {
-                            sectionsToReAdd.add(part);
-                        }
+    private static void removeFromMap(Collection<TrackRailsSection> sections, Collection<TrackNode> nodes, Set<TrackRailsSection> sectionsToReAdd) {
+        Iterator<TrackRailsSection> sections_iter = sections.iterator();
+        if (sections.size() == 1) {
+            // Single section (or linked section) is stored
+            TrackRailsSection section = sections_iter.next();
+            if (!section.containsNode(nodes)) {
+                return;
+            }
+
+            // Sub-sections that should not be removed, should be re-added later
+            if (section instanceof TrackRailsSectionLinked) { // optimization. Can remove.
+                for (TrackRailsSection part : section.getAllSections()) {
+                    if (!part.containsNode(nodes)) {
+                        sectionsToReAdd.add(part);
                     }
                 }
+            }
 
-                // Remove entry entirely
-                iter.remove();
-            } else {
-                // Multiple sections are stored in an ArrayList
-                for (int i = sections.size()-1; i >= 0; i--) {
-                    TrackRailsSection section = sections.get(i);
-                    if (section.containsNode(nodes)) {
+            // Remove entry entirely
+            sections_iter.remove();
+        } else {
+            // Multiple sections are stored in an ArrayList
+            while (sections_iter.hasNext()) {
+                TrackRailsSection section = sections_iter.next();
+                if (section.containsNode(nodes)) {
 
-                        // Sub-sections that should not be removed, should be re-added later
-                        if (section instanceof TrackRailsSectionLinked) { // optimization. Can remove.
-                            for (TrackRailsSection part : section.getAllSections()) {
-                                if (!part.containsNode(nodes)) {
-                                    sectionsToReAdd.add(part);
-                                }
+                    // Sub-sections that should not be removed, should be re-added later
+                    if (section instanceof TrackRailsSectionLinked) { // optimization. Can remove.
+                        for (TrackRailsSection part : section.getAllSections()) {
+                            if (!part.containsNode(nodes)) {
+                                sectionsToReAdd.add(part);
                             }
                         }
-
-                        sections.remove(i);
                     }
-                }
 
-                // Remove empty lists entirely
-                if (sections.isEmpty()) {
-                    iter.remove();
+                    sections_iter.remove();
                 }
             }
         }
     }
 
-    private void removeFromSectionsByBlock(TrackRailsSection section) {
-        Iterator<Map.Entry<IntVector3, List<TrackRailsSection>>> iter = this.sectionsByBlock.entrySet().iterator();
-        while (iter.hasNext()) {
-            Map.Entry<IntVector3, List<TrackRailsSection>> entry = iter.next();
-            List<TrackRailsSection> list = entry.getValue();
-            if (list.size() == 1) {
-                if (list.get(0) == section) {
-                    iter.remove();
-                }
-            } else {
-                list.remove(section);
-            }
-        }
-    }
-
-    @SuppressWarnings("unused")
+    /*
     private void addToSectionsByBlock(BlockRelativePosition position, TrackRailsSection section) {
         int min_x = position.block_x;
         int max_x = position.block_x;
@@ -303,24 +315,7 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
             }
         }
     }
-
-    private static boolean addToMap(Map<IntVector3, List<TrackRailsSection>> map, IntVector3 key, TrackRailsSection section) {
-        List<TrackRailsSection> list = map.get(key);
-        if (list == null) {
-            map.put(key, Collections.singletonList(section));
-            return true;
-        } else if (!list.contains(section)) {
-            if (list.size() == 1) {
-                // Make mutable
-                list = new ArrayList<TrackRailsSection>(list);
-                map.put(key, list);
-            }
-            list.add(section);
-            return true;
-        } else {
-            return false;
-        }
-    }
+    */
 
     /*
     public void store(TrackRailsSection section) {
@@ -350,6 +345,19 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
         }
     }
     */
+
+    /**
+     * Stores metadata for a track node, used when purging data for nodes
+     */
+    private static final class TrackNodeMeta {
+        public final IntVector3[] blocks;
+        public final IntVector3 rails;
+
+        public TrackNodeMeta(IntVector3 rails, Set<IntVector3> blocks) {
+            this.rails = rails;
+            this.blocks = blocks.toArray(new IntVector3[blocks.size()]);
+        }
+    }
 
     /**
      * Stores an x/y/z vector by splitting it into a block part (int) and

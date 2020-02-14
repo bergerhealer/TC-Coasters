@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -54,7 +55,7 @@ public class CoasterRailType extends RailType {
 
     @Override
     public List<Block> findRails(Block pos) {
-        List<TrackRailsSection> rails = getRails(pos.getWorld()).findAtBlock(pos);
+        Collection<TrackRailsSection> rails = getRails(pos.getWorld()).findAtBlock(pos);
         if (rails.isEmpty()) {
             return Collections.emptyList();
         } else {
