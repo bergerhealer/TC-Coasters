@@ -17,6 +17,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.entity.CommonEntity;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.cache.RailMemberCache;
@@ -264,6 +265,8 @@ public class TrackAnimationWorld extends CoasterWorldAccess.Component {
     }
 
     private static void applyPosition(MinecartMember<?> member, double x, double y, double z) {
-        member.getEntity().setPosition(x, y, z);
+        CommonEntity<?> entity = member.getEntity();
+        entity.setPosition(x, y, z);
+        entity.setPositionChanged(true);
     }
 }
