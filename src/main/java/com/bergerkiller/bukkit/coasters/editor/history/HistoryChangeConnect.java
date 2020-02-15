@@ -12,7 +12,7 @@ public class HistoryChangeConnect extends HistoryChange {
     private final TrackConnectionState state;
 
     public HistoryChangeConnect(TrackNode nodeA, TrackNode nodeB) {
-        this(nodeA, TrackConnectionState.create(nodeA.getPosition(), nodeB.getPosition()));
+        this(nodeA.getWorld(), TrackConnectionState.create(nodeA.getPosition(), nodeB.getPosition()));
     }
 
     public HistoryChangeConnect(CoasterWorldAccess world, TrackConnectionState state) {

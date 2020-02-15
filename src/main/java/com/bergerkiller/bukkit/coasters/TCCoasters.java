@@ -567,7 +567,7 @@ public class TCCoasters extends PluginBase {
                         sender.sendMessage(ChatColor.RED + "Failed to import coaster: " + t.error());
                         return;
                     }
-                    TrackCoaster coaster = state.getTracks().createNewEmpty(generateNewCoasterName());
+                    TrackCoaster coaster = state.getWorld().getTracks().createNewEmpty(generateNewCoasterName());
                     try {
                         coaster.loadFromStream(t.contentInputStream(), PlayerOrigin.getForPlayer(state.getPlayer()));
                         if (coaster.getNodes().isEmpty()) {

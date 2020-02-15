@@ -109,7 +109,7 @@ public class PlayerEditClipboard {
 
         // Create new coaster and all nodes on the clipboard
         HistoryChange history = this._state.getHistory().addChangeGroup();
-        TrackWorld tracks = this._state.getTracks();
+        TrackWorld tracks = this._state.getWorld().getTracks();
         TrackCoaster coaster = tracks.createNewEmpty();
 
         try {

@@ -196,7 +196,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
 
             // Check whether a particle is reasonably nearby
             // This acts as an extra safeguard against weird bugs happening elsewhere on the world
-            if (!state.getParticles().isParticleNearby(event.getPlayer())) {
+            if (!state.getWorld().getParticles().isParticleNearby(event.getPlayer())) {
                 return;
             }
 
@@ -219,7 +219,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
 
         if (event.getType() == PacketType.IN_USE_ENTITY) {
             int entityId = event.getPacket().read(PacketType.IN_USE_ENTITY.clickedEntityId);
-            if (!state.getParticles().isParticle(event.getPlayer(), entityId)) {
+            if (!state.getWorld().getParticles().isParticle(event.getPlayer(), entityId)) {
                 return; // Not one of our own entities
             }
 

@@ -16,6 +16,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.entity.CommonEntity;
 import com.bergerkiller.bukkit.common.math.Quaternion;
@@ -27,12 +28,18 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 /**
  * Tracks the running node animations and makes sure trains move along with them
  */
-public class TrackAnimationWorld extends CoasterWorldAccess.Component {
+public class TrackAnimationWorld implements CoasterWorldComponent {
+    private final CoasterWorldAccess _world;
     private final Map<TrackNode, TrackAnimation> _animations = new IdentityHashMap<>();
     private final List<RailPath.Point> _pointsCache = new ArrayList<RailPath.Point>();
 
     public TrackAnimationWorld(CoasterWorldAccess world) {
-        super(world);
+        this._world = world;
+    }
+
+    @Override
+    public final CoasterWorldAccess getWorld() {
+        return this._world;
     }
 
     public void animate(TrackNode node, TrackNodeState target, TrackNodeReference[] node_connections, double duration) {
@@ -76,7 +83,7 @@ public class TrackAnimationWorld extends CoasterWorldAccess.Component {
                             connectedNodes.add(connected);
                         }
                     }
-                    anim.node.getTracks().resetConnections(anim.node, connectedNodes);
+                    getWorld().getTracks().resetConnections(anim.node, connectedNodes);
                 } else if (anim.isAtStart()) {
                     // Remove all connections not part of the target animation state
                     for (TrackConnection conn : anim.node.getConnections()) {

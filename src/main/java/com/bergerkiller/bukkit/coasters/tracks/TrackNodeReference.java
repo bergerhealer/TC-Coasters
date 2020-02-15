@@ -21,7 +21,7 @@ public class TrackNodeReference {
     }
 
     public TrackNodeReference(TrackNode node) {
-        this.world = node.getTracks();
+        this.world = node.getWorld().getTracks();
         this.node = node;
         this.position = null;
     }

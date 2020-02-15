@@ -92,7 +92,7 @@ public class TrackConnection implements Lockable {
      * Removes this connection, disconnecting the two nodes
      */
     public void remove() {
-        this.getNodeA().getTracks().disconnect(this.getNodeA(), this.getNodeB());
+        this.getNodeA().getWorld().getTracks().disconnect(this.getNodeA(), this.getNodeB());
     }
 
     /**
@@ -165,7 +165,7 @@ public class TrackConnection implements Lockable {
             }
             this.lines.clear();
 
-            TrackParticleWorld pworld = this._endA.node.getCoaster().getParticles();
+            TrackParticleWorld pworld = this._endA.node.getWorld().getParticles();
             for (int i = 0; i < (n-1); i++) {
                 this.lines.add(pworld.addParticleLine(points[i], points[i + 1]));
             }

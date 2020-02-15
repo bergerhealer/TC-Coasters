@@ -112,8 +112,8 @@ public class TCCoastersDisplay extends MapDisplay {
         return this.getOwners().get(0);
     }
 
-    public CoasterWorldAccess getCoasterWorld() {
-        return getState().getCoasterWorld();
+    public CoasterWorldAccess getWorld() {
+        return getState().getWorld();
     }
 
     @Override

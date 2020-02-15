@@ -11,19 +11,18 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 /**
  * Everything from TC Coasters that is accessible for a single World
  */
-public interface CoasterWorldAccess {
+public interface CoasterWorldAccess extends CoasterWorldComponent {
     /**
-     * Gets the TC Coasters plugin instance
+     * Gets the Coaster World instance, the root of all the different components
      * 
-     * @return TC Coasters plugin
+     * @return Coaster World
      */
+    default CoasterWorldAccess getWorld() { return this; }
+
+    @Override
     TCCoasters getPlugin();
 
-    /**
-     * Gets the Bukkit World
-     * 
-     * @return World
-     */
+    @Override
     World getBukkitWorld();
 
     /**
@@ -53,45 +52,4 @@ public interface CoasterWorldAccess {
      * @return animations
      */
     TrackAnimationWorld getAnimations();
-
-    /**
-     * Component of a Coaster World. Simplifies access to world-specific operations.
-     */
-    public static class Component implements CoasterWorldAccess {
-        private final CoasterWorldAccess _world;
-
-        public Component(CoasterWorldAccess world) {
-            this._world = world;
-        }
-
-        @Override
-        public TCCoasters getPlugin() {
-            return this._world.getPlugin();
-        }
-
-        @Override
-        public World getBukkitWorld() {
-            return this._world.getBukkitWorld();
-        }
-
-        @Override
-        public TrackWorld getTracks() {
-            return this._world.getTracks();
-        }
-
-        @Override
-        public TrackParticleWorld getParticles() {
-            return this._world.getParticles();
-        }
-
-        @Override
-        public TrackRailsWorld getRails() {
-            return this._world.getRails();
-        }
-
-        @Override
-        public TrackAnimationWorld getAnimations() {
-            return this._world.getAnimations();
-        }
-    }
 }

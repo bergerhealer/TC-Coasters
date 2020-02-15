@@ -14,21 +14,28 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 
 /**
  * Stores all the track groups and the special connections between track nodes.
  * There is one storage per world.
  */
-public class TrackWorld extends CoasterWorldAccess.Component {
+public class TrackWorld implements CoasterWorldComponent {
+    private final CoasterWorldAccess _world;
     private final List<TrackCoaster> _coasters;
     private final Set<TrackNode> _changedNodes;
     private final List<TrackNode> _changedNodesLive;
 
     public TrackWorld(CoasterWorldAccess world) {
-        super(world);
+        this._world = world;
         this._coasters = new ArrayList<TrackCoaster>();
         this._changedNodes = new HashSet<TrackNode>();
         this._changedNodesLive = new ArrayList<TrackNode>();
+    }
+
+    @Override
+    public final CoasterWorldAccess getWorld() {
+        return this._world;
     }
 
     /**
@@ -184,7 +191,7 @@ public class TrackWorld extends CoasterWorldAccess.Component {
     public TrackCoaster createNewEmpty(String coasterName) {
         TrackCoaster coaster = this.findCoaster(coasterName);
         if (coaster == null) {
-            coaster = new TrackCoaster(this, coasterName);
+            coaster = new TrackCoaster(this.getWorld(), coasterName);
             this._coasters.add(coaster);
         }
         return coaster;
@@ -364,7 +371,7 @@ public class TrackWorld extends CoasterWorldAccess.Component {
         this._coasters.clear();
         this._changedNodes.clear();
 
-        this.getRails().clear();
+        this.getWorld().getRails().clear();
     }
 
     /**
@@ -386,7 +393,7 @@ public class TrackWorld extends CoasterWorldAccess.Component {
 
         // Build and load all coasters
         for (String name : coasterNames) {
-            TrackCoaster coaster = new TrackCoaster(this, name);
+            TrackCoaster coaster = new TrackCoaster(this.getWorld(), name);
             this._coasters.add(coaster);
             coaster.load();
         }
@@ -432,11 +439,11 @@ public class TrackWorld extends CoasterWorldAccess.Component {
             }
 
             // Purge all cached rail information for the changed nodes
-            this.getRails().purge(this._changedNodes);
+            this.getWorld().getRails().purge(this._changedNodes);
 
             // Re-create all the cached rail information for the changed nodes
             for (TrackNode changedNode : this._changedNodes) {
-                this.getRails().store(changedNode);
+                this.getWorld().getRails().store(changedNode);
             }
             this._changedNodes.clear();
         }

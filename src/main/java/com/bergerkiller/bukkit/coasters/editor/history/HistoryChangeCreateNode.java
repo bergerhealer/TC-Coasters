@@ -14,7 +14,7 @@ public class HistoryChangeCreateNode extends HistoryChange {
     private final TrackNodeState state;
 
     public HistoryChangeCreateNode(TrackNode node) {
-        this(node, node.getCoaster().getName(), node.getState());
+        this(node.getWorld(), node.getCoaster().getName(), node.getState());
     }
 
     public HistoryChangeCreateNode(CoasterWorldAccess world, String coasterName, TrackNodeState state) {

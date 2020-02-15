@@ -20,22 +20,29 @@ import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVWriter;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 
 /**
  * All the nodes belonging to a single coaster.
  * Properties applied to all the nodes of the coaster are stored here.
  */
-public class TrackCoaster extends CoasterWorldAccess.Component implements Lockable {
+public class TrackCoaster implements CoasterWorldComponent, Lockable {
+    private final CoasterWorldAccess _world;
     private String _name;
     private List<TrackNode> _nodes;
     private boolean _changed = false;
     private boolean _locked = false;
 
-    protected TrackCoaster(CoasterWorldAccess.Component world, String name) {
-        super(world);
+    protected TrackCoaster(CoasterWorldAccess world, String name) {
+        this._world = world;
         this._name = name;
         this._nodes = new ArrayList<TrackNode>();
         this._changed = false;
+    }
+
+    @Override
+    public final CoasterWorldAccess getWorld() {
+        return this._world;
     }
 
     /**
@@ -81,10 +88,10 @@ public class TrackCoaster extends CoasterWorldAccess.Component implements Lockab
 
     public void removeNode(TrackNode node) {
         if (this._nodes.remove(node)) {
-            this.getTracks().disconnectAll(node);
+            this.getWorld().getTracks().disconnectAll(node);
             node.onRemoved();
-            this.getTracks().cancelNodeRefresh(node);
-            this.getRails().purge(node);
+            this.getWorld().getTracks().cancelNodeRefresh(node);
+            this.getWorld().getRails().purge(node);
             this.getPlugin().forAllEditStates(editState -> editState.setEditing(node, false));
             this.markChanged();
         }
@@ -147,7 +154,7 @@ public class TrackCoaster extends CoasterWorldAccess.Component implements Lockab
      * Removes this coaster from the world, clearing all nodes contained within
      */
     public void remove() {
-        getTracks().removeCoaster(this);
+        getWorld().getTracks().removeCoaster(this);
     }
 
     /**
@@ -155,7 +162,7 @@ public class TrackCoaster extends CoasterWorldAccess.Component implements Lockab
      */
     public void clear() {
         for (TrackNode node : this._nodes) {
-            this.getTracks().disconnectAll(node);
+            this.getWorld().getTracks().disconnectAll(node);
             node.onRemoved();
         }
         this._nodes.clear();
@@ -182,7 +189,7 @@ public class TrackCoaster extends CoasterWorldAccess.Component implements Lockab
         // this indicates saving failed previously inbetween deleting and renaming the .tmp to .csv.
         // We must load the .tmp file instead, then, but also log a warning about this!
         String baseName = TCCoasters.escapeName(this.getName());
-        File folder = this.getTracks().getConfigFolder();
+        File folder = this.getWorld().getTracks().getConfigFolder();
         File tmpFile = new File(folder, baseName + ".csv.tmp");
         File realFile = new File(folder, baseName + ".csv");
         if (!realFile.exists()) {
@@ -256,7 +263,7 @@ public class TrackCoaster extends CoasterWorldAccess.Component implements Lockab
         // Save coaster information to a tmp file first
         boolean success = false;
         String baseName = TCCoasters.escapeName(this.getName());
-        File folder = this.getTracks().getConfigFolder();
+        File folder = this.getWorld().getTracks().getConfigFolder();
         File tmpFile = new File(folder, baseName + ".csv.tmp");
         File realFile = new File(folder, baseName + ".csv");
         try (TrackCoasterCSVWriter writer = new TrackCoasterCSVWriter(new FileOutputStream(tmpFile, false))) {

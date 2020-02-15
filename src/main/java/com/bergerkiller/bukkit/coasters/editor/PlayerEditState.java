@@ -24,13 +24,10 @@ import org.bukkit.util.Vector;
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil.TargetedBlockInfo;
-import com.bergerkiller.bukkit.coasters.animation.TrackAnimationWorld;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
 import com.bergerkiller.bukkit.coasters.events.CoasterSelectNodeEvent;
-import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
-import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
@@ -40,6 +37,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
@@ -61,7 +59,7 @@ import com.google.common.collect.TreeMultimap;
  * Note that this state is only ever valid for the World the player is on.
  * When the player changed world, any edited nodes are automatically cleared.
  */
-public class PlayerEditState implements CoasterWorldAccess {
+public class PlayerEditState implements CoasterWorldComponent {
     private static final int EDIT_AUTO_TIMEOUT = 100;
     private final TCCoasters plugin;
     private final Player player;
@@ -92,6 +90,20 @@ public class PlayerEditState implements CoasterWorldAccess {
         this.clipboard = new PlayerEditClipboard(this);
     }
 
+    /**
+     * Gets the coaster world the player is currently on
+     * 
+     * @return coaster world
+     */
+    @Override
+    public CoasterWorldAccess getWorld() {
+        World bukkitWorld = this.player.getWorld();
+        if (this.cachedCoasterWorld == null || this.cachedCoasterWorld.getBukkitWorld() != bukkitWorld) {
+            this.cachedCoasterWorld = this.plugin.getCoasterWorld(bukkitWorld);
+        }
+        return this.cachedCoasterWorld;
+    }
+
     public void load() {
         FileConfiguration config = this.plugin.getPlayerConfig(this.player);
         if (config.exists()) {
@@ -112,7 +124,7 @@ public class PlayerEditState implements CoasterWorldAccess {
                             x = Double.parseDouble(coords[0]);
                             y = Double.parseDouble(coords[1]);
                             z = Double.parseDouble(coords[2]);
-                            TrackNode node = getTracks().findNodeExact(new Vector(x, y, z));
+                            TrackNode node = getWorld().getTracks().findNodeExact(new Vector(x, y, z));
                             if (node != null) {
                                 this.editedNodes.put(node, new PlayerEditNode(node));
                                 for (TrackNodeAnimationState animation : node.getAnimationStates()) {
@@ -352,8 +364,8 @@ public class PlayerEditState implements CoasterWorldAccess {
             this.changed = true;
 
             // Mode change may have changed what particles are visible
-            this.getParticles().scheduleViewerUpdate(this.player);
-            this.getParticles().update(this.player);
+            getWorld().getParticles().scheduleViewerUpdate(this.player);
+            getWorld().getParticles().update(this.player);
 
             // Refresh the nodes and their particles based on the mode
             for (TrackNode node : this.getEditedNodes()) {
@@ -477,7 +489,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         TrackConnection bestJunction = null;
         double bestDistance = Double.MAX_VALUE;
 
-        for (TrackCoaster coaster : getCoasterWorld().getTracks().getCoasters()) {
+        for (TrackCoaster coaster : getWorld().getTracks().getCoasters()) {
             for (TrackNode node : coaster.getNodes()) {
                 // Node itself
                 {
@@ -673,7 +685,7 @@ public class PlayerEditState implements CoasterWorldAccess {
                 TrackNode neigh = connection.getOtherNode(node);
                 if (toDelete.contains(neigh)) {
                     changes.addChangeDisconnect(this.player, connection);
-                    node.getTracks().disconnect(node, neigh);
+                    getWorld().getTracks().disconnect(node, neigh);
                     removeConnectionForAnimationStates(node, neigh);
                     removeConnectionForAnimationStates(neigh, node);
                     disconnectedNodes = true;
@@ -896,7 +908,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         // If so, create a node on this connection or node and switch mode to position adjustment
         // This allows for a kind of click-drag creation design
         // TODO: Find connection
-        TrackWorld tracks = getTracks();
+        TrackWorld tracks = getWorld().getTracks();
         Location eyeLoc = getPlayer().getEyeLocation();
         boolean dragAfterCreate = false;
         Vector pos = null;
@@ -986,7 +998,7 @@ public class PlayerEditState implements CoasterWorldAccess {
     }
 
     private void createNewNode(Vector pos, Vector ori, boolean inAir) throws ChangeCancelledException {
-        TrackWorld tracks = getTracks();
+        TrackWorld tracks = getWorld().getTracks();
 
         // Deselect nodes that are locked, to prevent modification
         this.deselectLockedNodes();
@@ -1203,7 +1215,7 @@ public class PlayerEditState implements CoasterWorldAccess {
         // When drag-dropping a node onto a node, 'merge' the two
         // Do so by connecting all other neighbours of the dragged node to the node
         if (this.getMode() == PlayerEditMode.POSITION && this.getEditedNodes().size() == 1) {
-            TrackWorld tracks = this.getTracks();
+            TrackWorld tracks = getWorld().getTracks();
             PlayerEditNode draggedNode = this.editedNodes.values().iterator().next();
             TrackNode droppedNode = null;
 
@@ -1318,48 +1330,5 @@ public class PlayerEditState implements CoasterWorldAccess {
             // Add connection to all animation states
             node.removeAnimationStateConnection(null, new TrackNodeReference(target));
         }
-    }
-
-    /**
-     * Gets the coaster world the player is currently on
-     * 
-     * @return coaster world
-     */
-    public CoasterWorldAccess getCoasterWorld() {
-        World bukkitWorld = this.player.getWorld();
-        if (this.cachedCoasterWorld == null || this.cachedCoasterWorld.getBukkitWorld() != bukkitWorld) {
-            this.cachedCoasterWorld = this.plugin.getCoasterWorld(bukkitWorld);
-        }
-        return this.cachedCoasterWorld;
-    }
-
-    @Override
-    public TCCoasters getPlugin() {
-        return this.plugin;
-    }
-
-    @Override
-    public World getBukkitWorld() {
-        return this.player.getWorld();
-    }
-
-    @Override
-    public TrackWorld getTracks() {
-        return this.getCoasterWorld().getTracks();
-    }
-
-    @Override
-    public TrackParticleWorld getParticles() {
-        return this.getCoasterWorld().getParticles();
-    }
-
-    @Override
-    public TrackRailsWorld getRails() {
-        return this.getCoasterWorld().getRails();
-    }
-
-    @Override
-    public TrackAnimationWorld getAnimations() {
-        return this.getCoasterWorld().getAnimations();
     }
 }

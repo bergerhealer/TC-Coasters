@@ -21,6 +21,7 @@ import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.opencsv.CSVParser;
@@ -97,6 +98,9 @@ public class TrackCoasterCSVReader implements AutoCloseable {
         TrackNode prevNode = null;
         Matrix4x4 transform = null;
 
+        // World the coaster is on
+        CoasterWorldAccess world = coaster.getWorld();
+
         // By default not locked
         coaster.setLocked(false);
 
@@ -120,7 +124,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                 pendingLinks.add(link);
                 prevNode_pendingLinks.add(pos);
                 if (prevNode_hasDefaultAnimationLinks && prevNode.hasAnimationStates()) {
-                    addConnectionToAnimationStates(prevNode, new TrackNodeReference(coaster.getTracks(), pos));
+                    addConnectionToAnimationStates(prevNode, new TrackNodeReference(world.getTracks(), pos));
                 }
                 continue;
             }
@@ -132,7 +136,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                 if (prevNode != null) {
                     TrackNodeReference[] connections = new TrackNodeReference[prevNode_pendingLinks.size()];
                     for (int i = 0; i < connections.length; i++) {
-                        connections[i] = new TrackNodeReference(coaster.getTracks(), prevNode_pendingLinks.get(i));
+                        connections[i] = new TrackNodeReference(world.getTracks(), prevNode_pendingLinks.get(i));
                     }
                     prevNode.setAnimationState(animEntry.name, animEntry.createState(), connections);
                 }
@@ -159,7 +163,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                     List<TrackNodeAnimationState> states = prevNode.getAnimationStates();
                     if (!states.isEmpty()) {
                         TrackNodeAnimationState lastAddedState = states.get(states.size()-1);
-                        TrackNodeReference new_link = new TrackNodeReference(coaster.getTracks(), animLinkEntry.pos);
+                        TrackNodeReference new_link = new TrackNodeReference(world.getTracks(), animLinkEntry.pos);
                         TrackNodeReference[] new_connections = LogicUtil.appendArray(lastAddedState.connections, new_link);
                         prevNode.setAnimationState(lastAddedState.name, lastAddedState.state, new_connections);
                     }
@@ -180,7 +184,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                 // Adding new nodes, where NODE connects to the previous node loaded
                 TrackNode node = coaster.createNewNode(state);
                 if (prevNode != null && !(nodeEntry instanceof TrackCoasterCSV.RootNodeEntry)) {
-                    coaster.getTracks().connect(prevNode, node);
+                    world.getTracks().connect(prevNode, node);
                     if (prevNode_hasDefaultAnimationLinks && prevNode.hasAnimationStates()) {
                         addConnectionToAnimationStates(prevNode, new TrackNodeReference(node));
                     }
@@ -205,7 +209,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
 
                 TrackNode node = coaster.createNewNode(state);
                 if (prevNode != null) {
-                    coaster.getTracks().connect(prevNode, node);
+                    world.getTracks().connect(prevNode, node);
                     if (prevNode_hasDefaultAnimationLinks && prevNode.hasAnimationStates()) {
                         addConnectionToAnimationStates(prevNode, new TrackNodeReference(node));
                     }
@@ -230,10 +234,10 @@ public class TrackCoasterCSVReader implements AutoCloseable {
         for (PendingLink link : pendingLinks) {
             TrackNode target = coaster.findNodeExact(link.targetNodePos);
             if (target == null) {
-                target = coaster.getTracks().findNodeExact(link.targetNodePos);
+                target = world.getTracks().findNodeExact(link.targetNodePos);
             }
             if (target != null) {
-                TrackConnection conn = coaster.getTracks().connect(link.node, target);
+                TrackConnection conn = world.getTracks().connect(link.node, target);
                 link.node.pushBackJunction(conn); // Ensures preserved order of connections
                 continue;
             }

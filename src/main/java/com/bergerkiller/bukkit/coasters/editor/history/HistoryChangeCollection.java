@@ -85,7 +85,7 @@ public abstract class HistoryChangeCollection {
             throw ex;
         }
 
-        return addChange(new HistoryChangeNode(node, startState, node.getState()));
+        return addChange(new HistoryChangeNode(node.getWorld(), startState, node.getState()));
     }
 
     public final HistoryChange addChangeCreateNode(Player who, TrackNode node) throws ChangeCancelledException {
@@ -102,7 +102,7 @@ public abstract class HistoryChangeCollection {
         handleEvent(new CoasterBeforeChangeNodeEvent(who, node));
         TrackNodeState old_state = node.getState();
         TrackNodeState new_state = old_state.changeRail(new_rail);
-        return addChange(new HistoryChangeNode(node, old_state, new_state));
+        return addChange(new HistoryChangeNode(node.getWorld(), old_state, new_state));
     }
 
     public void handleChangeBefore(Player who, TrackNode node) throws ChangeCancelledException {

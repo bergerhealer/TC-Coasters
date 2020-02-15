@@ -7,12 +7,9 @@ import java.util.Comparator;
 import java.util.List;
 
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.coasters.TCCoasters;
-import com.bergerkiller.bukkit.coasters.animation.TrackAnimationWorld;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
@@ -20,9 +17,8 @@ import com.bergerkiller.bukkit.coasters.particles.TrackParticleArrow;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleLitBlock;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleText;
-import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
-import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
@@ -34,7 +30,7 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
  * A single node of track of a rollercoaster. Stores the 3D position
  * and the 'up' vector.
  */
-public class TrackNode implements CoasterWorldAccess, Lockable {
+public class TrackNode implements CoasterWorldComponent, Lockable {
     private TrackCoaster _coaster;
     private Vector _pos, _up, _up_visual, _dir;
     private IntVector3 _railBlock;
@@ -77,7 +73,7 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
         });
         */
 
-        this._upParticleArrow = group.getParticles().addParticleArrow(this._pos, this._dir, this._up_visual);
+        this._upParticleArrow = getWorld().getParticles().addParticleArrow(this._pos, this._dir, this._up_visual);
         this._upParticleArrow.setStateSource(new TrackParticleState.Source() {
             @Override
             public TrackParticleState getState(Player viewer) {
@@ -89,7 +85,7 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
 
         this._junctionParticles = Collections.emptyList();
 
-        this._blockParticle = group.getParticles().addParticleLitBlock(this.getRailBlock(true));
+        this._blockParticle = getWorld().getParticles().addParticleLitBlock(this.getRailBlock(true));
         this._blockParticle.setStateSource(new TrackParticleState.Source() {
             @Override
             public TrackParticleState getState(Player viewer) {
@@ -104,6 +100,16 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
         });
     }
 
+    @Override
+    public CoasterWorldAccess getWorld() {
+        return this._coaster.getWorld();
+    }
+
+    /**
+     * Gets the Coaster this node is a part of
+     * 
+     * @return Track Coaster
+     */
     public TrackCoaster getCoaster() {
         return this._coaster;
     }
@@ -362,7 +368,7 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
                     text += "#";
                 }
                 if (i >= this._junctionParticles.size()) {
-                    this._junctionParticles.add(getParticles().addParticleText(pos, text));
+                    this._junctionParticles.add(getWorld().getParticles().addParticleText(pos, text));
                 } else {
                     TrackParticleText particle = this._junctionParticles.get(i);
                     particle.setPosition(pos);
@@ -496,9 +502,9 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
         for (TrackNodeAnimationState animState : this._animationStates) {
             if (animState.name.equals(name)) {
                 if (this.doAnimationStatesChangeConnections()) {
-                    getAnimations().animate(this, animState.state, animState.connections, duration);
+                    getWorld().getAnimations().animate(this, animState.state, animState.connections, duration);
                 } else {
-                    getAnimations().animate(this, animState.state, null, duration);
+                    getWorld().getAnimations().animate(this, animState.state, null, duration);
                 }
                 return true;
             }
@@ -856,44 +862,13 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
     }
 
     private void scheduleRefresh() {
-        this.getTracks().scheduleNodeRefresh(this);
+        getWorld().getTracks().scheduleNodeRefresh(this);
     }
 
     // CoasterWorldAccess
 
     @Override
-    public TCCoasters getPlugin() {
-        return this._coaster.getPlugin();
-    }
-
-    @Override
-    public World getBukkitWorld() {
-        return this._coaster.getBukkitWorld();
-    }
-
-    @Override
-    public TrackWorld getTracks() {
-        return this._coaster.getTracks();
-    }
-
-    @Override
-    public TrackParticleWorld getParticles() {
-        return this._coaster.getParticles();
-    }
-
-    @Override
-    public TrackRailsWorld getRails() {
-        return this._coaster.getRails();
-    }
-
-    @Override
-    public TrackAnimationWorld getAnimations() {
-        return this._coaster.getAnimations();
-    }
-
-    @Override
     public boolean isLocked() {
         return this._coaster.isLocked();
     }
-
 }

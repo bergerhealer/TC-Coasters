@@ -19,6 +19,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.util.RailSectionBlockIterator;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
@@ -30,7 +31,8 @@ import com.google.common.collect.SetMultimap;
 /**
  * Tracks the lookup of rails information from block positions on a single world
  */
-public class TrackRailsWorld extends CoasterWorldAccess.Component {
+public class TrackRailsWorld implements CoasterWorldComponent {
+    private final CoasterWorldAccess _world;
     private final ListMultimap<IntVector3, TrackRailsSection> sectionsByRails = LinkedListMultimap.create(10000);
     private final SetMultimap<IntVector3, TrackRailsSection> sectionsByBlock = HashMultimap.create(10000, 2);
     private final Map<TrackNode, TrackNodeMeta> trackNodeMeta = new IdentityHashMap<TrackNode, TrackNodeMeta>();
@@ -38,7 +40,12 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
     private final HashSet<IntVector3> addedTrackRails = new HashSet<IntVector3>();
 
     public TrackRailsWorld(CoasterWorldAccess world) {
-        super(world);
+        this._world = world;
+    }
+
+    @Override
+    public final CoasterWorldAccess getWorld() {
+        return this._world;
     }
 
     public void clear() {
@@ -63,7 +70,7 @@ public class TrackRailsWorld extends CoasterWorldAccess.Component {
      */
     public void rebuild() {
         clear();
-        for (TrackCoaster coaster : getTracks().getCoasters()) {
+        for (TrackCoaster coaster : getWorld().getTracks().getCoasters()) {
             for (TrackNode node : coaster.getNodes()) {
                 store(node);
             }

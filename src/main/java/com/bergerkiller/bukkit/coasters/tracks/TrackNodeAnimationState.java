@@ -29,12 +29,12 @@ public class TrackNodeAnimationState {
         this.name = name;
         this.state = state;
         this.connections = connections;
-        this._upParticleArrow = node.getParticles().addParticleArrow(state.position, node.getDirection(), state.orientation);
+        this._upParticleArrow = node.getWorld().getParticles().addParticleArrow(state.position, node.getDirection(), state.orientation);
 
         String text = TrackParticleText.getOrdinalText(index, this.name);
         Vector textPos = state.position.clone();
         textPos.add(this._upParticleArrow.getOrientation().upVector().multiply(0.6));
-        this._nameLabelParticleText = node.getParticles().addParticleTextNoItem(textPos, text);
+        this._nameLabelParticleText = node.getWorld().getParticles().addParticleTextNoItem(textPos, text);
     }
 
     /**

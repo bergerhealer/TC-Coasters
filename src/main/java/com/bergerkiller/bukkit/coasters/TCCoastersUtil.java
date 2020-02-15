@@ -136,7 +136,7 @@ public class TCCoastersUtil {
     }
 
     public static boolean snapToCoasterRails(TrackNode selfNode, Vector position, Vector orientation) {
-        for (TrackNode nearby : selfNode.getTracks().findNodesNear(new ArrayList<TrackNode>(0), position, 0.25)) {
+        for (TrackNode nearby : selfNode.getWorld().getTracks().findNodesNear(new ArrayList<TrackNode>(0), position, 0.25)) {
             if (nearby == selfNode) {
                 continue;
             }
