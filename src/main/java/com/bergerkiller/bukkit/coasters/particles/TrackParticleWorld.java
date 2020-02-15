@@ -125,7 +125,7 @@ public class TrackParticleWorld extends CoasterWorldAccess.Component {
     }
 
     public void update(Player viewer) {
-        boolean viewerSeesWorld = (viewer.getWorld() == this.getWorld() &&
+        boolean viewerSeesWorld = (viewer.getWorld() == this.getBukkitWorld() &&
                 this.getPlugin().getEditState(viewer).getMode() != PlayerEditMode.DISABLED);
 
         if (viewerSeesWorld) {

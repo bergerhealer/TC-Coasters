@@ -39,7 +39,7 @@ public abstract class CoasterNodeEvent extends CoasterEvent {
 
     @Override
     public World getWorld() {
-        return _node.getWorld();
+        return _node.getBukkitWorld();
     }
 
     @Override

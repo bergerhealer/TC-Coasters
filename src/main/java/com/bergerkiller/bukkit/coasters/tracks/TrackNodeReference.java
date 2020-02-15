@@ -104,7 +104,7 @@ public class TrackNodeReference {
             } else if (other.node != null) {
                 return other.node == other.getNode();
             } else {
-                return this.world.getWorld() == other.world.getWorld() &&
+                return this.world.getBukkitWorld() == other.world.getBukkitWorld() &&
                        this.position.equals(other.position);
             }
         } else {

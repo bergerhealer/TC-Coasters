@@ -34,7 +34,7 @@ public class CoasterWorldImpl implements CoasterWorldAccess {
     }
 
     @Override
-    public World getWorld() {
+    public World getBukkitWorld() {
         return this._world;
     }
 

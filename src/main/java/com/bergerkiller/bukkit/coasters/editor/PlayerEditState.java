@@ -1168,12 +1168,12 @@ public class PlayerEditState implements CoasterWorldAccess {
                 // When more than 1 node is selected, only do this for nodes with 1 or less connections
                 // This is to avoid severe performance problems when moving a lot of track at once
                 if (!this.isSneaking() && (this.editedNodes.size() == 1 || editNode.node.getConnections().size() <= 1)) {
-                    TCCoastersUtil.snapToBlock(getWorld(), eyePos, position, orientation);
+                    TCCoastersUtil.snapToBlock(getBukkitWorld(), eyePos, position, orientation);
 
                     if (TCCoastersUtil.snapToCoasterRails(editNode.node, position, orientation)) {
                         // Play particle effects to indicate we are snapping to the coaster rails
                         PlayerUtil.spawnDustParticles(this.player, position, Color.RED);
-                    } else if (TCCoastersUtil.snapToRails(getWorld(), editNode.node.getRailBlock(true), position, direction, orientation)) {
+                    } else if (TCCoastersUtil.snapToRails(getBukkitWorld(), editNode.node.getRailBlock(true), position, direction, orientation)) {
                         // Play particle effects to indicate we are snapping to the rails
                         PlayerUtil.spawnDustParticles(this.player, position, Color.PURPLE);
                     }
@@ -1327,7 +1327,7 @@ public class PlayerEditState implements CoasterWorldAccess {
      */
     public CoasterWorldAccess getCoasterWorld() {
         World bukkitWorld = this.player.getWorld();
-        if (this.cachedCoasterWorld == null || this.cachedCoasterWorld.getWorld() != bukkitWorld) {
+        if (this.cachedCoasterWorld == null || this.cachedCoasterWorld.getBukkitWorld() != bukkitWorld) {
             this.cachedCoasterWorld = this.plugin.getCoasterWorld(bukkitWorld);
         }
         return this.cachedCoasterWorld;
@@ -1339,7 +1339,7 @@ public class PlayerEditState implements CoasterWorldAccess {
     }
 
     @Override
-    public World getWorld() {
+    public World getBukkitWorld() {
         return this.player.getWorld();
     }
 

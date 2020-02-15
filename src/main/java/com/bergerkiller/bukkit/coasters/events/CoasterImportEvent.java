@@ -49,7 +49,7 @@ public class CoasterImportEvent extends CoasterEvent {
 
     @Override
     public World getWorld() {
-        return getCoaster().getWorld();
+        return getCoaster().getBukkitWorld();
     }
 
     @Override

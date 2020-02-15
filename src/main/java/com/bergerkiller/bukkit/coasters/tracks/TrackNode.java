@@ -169,7 +169,7 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
             dir.multiply(-1.0);
         }
         Vector pos = this.getPosition();
-        return new Location(this.getWorld(),
+        return new Location(this.getBukkitWorld(),
                 pos.getX(), pos.getY(), pos.getZ(),
                 MathUtil.getLookAtYaw(dir),
                 MathUtil.getLookAtPitch(dir.getX(),dir.getY(),dir.getZ()));
@@ -867,8 +867,8 @@ public class TrackNode implements CoasterWorldAccess, Lockable {
     }
 
     @Override
-    public World getWorld() {
-        return this._coaster.getWorld();
+    public World getBukkitWorld() {
+        return this._coaster.getBukkitWorld();
     }
 
     @Override

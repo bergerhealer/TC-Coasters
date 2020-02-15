@@ -20,7 +20,7 @@ public abstract class CoasterConnectionEvent extends CoasterEvent {
 
     @Override
     public World getWorld() {
-        return _connection.getNodeA().getWorld();
+        return _connection.getNodeA().getBukkitWorld();
     }
 
     /**

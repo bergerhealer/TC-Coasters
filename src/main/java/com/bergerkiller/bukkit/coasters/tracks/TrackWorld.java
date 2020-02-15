@@ -38,7 +38,7 @@ public class TrackWorld extends CoasterWorldAccess.Component {
      * @return world config folder
      */
     public File getConfigFolder() {
-        World w = this.getWorld();
+        World w = this.getBukkitWorld();
         File f = new File(this.getPlugin().getDataFolder(), w.getName() + "_" + w.getUID());
         f.mkdirs();
         return f;
@@ -213,8 +213,8 @@ public class TrackWorld extends CoasterWorldAccess.Component {
      * @return newly created node
      */
     public TrackNode addNode(TrackNode node, Vector position) {
-        if (node.getWorld() != this.getWorld()) {
-            throw new IllegalArgumentException("Input node is not on world " + this.getWorld().getName());
+        if (node.getBukkitWorld() != this.getBukkitWorld()) {
+            throw new IllegalArgumentException("Input node is not on world " + this.getBukkitWorld().getName());
         }
         TrackNode newNode = node.getCoaster().createNewNode(position, node.getOrientation());
         this.addConnection(node, newNode);
@@ -279,11 +279,11 @@ public class TrackWorld extends CoasterWorldAccess.Component {
             }
         }
         // Safety!
-        if (nodeA.getWorld() != this.getWorld()) {
-            throw new IllegalArgumentException("Input nodeA is not on world " + this.getWorld().getName());
+        if (nodeA.getBukkitWorld() != this.getBukkitWorld()) {
+            throw new IllegalArgumentException("Input nodeA is not on world " + this.getBukkitWorld().getName());
         }
-        if (nodeB.getWorld() != this.getWorld()) {
-            throw new IllegalArgumentException("Input nodeB is not on world " + this.getWorld().getName());
+        if (nodeB.getBukkitWorld() != this.getBukkitWorld()) {
+            throw new IllegalArgumentException("Input nodeB is not on world " + this.getBukkitWorld().getName());
         }
         // Create new connection
         return addConnection(nodeA, nodeB);

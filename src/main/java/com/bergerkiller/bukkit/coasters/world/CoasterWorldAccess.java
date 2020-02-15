@@ -24,7 +24,7 @@ public interface CoasterWorldAccess {
      * 
      * @return World
      */
-    World getWorld();
+    World getBukkitWorld();
 
     /**
      * Gets all the stored coaster tracks information
@@ -70,8 +70,8 @@ public interface CoasterWorldAccess {
         }
 
         @Override
-        public World getWorld() {
-            return this._world.getWorld();
+        public World getBukkitWorld() {
+            return this._world.getBukkitWorld();
         }
 
         @Override

@@ -180,14 +180,14 @@ public class TrackAnimationWorld extends CoasterWorldAccess.Component {
         IntVector3 rail_b = connection.getNodeB().getRailBlock(true);
         Stream<MinecartMember<?>> members;
         if (rail_a.equals(rail_b)) {
-            Collection<MinecartMember<?>> members_a = RailMemberCache.findAll(rail_a.toBlock(this.getWorld()));
+            Collection<MinecartMember<?>> members_a = RailMemberCache.findAll(rail_a.toBlock(this.getBukkitWorld()));
             if (members_a.isEmpty()) {
                 return Stream.empty();
             }
             members = members_a.stream();
         } else {
-            Collection<MinecartMember<?>> members_a = RailMemberCache.findAll(rail_a.toBlock(this.getWorld()));
-            Collection<MinecartMember<?>> members_b = RailMemberCache.findAll(rail_b.toBlock(this.getWorld()));
+            Collection<MinecartMember<?>> members_a = RailMemberCache.findAll(rail_a.toBlock(this.getBukkitWorld()));
+            Collection<MinecartMember<?>> members_b = RailMemberCache.findAll(rail_b.toBlock(this.getBukkitWorld()));
             if (members_a.isEmpty() && members_b.isEmpty()) {
                 return Stream.empty();
             }
