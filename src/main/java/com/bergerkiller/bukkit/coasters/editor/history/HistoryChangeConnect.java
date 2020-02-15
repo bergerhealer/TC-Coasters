@@ -3,7 +3,7 @@ package com.bergerkiller.bukkit.coasters.editor.history;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackLockedException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 
 /**
  * Connects or disconnects two nodes
@@ -15,7 +15,7 @@ public class HistoryChangeConnect extends HistoryChange {
         this(nodeA.getWorld(), TrackConnectionState.create(nodeA.getPosition(), nodeB.getPosition()));
     }
 
-    public HistoryChangeConnect(CoasterWorldAccess world, TrackConnectionState state) {
+    public HistoryChangeConnect(CoasterWorld world, TrackConnectionState state) {
         super(world);
         this.state = state;
     }

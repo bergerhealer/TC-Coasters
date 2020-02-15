@@ -14,7 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
@@ -24,19 +24,19 @@ import com.bergerkiller.bukkit.common.math.Quaternion;
  * Tracks and updates all the particle items on a single world
  */
 public class TrackParticleWorld implements CoasterWorldComponent {
-    private final CoasterWorldAccess _world;
+    private final CoasterWorld _world;
     public DoubleOctree<TrackParticle> particles = new DoubleOctree<TrackParticle>();
     private final Map<Player, ViewerParticleList> viewers = new ConcurrentHashMap<>(16, 0.75f, 1);
     private int updateCtr = 0;
     private boolean forceViewerUpdate = false;
     protected final List<TrackParticle> appearanceUpdates = new ArrayList<>();
 
-    public TrackParticleWorld(CoasterWorldAccess world) {
+    public TrackParticleWorld(CoasterWorld world) {
         this._world = world;
     }
 
     @Override
-    public final CoasterWorldAccess getWorld() {
+    public final CoasterWorld getWorld() {
         return this._world;
     }
 

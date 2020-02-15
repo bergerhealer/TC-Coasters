@@ -36,7 +36,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
@@ -68,7 +68,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     private final PlayerEditClipboard clipboard;
     private final Map<TrackNode, PlayerEditNode> editedNodes = new LinkedHashMap<TrackNode, PlayerEditNode>();
     private final TreeMultimap<String, TrackNode> editedNodesByAnimationName = TreeMultimap.create(Ordering.natural(), Ordering.arbitrary());
-    private CoasterWorldAccess cachedCoasterWorld = null;
+    private CoasterWorld cachedCoasterWorld = null;
     private TrackNode lastEdited = null;
     private long lastEditTime = System.currentTimeMillis();
     private PlayerEditMode editMode = PlayerEditMode.DISABLED;
@@ -96,7 +96,7 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @return coaster world
      */
     @Override
-    public CoasterWorldAccess getWorld() {
+    public CoasterWorld getWorld() {
         World bukkitWorld = this.player.getWorld();
         if (this.cachedCoasterWorld == null || this.cachedCoasterWorld.getBukkitWorld() != bukkitWorld) {
             this.cachedCoasterWorld = this.plugin.getCoasterWorld(bukkitWorld);

@@ -11,13 +11,13 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 /**
  * Everything from TC Coasters that is accessible for a single World
  */
-public interface CoasterWorldAccess extends CoasterWorldComponent {
+public interface CoasterWorld extends CoasterWorldComponent {
     /**
      * Gets the Coaster World instance, the root of all the different components
      * 
      * @return Coaster World
      */
-    default CoasterWorldAccess getWorld() { return this; }
+    default CoasterWorld getWorld() { return this; }
 
     @Override
     TCCoasters getPlugin();

@@ -3,7 +3,7 @@ package com.bergerkiller.bukkit.coasters.editor.history;
 import com.bergerkiller.bukkit.coasters.tracks.TrackLockedException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 
 /**
  * Changes the position and/or orientation of a node
@@ -12,7 +12,7 @@ public class HistoryChangeNode extends HistoryChange {
     private final TrackNodeState from;
     private final TrackNodeState to;
 
-    public HistoryChangeNode(CoasterWorldAccess world,
+    public HistoryChangeNode(CoasterWorld world,
             TrackNodeState from, TrackNodeState to)
     {
         super(world);

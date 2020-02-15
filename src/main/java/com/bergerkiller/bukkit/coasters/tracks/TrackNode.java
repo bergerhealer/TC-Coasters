@@ -17,7 +17,7 @@ import com.bergerkiller.bukkit.coasters.particles.TrackParticleArrow;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleLitBlock;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleText;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
@@ -101,7 +101,7 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
     }
 
     @Override
-    public CoasterWorldAccess getWorld() {
+    public CoasterWorld getWorld() {
         return this._coaster.getWorld();
     }
 

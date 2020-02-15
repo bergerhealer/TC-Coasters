@@ -13,7 +13,7 @@ import org.bukkit.World;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 
 /**
@@ -21,12 +21,12 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
  * There is one storage per world.
  */
 public class TrackWorld implements CoasterWorldComponent {
-    private final CoasterWorldAccess _world;
+    private final CoasterWorld _world;
     private final List<TrackCoaster> _coasters;
     private final Set<TrackNode> _changedNodes;
     private final List<TrackNode> _changedNodesLive;
 
-    public TrackWorld(CoasterWorldAccess world) {
+    public TrackWorld(CoasterWorld world) {
         this._world = world;
         this._coasters = new ArrayList<TrackCoaster>();
         this._changedNodes = new HashSet<TrackNode>();
@@ -34,7 +34,7 @@ public class TrackWorld implements CoasterWorldComponent {
     }
 
     @Override
-    public final CoasterWorldAccess getWorld() {
+    public final CoasterWorld getWorld() {
         return this._world;
     }
 

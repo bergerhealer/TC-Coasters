@@ -3,7 +3,7 @@ package com.bergerkiller.bukkit.coasters.editor;
 import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.events.map.MapStatusEvent;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
@@ -112,7 +112,7 @@ public class TCCoastersDisplay extends MapDisplay {
         return this.getOwners().get(0);
     }
 
-    public CoasterWorldAccess getWorld() {
+    public CoasterWorld getWorld() {
         return getState().getWorld();
     }
 

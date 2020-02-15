@@ -3,7 +3,7 @@ package com.bergerkiller.bukkit.coasters.editor.history;
 import com.bergerkiller.bukkit.coasters.tracks.TrackLockedException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 
 /**
  * Deletes a node. Does not create or restore connections
@@ -15,7 +15,7 @@ public class HistoryChangeDeleteNode extends HistoryChangeCreateNode {
         super(node);
     }
 
-    public HistoryChangeDeleteNode(CoasterWorldAccess world, String coasterName, TrackNodeState state) {
+    public HistoryChangeDeleteNode(CoasterWorld world, String coasterName, TrackNodeState state) {
         super(world, coasterName, state);
     }
 

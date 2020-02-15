@@ -19,7 +19,7 @@ import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVReader;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVWriter;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 
 /**
@@ -27,13 +27,13 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
  * Properties applied to all the nodes of the coaster are stored here.
  */
 public class TrackCoaster implements CoasterWorldComponent, Lockable {
-    private final CoasterWorldAccess _world;
+    private final CoasterWorld _world;
     private String _name;
     private List<TrackNode> _nodes;
     private boolean _changed = false;
     private boolean _locked = false;
 
-    protected TrackCoaster(CoasterWorldAccess world, String name) {
+    protected TrackCoaster(CoasterWorld world, String name) {
         this._world = world;
         this._name = name;
         this._nodes = new ArrayList<TrackNode>();
@@ -41,7 +41,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
     }
 
     @Override
-    public final CoasterWorldAccess getWorld() {
+    public final CoasterWorld getWorld() {
         return this._world;
     }
 

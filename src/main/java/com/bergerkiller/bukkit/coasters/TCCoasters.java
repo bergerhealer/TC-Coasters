@@ -40,7 +40,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVWriter;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldImpl;
 import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.Hastebin;
@@ -101,7 +101,7 @@ public class TCCoasters extends PluginBase {
      * @param world
      * @return world coaster information
      */
-    public CoasterWorldAccess getCoasterWorld(World world) {
+    public CoasterWorld getCoasterWorld(World world) {
         CoasterWorldImpl coasterWorld = this.worlds.get(world);
         if (coasterWorld == null) {
             coasterWorld = new CoasterWorldImpl(this, world);
@@ -116,7 +116,7 @@ public class TCCoasters extends PluginBase {
      * 
      * @return coaster worlds
      */
-    public Collection<CoasterWorldAccess> getCoasterWorlds() {
+    public Collection<CoasterWorld> getCoasterWorlds() {
         return CommonUtil.unsafeCast(this.worlds.values());
     }
 
@@ -163,7 +163,7 @@ public class TCCoasters extends PluginBase {
      * @return coaster
      */
     public TrackCoaster findCoaster(String name) {
-        for (CoasterWorldAccess world : this.worlds.values()) {
+        for (CoasterWorld world : this.worlds.values()) {
             TrackCoaster coaster = world.getTracks().findCoaster(name);
             if (coaster != null) {
                 return coaster;
@@ -387,7 +387,7 @@ public class TCCoasters extends PluginBase {
             }
         } else if (args.length > 0 && args[0].equals("save")) {
             sender.sendMessage("Saving all tracks to disk now");
-            for (CoasterWorldAccess coasterWorld : this.getCoasterWorlds()) {
+            for (CoasterWorld coasterWorld : this.getCoasterWorlds()) {
                 coasterWorld.getTracks().saveForced();
             }
         } else if (args.length > 0 && args[0].equals("build")) {
@@ -896,7 +896,7 @@ public class TCCoasters extends PluginBase {
     }
 
     public void buildAll() {
-        for (CoasterWorldAccess coasterWorld : this.getCoasterWorlds()) {
+        for (CoasterWorld coasterWorld : this.getCoasterWorlds()) {
             coasterWorld.getRails().rebuild();
         }
     }

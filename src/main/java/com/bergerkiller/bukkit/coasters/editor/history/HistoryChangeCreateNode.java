@@ -3,7 +3,7 @@ package com.bergerkiller.bukkit.coasters.editor.history;
 import com.bergerkiller.bukkit.coasters.tracks.TrackLockedException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 
 /**
  * Creates a new node. Does not create or restore connections
@@ -17,7 +17,7 @@ public class HistoryChangeCreateNode extends HistoryChange {
         this(node.getWorld(), node.getCoaster().getName(), node.getState());
     }
 
-    public HistoryChangeCreateNode(CoasterWorldAccess world, String coasterName, TrackNodeState state) {
+    public HistoryChangeCreateNode(CoasterWorld world, String coasterName, TrackNodeState state) {
         super(world);
         this.coasterName = coasterName;
         this.state = state;

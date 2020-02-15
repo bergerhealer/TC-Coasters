@@ -5,16 +5,16 @@ import java.util.List;
 import java.util.ListIterator;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackLockedException;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 
 /**
  * Single point in history which can be reverted or re-done.
  */
 public abstract class HistoryChange extends HistoryChangeCollection {
     private final List<HistoryChange> children = new LinkedList<HistoryChange>();
-    protected final CoasterWorldAccess world;
+    protected final CoasterWorld world;
 
-    public HistoryChange(CoasterWorldAccess world) {
+    public HistoryChange(CoasterWorld world) {
         this.world = world;
     }
 

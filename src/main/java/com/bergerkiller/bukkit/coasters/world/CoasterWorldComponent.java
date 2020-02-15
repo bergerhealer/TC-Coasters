@@ -5,7 +5,7 @@ import org.bukkit.World;
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 
 /**
- * Any component that has access to the {@link CoasterWorldAccess}
+ * Any component that has access to the {@link CoasterWorld}
  */
 public interface CoasterWorldComponent {
     /**
@@ -13,7 +13,7 @@ public interface CoasterWorldComponent {
      * 
      * @return Coaster World
      */
-    CoasterWorldAccess getWorld();
+    CoasterWorld getWorld();
 
     /**
      * Gets the Bukkit World

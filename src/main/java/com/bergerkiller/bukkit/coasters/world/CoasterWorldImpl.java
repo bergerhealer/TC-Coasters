@@ -11,7 +11,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 /**
  * Stores all coaster information of a single World
  */
-public class CoasterWorldImpl implements CoasterWorldAccess {
+public class CoasterWorldImpl implements CoasterWorld {
     private final TCCoasters _plugin;
     private final World _world;
     private final TrackWorld _tracks;

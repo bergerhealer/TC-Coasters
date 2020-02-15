@@ -21,7 +21,7 @@ import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.opencsv.CSVParser;
@@ -99,7 +99,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
         Matrix4x4 transform = null;
 
         // World the coaster is on
-        CoasterWorldAccess world = coaster.getWorld();
+        CoasterWorld world = coaster.getWorld();
 
         // By default not locked
         coaster.setLocked(false);

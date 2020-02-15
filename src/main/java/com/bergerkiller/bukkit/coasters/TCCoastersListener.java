@@ -15,7 +15,7 @@ import org.bukkit.event.world.WorldUnloadEvent;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.events.CoasterConnectionEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterNodeEvent;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorldAccess;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 
 public class TCCoastersListener implements Listener {
     private final TCCoasters plugin;
@@ -33,7 +33,7 @@ public class TCCoastersListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerRespawn(PlayerRespawnEvent event) {
-        CoasterWorldAccess world = this.plugin.getCoasterWorld(event.getPlayer().getWorld());
+        CoasterWorld world = this.plugin.getCoasterWorld(event.getPlayer().getWorld());
         world.getParticles().hideAllFor(event.getPlayer());
     }
 
