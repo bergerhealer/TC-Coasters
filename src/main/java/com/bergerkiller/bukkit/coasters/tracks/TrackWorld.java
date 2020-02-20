@@ -237,7 +237,7 @@ public class TrackWorld implements CoasterWorldComponent {
      */
     public void resetConnections(TrackNode node, List<TrackNode> connectedNodes) {
         //TODO: Some connections may not change, and this can be optimized!
-        disconnectAll(node);
+        disconnectAll(node, false);
         for (TrackNode connectedNode : connectedNodes) {
             connect(node, connectedNode);
         }
@@ -322,14 +322,30 @@ public class TrackWorld implements CoasterWorldComponent {
     }
 
     /**
-     * Removes all connections from/to a particular node
+     * Removes all connections from/to a particular node.
+     * Does not remove connections stored in animations.
      * 
-     * @param node
+     * @param node The node to disconnect all other nodes from
      */
     public void disconnectAll(TrackNode node) {
+        disconnectAll(node, false);
+    }
+
+    /**
+     * Removes all connections from/to a particular node
+     * 
+     * @param node The node to disconnect all other nodes from
+     * @param fromAnimations Whether to remove connections stored in animations
+     */
+    public void disconnectAll(TrackNode node, boolean fromAnimations) {
         // Store connections and clear for the node itself
         TrackConnection[] connections = node._connections;
         node._connections = new TrackConnection[0];
+
+        // Clear connections of all animation states if needed
+        if (fromAnimations) {
+            node.clearAnimationStateConnections();
+        }
 
         // Schedule refresh of node
         scheduleNodeRefresh(node);
@@ -340,6 +356,11 @@ public class TrackWorld implements CoasterWorldComponent {
 
             // Remove all connections from the other node
             removeConnectionFromNode(other, conn);
+
+            // Remove from animations also
+            if (fromAnimations && other.hasAnimationStates()) {
+                other.removeAnimationStateConnection(null, new TrackNodeReference(node));
+            }
 
             // Schedule refresh of other node
             scheduleNodeRefresh(other);

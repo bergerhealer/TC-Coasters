@@ -79,7 +79,7 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
                     List<TrackNode> connectedNodes = new ArrayList<TrackNode>(anim.target_connections.length);
                     for (TrackNodeReference connection : anim.target_connections) {
                         TrackNode connected = connection.getNode();
-                        if (connected != null) {
+                        if (connected != null && connected != anim.node) {
                             connectedNodes.add(connected);
                         }
                     }

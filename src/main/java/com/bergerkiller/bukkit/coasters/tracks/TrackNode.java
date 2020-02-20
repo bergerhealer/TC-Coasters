@@ -615,6 +615,19 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
     }
 
     /**
+     * Removes all connections with all other nodes from all animation states
+     */
+    public void clearAnimationStateConnections() {
+        for (int i = 0; i < this._animationStates.length; i++) {
+            TrackNodeAnimationState old_state = this._animationStates[i];
+            if (old_state.connections.length > 0) {
+                old_state.destroyParticles();
+                this._animationStates[i] = TrackNodeAnimationState.create(old_state.name,this,old_state.state,new TrackNodeReference[0],i);
+            }
+        }
+    }
+
+    /**
      * Gets whether any of the configured animation states alter the connections with this node.
      * 
      * @return True if connections are made and broken when animations are played

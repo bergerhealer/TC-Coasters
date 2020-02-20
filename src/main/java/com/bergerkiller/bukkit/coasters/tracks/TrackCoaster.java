@@ -88,7 +88,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
 
     public void removeNode(TrackNode node) {
         if (this._nodes.remove(node)) {
-            this.getWorld().getTracks().disconnectAll(node);
+            this.getWorld().getTracks().disconnectAll(node, true);
             node.onRemoved();
             this.getWorld().getTracks().cancelNodeRefresh(node);
             this.getWorld().getRails().purge(node);
@@ -162,7 +162,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
      */
     public void clear() {
         for (TrackNode node : this._nodes) {
-            this.getWorld().getTracks().disconnectAll(node);
+            this.getWorld().getTracks().disconnectAll(node, true);
             node.onRemoved();
         }
         this._nodes.clear();
@@ -175,7 +175,12 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
         for (TrackNode node : getNodes()) {
             for (TrackNodeAnimationState state : node.getAnimationStates()) {
                 for (TrackNodeReference connection : state.connections) {
-                    connection.getNode();
+                    // Gets the connected node, loading it in.
+                    // If equal to node, remove the connection to prevent issues down the line
+                    // Connecting to self is invalid.
+                    if (connection.getNode() == node) {
+                        node.removeAnimationStateConnection(state.name, connection);
+                    }
                 }
             }
         }
