@@ -196,7 +196,7 @@ public class TrackCoasterCSV {
          * 
          * @param state
          */
-        public void processReader(CSVReaderState state) {}
+        public abstract void processReader(CSVReaderState state);
     }
 
     /**
@@ -276,20 +276,43 @@ public class TrackCoasterCSV {
         }
     }
 
+    /**
+     * Starts a new chain of nodes, not connecting to the previous node.
+     * State is reset.
+     */
     public static final class RootNodeEntry extends BaseNodeEntry {
         @Override
         public String getType() {
             return "ROOT";
         }
+
+        @Override
+        public void processReader(CSVReaderState state) {
+            state.addNode(this.toState(), false);
+        }
     }
 
+    /**
+     * Creates a new node in the chain, connecting to the previously read node.
+     * State is reset.
+     */
     public static final class NodeEntry extends BaseNodeEntry {
         @Override
         public String getType() {
             return "NODE";
         }
+
+        @Override
+        public void processReader(CSVReaderState state) {
+            state.addNode(this.toState(), true);
+        }
     }
 
+    /**
+     * ANIM entries are animation states that refer to the previously written node.
+     * When no ANIMLINK entries are specified, defaults to the connections already made
+     * between the nodes. Otherwise the ANIMLINK defines the connections for this state.
+     */
     public static final class AnimationStateNodeEntry extends BaseNodeEntry {
         public String name;
 
@@ -309,8 +332,30 @@ public class TrackCoasterCSV {
             super.write(buffer);
             buffer.put(this.name);
         }
+
+        @Override
+        public void processReader(CSVReaderState state) {
+            // Can't update if no previous node is known
+            if (state.prevNode == null) {
+                return;
+            }
+
+            TrackNodeReference[] connections = TrackNodeReference.EMPTY_ARR;
+            if (state.prevNode_hasDefaultAnimationLinks) {
+                connections = new TrackNodeReference[state.prevNode_pendingLinks.size()];
+                for (int i = 0; i < connections.length; i++) {
+                    connections[i] = new TrackNodeReference(state.world.getTracks(), state.prevNode_pendingLinks.get(i));
+                }
+            }
+            state.prevNode.setAnimationState(this.name, this.createState(), connections);
+        }
     }
 
+    /**
+     * ANIMLINK entries specify the connections that exist at a particular animation node state.
+     * Once this type of entry is found, connections between nodes (LINK and NODE) are no longer
+     * stored in the animation states.
+     */
     public static final class AnimationStateLinkNodeEntry extends CSVEntry implements PlayerOriginHolder {
         public Vector pos;
 
@@ -335,8 +380,41 @@ public class TrackCoasterCSV {
             buffer.put("ANIMLINK");
             buffer.putVector(this.pos);
         }
+
+        @Override
+        public void processReader(CSVReaderState state) {
+            // Can't update if no previous node is known
+            if (state.prevNode == null) {
+                return;
+            }
+
+            // So far we have added default links. This is now invalid!
+            // Wipe all previously stored connections in all nodes
+            if (state.prevNode_hasDefaultAnimationLinks) {
+                state.prevNode_hasDefaultAnimationLinks = false;
+                List<TrackNodeAnimationState> states = new ArrayList<>(state.prevNode.getAnimationStates());
+                for (TrackNodeAnimationState oldState : states) {
+                    if (oldState.connections.length != 0) {
+                        state.prevNode.setAnimationState(oldState.name, oldState.state, TrackNodeReference.EMPTY_ARR);
+                    }
+                }
+            }
+
+            // Add an extra connection to the last added animation state
+            List<TrackNodeAnimationState> states = state.prevNode.getAnimationStates();
+            if (!states.isEmpty()) {
+                TrackNodeAnimationState lastAddedState = states.get(states.size()-1);
+                TrackNodeReference new_link = new TrackNodeReference(state.world.getTracks(), this.pos);
+                TrackNodeReference[] new_connections = LogicUtil.appendArray(lastAddedState.connections, new_link);
+                state.prevNode.setAnimationState(lastAddedState.name, lastAddedState.state, new_connections);
+            }
+        }
     }
 
+    /**
+     * LINK entries add connections to be made between nodes to the pendingLinks list.
+     * There connections are created after reading the entire file, in the same order.
+     */
     public static final class LinkNodeEntry extends CSVEntry implements PlayerOriginHolder {
         public Vector pos;
 
@@ -361,8 +439,26 @@ public class TrackCoasterCSV {
             buffer.put("LINK");
             buffer.putVector(this.pos);
         }
+
+        @Override
+        public void processReader(CSVReaderState state) {
+            Vector pos = this.pos;
+            if (state.transform != null) {
+                pos = pos.clone();
+                state.transform.transformPoint(pos);
+            }
+            PendingLink link = new PendingLink(state.prevNode, pos);
+            state.pendingLinks.add(link);
+            state.prevNode_pendingLinks.add(pos);
+            if (state.prevNode_hasDefaultAnimationLinks && state.prevNode.hasAnimationStates()) {
+                state.addConnectionToAnimationStates(new TrackNodeReference(state.world.getTracks(), pos));
+            }
+        }
     }
 
+    /**
+     * Locks the coaster when it exists
+     */
     public static final class LockCoasterEntry extends CSVEntry {
 
         @Override
@@ -379,10 +475,21 @@ public class TrackCoasterCSV {
         public void write(StringArrayBuffer buffer) {
             buffer.put("LOCK");
         }
+
+        @Override
+        public void processReader(CSVReaderState state) {
+            state.coaster.setLocked(true);
+        }
     }
 
-    // For future reference: the nl2 park file format
-    // https://github.com/geforcefan/libnolimits
+    /**
+     * Creates a new node in the chain, connecting to the previously read node.
+     * This entry matches the NoLimits2 CSV format.
+     * State is reset.
+     * 
+     * For future reference: the nl2 park file format
+     * https://github.com/geforcefan/libnolimits
+     */
     public static class NoLimits2Entry extends CSVEntry implements PlayerOriginHolder {
         public int no;
         public Vector pos;
@@ -463,6 +570,11 @@ public class TrackCoasterCSV {
             buffer.putVector(this.front);
             buffer.putVector(this.left);
             buffer.putVector(this.up);
+        }
+
+        @Override
+        public void processReader(CSVReaderState state) {
+            state.addNode(this.toState(), true);
         }
     }
 }

@@ -4,26 +4,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.LockCoasterEntry;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.PendingLink;
 import com.bergerkiller.bukkit.coasters.util.CSVFormatDetectorStream;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
-import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.opencsv.CSVParser;
 import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReader;
@@ -108,94 +98,8 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                 state.transform = ((PlayerOriginHolder) entry).getOrigin().getTransformTo(this.origin);
             }
 
-            // LINK entries are added to the pendingLinks list and added later, in the same order
-            if (entry instanceof TrackCoasterCSV.LinkNodeEntry) {
-                Vector pos = ((TrackCoasterCSV.LinkNodeEntry) entry).pos;
-                if (state.transform != null) {
-                    pos = pos.clone();
-                    state.transform.transformPoint(pos);
-                }
-                PendingLink link = new PendingLink(state.prevNode, pos);
-                state.pendingLinks.add(link);
-                state.prevNode_pendingLinks.add(pos);
-                if (state.prevNode_hasDefaultAnimationLinks && state.prevNode.hasAnimationStates()) {
-                    state.addConnectionToAnimationStates(new TrackNodeReference(state.world.getTracks(), pos));
-                }
-                continue;
-            }
-
-            // ANIM entries are animation states that refer to the previously written node
-            // When no ANIMLINK entries are specified, defaults to the connections already made
-            if (entry instanceof TrackCoasterCSV.AnimationStateNodeEntry) {
-                TrackCoasterCSV.AnimationStateNodeEntry animEntry = (TrackCoasterCSV.AnimationStateNodeEntry) entry;
-                if (state.prevNode != null) {
-                    TrackNodeReference[] connections = TrackNodeReference.EMPTY_ARR;
-                    if (state.prevNode_hasDefaultAnimationLinks) {
-                        connections = new TrackNodeReference[state.prevNode_pendingLinks.size()];
-                        for (int i = 0; i < connections.length; i++) {
-                            connections[i] = new TrackNodeReference(state.world.getTracks(), state.prevNode_pendingLinks.get(i));
-                        }
-                    }
-                    state.prevNode.setAnimationState(animEntry.name, animEntry.createState(), connections);
-                }
-                continue;
-            }
-
-            // ANIMLINK entries specify the connections that exist at a particular animation node state
-            if (entry instanceof TrackCoasterCSV.AnimationStateLinkNodeEntry) {
-                TrackCoasterCSV.AnimationStateLinkNodeEntry animLinkEntry = (TrackCoasterCSV.AnimationStateLinkNodeEntry) entry;
-                if (state.prevNode != null) {
-                    // So far we have added default links. This is now invalid!
-                    // Wipe all previously stored connections in all nodes
-                    if (state.prevNode_hasDefaultAnimationLinks) {
-                        state.prevNode_hasDefaultAnimationLinks = false;
-                        List<TrackNodeAnimationState> states = new ArrayList<>(state.prevNode.getAnimationStates());
-                        for (TrackNodeAnimationState oldState : states) {
-                            if (oldState.connections.length != 0) {
-                                state.prevNode.setAnimationState(oldState.name, oldState.state, TrackNodeReference.EMPTY_ARR);
-                            }
-                        }
-                    }
-
-                    // Add an extra connection to the last added animation state
-                    List<TrackNodeAnimationState> states = state.prevNode.getAnimationStates();
-                    if (!states.isEmpty()) {
-                        TrackNodeAnimationState lastAddedState = states.get(states.size()-1);
-                        TrackNodeReference new_link = new TrackNodeReference(state.world.getTracks(), animLinkEntry.pos);
-                        TrackNodeReference[] new_connections = LogicUtil.appendArray(lastAddedState.connections, new_link);
-                        state.prevNode.setAnimationState(lastAddedState.name, lastAddedState.state, new_connections);
-                    }
-                }
-                continue;
-            }
-
-            // ROOT entry starts a new chain, and is not connected to the previous entry
-            if (entry instanceof TrackCoasterCSV.RootNodeEntry) {
-                TrackCoasterCSV.RootNodeEntry nodeEntry = (TrackCoasterCSV.RootNodeEntry) entry;
-                state.addNode(nodeEntry.toState(), false);
-                continue;
-            }
-
-            // NODE entry adds a new node to the chain, connected to the previous
-            if (entry instanceof TrackCoasterCSV.NodeEntry) {
-                TrackCoasterCSV.NodeEntry nodeEntry = (TrackCoasterCSV.NodeEntry) entry;
-                state.addNode(nodeEntry.toState(), true);
-                continue;
-            }
-
-            // Special support for NoLimits2 CSV format
-            // TODO: Does the first node connect to the last node?
-            if (entry instanceof TrackCoasterCSV.NoLimits2Entry) {
-                TrackCoasterCSV.NoLimits2Entry nle = (TrackCoasterCSV.NoLimits2Entry) entry;
-                state.addNode(nle.toState(), true);
-                continue;
-            }
-
-            // Locks the coaster
-            if (entry instanceof LockCoasterEntry) {
-                state.coaster.setLocked(true);
-                continue;
-            }
+            // Let the entry refresh the reader state
+            entry.processReader(state);
         }
 
         // Go by all created nodes and initialize animation state connections up-front

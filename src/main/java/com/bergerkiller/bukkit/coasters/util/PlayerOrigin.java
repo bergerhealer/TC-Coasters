@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV;
+import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.CSVReaderState;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 
@@ -114,5 +115,9 @@ public class PlayerOrigin extends TrackCoasterCSV.CSVEntry implements PlayerOrig
         PlayerOrigin origin = new PlayerOrigin();
         origin.setForPlayer(player);
         return origin;
+    }
+
+    @Override
+    public void processReader(CSVReaderState state) {
     }
 }
