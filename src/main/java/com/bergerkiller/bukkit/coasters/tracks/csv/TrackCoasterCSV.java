@@ -9,13 +9,16 @@ import java.util.function.Supplier;
 
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.opencsv.CSVReader;
 
@@ -85,6 +88,33 @@ public class TrackCoasterCSV {
     }
 
     /**
+     * Link between two nodes, before the link is actually made
+     */
+    public static final class PendingLink {
+        public final TrackNode node;
+        public final Vector targetNodePos;
+
+        public PendingLink(TrackNode node, Vector targetNodePos) {
+            this.node = node;
+            this.targetNodePos = targetNodePos;
+        }
+    }
+
+    /**
+     * State information used while reading CSV data
+     */
+    public static final class CSVReaderState {
+        public List<PendingLink> pendingLinks = new ArrayList<PendingLink>();
+        public List<Vector> prevNode_pendingLinks = new ArrayList<Vector>();
+        public boolean prevNode_hasDefaultAnimationLinks = true;
+        public TrackNode prevNode = null;
+        public Matrix4x4 transform = null;
+        public CoasterWorld world;
+        public TrackCoaster coaster;
+        public PlayerOrigin origin = null;
+    }
+
+    /**
      * Base type for a CSV entry
      */
     public static abstract class CSVEntry {
@@ -125,6 +155,14 @@ public class TrackCoasterCSV {
             this.write(buffer);
             return buffer.toString();
         }
+
+        /**
+         * Process this entry while reading the file sequentially.
+         * The reader csv state should be updated by this entry.
+         * 
+         * @param state
+         */
+        public void processReader(CSVReaderState state) {}
     }
 
     /**
