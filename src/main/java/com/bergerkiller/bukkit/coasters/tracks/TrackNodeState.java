@@ -61,7 +61,7 @@ public final class TrackNodeState {
     }
 
     /**
-     * Applies a transformation to the position, orientation and rail block of this state
+     * Applies a transformation to the position, orientation and rail block of this state.
      * 
      * @param transform
      * @return state transformed by the transform

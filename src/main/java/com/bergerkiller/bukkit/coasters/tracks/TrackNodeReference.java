@@ -13,6 +13,7 @@ public class TrackNodeReference {
     private TrackWorld world;
     private TrackNode node;
     private Vector position;
+    public static final TrackNodeReference[] EMPTY_ARR = new TrackNodeReference[0];
 
     public TrackNodeReference(TrackWorld world, Vector position) {
         this.world = world;

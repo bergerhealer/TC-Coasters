@@ -93,7 +93,6 @@ public class TrackCoasterCSVReader implements AutoCloseable {
      */
     public void create(TrackCoaster coaster) throws IOException, SyntaxException {
         TrackCoasterCSV.CSVReaderState state = new TrackCoasterCSV.CSVReaderState();
-        state.origin = this.origin;
         state.coaster = coaster;
         state.world = coaster.getWorld();
 
@@ -120,7 +119,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                 state.pendingLinks.add(link);
                 state.prevNode_pendingLinks.add(pos);
                 if (state.prevNode_hasDefaultAnimationLinks && state.prevNode.hasAnimationStates()) {
-                    addConnectionToAnimationStates(state.prevNode, new TrackNodeReference(state.world.getTracks(), pos));
+                    state.addConnectionToAnimationStates(new TrackNodeReference(state.world.getTracks(), pos));
                 }
                 continue;
             }
@@ -130,9 +129,12 @@ public class TrackCoasterCSVReader implements AutoCloseable {
             if (entry instanceof TrackCoasterCSV.AnimationStateNodeEntry) {
                 TrackCoasterCSV.AnimationStateNodeEntry animEntry = (TrackCoasterCSV.AnimationStateNodeEntry) entry;
                 if (state.prevNode != null) {
-                    TrackNodeReference[] connections = new TrackNodeReference[state.prevNode_pendingLinks.size()];
-                    for (int i = 0; i < connections.length; i++) {
-                        connections[i] = new TrackNodeReference(state.world.getTracks(), state.prevNode_pendingLinks.get(i));
+                    TrackNodeReference[] connections = TrackNodeReference.EMPTY_ARR;
+                    if (state.prevNode_hasDefaultAnimationLinks) {
+                        connections = new TrackNodeReference[state.prevNode_pendingLinks.size()];
+                        for (int i = 0; i < connections.length; i++) {
+                            connections[i] = new TrackNodeReference(state.world.getTracks(), state.prevNode_pendingLinks.get(i));
+                        }
                     }
                     state.prevNode.setAnimationState(animEntry.name, animEntry.createState(), connections);
                 }
@@ -150,7 +152,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                         List<TrackNodeAnimationState> states = new ArrayList<>(state.prevNode.getAnimationStates());
                         for (TrackNodeAnimationState oldState : states) {
                             if (oldState.connections.length != 0) {
-                                state.prevNode.setAnimationState(oldState.name, oldState.state, new TrackNodeReference[0]);
+                                state.prevNode.setAnimationState(oldState.name, oldState.state, TrackNodeReference.EMPTY_ARR);
                             }
                         }
                     }
@@ -164,48 +166,20 @@ public class TrackCoasterCSVReader implements AutoCloseable {
                         state.prevNode.setAnimationState(lastAddedState.name, lastAddedState.state, new_connections);
                     }
                 }
+                continue;
             }
 
             // ROOT entry starts a new chain, and is not connected to the previous entry
             if (entry instanceof TrackCoasterCSV.RootNodeEntry) {
-                TrackCoasterCSV.BaseNodeEntry nodeEntry = (TrackCoasterCSV.BaseNodeEntry) entry;
-                TrackNodeState nodeState = nodeEntry.toState();
-                if (state.transform != null) {
-                    nodeState = nodeState.transform(state.transform);
-                }
-
-                // Reset
-                state.prevNode_pendingLinks.clear();
-
-                // Adding new nodes, where NODE connects to the previous node loaded
-                TrackNode node = state.coaster.createNewNode(nodeState);
-                state.prevNode = node;
-                state.prevNode_hasDefaultAnimationLinks = true;
+                TrackCoasterCSV.RootNodeEntry nodeEntry = (TrackCoasterCSV.RootNodeEntry) entry;
+                state.addNode(nodeEntry.toState(), false);
                 continue;
             }
 
             // NODE entry adds a new node to the chain, connected to the previous
             if (entry instanceof TrackCoasterCSV.NodeEntry) {
-                TrackCoasterCSV.BaseNodeEntry nodeEntry = (TrackCoasterCSV.BaseNodeEntry) entry;
-                TrackNodeState nodeState = nodeEntry.toState();
-                if (state.transform != null) {
-                    nodeState = nodeState.transform(state.transform);
-                }
-
-                // Reset
-                state.prevNode_pendingLinks.clear();
-
-                // Adding new nodes, where NODE connects to the previous node loaded
-                TrackNode node = state.coaster.createNewNode(nodeState);
-                if (state.prevNode != null) {
-                    state.world.getTracks().connect(state.prevNode, node);
-                    if (state.prevNode_hasDefaultAnimationLinks && state.prevNode.hasAnimationStates()) {
-                        addConnectionToAnimationStates(state.prevNode, new TrackNodeReference(node));
-                    }
-                    state.prevNode_pendingLinks.add(state.prevNode.getPosition());
-                }
-                state.prevNode = node;
-                state.prevNode_hasDefaultAnimationLinks = true;
+                TrackCoasterCSV.NodeEntry nodeEntry = (TrackCoasterCSV.NodeEntry) entry;
+                state.addNode(nodeEntry.toState(), true);
                 continue;
             }
 
@@ -213,24 +187,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
             // TODO: Does the first node connect to the last node?
             if (entry instanceof TrackCoasterCSV.NoLimits2Entry) {
                 TrackCoasterCSV.NoLimits2Entry nle = (TrackCoasterCSV.NoLimits2Entry) entry;
-                TrackNodeState nodeState = nle.toState();
-                if (state.transform != null) {
-                    nodeState = nodeState.transform(state.transform);
-                }
-
-                // Reset
-                state.prevNode_pendingLinks.clear();
-
-                TrackNode node = state.coaster.createNewNode(nodeState);
-                if (state.prevNode != null) {
-                    state.world.getTracks().connect(state.prevNode, node);
-                    if (state.prevNode_hasDefaultAnimationLinks && state.prevNode.hasAnimationStates()) {
-                        addConnectionToAnimationStates(state.prevNode, new TrackNodeReference(node));
-                    }
-                    state.prevNode_pendingLinks.add(state.prevNode.getPosition());
-                }
-                state.prevNode = node;
-                state.prevNode_hasDefaultAnimationLinks = true;
+                state.addNode(nle.toState(), true);
                 continue;
             }
 
@@ -262,10 +219,4 @@ public class TrackCoasterCSVReader implements AutoCloseable {
         }
     }
 
-    private void addConnectionToAnimationStates(TrackNode node, TrackNodeReference reference) {
-        for (TrackNodeAnimationState state : new ArrayList<>(node.getAnimationStates())) {
-            TrackNodeReference[] new_connections = LogicUtil.appendArray(state.connections, reference);
-            node.setAnimationState(state.name, state.state, new_connections);
-        }
-    }
 }

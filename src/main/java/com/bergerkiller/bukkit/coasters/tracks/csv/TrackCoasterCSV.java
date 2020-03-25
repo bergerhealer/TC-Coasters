@@ -11,6 +11,8 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
@@ -20,6 +22,7 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Quaternion;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.opencsv.CSVReader;
 
 /**
@@ -111,7 +114,38 @@ public class TrackCoasterCSV {
         public Matrix4x4 transform = null;
         public CoasterWorld world;
         public TrackCoaster coaster;
-        public PlayerOrigin origin = null;
+
+        public void addConnectionToAnimationStates(TrackNodeReference reference) {
+            for (TrackNodeAnimationState state : new ArrayList<>(this.prevNode.getAnimationStates())) {
+                TrackNodeReference[] new_connections = LogicUtil.appendArray(state.connections, reference);
+                this.prevNode.setAnimationState(state.name, state.state, new_connections);
+            }
+        }
+
+        public void addNode(TrackNodeState nodeState, boolean linkToPrevious) {
+            if (this.transform != null) {
+                nodeState = nodeState.transform(this.transform);
+            }
+
+            // Reset all connections being added to the previous node
+            this.prevNode_pendingLinks.clear();
+
+            // Create the new node
+            TrackNode node = this.coaster.createNewNode(nodeState);
+
+            // Connect node to previous node
+            if (linkToPrevious && this.prevNode != null) {
+                this.world.getTracks().connect(this.prevNode, node);
+                if (this.prevNode_hasDefaultAnimationLinks && this.prevNode.hasAnimationStates()) {
+                    this.addConnectionToAnimationStates(new TrackNodeReference(node));
+                }
+                this.prevNode_pendingLinks.add(this.prevNode.getPosition());
+            }
+
+            // Refresh prevNode
+            this.prevNode = node;
+            this.prevNode_hasDefaultAnimationLinks = true;
+        }
     }
 
     /**
