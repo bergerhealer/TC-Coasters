@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.editor;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import org.bukkit.block.BlockFace;
 
@@ -33,12 +34,12 @@ public enum PlayerEditMode {
     private final int _autoInterval;
     private final int _autoDelay;
     private final String _name;
-    private final BiConsumer<MapWidgetTabView.Tab, PlayerEditState> _createViewMethod;
+    private final BiConsumer<MapWidgetTabView.Tab, Supplier<PlayerEditState>> _createViewMethod;
 
     // name: displayed in the UI
     // autoDelay: how many ticks of holding right-click until continuously activating
     // autoInterval: tick interval of activation while holding right-click
-    private PlayerEditMode(String name, int autoDelay, int autoInterval, BiConsumer<MapWidgetTabView.Tab, PlayerEditState> createViewMethod) {
+    private PlayerEditMode(String name, int autoDelay, int autoInterval, BiConsumer<MapWidgetTabView.Tab, Supplier<PlayerEditState>> createViewMethod) {
         this._name = name;
         this._autoDelay = autoDelay;
         this._autoInterval = autoInterval;
@@ -69,14 +70,14 @@ public enum PlayerEditMode {
      * @param tab The tab view to fill with widgets
      * @param state The edit state of the player
      */
-    public void createView(MapWidgetTabView.Tab tab, PlayerEditState state) {
-        this._createViewMethod.accept(tab, state);
+    public void createView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
+        this._createViewMethod.accept(tab, stateSupplier);
     }
 
-    private static void createEmptyView(MapWidgetTabView.Tab tab, PlayerEditState state) {
+    private static void createEmptyView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
     }
 
-    private static void createPositionView(MapWidgetTabView.Tab tab, PlayerEditState state) {
+    private static void createPositionView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
         final int ADJ_BTN_WIDTH = 22;
         final int ADJ_BTN_HEIGHT = 12;
         final int ADJ_BTN_OFFSET = ADJ_BTN_WIDTH + 2;
@@ -90,21 +91,21 @@ public enum PlayerEditMode {
             tab.addWidget(new MapWidgetButton() {
                 @Override
                 public void onActivate() {
-                    alignPosition(state, axis, 0.0625);
+                    alignPosition(stateSupplier, axis, 0.0625);
                 }
             }).setText("Min").setBounds(36 + 0*ADJ_BTN_OFFSET, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
 
             tab.addWidget(new MapWidgetButton() {
                 @Override
                 public void onActivate() {
-                    alignPosition(state, axis, 0.5);
+                    alignPosition(stateSupplier, axis, 0.5);
                 }
             }).setText("Mid").setBounds(36 + 1*ADJ_BTN_OFFSET, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
 
             tab.addWidget(new MapWidgetButton() {
                 @Override
                 public void onActivate() {
-                    alignPosition(state, axis, 1.0 - 0.0625);
+                    alignPosition(stateSupplier, axis, 1.0 - 0.0625);
                 }
             }).setText("Max").setBounds(36 + 2*ADJ_BTN_OFFSET, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
 
@@ -112,7 +113,8 @@ public enum PlayerEditMode {
         }
     }
 
-    private static void alignPosition(PlayerEditState state, char axis, double value) {
+    private static void alignPosition(Supplier<PlayerEditState> stateSupplier, char axis, double value) {
+        PlayerEditState state = stateSupplier.get();
         try {
             if (axis == 'x') {
                 state.transformPosition(position -> position.setX(position.getBlockX() + value));
@@ -124,7 +126,7 @@ public enum PlayerEditMode {
         } catch (ChangeCancelledException ex) {}
     }
 
-    private static void createOrientationView(MapWidgetTabView.Tab tab, PlayerEditState state) {
+    private static void createOrientationView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
         final int ADJ_BTN_WIDTH = 38;
         final int ADJ_BTN_HEIGHT = 12;
         int x = 0;
@@ -138,7 +140,7 @@ public enum PlayerEditMode {
                 @Override
                 public void onActivate() {
                     try {
-                        state.setOrientation(FaceUtil.faceToVector(face));
+                        stateSupplier.get().setOrientation(FaceUtil.faceToVector(face));
                     } catch (ChangeCancelledException e) {
                         // Not possible
                     }
@@ -154,7 +156,7 @@ public enum PlayerEditMode {
         }
     }
 
-    private static void createRailsView(MapWidgetTabView.Tab tab, PlayerEditState state) {
+    private static void createRailsView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
         tab.addWidget(new MapWidgetButton() {
             @Override
             public void onAttached() {
@@ -164,7 +166,7 @@ public enum PlayerEditMode {
             @Override
             public void onActivate() {
                 try {
-                    state.resetRailsBlocks();
+                    stateSupplier.get().resetRailsBlocks();
                 } catch (ChangeCancelledException e) {
                     // Not possible
                 }
@@ -172,7 +174,7 @@ public enum PlayerEditMode {
         }).setBounds(10, 10, 100, 12);
 
         IntVector3 value = IntVector3.ZERO;
-        for (TrackNode node : state.getEditedNodes()) {
+        for (TrackNode node : stateSupplier.get().getEditedNodes()) {
             value = node.getRailBlock(true);
             break;
         }
@@ -191,7 +193,7 @@ public enum PlayerEditMode {
                 public void onValueChanged() {
                     if (finished_loading.get()) {
                         try {
-                            state.setRailBlock(new IntVector3(
+                            stateSupplier.get().setRailBlock(new IntVector3(
                                     coord_boxes[0].getValue(),
                                     coord_boxes[1].getValue(),
                                     coord_boxes[2].getValue()));
@@ -202,15 +204,14 @@ public enum PlayerEditMode {
                 }
 
                 // Overrides on new version of TrainCarts!
-                //@Override
-                @SuppressWarnings("unused")
+                @Override
                 public String getValueText() {
                     return Integer.toString((int) getValue());
                 }
 
                 @Override
                 public void onTick() {
-                    TrackNode node = state.getLastEditedNode();
+                    TrackNode node = stateSupplier.get().getLastEditedNode();
                     if (node != null) {
                         IntVector3 rails = node.getRailBlock(true);
                         int val;
@@ -245,7 +246,7 @@ public enum PlayerEditMode {
         finished_loading.set(true);
     }
 
-    private static void createAnimationsView(MapWidgetTabView.Tab tab, PlayerEditState state) {
+    private static void createAnimationsView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
         final MapWidgetSubmitText addNodeAskText = tab.addWidget(new MapWidgetSubmitText() {
             @Override
             public void onAttached() {
@@ -254,6 +255,7 @@ public enum PlayerEditMode {
 
             @Override
             public void onAccept(String text) {
+                PlayerEditState state = stateSupplier.get();
                 for (TrackNode node : state.getEditedNodes()) {
                     node.saveAnimationState(text);
                 }
@@ -285,6 +287,7 @@ public enum PlayerEditMode {
 
             @Override
             public void onActivate() {
+                PlayerEditState state = stateSupplier.get();
                 String name = state.getSelectedAnimation();
                 if (name != null) {
                     ArrayList<TrackNode> nodes = new ArrayList<TrackNode>(state.getSelectedAnimationNodes());
@@ -331,18 +334,19 @@ public enum PlayerEditMode {
             public void onSelectedItemChanged() {
                 boolean isAnimationSelected = (this.getSelectedIndex() >= 1);
                 if (!this.ignoreSelectedItemChange) {
-                    state.setSelectedAnimation(isAnimationSelected ? this.getSelectedItem() : null);
+                    stateSupplier.get().setSelectedAnimation(isAnimationSelected ? this.getSelectedItem() : null);
                 }
                 removeButton.setEnabled(isAnimationSelected);
             }
 
             @Override
             public void onActivate() {
-                state.setSelectedAnimation(null);
+                stateSupplier.get().setSelectedAnimation(null);
                 getDisplay().playSound(CommonSounds.EXTINGUISH);
             }
 
             private void loadItems() {
+                PlayerEditState state = stateSupplier.get();
                 this.ignoreSelectedItemChange = true;
                 this.clearItems();
                 this.addItem("<None>");

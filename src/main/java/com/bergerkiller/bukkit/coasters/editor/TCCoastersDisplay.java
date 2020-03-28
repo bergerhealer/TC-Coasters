@@ -20,7 +20,7 @@ public class TCCoastersDisplay extends MapDisplay {
         public void onAttached() {
             PlayerEditState state = getState();
             for (PlayerEditMode mode : PlayerEditMode.values()) {
-                mode.createView(this.addTab(), state);
+                mode.createView(this.addTab(), TCCoastersDisplay.this::getState);
             }
             this.setSelectedIndex(state.getMode().ordinal());
             this.setBounds(5, 20, 128-10, 100);

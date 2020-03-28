@@ -86,6 +86,10 @@ public class TrackParticleWorld implements CoasterWorldComponent {
             particle.makeHiddenForAll();
         }
         this.particles.clear();
+        this.viewers.clear();
+        this.appearanceUpdates.clear();
+        this.updateCtr = 0;
+        this.forceViewerUpdate = false;
     }
 
     /**
