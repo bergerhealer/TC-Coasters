@@ -1107,7 +1107,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         Matrix4x4 current = this.input.get();
 
         // First click?
-        if (this.heldDownTicks == 0) {
+        if (this.editStartTransform == null || this.heldDownTicks == 0) {
             this.editStartTransform = current.clone();
             this.editRotInfo = this.editStartTransform.toVector();
 
