@@ -449,9 +449,19 @@ public class TrackWorld implements CoasterWorldComponent {
             }
             this._changedNodesLive.clear();
 
-            // Refresh all the node's shape and track the connections that also changed
+            // Connections of changedNodes
             HashSet<TrackConnection> changedConnections = new HashSet<TrackConnection>(this._changedNodes.size()+1);
-            for (TrackNode changedNode : this._changedNodes) {
+
+            // Remove nodes from the changed list that have been removed
+            // This avoids executing logic on removed nodes, or worse, adding to the rails world
+            // Refresh all the node's shape and track the connections that also changed
+            for (Iterator<TrackNode> iter = this._changedNodes.iterator(); iter.hasNext(); ) {
+                TrackNode changedNode = iter.next();
+                if (changedNode.isRemoved()) {
+                    iter.remove();
+                    continue;
+                }
+
                 changedNode.onShapeUpdated();
                 changedConnections.addAll(changedNode.getConnections());
             }

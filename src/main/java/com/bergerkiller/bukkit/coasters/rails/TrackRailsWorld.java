@@ -129,8 +129,11 @@ public class TrackRailsWorld implements CoasterWorldComponent {
                 return;
             }
 
+            // Rails
+            IntVector3 rails = node.getRailBlock(true);
+
             // First 1 or 2 connections, which connect to each other and are selected
-            addSectionToMap(new TrackRailsSection(node, node.buildPath(), true));
+            addSectionToMap(new TrackRailsSection(node, rails, node.buildPath(), true));
 
             // All other kinds of connections lead to their best fit
             if (connections.size() > 2) {
@@ -145,12 +148,12 @@ public class TrackRailsWorld implements CoasterWorldComponent {
                     } else {
                         other = connections.get(0);
                     }
-                    addSectionToMap(new TrackRailsSection(node, node.buildPath(conn, other), false));
+                    addSectionToMap(new TrackRailsSection(node, rails, node.buildPath(conn, other), false));
                 }
             }
 
             // Map all added nodes to the track node
-            trackNodeMeta.put(node, new TrackNodeMeta(node.getRailBlock(true), addedTrackBlocks));
+            trackNodeMeta.put(node, new TrackNodeMeta(rails, addedTrackBlocks));
         } finally {
             addedTrackBlocks.clear();
         }

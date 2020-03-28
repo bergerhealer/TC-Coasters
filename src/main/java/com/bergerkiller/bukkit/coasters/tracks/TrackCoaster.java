@@ -89,9 +89,9 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
     public void removeNode(TrackNode node) {
         if (this._nodes.remove(node)) {
             this.getWorld().getTracks().disconnectAll(node, true);
-            node.onRemoved();
             this.getWorld().getTracks().cancelNodeRefresh(node);
             this.getWorld().getRails().purge(node);
+            node.onRemoved();
             this.getPlugin().forAllEditStates(editState -> editState.setEditing(node, false));
             this.markChanged();
         }

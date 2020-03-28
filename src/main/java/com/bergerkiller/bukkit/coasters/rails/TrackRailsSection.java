@@ -54,9 +54,9 @@ public class TrackRailsSection {
         this.primary = original.primary;
     }
 
-    public TrackRailsSection(TrackNode node, RailPath path, boolean primary) {
+    public TrackRailsSection(TrackNode node, IntVector3 rails, RailPath path, boolean primary) {
         this.node = node;
-        this.rails = node.getRailBlock(true);
+        this.rails = rails;
         this.path = path;
         this.primary = primary;
     }
