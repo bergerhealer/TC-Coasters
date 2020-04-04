@@ -290,13 +290,15 @@ public class TCCoasters extends PluginBase {
         config.setHeader("plotSquaredEnabled", "\nWhether track editing permission integration with PlotSquared is enabled");
         config.addHeader("plotSquaredEnabled", "Players will be unable to edit coasters outside of their personal plot");
         this.plotSquaredEnabled = config.get("plotSquaredEnabled", DEFAULT_PLOTSQUARED_ENABLED);
+        config.setHeader("priority", "\nWhether TC-Coasters track have priority over other rail types, like vanilla track");
+        boolean priority = config.get("priority", false);
         config.save();
 
         // Autosave every 30 seconds approximately
         this.autosaveTask = new AutosaveTask(this).start(30*20, 30*20);
 
         // Magic!
-        RailType.register(this.coasterRailType, false);
+        RailType.register(this.coasterRailType, priority);
 
         // More magic!
         SignAction.register(this.trackAnimateAction);
