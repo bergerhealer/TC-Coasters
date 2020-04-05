@@ -646,16 +646,46 @@ public class TCCoasters extends PluginBase {
             });
             return true;
         } else if (args.length > 0 && LogicUtil.contains(args[0], "posx", "posy", "posz", "setx", "sety", "setz")) {
+            boolean modify_x = LogicUtil.contains(args[0], "posx", "setx");
+            boolean modify_y = LogicUtil.contains(args[0], "posy", "sety");
+            boolean modify_z = LogicUtil.contains(args[0], "posz", "setz");
+
             if (args.length == 1) {
-                sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " (add) [value]");
+                // Compute average value for the selected axis
+                double averageValue = 0.0;
+                for (TrackNode node : state.getEditedNodes()) {
+                    if (modify_x) {
+                        averageValue += node.getPosition().getX();
+                    } else if (modify_y) {
+                        averageValue += node.getPosition().getY();
+                    } else if (modify_z) {
+                        averageValue += node.getPosition().getZ();
+                    }
+                }
+                averageValue /= state.getEditedNodes().size();
+
+                if (modify_x) {
+                    sender.sendMessage(ChatColor.YELLOW + "Current position X-Coordinate: " + ChatColor.WHITE + averageValue);
+                } else if (modify_y) {
+                    sender.sendMessage(ChatColor.YELLOW + "Current position Y-Coordinate: " + ChatColor.WHITE + averageValue);
+                } else if (modify_z) {
+                    sender.sendMessage(ChatColor.YELLOW + "Current position Z-Coordinate: " + ChatColor.WHITE + averageValue);
+                }
+                sender.sendMessage("");
+
+                sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " (add/align) [value]");
                 sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " average");
                 return true;
             }
 
             boolean add = LogicUtil.contains(args[1], "add", "rel", "relative", "move", "off", "offset");
+            boolean align = LogicUtil.contains(args[1], "align");
             boolean avg = LogicUtil.contains(args[1], "avg", "average");
             if (add && args.length == 2) {
                 sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " add [value]");
+                return true;
+            } else if (align && args.length == 2) {
+                sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " align [value]");
                 return true;
             }
 
@@ -664,10 +694,6 @@ public class TCCoasters extends PluginBase {
                 sender.sendMessage("You don't have any nodes selected!");
                 return true;
             }
-
-            boolean modify_x = LogicUtil.contains(args[0], "posx", "setx");
-            boolean modify_y = LogicUtil.contains(args[0], "posy", "sety");
-            boolean modify_z = LogicUtil.contains(args[0], "posz", "setz");
 
             final double value;
             if (avg) {
@@ -685,7 +711,7 @@ public class TCCoasters extends PluginBase {
                 value = averageValue / state.getEditedNodes().size();
             } else {
                 // User input
-                value = ParseUtil.parseDouble(add ? args[2] : args[1], Double.NaN);
+                value = ParseUtil.parseDouble((add||align) ? args[2] : args[1], Double.NaN);
                 if (Double.isNaN(value)) {
                     sender.sendMessage(ChatColor.RED + "Invalid value specified!");
                     return true;
@@ -695,6 +721,7 @@ public class TCCoasters extends PluginBase {
             // Perform the actual operation on the x,y or z coordinates of the selected nodes
             try {
                 if (add) {
+                    // Add to the coordinate
                     if (modify_x) {
                         state.transformPosition(pos -> pos.setX(pos.getX() + value));
                         sender.sendMessage(ChatColor.GREEN + "Added "+ value + " to the X-Position of all selected nodes!");
@@ -705,7 +732,20 @@ public class TCCoasters extends PluginBase {
                         state.transformPosition(pos -> pos.setZ(pos.getZ() + value));
                         sender.sendMessage(ChatColor.GREEN + "Added "+ value + " to the Z-Position of all selected nodes!");
                     }
+                } else if (align) {
+                    // Take block coordinates of node position and add to that
+                    if (modify_x) {
+                        state.transformPosition(pos -> pos.setX(pos.getBlockX() + value));
+                        sender.sendMessage(ChatColor.GREEN + "The X-Position relative to the block of all the selected nodes has been set to " + value + "!");
+                    } else if (modify_y) {
+                        state.transformPosition(pos -> pos.setY(pos.getBlockY() + value));
+                        sender.sendMessage(ChatColor.GREEN + "The Y-Position relative to the block of all the selected nodes has been set to " + value + "!");
+                    } else if (modify_z) {
+                        state.transformPosition(pos -> pos.setZ(pos.getBlockZ() + value));
+                        sender.sendMessage(ChatColor.GREEN + "The Z-Position relative to the block of all the selected nodes has been set to " + value + "!");
+                    }
                 } else {
+                    // Make average
                     if (modify_x) {
                         state.transformPosition(pos -> pos.setX(value));
                         sender.sendMessage(ChatColor.GREEN + "The X-Position of all the selected nodes has been set to " + value + "!");
