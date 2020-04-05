@@ -27,7 +27,20 @@ import com.bergerkiller.generated.net.minecraft.server.WorldHandle;
  * Random stuff used internally that just needs a place
  */
 public class TCCoastersUtil {
+    private static final int[] BLOCK_DELTAS_NEG = new int[] {0, -1};
+    private static final int[] BLOCK_DELTAS_POS = new int[] {0, 1};
+    private static final int[] BLOCK_DELTAS_ZER = new int[] {0};
     public static final double OFFSET_TO_SIDE = RailLogicHorizontal.Y_POS_OFFSET;
+
+    public static int[] getBlockDeltas(double value) {
+        if (value > 1e-10) {
+            return BLOCK_DELTAS_POS;
+        } else if (value < -1e-10) {
+            return BLOCK_DELTAS_NEG;
+        } else {
+            return BLOCK_DELTAS_ZER;
+        }
+    }
 
     public static void snapToBlock(World world, Vector eyePos, Vector position, Vector orientation) {
         // Direction vector to move into to find a free air block

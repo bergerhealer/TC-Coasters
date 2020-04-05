@@ -154,12 +154,60 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
         }
     }
 
+    /**
+     * Gets the movement direction on this node
+     * 
+     * @return direction
+     */
     public Vector getDirection() {
         return this._dir;
     }
 
+    /**
+     * Gets the exact coordinates of this node
+     * 
+     * @return position
+     */
     public Vector getPosition() {
         return this._pos;
+    }
+
+    /**
+     * Gets the block this node occupies
+     * 
+     * @return
+     */
+    public IntVector3 getPositionBlock() {
+        int bx = this._pos.getBlockX();
+        int by = this._pos.getBlockY();
+        int bz = this._pos.getBlockZ();
+        if (this._connections.length == 1) {
+            // End-point means the rail block is towards the direction connection
+            // Note: make use of the position of the node, not _dir (_dir could be outdated)
+            Vector otherPos = this._connections[0].getOtherNode(this).getPosition();
+            double dx = this._pos.getX() - bx;
+            double dy = this._pos.getY() - by;
+            double dz = this._pos.getZ() - bz;
+            if (dx <= 1e-10 && this._pos.getX() > otherPos.getX()) {
+                bx--;
+            }
+            if (dx >= (1.0-1e-10) && this._pos.getX() < otherPos.getX()) {
+                bx++;
+            }
+            if (dy <= 1e-10 && this._pos.getY() > otherPos.getY()) {
+                by--;
+            }
+            if (dy >= (1.0-1e-10) && this._pos.getY() < otherPos.getY()) {
+                by++;
+            }
+            if (dz <= 1e-10 && this._pos.getZ() > otherPos.getZ()) {
+                bz--;
+            }
+            if (dz >= (1.0-1e-10) && this._pos.getZ() < otherPos.getZ()) {
+                bz++;
+            }
+        }
+        return new IntVector3(bx, by, bz);
     }
 
     /**
@@ -381,6 +429,12 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
                 particle.remove();
             }
             this._junctionParticles = Collections.emptyList();
+        }
+
+        // Block location can change as a result of all of this
+        // This happens when at the block border
+        if (this._railBlock == null) {
+            this._blockParticle.setBlock(this.getRailBlock(true));
         }
     }
 
@@ -743,7 +797,7 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
      */
     public IntVector3 getRailBlock(boolean createDefault) {
         if (createDefault && this._railBlock == null) {
-            return new IntVector3(getPosition().getX(), getPosition().getY(), getPosition().getZ());
+            return this.getPositionBlock();
         } else {
             return this._railBlock;
         }

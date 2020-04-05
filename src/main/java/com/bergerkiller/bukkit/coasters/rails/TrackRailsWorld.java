@@ -14,6 +14,7 @@ import java.util.Set;
 import org.bukkit.block.Block;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
@@ -231,23 +232,49 @@ public class TrackRailsWorld implements CoasterWorldComponent {
             }
         }
 
+        // For dead-end nodes we must ignore the blocks beyond the node
+        // Otherwise the node cannot be 'exited' to other rail types
+        Collection<IntVector3> ignoredBlocks = Collections.emptyList();
+        if (section.node.getConnections().size() == 1) {
+            // Figure out the block occupied by the node itself
+            IntVector3 posBlock = section.node.getPositionBlock();
+            Vector dir = section.node.getDirection();
+            ignoredBlocks = new HashSet<IntVector3>();
+
+            // These are the deltas in the opposite direction
+            int[] dx_values = TCCoastersUtil.getBlockDeltas(-dir.getX());
+            int[] dy_values = TCCoastersUtil.getBlockDeltas(-dir.getY());
+            int[] dz_values = TCCoastersUtil.getBlockDeltas(-dir.getZ());
+
+            // Do not register for all blocks relative to the node in the opposite direction
+            for (int dx : dx_values) {
+                for (int dy : dy_values) {
+                    for (int dz : dz_values) {
+                        if (dx != 0 || dy != 0 || dz != 0) {
+                            ignoredBlocks.add(posBlock.add(dx, dy, dz));
+                        }
+                    }
+                }
+            }
+        }
+
         // For all segments of the path, store the block positions being covered in the lookup table
         for (RailPath.Segment segment : section.path.getSegments()) {
             RailSectionBlockIterator iter = new RailSectionBlockIterator(segment, section.rails);
             do {
-                mapSectionToBlock(iter.block(), section);
+                mapSectionToBlock(iter.block(), ignoredBlocks, section);
                 for (IntVector3 around : iter.around(0.4)) {
-                    mapSectionToBlock(around, section);
+                    mapSectionToBlock(around, ignoredBlocks, section);
                 }
             } while (iter.next());
             for (IntVector3 around : iter.aroundEnd(0.4)) {
-                mapSectionToBlock(around, section);
+                mapSectionToBlock(around, ignoredBlocks, section);
             }
         }
     }
 
-    private void mapSectionToBlock(IntVector3 key, TrackRailsSection section) {
-        if (sectionsByBlock.get(key).add(section)) {
+    private void mapSectionToBlock(IntVector3 key, Collection<IntVector3> suppressed, TrackRailsSection section) {
+        if (!suppressed.contains(key) && sectionsByBlock.get(key).add(section)) {
             addedTrackBlocks.add(key);
         }
     }
