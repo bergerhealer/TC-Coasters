@@ -28,7 +28,6 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityH
  * is along which is rotated, the up vector indicates the roll around this vector.
  */
 public class TrackParticleArrow extends TrackParticle {
-    private static final double VIEW_RADIUS = 64.0;
     private final ProtocolPosition prot = new ProtocolPosition();
     private TrackParticleItemType itemType = TrackParticleItemType.LEVER;
     private DoubleOctree.Entry<TrackParticle> position;
@@ -87,11 +86,6 @@ public class TrackParticleArrow extends TrackParticle {
     @Override
     public double distanceSquared(Vector viewerPosition) {
         return this.position.distanceSquared(viewerPosition);
-    }
-
-    @Override
-    public double getViewDistance() {
-        return VIEW_RADIUS;
     }
 
     @Override

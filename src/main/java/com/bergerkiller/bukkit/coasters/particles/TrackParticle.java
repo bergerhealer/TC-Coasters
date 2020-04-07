@@ -108,7 +108,6 @@ public abstract class TrackParticle {
     }
 
     public abstract double distanceSquared(Vector viewerPosition);
-    public abstract double getViewDistance();
     public abstract void makeVisibleFor(Player viewer);
     public abstract void makeHiddenFor(Player viewer);
     public abstract void updateAppearance();

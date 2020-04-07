@@ -57,11 +57,6 @@ public class TrackParticleLitBlock extends TrackParticle {
     }
 
     @Override
-    public double getViewDistance() {
-        return 16;
-    }
-
-    @Override
     public void makeVisibleFor(Player viewer) {
         if (this.entityId == -1) {
             this.entityId = EntityUtil.getUniqueEntityId();

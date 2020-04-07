@@ -35,7 +35,6 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityL
 public class TrackParticleText extends TrackParticle {
     private static final Vector ITEM_OFFSET = new Vector(0.0, -0.34, 0.0);
     private static final Vector ARMORSTAND_OFFSET = new Vector(0.0, -2.5, 0.0);
-    private static final double VIEW_RADIUS = 32.0;
     private int entityId = -1;
     private UUID entityUUID = null;
     private ChatColor textColor = ChatColor.BLACK;
@@ -87,11 +86,6 @@ public class TrackParticleText extends TrackParticle {
     @Override
     public double distanceSquared(Vector viewerPosition) {
         return this.position.distanceSquared(viewerPosition);
-    }
-
-    @Override
-    public double getViewDistance() {
-        return VIEW_RADIUS;
     }
 
     @Override

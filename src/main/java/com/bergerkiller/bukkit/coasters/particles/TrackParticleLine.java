@@ -25,7 +25,6 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityL
 public class TrackParticleLine extends TrackParticle {
     private static final Vector OFFSET1 = new Vector(0.7, 0.16, -0.5);
     private static final Vector OFFSET2 = new Vector(0.0, -1.1, -0.2);
-    private static final double VIEW_RADIUS = 128.0;
     private DoubleOctree.Entry<TrackParticle> p1, p2;
     private int e1 = -1, e2 = -1;
     private boolean positionChanged = false;
@@ -76,11 +75,6 @@ public class TrackParticleLine extends TrackParticle {
     public double distanceSquared(Vector viewerPosition) {
         return Math.min(this.p1.distanceSquared(viewerPosition),
                         this.p2.distanceSquared(viewerPosition));
-    }
-
-    @Override
-    public double getViewDistance() {
-        return VIEW_RADIUS;
     }
 
     @Override
