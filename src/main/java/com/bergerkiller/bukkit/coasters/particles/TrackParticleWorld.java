@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
@@ -40,12 +41,16 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         return this._world;
     }
 
+    public TrackParticleObject addParticleObject(Vector position, Quaternion orientation, ItemStack item) {
+        return addParticle(new TrackParticleObject(position, orientation, item));
+    }
+
     public TrackParticleText addParticleTextNoItem(Vector position, String text) {
-        return addParticle(new TrackParticleText(this, position, text, false));
+        return addParticle(new TrackParticleText(position, text, false));
     }
 
     public TrackParticleText addParticleText(Vector position, String text) {
-        return addParticle(new TrackParticleText(this, position, text, true));
+        return addParticle(new TrackParticleText(position, text, true));
     }
 
     public TrackParticleLine addParticleLine(Vector p1, Vector p2) {

@@ -45,7 +45,7 @@ public class TrackParticleText extends TrackParticle {
     private boolean textChanged = false;
     private boolean textColorChanged = false;
 
-    protected TrackParticleText(TrackParticleWorld world, Vector position, String text, boolean showItem) {
+    protected TrackParticleText(Vector position, String text, boolean showItem) {
         this.position = DoubleOctree.Entry.create(position, this);
         this.text = text;
         this.textColor = getTextColor(this.text);
