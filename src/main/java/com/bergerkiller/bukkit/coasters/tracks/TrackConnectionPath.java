@@ -1,7 +1,12 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
+import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 
 /**
@@ -25,6 +30,230 @@ public class TrackConnectionPath {
 
     private static double sumComponents(Vector v) {
         return v.getX() + v.getY() + v.getZ();
+    }
+
+    /**
+     * Walks this path from the start a distance towards the end, calculating the theta
+     * value of the point found a distance away.
+     * 
+     * @param distance The distance to walk from the start
+     * @return theta value of the point at the distance
+     */
+    public double findPointAtDistance(double distance) {
+        if (distance <= 0.0) {
+            // Past start of path
+            return 0.0;
+        }
+
+        Node root = Node.init(this, 0.0, 1.0);
+        if (root.define(this, 1e-4, distance) < distance) {
+            // Past end of path
+            return 1.0;
+        }
+
+        // Walk down the produced node linked list and find the exact theta at distance
+        Node current = root;
+        double remaining = distance;
+        while (true) {
+            if (current.distanceToNext >= remaining) {
+                // End reached. Interpolate positions using remaining distance
+                double s = remaining / current.distanceToNext;
+                return (1.0 - s) * current.theta + s * current.next.theta;
+            }
+            remaining -= current.distanceToNext;
+            current = current.next;
+        }
+    }
+
+    /**
+     * Estimates the distance between two points to a high enough precision
+     * 
+     * @param t0 Start theta
+     * @param t1 End theta
+     * @return Estimated distance
+     */
+    public double computeDistance(double t0, double t1) {
+        return Node.init(this, t0, t1).define(this, 1e-4, Double.MAX_VALUE);
+    }
+
+    /**
+     * A single node on a discrete version of this connection path.
+     * Only one discrete path can exist at one time, this memory is cached and reused.
+     */
+    private static class Node {
+        private static Node[] node_cache = new Node[] { new Node(), new Node() };
+        private static final AtomicInteger node_index = new AtomicInteger(0);
+        public Node next;
+        public final Vector position;
+        public double theta;
+        public double distanceToNext;
+
+        private Node() {
+            this.position = new Vector();
+        }
+
+        /**
+         * Inserts nodes between this node and this node's end of the chain until the
+         * difference falls below the precision specified. The path is defined from start to finish,
+         * with max_distance used to abort path construction early on.
+         * 
+         * @param path The path used to calculate the node positions
+         * @param precision The precision at which to subdivide the path
+         * @param max_distance The maximum distance above which to stop defining further
+         * @return total distance of the computed path
+         */
+        public double define(TrackConnectionPath path, double precision, double max_distance) {
+            // Process in a loop
+            double totalDistance = 0.0;
+            Node current = this;
+            while (true) {
+                // Insert two nodes between current and current's next node
+                // Keep the original distance to next, we need it for termination
+                double currentNextDistance = current.distanceToNext;
+                double t0 = current.theta;
+                double t1 = current.next.theta;
+                double ht = 0.5 * (t0 + t1);
+
+                // Insert three nodes between current and next and compute their distances
+                // We insert three so we can avoid the S-curve trap that can occur with a quadratic bezier curve
+                // We don't insert two because the theta values are slow in binary (0.333...) (0.5* is fast!)
+                current.insertThree();
+
+                // Compute positions and distances between the creates nodes
+                Node m0 = current.next;
+                Node m1 = m0.next;
+                Node m2 = m1.next;
+                m0.computePosition(path, 0.5 * (t0 + ht));
+                m1.computePosition(path, ht);
+                m2.computePosition(path, 0.5 * (t1 + ht));
+                double summed = current.computeDistanceToNext() +
+                                m0.computeDistanceToNext() +
+                                m1.computeDistanceToNext() +
+                                m2.computeDistanceToNext();
+     
+                // If distance difference is small enough, then this section is complete
+                if ((summed - currentNextDistance) < precision) {
+                    totalDistance += summed;
+                    current = m2.next;
+                    if (current.next == null || totalDistance > max_distance) {
+                        break;
+                    }
+                }
+            }
+            return totalDistance;
+        }
+
+        public void computePosition(TrackConnectionPath path, double theta) {
+            this.theta = theta;
+            path.getPosition(theta, this.position);
+        }
+
+        public double computeDistanceToNext() {
+            return this.distanceToNext = this.position.distance(this.next.position);
+        }
+
+        /**
+         * Inserts tree more nodes between this node and this node's next node.
+         */
+        public void insertThree() {
+            int index = node_index.getAndAdd(3);
+            Node last;
+
+            // Get the last node. (Ab)use out of bounds exception to resize the cache if needed
+            try {
+                last = node_cache[index + 2];
+            } catch (ArrayIndexOutOfBoundsException ex) {
+                reserve();
+                last = node_cache[index + 2];
+            }
+
+            last.next = this.next;
+            this.next = node_cache[index];
+            this.next.next = node_cache[index + 1];
+            this.next.next.next = last;
+        }
+
+        /**
+         * Resets the node cache and initializes it with the start and end nodes of the path
+         * to compute.
+         * 
+         * @param path
+         * @param t0
+         * @param t1
+         * @return root node
+         */
+        public static Node init(TrackConnectionPath path, double t0, double t1) {
+            node_index.set(2);
+            Node root = node_cache[0];
+            root.next = node_cache[1];
+            root.next.next = null;
+            root.computePosition(path, t0);
+            root.next.computePosition(path, t1);
+            root.computeDistanceToNext();
+            return root;
+        }
+
+        // Doubles the capacity of the cache, with a size of at least 512
+        private static void reserve() {
+            int old_size = node_cache.length;
+            int new_size = Math.max(512, old_size * 2);
+            node_cache = Arrays.copyOf(node_cache, new_size);
+            for (int i = old_size; i < new_size; i++) {
+                node_cache[i] = new Node();
+            }
+        }
+    }
+
+    /**
+     * Searches points on the path of this connection for the point closest to a player's view point.
+     * 
+     * @param playerViewMatrixInverted The view matrix, inverted, for computing with
+     * @param t0 Start theta
+     * @param t1 End theta
+     * @param out_pos Vector set to the position on the path that was found
+     * @return theta value that lies closest
+     */
+    public double findClosestPointInView(Matrix4x4 playerViewMatrixInverted, double t0, double t1, Vector out_pos) {
+        // Obtain outer bounds positions, as these are re-used
+        Vector p0 = this.getPosition(t0);
+        Vector p1 = this.getPosition(t1);
+        playerViewMatrixInverted.transformPoint(p0);
+        playerViewMatrixInverted.transformPoint(p1);
+        double d0 = TCCoastersUtil.distanceSquaredXY(p0);
+        double d1 = TCCoastersUtil.distanceSquaredXY(p1);
+
+        // Compute distance from point to point
+        double pp_dist = this.endA.getDistance();
+
+        // Compute td limit (when we stop looking deeper)
+        // This is based on the point-point length of the connection
+        // Below some value the difference in position is negligible
+        // If distance between the points is (close to) 0 the loop stops instantly
+        final double epsilon = 1e-4;
+        double td_lim = (pp_dist < epsilon) ? 1.0 : (epsilon / pp_dist);
+
+        // Take half-theta leaps until td is small enough
+        double td = (t1-t0), tm;
+        Vector pm = new Vector();
+        do {
+            td *= 0.5;
+            tm = t0 + td;
+            pm.copy(this.getPosition(tm, out_pos));
+            playerViewMatrixInverted.transformPoint(pm);
+            double dm = TCCoastersUtil.distanceSquaredXY(pm);
+
+            if (d1 < d0) {
+                t0 = tm;
+                p0.copy(pm);
+                d0 = dm;
+            } else {
+                t1 = tm;
+                p1.copy(pm);
+                d1 = dm;
+            }
+        } while (td > td_lim);
+
+        return tm;
     }
 
     /**
@@ -274,6 +503,17 @@ public class TrackConnectionPath {
     }
 
     /**
+     * Calculates the position along this track at a particular t
+     * 
+     * @param t [0 ... 1]
+     * @param out_pos Vector value which will be set to the position at t
+     * @return out_pos
+     */
+    public Vector getPosition(double t, Vector out_pos) {
+        return bezier(new BezierInput().setup_k1(t), out_pos);
+    }
+
+    /**
      * Calculates the motion vector along this track at a particular t
      * 
      * @param t [0 ... 1]
@@ -290,20 +530,28 @@ public class TrackConnectionPath {
     }
 
     private Vector bezier(BezierInput bezier) {
-        return bezier(bezier.fpA, bezier.fpB, bezier.fdA, bezier.fdB);
+        return bezier(bezier, new Vector());
+    }
+
+    private Vector bezier(BezierInput bezier, Vector out_vec) {
+        return bezier(bezier.fpA, bezier.fpB, bezier.fdA, bezier.fdB, out_vec);
     }
 
     private Vector bezier(double fpA, double fpB, double fdA, double fdB) {
+        return bezier(fpA, fpB, fdA, fdB, new Vector());
+    }
+
+    private Vector bezier(double fpA, double fpB, double fdA, double fdB, Vector out_vec) {
         double pfdA = fdA * this.endA.getDistance();
         double pfdB = fdB * this.endB.getDistance();
         Vector pA = this.endA.getPosition();
         Vector pB = this.endB.getPosition();
         Vector dA = this.endA.getDirection();
         Vector dB = this.endB.getDirection();
-        return new Vector(
-                fpA*pA.getX() + fpB*pB.getX() + pfdA*dA.getX() + pfdB*dB.getX(),
-                fpA*pA.getY() + fpB*pB.getY() + pfdA*dA.getY() + pfdB*dB.getY(),
-                fpA*pA.getZ() + fpB*pB.getZ() + pfdA*dA.getZ() + pfdB*dB.getZ());
+        out_vec.setX(fpA*pA.getX() + fpB*pB.getX() + pfdA*dA.getX() + pfdB*dB.getX());
+        out_vec.setY(fpA*pA.getY() + fpB*pB.getY() + pfdA*dA.getY() + pfdB*dB.getY());
+        out_vec.setZ(fpA*pA.getZ() + fpB*pB.getZ() + pfdA*dA.getZ() + pfdB*dB.getZ());
+        return out_vec;
     }
 
     /**
@@ -351,6 +599,11 @@ public class TrackConnectionPath {
             return this.direction;
         }
 
+        /**
+         * Gets half the distance between the node of this end point and the other node
+         * 
+         * @return half distance
+         */
         public final double getDistance() {
             return this.distance;
         }

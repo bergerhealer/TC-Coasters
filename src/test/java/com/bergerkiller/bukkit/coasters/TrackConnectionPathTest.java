@@ -181,6 +181,104 @@ public class TrackConnectionPathTest {
         }
     }
 
+    @Test
+    public void testComputeDistanceAtSCurve() {
+        // Creates a path that forms a perfect S-curve, where the middle is at theta=0.5
+        // This would cause problems with a simple binary algorithm
+        TrackConnectionPath path = TrackConnectionPath.create(new Vector(-20.0, 30.0, -502.0), new Vector(0.0, 0.0, 1.0),
+                                                              new Vector(20.0, 30.0, -502.0), new Vector(0.0, 0.0, 1.0));
+        path.endA.initNormal();
+        path.endB.initInverted();
+
+        double distance = path.computeDistance(0.0, 1.0);
+        double distanceEval = computeDistanceEval(path, 0.0, 1.0);
+        assertEquals(distance, distanceEval, 2e-4);
+    }
+
+    @Test
+    public void testComputeDistance() {
+        // Pick some random values, can feed a seed into it, raise iterations, etc.
+        // Mostly for testing the proof of concept, there might be edge cases that fall through
+        Random rand = new Random();
+        for (int i = 0; i < 10; i++) {
+            TrackConnectionPath path = TrackConnectionPath.create(new Vector(20.0, 30.0, -502.0), randDirection(rand),
+                                                                  new Vector(25.0, 25.0, -490.0), randDirection(rand));
+            path.endA.initNormal();
+            path.endB.initInverted();
+
+            double distance = path.computeDistance(0.0, 1.0);
+            double distanceEval = computeDistanceEval(path, 0.0, 1.0);
+
+            // System.out.println("dist=" + distance + "\texp=" + distanceEval);
+
+            // Difference between the two should be below 2e-4, which is about the resolution of
+            // Minecraft's entity position network synchronization.
+            assertEquals(distance, distanceEval, 2e-4);
+        }
+    }
+
+    // Computes distance very slowly but guarantees accuracy to within a precision
+    private double computeDistanceEval(TrackConnectionPath path, double t0, double t1) {
+        double dt = 1e-6;
+        Vector p0 = path.getPosition(t0);
+        Vector p1 = new Vector();
+        double distance = 0.0;
+        while (true) {
+            t0 += dt;
+            if (t0 > t1) {
+                break;
+            }
+            path.getPosition(t0, p1);
+            distance += p0.distance(p1);
+            p0.copy(p1);
+        }
+        return distance;
+    }
+
+    @Ignore
+    @Test
+    public void benchmarkComputeDistance() {
+        Random rand = new Random(423523532);
+        long total_a = 0;
+        long total_b = 0;
+        int num_paths = 100;
+        int num_iterations = 10000;
+        for (int i = 0; i < num_paths; i++) {
+            TrackConnectionPath path = TrackConnectionPath.create(new Vector(20.0, 30.0, -502.0), randDirection(rand),
+                                                                  new Vector(25.0, 25.0, -490.0), randDirection(rand));
+            path.endA.initNormal();
+            path.endB.initInverted();
+
+            long time_a = System.nanoTime();
+            for (int n = 0; n < num_iterations; n++) {
+                /* == Old == */
+                path.computeDistance(0.0, 1.0);
+                /* ========= */
+            }
+            long time_b = System.nanoTime();
+            for (int n = 0; n < num_iterations; n++) {
+                /* == New == */
+                path.computeDistance(0.0, 1.0);
+                /* ========= */
+            }
+            long time_c = System.nanoTime();
+            total_a += (time_b - time_a);
+            total_b += (time_c - time_b);
+        }
+        System.out.println("Performance: old took " + (total_a / 1000000000.0) + "s VS new took " + (total_b / 1000000000.0) + "s");
+    }
+
+    private Vector randDirection(Random rand) {
+        while (true) {
+            Vector v = new Vector(rand.nextDouble() - 0.5, rand.nextDouble() - 0.5, rand.nextDouble() - 0.5);
+            double len = v.length();
+            if (len < 1e-10) {
+                continue;
+            }
+            return v.multiply(1.0 / len);
+        }
+    }
+
     private void assertVectorEquals(Vector v, double x, double y, double z) {
         try {
             assertEquals(x, v.getX(), 1e-6);
