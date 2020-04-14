@@ -13,8 +13,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.mcversion>v1_11_R1</project.mcversion>
-        <project.serverversion>1.11.2-R0.1</project.serverversion>
-        <project.bkcversion>1.15.2-v1</project.bkcversion>
+        <project.serverversion>1.15.2-R0.1-SNAPSHOT</project.serverversion>
+        <project.bkcversion>1.15.2-v4-SNAPSHOT</project.bkcversion>
         <project.tcversion>1.15.2-v1</project.tcversion>
         <junit.version>4.12</junit.version>
     </properties>
@@ -51,9 +51,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.bukkit</groupId>
-            <artifactId>bukkit</artifactId>
-            <version>${project.serverversion}-SNAPSHOT</version>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+            <version>${project.serverversion}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -109,6 +109,14 @@
             <artifactId>commons-lang3</artifactId>
             <version>3.8.1</version>
             <scope>compile</scope>
+        </dependency>
+
+        <!-- The full server jar is only used during test; it should not be exposed as a dependency -->
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot</artifactId>
+            <version>${project.serverversion}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
