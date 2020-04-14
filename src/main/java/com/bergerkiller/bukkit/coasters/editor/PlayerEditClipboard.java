@@ -17,8 +17,8 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
+import com.bergerkiller.bukkit.coasters.tracks.TrackPendingConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
@@ -122,7 +122,7 @@ public class PlayerEditClipboard {
                 TrackNodeAnimationState[] animations = this._animations.get(node_state);
                 if (animations != null) {
                     for (TrackNodeAnimationState anim : animations) {
-                        TrackNodeReference[] connections = new TrackNodeReference[anim.connections.length];
+                        TrackPendingConnection[] connections = new TrackPendingConnection[anim.connections.length];
                         for (int i = 0; i < connections.length; i++) {
                             connections[i] = anim.connections[i].transform(tracks, transform);
                         }

@@ -9,6 +9,7 @@ import org.bukkit.block.BlockFace;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
+import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemSelectMenu;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.events.map.MapStatusEvent;
@@ -29,6 +30,7 @@ public enum PlayerEditMode {
     ORIENTATION("Change Orientation", 0, 1, PlayerEditMode::createOrientationView),
     RAILS("Change Rail Block", 0, 1, PlayerEditMode::createRailsView),
     ANIMATION("Manage Animations", 0, 1, PlayerEditMode::createAnimationsView),
+    OBJECT("Track Objects", 10, 3, PlayerEditMode::createTrackObjectsView),
     DELETE("Delete Track", 10, 3, PlayerEditMode::createEmptyView);
 
     private final int _autoInterval;
@@ -360,5 +362,29 @@ public enum PlayerEditMode {
                 this.ignoreSelectedItemChange = false;
             }
         }).setBounds(12, 14, 94, 12);
+    }
+
+    private static void createTrackObjectsView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
+        tab.addWidget(new MapWidgetButton() {
+            @Override
+            public void onActivate() {
+                tab.addWidget(new ItemSelectMenu(stateSupplier));
+            }
+        }).setText("Select Item").setBounds(0, 0, 60, 13);
+
+        tab.addWidget(new MapWidgetButton() {
+            @Override
+            public void onActivate() {
+                try {
+                    PlayerEditState state = stateSupplier.get();
+                    if (state.hasEditedTrackObjects()) {
+                        stateSupplier.get().deleteTrackObjects();
+                        getDisplay().playSound(CommonSounds.ITEM_BREAK);
+                    }
+                } catch (ChangeCancelledException e) {
+                    getDisplay().playSound(CommonSounds.EXTINGUISH);
+                }
+            }
+        }).setText("Delete").setBounds(0, 15, 60, 13);
     }
 }

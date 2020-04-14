@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.editor;
 
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
@@ -8,8 +9,10 @@ import com.bergerkiller.bukkit.common.events.map.MapStatusEvent;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.map.MapFont;
+import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetTabView;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetText;
+import com.bergerkiller.bukkit.tc.attachments.ui.ItemDropTarget;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetSelectionBox;
 
 public class TCCoastersDisplay extends MapDisplay {
@@ -104,10 +107,20 @@ public class TCCoastersDisplay extends MapDisplay {
         this.setReceiveInputWhenHolding(false);
     }
 
+    public boolean acceptItem(ItemStack item) {
+        if (item == null) {
+            return false;
+        }
+
+        MapWidget activated = this.getActivatedWidget();
+        return (activated instanceof ItemDropTarget) ?
+                ((ItemDropTarget) activated).acceptItem(item) : false;
+    }
+
     public PlayerEditState getState() {
         return getPlugin().getEditState(getPlayer());
     }
-    
+
     public Player getPlayer() {
         return this.getOwners().get(0);
     }

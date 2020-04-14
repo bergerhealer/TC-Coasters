@@ -28,6 +28,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
@@ -468,15 +469,33 @@ public class TCCoasters extends PluginBase {
                 sender.sendMessage(ChatColor.RED + "A new track node could not be created here");
             }
         } else if (args.length > 0 && args[0].equals("delete")) {
-            if (!state.hasEditedNodes()) {
-                sender.sendMessage("No track nodes selected, nothing has been deleted!");
+            if (state.getMode() == PlayerEditMode.OBJECT) {
+                // Object
+                state.deselectLockedTrackObjects();
+                if (!state.hasEditedTrackObjects()) {
+                    sender.sendMessage("No track objects selected, nothing has been deleted!");
+                } else {
+                    try {
+                        int numDeleted = state.getEditedTrackObjects().size();
+                        state.deleteTrackObjects();
+                        sender.sendMessage("Deleted " + numDeleted + " track objects!");
+                    } catch (ChangeCancelledException e) {
+                        sender.sendMessage(ChatColor.RED + "Failed to delete some of the track objects!");
+                    }
+                }
             } else {
-                try {
-                    int numDeleted = state.getEditedNodes().size();
-                    state.deleteTrack();
-                    sender.sendMessage("Deleted " + numDeleted + " track nodes!");
-                } catch (ChangeCancelledException e) {
-                    sender.sendMessage(ChatColor.RED + "Failed to delete some of the track nodes!");
+                // Tracks
+                state.deselectLockedNodes();
+                if (!state.hasEditedNodes()) {
+                    sender.sendMessage("No track nodes selected, nothing has been deleted!");
+                } else {
+                    try {
+                        int numDeleted = state.getEditedNodes().size();
+                        state.deleteTrack();
+                        sender.sendMessage("Deleted " + numDeleted + " track nodes!");
+                    } catch (ChangeCancelledException e) {
+                        sender.sendMessage(ChatColor.RED + "Failed to delete some of the track nodes!");
+                    }
                 }
             }
         } else if (args.length > 0 && args[0].equals("give")) {

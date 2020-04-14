@@ -42,6 +42,10 @@ public class TCCoastersUtil {
         }
     }
 
+    public static double distanceSquaredXY(Vector p) {
+        return p.getX()*p.getX()+p.getY()*p.getY();
+    }
+
     public static void snapToBlock(World world, Vector eyePos, Vector position, Vector orientation) {
         // Direction vector to move into to find a free air block
         double wX = eyePos.getX() - position.getX();

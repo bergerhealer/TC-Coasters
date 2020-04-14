@@ -39,7 +39,7 @@ public class TrackConnectionPath {
      * @param distance The distance to walk from the start
      * @return theta value of the point at the distance
      */
-    public double findPointAtDistance(double distance) {
+    public double findPointThetaAtDistance(double distance) {
         if (distance <= 0.0) {
             // Past start of path
             return 0.0;

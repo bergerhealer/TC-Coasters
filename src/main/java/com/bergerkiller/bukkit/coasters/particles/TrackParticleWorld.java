@@ -141,10 +141,10 @@ public class TrackParticleWorld implements CoasterWorldComponent {
     }
 
     public void update(Player viewer) {
-        boolean viewerSeesWorld = (viewer.getWorld() == this.getBukkitWorld() &&
-                this.getPlugin().getEditState(viewer).getMode() != PlayerEditMode.DISABLED);
+        if (viewer.getWorld() == this.getBukkitWorld()) {
+            // Get whether view is in edit mode or not
+            boolean isInEditMode = this.getPlugin().getEditState(viewer).getMode() != PlayerEditMode.DISABLED;
 
-        if (viewerSeesWorld) {
             // Get state
             ViewerParticleList viewed = this.viewers.get(viewer);
             if (viewed == null) {
@@ -169,6 +169,10 @@ public class TrackParticleWorld implements CoasterWorldComponent {
             int numParticles = 0;
             boolean reachedLimit = false;
             for (TrackParticle particle : this.particles.cuboid(range_min, range_max)) {
+                if (!isInEditMode && !particle.isAlwaysVisible()) {
+                    continue;
+                }
+
                 if (!particle.isVisible(viewer)) {
                     continue;
                 }

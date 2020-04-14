@@ -10,6 +10,7 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
@@ -76,9 +77,8 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
         this._upParticleArrow = getWorld().getParticles().addParticleArrow(this._pos, this._dir, this._up_visual);
         this._upParticleArrow.setStateSource(new TrackParticleState.Source() {
             @Override
-            public TrackParticleState getState(Player viewer) {
-                PlayerEditState editState = getPlugin().getEditState(viewer);
-                return editState.isEditing(TrackNode.this) ? 
+            public TrackParticleState getState(PlayerEditState viewer) {
+                return viewer.getMode() != PlayerEditMode.OBJECT && viewer.isEditing(TrackNode.this) ? 
                         TrackParticleState.SELECTED : TrackParticleState.DEFAULT;
             }
         });
@@ -88,10 +88,9 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
         this._blockParticle = getWorld().getParticles().addParticleLitBlock(this.getRailBlock(true));
         this._blockParticle.setStateSource(new TrackParticleState.Source() {
             @Override
-            public TrackParticleState getState(Player viewer) {
-                PlayerEditState editState = getPlugin().getEditState(viewer);
-                if (editState.isMode(PlayerEditMode.RAILS)) {
-                    return editState.isEditing(TrackNode.this) ? 
+            public TrackParticleState getState(PlayerEditState viewer) {
+                if (viewer.isMode(PlayerEditMode.RAILS)) {
+                    return viewer.isEditing(TrackNode.this) ? 
                             TrackParticleState.SELECTED : TrackParticleState.DEFAULT;
                 } else {
                     return TrackParticleState.HIDDEN;
@@ -589,9 +588,9 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
      */
     public void saveAnimationState(String name) {
         // Collect the current connections that are made
-        TrackNodeReference[] connectedNodes = new TrackNodeReference[this._connections.length];
+        TrackPendingConnection[] connectedNodes = new TrackPendingConnection[this._connections.length];
         for (int i = 0; i < this._connections.length; i++) {
-            connectedNodes[i] = new TrackNodeReference(this._connections[i].getOtherNode(this));
+            connectedNodes[i] = new TrackPendingConnection(this._connections[i].getOtherNode(this));
         }
 
         setAnimationState(name, this.getState(), connectedNodes);
@@ -604,7 +603,7 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
      * @param state The position, orientation and rail block information
      * @param connections The connections made while this animation is active
      */
-    public void setAnimationState(String name, TrackNodeState state, TrackNodeReference[] connections) {
+    public void setAnimationState(String name, TrackNodeState state, TrackPendingConnection[] connections) {
         // Overwrite existing
         for (int i = 0; i < this._animationStates.length; i++) {
             if (this._animationStates[i].name.equals(name)) {
@@ -629,7 +628,7 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
      * @param name The name of the animation state to add the connection to, null to add to all of them
      * @param node The node to add
      */
-    public void addAnimationStateConnection(String name, TrackNodeReference node) {
+    public void addAnimationStateConnection(String name, TrackPendingConnection node) {
         if (!this.hasAnimationStates()) {
             return;
         }
@@ -642,7 +641,7 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
         for (int i = 0; i < this._animationStates.length; i++) {
             TrackNodeAnimationState old_state = this._animationStates[i];
             if (name == null || name.equals(old_state.name)) {
-                TrackNodeReference[] new_connections = LogicUtil.appendArray(old_state.connections, node);
+                TrackPendingConnection[] new_connections = LogicUtil.appendArray(old_state.connections, node);
                 old_state.destroyParticles();
                 this._animationStates[i] = TrackNodeAnimationState.create(old_state.name,this,old_state.state,new_connections,i);
             }
@@ -655,11 +654,11 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
      * @param name The name of the animation state to remove the connection from, null to remove from all of them
      * @param node The node to remove
      */
-    public void removeAnimationStateConnection(String name, TrackNodeReference node) {
+    public void removeAnimationStateConnection(String name, TrackPendingConnection node) {
         for (int i = 0; i < this._animationStates.length; i++) {
             TrackNodeAnimationState old_state = this._animationStates[i];
             if (name == null || name.equals(old_state.name)) {
-                TrackNodeReference[] new_connections = LogicUtil.removeArrayElement(old_state.connections, node);
+                TrackPendingConnection[] new_connections = LogicUtil.removeArrayElement(old_state.connections, node);
                 if (new_connections != old_state.connections) {
                     old_state.destroyParticles();
                     this._animationStates[i] = TrackNodeAnimationState.create(old_state.name,this,old_state.state,new_connections,i);
@@ -676,7 +675,7 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
             TrackNodeAnimationState old_state = this._animationStates[i];
             if (old_state.connections.length > 0) {
                 old_state.destroyParticles();
-                this._animationStates[i] = TrackNodeAnimationState.create(old_state.name,this,old_state.state,new TrackNodeReference[0],i);
+                this._animationStates[i] = TrackNodeAnimationState.create(old_state.name,this,old_state.state,new TrackPendingConnection[0],i);
             }
         }
     }
@@ -768,7 +767,7 @@ public class TrackNode implements CoasterWorldComponent, Lockable {
         }
 
         // Calculate 2d distance
-        return Math.sqrt(pos.getX() * pos.getX() + pos.getY() * pos.getY()) / lim;
+        return Math.sqrt(TCCoastersUtil.distanceSquaredXY(pos)) / lim;
     }
 
     protected void onRemoved() {

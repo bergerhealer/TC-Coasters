@@ -1,7 +1,10 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
+import java.util.List;
+
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 
 /**
@@ -12,8 +15,9 @@ import com.bergerkiller.bukkit.common.math.Matrix4x4;
 public final class TrackConnectionState {
     public final Vector node_pos_a;
     public final Vector node_pos_b;
+    public final TrackObject[] objects;
 
-    private TrackConnectionState(Vector node_pos_a, Vector node_pos_b) {
+    private TrackConnectionState(Vector node_pos_a, Vector node_pos_b, TrackObject[] objects) {
         if (node_pos_a == null) {
             throw new IllegalArgumentException("node_pos_a can not be null");
         }
@@ -22,6 +26,7 @@ public final class TrackConnectionState {
         }
         this.node_pos_a = node_pos_a;
         this.node_pos_b = node_pos_b;
+        this.objects = objects;
     }
 
     @Override
@@ -62,16 +67,25 @@ public final class TrackConnectionState {
         Vector pos_b = this.node_pos_b.clone();
         transform.transformPoint(pos_a);
         transform.transformPoint(pos_b);
-        return new TrackConnectionState(pos_a, pos_b);
+        return new TrackConnectionState(pos_a, pos_b, this.objects);
     }
 
-    public static TrackConnectionState create(Vector node_pos_a, Vector node_pos_b) {
-        return new TrackConnectionState(node_pos_a, node_pos_b);
+    public static TrackConnectionState create(Vector node_pos_a, Vector node_pos_b, List<TrackObject> objects) {
+        TrackObject[] objects_clone;
+        if (objects == null || objects.isEmpty()) {
+            objects_clone = TrackObject.EMPTY;
+        } else {
+            objects_clone = new TrackObject[objects.size()];
+            for (int i = 0; i < objects.size(); i++) {
+                objects_clone[i] = objects.get(i).clone();
+            }
+        }
+        return new TrackConnectionState(node_pos_a, node_pos_b, objects_clone);
     }
 
     public static TrackConnectionState create(TrackConnection connection) {
-        return new TrackConnectionState(
-                connection.getNodeA().getPosition(),
-                connection.getNodeB().getPosition());
+        return create(connection.getNodeA().getPosition(),
+                      connection.getNodeB().getPosition(),
+                      connection.getObjects());
     }
 }

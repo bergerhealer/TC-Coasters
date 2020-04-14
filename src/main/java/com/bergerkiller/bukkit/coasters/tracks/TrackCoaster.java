@@ -174,7 +174,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
     public void refreshConnections() {
         for (TrackNode node : getNodes()) {
             for (TrackNodeAnimationState state : node.getAnimationStates()) {
-                for (TrackNodeReference connection : state.connections) {
+                for (TrackPendingConnection connection : state.connections) {
                     // Gets the connected node, loading it in.
                     // If equal to node, remove the connection to prevent issues down the line
                     // Connecting to self is invalid.

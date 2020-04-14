@@ -6,6 +6,9 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Vector;
 import org.junit.Test;
 
@@ -16,7 +19,10 @@ import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.NoLimits2Entr
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.NodeEntry;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.RootNodeEntry;
 import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVReader;
+import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
+import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.internal.CommonBootstrap;
 
 public class CoasterCSVReaderTest {
 
@@ -162,6 +168,34 @@ public class CoasterCSVReaderTest {
 
             // EOF
             assertNull(reader.readNextEntry());
+        }
+    }
+
+    @Test
+    public void testItemStackSerialization() {
+        CommonBootstrap.initServer();
+
+        // Create an item with metadata information
+        ItemStack item = new ItemStack(Material.RAIL, 2);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName("Name with spaces and\ttabs");
+        item.setItemMeta(meta);
+
+        // Write to buffer
+        StringArrayBuffer buffer = new StringArrayBuffer();
+        buffer.putItemStack(item);
+
+        // Check serialized contents have no spaces or tabs
+        assertFalse(buffer.get(0).contains(" "));
+        assertFalse(buffer.get(0).contains("\t"));
+
+        // Deserialize and verify it works
+        try {
+            buffer.reset();
+            ItemStack deserialized = buffer.nextItemStack();
+            assertEquals(item, deserialized);
+        } catch (SyntaxException e) {
+            throw new RuntimeException("Deserializing failed", e);
         }
     }
 

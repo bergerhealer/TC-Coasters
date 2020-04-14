@@ -6,6 +6,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -13,9 +14,11 @@ import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.events.CoasterConnectionEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterNodeEvent;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
+import com.bergerkiller.bukkit.common.map.MapDisplay;
 
 public class TCCoastersListener implements Listener {
     private final TCCoasters plugin;
@@ -89,5 +92,14 @@ public class TCCoastersListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
         this.plugin.logoutPlayer(event.getPlayer());
+    }
+
+    // Note: obsoleted by onItemDrop after BKCommonLib 1.15.2-v3 or later is the minimum required dependency!
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerItemDrop(PlayerDropItemEvent event) {
+        TCCoastersDisplay display = MapDisplay.getHeldDisplay(event.getPlayer(), TCCoastersDisplay.class);
+        if (display != null && display.acceptItem(event.getItemDrop().getItemStack())) {
+            event.setCancelled(true);
+        }
     }
 }

@@ -9,12 +9,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
+import com.bergerkiller.bukkit.common.math.Matrix4x4;
+import com.bergerkiller.bukkit.common.math.Quaternion;
 
 /**
  * Stores all the track groups and the special connections between track nodes.
@@ -73,6 +76,114 @@ public class TrackWorld implements CoasterWorldComponent {
             }
         }
         return null;
+    }
+
+    /**
+     * Looks for all nearby nodes and their connections and computes the exact point on a path
+     * looking at using a given eye Location. If no such point can be found, then null is returned.
+     * 
+     * @param eyeLocation
+     * @return Point on the path looked at, null if not found
+     */
+    public TrackConnection.PointOnPath findPointOnPath(Location eyeLocation) {
+        // Create an inverted camera transformation of the player's view direction
+        Matrix4x4 cameraTransform = new Matrix4x4();
+        cameraTransform.translateRotate(eyeLocation);
+        return findPointOnPath(cameraTransform);
+    }
+
+    /**
+     * Looks for all nearby nodes and their connections and computes the exact point on a path
+     * looking at using a given eye Location. If no such point can be found, then null is returned.
+     * 
+     * @param cameraTransform Player eye camera transform
+     * @return Point on the path looked at, null if not found
+     */
+    public TrackConnection.PointOnPath findPointOnPath(Matrix4x4 cameraTransform) {
+        cameraTransform = cameraTransform.clone();
+        cameraTransform.invert();
+
+        double bestViewDistance = Double.MAX_VALUE;
+        TrackConnection bestConnection = null;
+        TrackConnectionPath bestPath = null;
+        double bestTheta = 0.0;
+        Vector bestPosition = null;
+        for (TrackCoaster coaster : getCoasters()) {
+            for (TrackNode node : coaster.getNodes()) {
+                // Node itself
+                Vector node_pos = node.getPosition().clone();
+                cameraTransform.transformPoint(node_pos);
+
+                // Compute x/z distance, which is used to quickly filter connections down below
+                double node_viewDistanceSq = distanceSquaredXY(node_pos);
+
+                // Check all connections
+                for (TrackConnection connection : node.getConnections()) {
+                    // Skip if way out of range
+                    double d_sq = 2.0 * connection._endA.getDistance();
+                    d_sq *= d_sq;
+                    if (node_viewDistanceSq > d_sq) {
+                        continue;
+                    }
+
+                    // Find closest point
+                    double theta;
+                    TrackConnectionPath path = connection.getPath();
+                    Vector positionOnPath = new Vector();
+                    if (connection.getNodeA() == node) {
+                        theta = path.findClosestPointInView(cameraTransform, 0.0, 0.5, positionOnPath);
+                    } else {
+                        theta = path.findClosestPointInView(cameraTransform, 0.5, 1.0, positionOnPath);
+                    }
+
+                    // View function matching
+                    double viewDistance = getViewDistance(cameraTransform, positionOnPath);
+                    if (viewDistance < bestViewDistance) {
+                        bestViewDistance = viewDistance;
+                        bestConnection = connection;
+                        bestPath = path;
+                        bestTheta = theta;
+                        bestPosition = positionOnPath;
+                    }
+                }
+            }
+        }
+        if (bestConnection == null) {
+            return null;
+        }
+
+        // Get motion vector on the path. Make sure it is consistent, flip it to always be net positive.
+        Vector motionVector = bestPath.getMotionVector(bestTheta);
+        if ((motionVector.getX() + motionVector.getY() + motionVector.getZ()) < 0.0) {
+            motionVector.multiply(-1.0);
+        }
+
+        double bestDistance = bestPath.computeDistance(0.0, bestTheta);
+        Quaternion bestOrientation = Quaternion.fromLookDirection(motionVector, bestConnection.getOrientation(bestTheta));
+        return new TrackConnection.PointOnPath(bestConnection, bestTheta, bestDistance, bestPosition, bestOrientation);
+    }
+
+    private static double getViewDistance(Matrix4x4 cameraTransform, Vector pos) {
+        pos = pos.clone();
+        cameraTransform.transformPoint(pos);
+
+        // Behind the player
+        if (pos.getZ() <= 1e-6) {
+            return Double.MAX_VALUE;
+        }
+
+        // Calculate limit based on depth (z) and filter based on it
+        double lim = 3.0 * Math.max(1.0, pos.getZ() * Math.pow(4.0, -pos.getZ()));
+        if (Math.abs(pos.getX()) > lim || Math.abs(pos.getY()) > lim) {
+            return Double.MAX_VALUE;
+        }
+
+        // Calculate 2d distance
+        return Math.sqrt(pos.getX() * pos.getX() + pos.getY() * pos.getY()) / lim;
+    }
+
+    private static double distanceSquaredXY(Vector v) {
+        return v.getX()*v.getX() + v.getY()*v.getY();
     }
 
     /**
@@ -359,7 +470,7 @@ public class TrackWorld implements CoasterWorldComponent {
 
             // Remove from animations also
             if (fromAnimations && other.hasAnimationStates()) {
-                other.removeAnimationStateConnection(null, new TrackNodeReference(node));
+                other.removeAnimationStateConnection(null, new TrackPendingConnection(node));
             }
 
             // Schedule refresh of other node

@@ -4,15 +4,17 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 
-import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -22,19 +24,22 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil.TargetedBlockInfo;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
+import com.bergerkiller.bukkit.coasters.editor.object.ObjectEditState;
 import com.bergerkiller.bukkit.coasters.events.CoasterSelectNodeEvent;
+import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
+import com.bergerkiller.bukkit.coasters.tracks.TrackPendingConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
@@ -66,11 +71,15 @@ public class PlayerEditState implements CoasterWorldComponent {
     private final PlayerEditInput input;
     private final PlayerEditHistory history;
     private final PlayerEditClipboard clipboard;
+    private final ObjectEditState objectState;
     private final Map<TrackNode, PlayerEditNode> editedNodes = new LinkedHashMap<TrackNode, PlayerEditNode>();
     private final TreeMultimap<String, TrackNode> editedNodesByAnimationName = TreeMultimap.create(Ordering.natural(), Ordering.arbitrary());
+    private final Map<TrackObject, PlayerEditTrackObject> editedTrackObjects = new LinkedHashMap<TrackObject, PlayerEditTrackObject>();
     private CoasterWorld cachedCoasterWorld = null;
     private TrackNode lastEdited = null;
+    private TrackObject lastEditedTrackObject = null;
     private long lastEditTime = System.currentTimeMillis();
+    private long lastEditTrackObjectTime = System.currentTimeMillis();
     private PlayerEditMode editMode = PlayerEditMode.DISABLED;
     private PlayerEditMode afterEditMode = null;
     private int heldDownTicks = 0;
@@ -88,6 +97,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         this.input = new PlayerEditInput(player);
         this.history = new PlayerEditHistory(player);
         this.clipboard = new PlayerEditClipboard(this);
+        this.objectState = new ObjectEditState();
     }
 
     /**
@@ -111,6 +121,7 @@ public class PlayerEditState implements CoasterWorldComponent {
 
             this.editMode = config.get("mode", PlayerEditMode.DISABLED);
             this.selectedAnimation = config.get("selectedAnimation", String.class, null);
+            this.getObjectState().load(config.getNode("object"));
             this.editedNodes.clear();
             this.editedNodesByAnimationName.clear();
             this.editedAnimationNamesChanged = true;
@@ -157,6 +168,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         } else {
             config.set("selectedAnimation", this.selectedAnimation);
         }
+        this.getObjectState().save(config.getNode("object"));
         config.save();
     }
 
@@ -172,11 +184,23 @@ public class PlayerEditState implements CoasterWorldComponent {
         return this.clipboard;
     }
 
+    public ObjectEditState getObjectState() {
+        return this.objectState;
+    }
+
     public long getLastEditTime(TrackNode node) {
         if (this.lastEdited != node) {
             return Long.MAX_VALUE;
         } else {
             return System.currentTimeMillis() - this.lastEditTime;
+        }
+    }
+
+    public long getLastEditTime(TrackObject object) {
+        if (this.lastEditedTrackObject != object) {
+            return Long.MAX_VALUE;
+        } else {
+            return System.currentTimeMillis() - this.lastEditTrackObjectTime;
         }
     }
 
@@ -190,6 +214,22 @@ public class PlayerEditState implements CoasterWorldComponent {
             this.changed = true;
             for (TrackNode oldNode : oldNodes) {
                 oldNode.onStateUpdated(this.player);
+            }
+        }
+    }
+
+    public void clearEditedTrackObjects() {
+        if (!this.editedTrackObjects.isEmpty()) {
+            ArrayList<TrackObject> oldObjects = new ArrayList<TrackObject>(this.getEditedTrackObjects());
+            this.editedTrackObjects.clear();
+
+            //this.editedAnimationNamesChanged |= !this.editedNodesByAnimationName.isEmpty();
+            //this.editedNodesByAnimationName.clear();
+            //this.lastEdited = null;
+
+            this.changed = true;
+            for (TrackObject oldObject : oldObjects) {
+                oldObject.onStateUpdated(this.player);
             }
         }
     }
@@ -300,6 +340,10 @@ public class PlayerEditState implements CoasterWorldComponent {
         return this.editedNodes.keySet();
     }
 
+    public Set<TrackObject> getEditedTrackObjects() {
+        return this.editedTrackObjects.keySet();
+    }
+
     /**
      * Gets a set of all the coasters of which a node is being edited
      * 
@@ -330,6 +374,10 @@ public class PlayerEditState implements CoasterWorldComponent {
         return !this.editedNodes.isEmpty();
     }
 
+    public boolean hasEditedTrackObjects() {
+        return !this.editedTrackObjects.isEmpty();
+    }
+
     /**
      * Deselects all nodes that we cannot actually edit, because the coaster they
      * are part of is locked.
@@ -352,9 +400,35 @@ public class PlayerEditState implements CoasterWorldComponent {
         if (hadLockedNodes) {
             this.lastEditTime = System.currentTimeMillis();
             this.changed = true;
-            this.player.sendMessage(ChatColor.RED + "This coaster is locked!");
+            TCCoastersLocalization.LOCKED.message(this.player);
         }
         return hadLockedNodes;
+    }
+
+    /**
+     * Deselects all track objects that we cannot actually edit, because the connection
+     * they are on is on a coaster that is locked.
+     * 
+     * @return True if track objects were deselected
+     */
+    public boolean deselectLockedTrackObjects() {
+        boolean hadLockedTrackObjects = false;
+        Iterator<PlayerEditTrackObject> iter = this.editedTrackObjects.values().iterator();
+        while (iter.hasNext()) {
+            PlayerEditTrackObject editObject = iter.next();
+            if (editObject.connection.isLocked()) {
+                iter.remove();
+                hadLockedTrackObjects = true;
+                editObject.object.onStateUpdated(this.player);
+                this.lastEditedTrackObject = editObject.object;
+            }
+        }
+        if (hadLockedTrackObjects) {
+            this.lastEditTrackObjectTime = System.currentTimeMillis();
+            this.changed = true;
+            TCCoastersLocalization.LOCKED.message(this.player);
+        }
+        return hadLockedTrackObjects;
     }
 
     public void setMode(PlayerEditMode mode) {
@@ -404,6 +478,31 @@ public class PlayerEditState implements CoasterWorldComponent {
         return true;
     }
 
+    /**
+     * Tries to select a track object for editing. If not already editing,
+     * an event is fired to check whether selecting the track object is permitted
+     * 
+     * @param connection The connection the object is on
+     * @param object The object being selected
+     * @return True if the object was selected or was already selected, False if this was disallowed
+     */
+    public boolean selectTrackObject(TrackConnection connection, TrackObject object) {
+        if (object == null) {
+            throw new IllegalArgumentException("Track object can not be null");
+        }
+        if (this.editedTrackObjects.containsKey(object)) {
+            return true;
+        }
+
+        //TODO!
+        //if (CommonUtil.callEvent(new CoasterSelectNodeEvent(this.player, node)).isCancelled()) {
+        //    return false;
+        //}
+
+        this.setEditingTrackObject(connection, object, true);
+        return true;
+    }
+
     public void setEditing(TrackNode node, boolean editing) {
         if (node == null) {
             throw new IllegalArgumentException("Node can not be null");
@@ -439,8 +538,48 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
     }
 
+    public void setEditingTrackObject(TrackConnection connection, TrackObject object, boolean editing) {
+        if (object == null) {
+            throw new IllegalArgumentException("Track Object can not be null");
+        }
+        boolean changed;
+        if (editing) {
+            if (this.editedTrackObjects.containsKey(object)) {
+                changed = false;
+            } else {
+                changed = true;
+                this.editedTrackObjects.put(object, new PlayerEditTrackObject(connection, object));
+            }
+        } else {
+            changed = (this.editedTrackObjects.remove(object) != null);
+        }
+        if (changed) {
+            // Can be caused by the node being removed, handle that here
+            object.onStateUpdated(this.player);
+
+            /*
+            for (TrackNodeAnimationState state : node.getAnimationStates()) {
+                Set<TrackNode> values = this.editedNodesByAnimationName.get(state.name);
+                if (editing && values.add(node)) {
+                    this.editedAnimationNamesChanged |= (values.size() == 1);
+                } else if (!editing && values.remove(node)) {
+                    this.editedAnimationNamesChanged |= values.isEmpty();
+                }
+            }
+            */
+
+            this.lastEditedTrackObject = object;
+            this.lastEditTrackObjectTime = System.currentTimeMillis();
+            this.changed = true;
+        }
+    }
+
     public boolean isEditing(TrackNode node) {
         return this.editedNodes.containsKey(node);
+    }
+
+    public boolean isEditingTrackObject(TrackObject object) {
+        return this.editedTrackObjects.containsKey(object);
     }
 
     /**
@@ -461,6 +600,61 @@ public class PlayerEditState implements CoasterWorldComponent {
     }
 
     public boolean onLeftClick() {
+        if (this.getMode() == PlayerEditMode.OBJECT) {
+            return this.onLeftClickTrackObject();
+        } else {
+            return this.onLeftClickOther();
+        }
+    }
+
+    private boolean onLeftClickTrackObject() {
+        // Single object selection mode
+        if (!this.isSneaking()) {
+            clearEditedTrackObjects();
+        }
+
+        // Find point on path clicked
+        TrackConnection.PointOnPath point = this.getWorld().getTracks().findPointOnPath(this.player.getEyeLocation());
+        if (point == null) {
+            return true;
+        }
+
+        // Check for objects on this connection that are very close to the point clicked
+        TrackObject bestObject = null;
+        double bestDistance = 4.0; // within 4.0 distance to select it (TODO: larger wiggle room when further away?)
+        for (TrackObject object : point.connection.getObjects()) {
+            double distance = Math.abs(object.getDistance() - point.distance);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestObject = object;
+            }
+        }
+        if (bestObject == null) {
+            return true;
+        }
+
+        long lastEditTime = getLastEditTime(bestObject);
+        if (lastEditTime > 300) {
+            // Toggle edit state
+            if (isEditingTrackObject(bestObject)) {
+                setEditingTrackObject(point.connection, bestObject, false);
+            } else {
+                selectTrackObject(point.connection, bestObject);
+            }
+        } else {
+            // Mass-selection mode
+            if (this.isSneaking()) {
+                // Select all objects between the clicked object and the nearest other selected track object
+                this.floodSelectNearest(point.connection, bestObject);
+            } else {
+                // Flood-fill select all nodes connected from bestObject
+                this.floodSelectTrackObjects(point.connection, bestObject);
+            }
+        }
+        return true;
+    }
+
+    private boolean onLeftClickOther() {
         // When holding right-click and clicking left-click in position mode, create a new node and drag that
         if (this.getMode() == PlayerEditMode.POSITION && this.isHoldingRightClick()) {
             Vector pos;
@@ -582,6 +776,153 @@ public class PlayerEditState implements CoasterWorldComponent {
     }
 
     /**
+     * Selects all the track objects of all connections accessible from a connection, recursively.
+     * This will select all the objects of an entire coaster or piece of track, for example.
+     * Any previous selection is cleared.
+     * 
+     * @param startConnection
+     * @param startObject
+     */
+    public void floodSelectTrackObjects(TrackConnection startConnection, TrackObject startObject) {
+        this.clearEditedTrackObjects();
+
+        List<TrackConnection> pending = new ArrayList<TrackConnection>();
+        pending.add(startConnection);
+        HashSet<TrackConnection> processed = new HashSet<TrackConnection>(pending);
+        while (!pending.isEmpty()) {
+            int size = pending.size();
+            for (int i = 0; i < size; i++) {
+                TrackConnection connection = pending.get(i);
+                for (TrackObject object : connection.getObjects()) {
+                    this.selectTrackObject(connection, object);
+                }
+                for (TrackConnection neighbour : connection.getNodeA().getConnections()) {
+                    if (processed.add(neighbour)) {
+                        pending.add(neighbour);
+                    }
+                }
+                for (TrackConnection neighbour : connection.getNodeB().getConnections()) {
+                    if (processed.add(neighbour)) {
+                        pending.add(neighbour);
+                    }
+                }
+            }
+            pending.subList(0, size).clear();
+        }
+    }
+
+    /**
+     * Selects all the track objects of all connections accessible from the start connection,
+     * that are between the startObject and the closest other selected track object.
+     * The selected track objects are added and the previous selection is kept.
+     * 
+     * @param startConnection
+     * @param startObject
+     */
+    public void floodSelectNearest(TrackConnection startConnection, TrackObject startObject) {
+        // If there is a selected track object with the same connection, then we can optimize this
+        // This is technically incorrect, because we could be at the end/start of the connection, with
+        // another selected object on a connection next to it. For now, this is good enough, really.
+        // Normally people only select a single object prior to flood-selecting anyway.
+        {
+            TrackObject closestObjectOnSameConnection = null;
+            double closestDistance = Double.MAX_VALUE;
+            for (PlayerEditTrackObject editObject : this.editedTrackObjects.values()) {
+                if (editObject.connection == startConnection && editObject.object != startObject) {
+                    double distance = Math.abs(startObject.getDistance() - editObject.object.getDistance());
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        closestObjectOnSameConnection = editObject.object;
+                    }
+                }
+            }
+            if (closestObjectOnSameConnection != null) {
+                // Add all objects in between the distance range
+                double d_from = Math.min(startObject.getDistance(), closestObjectOnSameConnection.getDistance());
+                double d_to   = Math.max(startObject.getDistance(), closestObjectOnSameConnection.getDistance());
+                for (TrackObject object : startConnection.getObjects()) {
+                    if (object.getDistance() >= d_from && object.getDistance() <= d_to) {
+                        this.selectTrackObject(startConnection, object);
+                    }
+                }
+                return; // done.
+            }
+        }
+
+        // Make use of the node flood selecting, using the nodes from the objects we have selected
+        // For start node, we pick the node closest to the start object
+        List<PlayerEditTrackObject> editedTrackObjects = new ArrayList<PlayerEditTrackObject>(this.editedTrackObjects.values());
+        HashSet<TrackNode> nodesOfTrackObjects = new HashSet<TrackNode>();
+        for (PlayerEditTrackObject editObject : editedTrackObjects) {
+            if (editObject.object != startObject) {
+                nodesOfTrackObjects.add(editObject.connection.getNodeA());
+                nodesOfTrackObjects.add(editObject.connection.getNodeB());
+            }
+        }
+        boolean searchRight = (startObject.getDistance() >= 0.5 * startConnection.getFullDistance());
+        TrackNode searchStart = searchRight ? startConnection.getNodeB() : startConnection.getNodeA();
+        TrackNodeSearchPath bestPath = TrackNodeSearchPath.findShortest(searchStart, nodesOfTrackObjects);
+
+        // Now do stuff with the found path, if found
+        if (bestPath != null) {
+            // If best path contains the other node of the start connection, then fill select to the right
+            // Otherwise, select all objects to the left of the start object
+            boolean searchWentRight = searchRight == (bestPath.path.contains(startConnection.getOtherNode(searchStart)));
+            this.selectTrackObjectsBeyondDistance(startConnection, searchWentRight, startObject.getDistance());
+            bestPath.pathConnections.remove(startConnection);
+
+            // The current node is one that has a connection with one of the track objects we had selected
+            // We need to find the connection of the node which is closest to it
+            TrackConnection bestConnection = null;
+            double bestObjectDistance = 0.0;
+            boolean bestObjectDirection = false;
+            double bestObjectDistanceToEnd = Double.MAX_VALUE;
+            for (PlayerEditTrackObject editObject : editedTrackObjects) {
+                if (editObject.object == startObject) {
+                    continue;
+                }
+
+                boolean direction = (editObject.connection.getNodeA() == bestPath.current);
+                if (!direction && editObject.connection.getNodeB() != bestPath.current) {
+                    continue;
+                }
+
+                double distance = editObject.object.getDistance();
+                if (!direction) {
+                    distance = editObject.connection.getFullDistance() - distance;
+                }
+                if (distance < bestObjectDistanceToEnd) {
+                    bestObjectDistanceToEnd = distance;
+                    bestConnection = editObject.connection;
+                    bestObjectDistance = editObject.object.getDistance();
+                    bestObjectDirection = direction;
+                }
+            }
+            if (bestConnection != null) {
+                bestPath.pathConnections.remove(bestConnection);
+                this.selectTrackObjectsBeyondDistance(bestConnection, bestObjectDirection, bestObjectDistance);
+            }
+
+            // Add all objects on connections in-between
+            for (TrackConnection connection : bestPath.pathConnections) {
+                for (TrackObject object : connection.getObjects()) {
+                    this.selectTrackObject(connection, object);
+                }
+            }
+        }
+    }
+
+    private void selectTrackObjectsBeyondDistance(TrackConnection connection, boolean direction, double distance) {
+        for (TrackObject object : connection.getObjects()) {
+            if (direction ? (object.getDistance() <= distance) :
+                            (object.getDistance() >= distance)
+            ) {
+                this.selectTrackObject(connection, object);
+            }
+        }
+    }
+
+    /**
      * Attempts to find the closest node that is also selected, but not the start node,
      * and selects the nodes between them. The selected nodes are added and the previous
      * selection is kept.
@@ -658,6 +999,9 @@ public class PlayerEditState implements CoasterWorldComponent {
         } else if (this.editMode == PlayerEditMode.RAILS) {
             // Set rails block to the block clicked
             setRailBlock();
+        } else if (this.editMode == PlayerEditMode.OBJECT) {
+            // Create track objects on the track
+            createTrackObject();
         } else {
             // Position / Orientation logic
             changePositionOrientation();
@@ -992,6 +1336,210 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
     }
 
+    /**
+     * Creates a new track objects where the player is looking, or drags existing track objects around on the track
+     * 
+     * @throws ChangeCancelledException
+     */
+    public void createTrackObject() throws ChangeCancelledException {
+        // Find point looked at
+        TrackConnection.PointOnPath point = this.getWorld().getTracks().findPointOnPath(this.input.get());
+        if (point == null) {
+            return;
+        }
+        if (point.connection.isLocked()) {
+            TCCoastersLocalization.LOCKED.message(this.player);
+            return;
+        }
+
+        // Create new objects when none are selected
+        if (this.editedTrackObjects.isEmpty()) {
+            point.connection.addObject(new TrackObject(point.distance, this.getObjectState().getSelectedItem()));
+            return;
+        }
+
+        // Deselect objects we cannot edit before proceeding
+        this.deselectLockedTrackObjects();
+
+        if (this.heldDownTicks == 0) {
+            // First click: calculate the positions of the objects relative to the clicked point
+            // If objects aren't accessible from the point, then their dragDistance is set to NaN
+
+            // Reset all objects to NaN
+            for (PlayerEditTrackObject editObject : this.editedTrackObjects.values()) {
+                editObject.dragDistance = Double.NaN;
+            }
+
+            // First do the objects on the clicked connection itself
+            Map<TrackObject, PlayerEditTrackObject> pending = new HashMap<TrackObject, PlayerEditTrackObject>(this.editedTrackObjects);
+            for (TrackObject object : point.connection.getObjects()) {
+                PlayerEditTrackObject editObject = pending.remove(object);
+                if (editObject != null) {
+                    editObject.dragDistance = object.getDistance() - point.distance;
+                    editObject.dragDirection = (editObject.dragDistance >= 0.0);
+                    if (!editObject.dragDirection) {
+                        editObject.dragDistance = -editObject.dragDistance;
+                    }
+                }
+            }
+
+            // If there's more, perform discovery in the two directions from the point's connection
+            // Do this stepwise, so in a loop we find the nearest distance ideally
+            if (!pending.isEmpty()) {
+                Set<TrackConnection> visited = new HashSet<TrackConnection>();
+                TrackObjectDiscoverer left  = new TrackObjectDiscoverer(pending, visited, point.connection, false, point.distance);
+                TrackObjectDiscoverer right = new TrackObjectDiscoverer(pending, visited, point.connection, true,  point.distance);
+                while (!pending.isEmpty() && (left.next() || right.next()));
+            }
+        } else {
+            // Successive clicks: move the objects to the point, making use of the relative dragDistance to do so
+            moveTrackObjects(point, false);
+            moveTrackObjects(point, true);
+        }
+    }
+
+    // Helper class for createTrackObject() drag start logic
+    private static class TrackObjectDiscoverer {
+        public final Map<TrackObject, PlayerEditTrackObject> pending;
+        public final Set<TrackConnection> visited;
+        public final WalkingConnection connection;
+        public boolean initialDirection;
+        public double distance;
+
+        public TrackObjectDiscoverer(Map<TrackObject, PlayerEditTrackObject> pending, Set<TrackConnection> visited, TrackConnection connection, boolean direction, double pointDistance) {
+            this.pending = pending;
+            this.visited = visited;
+            this.connection = new WalkingConnection(connection, direction);
+            this.initialDirection = direction;
+            this.distance = direction ? (connection.getFullDistance() - pointDistance) : pointDistance;
+        }
+
+        public boolean next() {
+            // Next connection
+            if (!this.connection.next()) {
+                return false;
+            }
+
+            // If already visited, abort
+            if (!this.visited.add(this.connection.connection)) {
+                this.connection.connection = null;
+                return false;
+            }
+
+            // Check all objects on connection
+            for (TrackObject object : this.connection.connection.getObjects()) {
+                PlayerEditTrackObject editObject = this.pending.remove(object);
+                if (editObject != null) {
+                    double objectDistance = object.getDistance();
+                    if (!this.connection.direction) {
+                        objectDistance = connection.getFullDistance() - objectDistance;
+                    }
+                    editObject.dragDirection = this.initialDirection;
+                    editObject.dragDistance = this.distance + objectDistance;
+                }
+            }
+            this.distance += this.connection.getFullDistance();
+            return true;
+        }
+    }
+
+    /// Moves selected track objects. Direction defines whether to walk to nodeA (false) or nodeB (true).
+    private void moveTrackObjects(TrackConnection.PointOnPath point, boolean initialDirection) {
+        // Create a sorted list of objects to move, with drag distance increasing
+        // Only add objects with the same direction
+        SortedSet<PlayerEditTrackObject> objects = new TreeSet<PlayerEditTrackObject>(
+            (a, b) -> Double.compare(a.dragDistance, b.dragDistance)
+        );
+        for (PlayerEditTrackObject editObject : this.editedTrackObjects.values()) {
+            if (editObject.dragDirection == initialDirection && !Double.isNaN(editObject.dragDistance)) {
+                objects.add(editObject);
+            }
+        }
+        if (objects.isEmpty()) {
+            return; // none in this category
+        }
+
+        // Distance offset based on the point position on the clicked connection
+        // This makes the maths easier, as we can just look from the start of the connection
+        // This value is initially always a negative number (or 0)
+        double distanceOffset = -(initialDirection ? point.distance : (point.connection.getFullDistance() - point.distance));
+
+        // Proceed to walk down the connections relative to the point
+        WalkingConnection connection = new WalkingConnection(point.connection, initialDirection);
+        for (PlayerEditTrackObject object : objects) {
+            while (true) {
+                // Check if the object can fit within the remaining distance on the current connection
+                double objectDistance = object.dragDistance - distanceOffset;
+                if (objectDistance < connection.getFullDistance()) {
+                    if (!connection.direction) {
+                        objectDistance = connection.getFullDistance() - objectDistance;
+                    }
+                    object.connection.moveObject(object.object, connection.connection, objectDistance);
+                    object.connection = connection.connection;
+                    break; // done!
+                }
+
+                distanceOffset += connection.getFullDistance();
+                if (!connection.next()) {
+                    return; // end reached
+                }
+            }
+        }
+    }
+
+    /**
+     * Tracks a Connection that can walk in either direction towards the next connection
+     * of the chain.
+     */
+    private static class WalkingConnection {
+        public TrackConnection connection;
+        public boolean direction;
+
+        public WalkingConnection(TrackConnection connection, boolean direction) {
+            this.connection = connection;
+            this.direction = direction;
+        }
+
+        public double getFullDistance() {
+            return this.connection.getFullDistance();
+        }
+
+        public boolean next() {
+            if (this.connection == null) {
+                return false;
+            }
+
+            // Pick next connection. We don't really support junctions that well.
+            TrackNode next = this.direction ? this.connection.getNodeB() : this.connection.getNodeA();
+            List<TrackConnection> nextConnections = next.getConnections();
+            if (nextConnections.size() <= 1) {
+                this.connection = null;
+                return false;
+            } else {
+                this.connection = (nextConnections.get(0) == this.connection) ? nextConnections.get(1) : nextConnections.get(0);
+                this.direction = (this.connection.getNodeA() == next);
+                return true;
+            }
+        }
+    }
+
+    /**
+     * Deletes all selected track objects
+     * 
+     * @throws ChangeCancelledException
+     */
+    public void deleteTrackObjects() throws ChangeCancelledException {
+        if (this.editedTrackObjects.isEmpty()) {
+            return;
+        }
+
+        List<PlayerEditTrackObject> objects = new ArrayList<PlayerEditTrackObject>(this.editedTrackObjects.values());
+        this.editedTrackObjects.clear();
+        for (PlayerEditTrackObject object : objects) {
+            object.connection.removeObject(object.object);
+        }
+    }
+
     private Vector getNewNodePos() {
         Location eyeLoc = getPlayer().getEyeLocation();
         return eyeLoc.toVector().add(eyeLoc.getDirection().multiply(0.5));
@@ -1308,10 +1856,10 @@ public class PlayerEditState implements CoasterWorldComponent {
         TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
         if (animState != null) {
             // Only add connection for this one animation state
-            node.addAnimationStateConnection(animState.name, new TrackNodeReference(target));
+            node.addAnimationStateConnection(animState.name, new TrackPendingConnection(target));
         } else {
             // Add connection to all animation states
-            node.addAnimationStateConnection(null, new TrackNodeReference(target));
+            node.addAnimationStateConnection(null, new TrackPendingConnection(target));
         }
     }
 
@@ -1325,10 +1873,10 @@ public class PlayerEditState implements CoasterWorldComponent {
         TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
         if (animState != null) {
             // Only add connection for this one animation state
-            node.removeAnimationStateConnection(animState.name, new TrackNodeReference(target));
+            node.removeAnimationStateConnection(animState.name, new TrackPendingConnection(target));
         } else {
             // Add connection to all animation states
-            node.removeAnimationStateConnection(null, new TrackNodeReference(target));
+            node.removeAnimationStateConnection(null, new TrackPendingConnection(target));
         }
     }
 }

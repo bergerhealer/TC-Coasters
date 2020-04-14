@@ -2,19 +2,28 @@ package com.bergerkiller.bukkit.coasters.tracks.csv;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+
+import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
+import com.bergerkiller.bukkit.common.utils.ItemUtil;
+import com.bergerkiller.mountiplex.reflection.util.UniqueHash;
 import com.opencsv.CSVWriter;
 
 /**
@@ -22,12 +31,14 @@ import com.opencsv.CSVWriter;
  * and writing those as well.
  */
 public class TrackCoasterCSVWriter implements AutoCloseable {
-    private final CSVWriter writer;
+    private final ThrowingCSVWriter writer;
     private final StringArrayBuffer buffer = new StringArrayBuffer();
     private final Set<TrackNode> pendingNodes = new HashSet<TrackNode>();
     private final Set<TrackNode> writtenNodes = new HashSet<TrackNode>();
     private final Set<TrackConnection> writtenConnections = new HashSet<TrackConnection>();
     private final List<TrackConnection> currConnections = new ArrayList<TrackConnection>();
+    private final Map<ItemStack, String> writtenItemStacks = new HashMap<ItemStack, String>();
+    private final UniqueHash writtenItemNameHash = new UniqueHash();
     private boolean writeLinksToForeignNodes = true;
 
     public TrackCoasterCSVWriter(OutputStream outputStream) {
@@ -39,7 +50,7 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
         char quotechar = '"';
         char escapechar = '\\';
         String lineEnd = "\r\n";
-        this.writer = new CSVWriter(writer, separator, quotechar, escapechar, lineEnd);
+        this.writer = new ThrowingCSVWriter(writer, separator, quotechar, escapechar, lineEnd);
     }
 
     /**
@@ -67,7 +78,7 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
      */
     public void writeAllNoLimits2(Collection<TrackNode> nodes) throws IOException {
         // Write header
-        this.writer.writeNext(new String[] {"No.","PosX","PosY","PosZ","FrontX","FrontY","FrontZ","LeftX","LeftY","LeftZ","UpX","UpY","UpZ"});
+        this.writer.writeNextThrow(new String[] {"No.","PosX","PosY","PosZ","FrontX","FrontY","FrontZ","LeftX","LeftY","LeftZ","UpX","UpY","UpZ"}, true);
 
         // Find the longest chain of nodes we can write out
         // This 'cuts off' junctions that lead to short ends
@@ -139,10 +150,10 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
      * 
      * @param entry to write
      */
-    public void write(TrackCoasterCSV.CSVEntry entry) {
+    public void write(TrackCoasterCSV.CSVEntry entry) throws IOException {
         this.buffer.clear();
         entry.write(this.buffer);
-        this.writer.writeNext(this.buffer.toArray(), entry.applyQuotes());
+        this.writer.writeNextThrow(this.buffer.toArray(), entry.applyQuotes());
     }
 
     /**
@@ -233,6 +244,14 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
             if (mode == Mode.JUNCTIONS_ONLY) {
                 // Write out all the connections - in order
                 for (TrackConnection conn : this.currConnections) {
+                    // If startNode is not nodeA of the connection, and objects are added,
+                    // the ends must be swapped to correct for this. Otherwise the distance written
+                    // is incorrect.
+                    if (conn.hasObjects() && conn.getNodeA() != startNode) {
+                        conn.swapEnds();
+                    }
+
+                    this.writeAllObjects(conn);
                     this.writeLink(conn.getOtherNode(startNode));
                 }
 
@@ -249,7 +268,15 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
                 TrackConnection conn = this.currConnections.get(i);
                 TrackNode node = conn.getOtherNode(startNode);
                 if (!this.pendingNodes.contains(node)) {
+                    // If startNode is not nodeA of the connection, and objects are added,
+                    // the ends must be swapped to correct for this. Otherwise the distance written
+                    // is incorrect.
+                    if (conn.hasObjects() && conn.getNodeA() != startNode) {
+                        conn.swapEnds();
+                    }
+
                     this.writtenConnections.add(conn); // LINK connects the nodes
+                    this.writeAllObjects(conn);
                     this.writeLink(node);
                     this.currConnections.remove(i);
                 }
@@ -263,7 +290,16 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
             // Simply pick the first connection all the time, and attempt chaining calls to it
             // TODO: We could be smarter here and choose the connection leading to the longest chain
             TrackConnection nextConn = this.currConnections.get(0);
+
+            // If startNode is not nodeA of the connection, and objects are added,
+            // the ends must be swapped to correct for this. Otherwise the distance written
+            // is incorrect.
+            if (nextConn.hasObjects() && nextConn.getNodeA() != startNode) {
+                nextConn.swapEnds();
+            }
+
             this.writtenConnections.add(nextConn);
+            this.writeAllObjects(nextConn);
             previous = startNode;
             startNode = nextConn.getOtherNode(previous);            
         }
@@ -273,6 +309,41 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
         TrackCoasterCSV.LinkNodeEntry link_entry = new TrackCoasterCSV.LinkNodeEntry();
         link_entry.pos = node.getPosition();
         this.write(link_entry);
+    }
+
+    private void writeAllObjects(TrackConnection connection) throws IOException {
+        for (TrackObject object : connection.getObjects()) {
+            this.writeObject(object);
+        }
+    }
+
+    private void writeObject(TrackObject object) throws IOException {
+        TrackCoasterCSV.ObjectEntry object_entry = new TrackCoasterCSV.ObjectEntry();
+        object_entry.distance = object.getDistance();
+        object_entry.itemName = writeItemStack(object.getItem());
+        this.write(object_entry);
+    }
+
+    private String writeItemStack(ItemStack itemStack) throws IOException {
+        if (itemStack == null) {
+            return "";
+        }
+        String name = this.writtenItemStacks.get(itemStack);
+        if (name == null) {
+            // Generate a name not already used
+            if (ItemUtil.hasDurability(itemStack)) {
+                name = this.writtenItemNameHash.nextHex() + "_I_" + itemStack.getType() + "_" + itemStack.getDurability();
+            } else {
+                name = this.writtenItemNameHash.nextHex() + "_I_" + itemStack.getType();
+            }
+            this.writtenItemStacks.put(itemStack, name);
+
+            TrackCoasterCSV.NamedItemStackEntry item_entry = new TrackCoasterCSV.NamedItemStackEntry();
+            item_entry.name = name;
+            item_entry.itemStack = itemStack;
+            this.write(item_entry);
+        }
+        return name;
     }
 
     public static enum Mode {
@@ -359,6 +430,18 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
             this.lastNode = connection.getOtherNode(this.lastNode);
             this.remaining.remove(this.lastNode);
             this.links.add(connection);
+        }
+    }
+
+    // Extension that adds a writeNext that throws the IOException, rather than swallowing it silently
+    private static class ThrowingCSVWriter extends CSVWriter {
+
+        public ThrowingCSVWriter(Writer writer, char separator, char quotechar, char escapechar, String lineEnd) {
+            super(writer, separator, quotechar, escapechar, lineEnd);
+        }
+
+        public void writeNextThrow(String[] nextLine, boolean applyQuotesToAll) throws IOException {
+            super.writeNext(nextLine, applyQuotesToAll, new StringBuilder(INITIAL_STRING_SIZE));
         }
     }
 }

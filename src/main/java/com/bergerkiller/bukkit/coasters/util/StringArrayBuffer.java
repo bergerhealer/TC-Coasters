@@ -3,9 +3,12 @@ package com.bergerkiller.bukkit.coasters.util;
 import java.util.Arrays;
 import java.util.Iterator;
 
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.config.JsonSerializer;
+import com.bergerkiller.bukkit.common.config.JsonSerializer.JsonSyntaxException;
 
 /**
  * An array of String values. When reading a value that does not exist
@@ -17,6 +20,7 @@ import com.bergerkiller.bukkit.common.bases.IntVector3;
  * automatically increment the current position.
  */
 public class StringArrayBuffer implements Iterator<String> {
+    private final JsonSerializer jsonSerializer = new JsonSerializer();
     private String[] buffer = new String[10];
     private int size = 0;
     private int index = 0;
@@ -76,6 +80,15 @@ public class StringArrayBuffer implements Iterator<String> {
     }
 
     /**
+     * Sets the next ItemStack value
+     * 
+     * @param item
+     */
+    public void putItemStack(ItemStack item) {
+        put(jsonSerializer.itemStackToJson(item).replace(" ", "\\u0020"));
+    }
+
+    /**
      * Sets the next IntVector3 value
      * 
      * @param value to set
@@ -131,6 +144,20 @@ public class StringArrayBuffer implements Iterator<String> {
      */
     public String peek() {
         return get(this.index);
+    }
+
+    /**
+     * Gets the next ItemStack value, which consists of jsonified itemstack properties
+     * 
+     * @return next ItemStack value
+     * @throws SyntaxException if the field value isn't valid JSON or doesn't refer to an ItemStack
+     */
+    public ItemStack nextItemStack() throws SyntaxException {
+        try {
+            return this.jsonSerializer.fromJsonToItemStack(next());
+        } catch (JsonSyntaxException e) {
+            throw new SyntaxException(-1, this.index+1, "Invalid ItemStack Json(" + e.getMessage() + ")");
+        }
     }
 
     /**

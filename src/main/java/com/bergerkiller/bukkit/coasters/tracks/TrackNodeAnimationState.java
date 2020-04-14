@@ -12,12 +12,12 @@ public class TrackNodeAnimationState {
     protected static final TrackNodeAnimationState[] EMPTY_ARR = new TrackNodeAnimationState[0];
     public final String name;
     public final TrackNodeState state;
-    public final TrackNodeReference[] connections;
+    public final TrackPendingConnection[] connections;
     private TrackParticleArrow _upParticleArrow;
     private TrackParticleText _nameLabelParticleText;
 
     // For dereference()
-    private TrackNodeAnimationState(TrackNodeAnimationState original, TrackNodeReference[] dereferenced_connections) {
+    private TrackNodeAnimationState(TrackNodeAnimationState original, TrackPendingConnection[] dereferenced_connections) {
         this.name = original.name;
         this.state = original.state;
         this.connections = dereferenced_connections;
@@ -25,7 +25,7 @@ public class TrackNodeAnimationState {
         this._nameLabelParticleText = null;
     }
 
-    private TrackNodeAnimationState(String name, TrackNode node, TrackNodeState state, TrackNodeReference[] connections, int index) {
+    private TrackNodeAnimationState(String name, TrackNode node, TrackNodeState state, TrackPendingConnection[] connections, int index) {
         this.name = name;
         this.state = state;
         this.connections = connections;
@@ -43,7 +43,7 @@ public class TrackNodeAnimationState {
      * @return altered animation state that is dereferenced
      */
     public TrackNodeAnimationState dereference() {
-        TrackNodeReference[] dereferenced_connections = new TrackNodeReference[connections.length];
+        TrackPendingConnection[] dereferenced_connections = new TrackPendingConnection[connections.length];
         for (int i = 0; i < dereferenced_connections.length; i++) {
             dereferenced_connections[i] = dereferenced_connections[i].dereference();
         }
@@ -59,7 +59,7 @@ public class TrackNodeAnimationState {
         this._nameLabelParticleText.remove();
     }
 
-    public static TrackNodeAnimationState create(String name, TrackNode node, TrackNodeState state, TrackNodeReference[] connections, int index) {
+    public static TrackNodeAnimationState create(String name, TrackNode node, TrackNodeState state, TrackPendingConnection[] connections, int index) {
         return new TrackNodeAnimationState(name, node, state, connections, index);
     }
 }

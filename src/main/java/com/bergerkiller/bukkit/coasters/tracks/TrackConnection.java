@@ -1,13 +1,21 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.objects.TrackObject;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectHolder;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleLine;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.math.Quaternion;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.Util;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
@@ -15,19 +23,22 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 /**
  * The connection between two track nodes
  */
-public class TrackConnection implements Lockable {
+public class TrackConnection implements Lockable, CoasterWorldComponent, TrackObjectHolder {
     protected static final TrackConnection[] EMPTY_ARR = new TrackConnection[0];
-    protected final EndPoint _endA;
-    protected final EndPoint _endB;
-    //private final TrackParticleLine _connParticleLine;
-    private boolean _selected = false;
+    protected EndPoint _endA;
+    protected EndPoint _endB;
     private List<TrackParticleLine> lines = new ArrayList<TrackParticleLine>();
+    private TrackObject[] objects = TrackObject.EMPTY;
+    private double fullDistance = Double.NaN;
 
     protected TrackConnection(TrackNode nodeA, TrackNode nodeB) {
         this._endA = new EndPoint(nodeA, nodeB);
         this._endB = new EndPoint(nodeB, nodeA);
-        //this._connParticleLine = nodeA.getCoaster().getParticles().addParticleLine(
-        //        this._endA.node.getPosition(), this._endB.node.getPosition());
+    }
+
+    @Override
+    public CoasterWorld getWorld() {
+        return this._endA.node.getWorld();
     }
 
     /**
@@ -68,6 +79,42 @@ public class TrackConnection implements Lockable {
         return (this._endA.node == node) ? this._endB.node : this._endA.node;
     }
 
+    /**
+     * Gets the full distance between the end points of this connection. This is not the linear
+     * distance between the two points, but the full length of the path taken.
+     * 
+     * @return full distance
+     */
+    public double getFullDistance() {
+        if (Double.isNaN(this.fullDistance)) {
+            this.fullDistance = this.getPath().computeDistance(0.0, 1.0);
+        }
+        return this.fullDistance;
+    }
+
+    /**
+     * Swaps the two ends of this connection, causing distances to objects
+     * stored in this connection to be inverted. This should have no change
+     * in appearance or behavior.
+     */
+    public void swapEnds() {
+        // Swap endpoints
+        {
+            EndPoint tmp = this._endA;
+            this._endA = this._endB;
+            this._endB = tmp;
+        }
+
+        // Compute total distance and invert all the objects's distances
+        // This doesn't actually change the position of the object, so it can be done silently
+        for (TrackObject object : this.objects) {
+            object.setDistanceSilently(this.getFullDistance() - object.getDistance());
+        }
+
+        //TODO: Technically we got to swap the lines also
+        //      This is not a big deal, the next time this connection changes, it'll do a wrap-around
+    }
+
     public boolean isConnected(TrackNode node) {
         return this._endA.node == node || this._endB.node == node;
     }
@@ -79,13 +126,6 @@ public class TrackConnection implements Lockable {
     @Override
     public boolean isLocked() {
         return this._endA.node.isLocked() || this._endB.node.isLocked();
-    }
-
-    public void setSelected(boolean selected) {
-        if (this._selected != selected) {
-            this._selected = selected;
-            //this._connParticleLine.setItemEnchanted(selected);
-        }
     }
 
     /**
@@ -137,19 +177,100 @@ public class TrackConnection implements Lockable {
     }
 
     /**
+     * Gets whether objects are added to this connection
+     * 
+     * @return True if objects are added
+     */
+    public boolean hasObjects() {
+        return this.objects.length > 0;
+    }
+
+    /**
+     * Gets an unmodifiable list of objects added to this connection
+     * 
+     * @return objects
+     */
+    public List<TrackObject> getObjects() {
+        return (this.objects.length == 0) ? Collections.emptyList() : Arrays.asList(this.objects);
+    }
+
+    @Override
+    public void addObject(TrackObject object) {
+        this.objects = LogicUtil.appendArray(this.objects, object);
+        this.markChanged();
+        object.onAdded(this, this.getPath());
+    }
+
+    /**
+     * Removes an object from this connecion, if it was added
+     * 
+     * @param object
+     * @return True if the object was removed, False if not
+     */
+    public boolean removeObject(TrackObject object) {
+        for (int i = 0; i < this.objects.length; i++) {
+            if (this.objects[i] == object) {
+                if (this.objects.length == 1) {
+                    this.objects = TrackObject.EMPTY;
+                } else {
+                    this.objects = LogicUtil.removeArrayElement(this.objects, i);
+                }
+                this.markChanged();
+                object.onRemoved(this);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Moves an existing object to a new connection and/or distance. If the new connection
+     * is the same, it is not removed from this connection.
+     * 
+     * @param object
+     * @param newConnection
+     * @param newDistance
+     * @return True if the object was found and moved
+     */
+    public boolean moveObject(TrackObject object, TrackConnection newConnection, double newDistance) {
+        if (newConnection == this) {
+            object.setDistance(this, newDistance);
+            return true;
+        } else {
+            for (int i = 0; i < this.objects.length; i++) {
+                if (this.objects[i] == object) {
+                    if (this.objects.length == 1) {
+                        this.objects = TrackObject.EMPTY;
+                    } else {
+                        this.objects = LogicUtil.removeArrayElement(this.objects, i);
+                    }
+                    this.markChanged();
+
+                    newConnection.objects = LogicUtil.appendArray(newConnection.objects, object);
+                    newConnection.markChanged();
+                    object.setDistanceSilently(newDistance);
+                    object.onShapeUpdated(newConnection);
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /**
      * Called when the shape of the track connection has been changed.
      * This can happen as a result of position changes of the nodes themselves,
      * or one of its connected neighbours.
      */
     public void onShapeUpdated() {
-        TrackConnectionPath path = this.getPath();
-
-        //this._connParticleLine.setPositions(this._endA.node.getPosition(), this._endB.node.getPosition());
+        // Reset (is lazy initialized again if needed)
+        this.fullDistance = Double.NaN;
 
         // Initialize the 4 points of the De Casteljau's algorithm inputs
         // d1 and d2 are the diff between p1-p3 and p2-p4
 
         // Calculate the points forming the line
+        TrackConnectionPath path = this.getPath();
         int n = this.getPointCount();
         Vector[] points = new Vector[n];
         points[0] = this._endA.node.getPosition();
@@ -160,8 +281,8 @@ public class TrackConnection implements Lockable {
         }
 
         if ((n - 1) != this.lines.size()) {
-            for (int i = 0; i < this.lines.size(); i++) {
-                this.lines.get(i).remove();
+            for (TrackParticleLine line : this.lines) {
+                line.remove();
             }
             this.lines.clear();
 
@@ -175,6 +296,9 @@ public class TrackConnection implements Lockable {
             }
         }
 
+        for (TrackObject object : this.objects) {
+            object.onShapeUpdated(this);
+        }
     }
 
     /**
@@ -376,12 +500,33 @@ public class TrackConnection implements Lockable {
         return new TrackConnectionPath(this._endA, this._endB);
     }
 
+    /**
+     * Walks this path from the start a distance towards the end, obtaining a point
+     * on the path found a distance away.
+     * 
+     * @param distance The distance to walk from the start
+     * @return point on the path at distance
+     */
+    public TrackConnection.PointOnPath findPointAtDistance(double distance) {
+        TrackConnectionPath path = this.getPath();
+        double theta = path.findPointThetaAtDistance(distance);
+        Vector position = path.getPosition(theta);
+        Vector motionVector = path.getMotionVector(theta);
+        if ((motionVector.getX() + motionVector.getY() + motionVector.getZ()) < 0.0) {
+            motionVector.multiply(-1.0);
+        }
+        Quaternion orientation = Quaternion.fromLookDirection(motionVector, this.getOrientation(theta));
+        return new TrackConnection.PointOnPath(this, theta, distance, position, orientation);
+    }
+
     public void destroyParticles() {
         for (int i = 0; i < this.lines.size(); i++) {
             this.lines.get(i).remove();
         }
         this.lines.clear();
-        //this._connParticleLine.remove();
+        for (TrackObject object : this.objects) {
+            object.onRemoved(this);
+        }
     }
 
     public void markChanged() {
@@ -417,6 +562,30 @@ public class TrackConnection implements Lockable {
         @Override
         public Vector getOtherNodeDirection() {
             return this.other.getDirection();
+        }
+    }
+
+    /**
+     * A point on the track connection path
+     */
+    public static final class PointOnPath {
+        public final TrackConnection connection;
+        public final double theta;
+        public final double distance;
+        public final Vector position;
+        public final Quaternion orientation;
+
+        public PointOnPath(TrackConnection connection, double theta, double distance, Vector position, Quaternion orientation) {
+            this.connection = connection;
+            this.theta = theta;
+            this.distance = distance;
+            this.position = position;
+            this.orientation = orientation;
+        }
+
+        @Override
+        public String toString() {
+            return "{x=" + position.getX() + ", y=" + position.getY() + ", z=" + position.getZ() + ", distance=" + distance + "}";
         }
     }
 }

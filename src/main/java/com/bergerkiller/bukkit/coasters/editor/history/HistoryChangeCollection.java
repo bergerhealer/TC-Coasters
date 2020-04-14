@@ -68,12 +68,12 @@ public abstract class HistoryChangeCollection {
             connection.remove();
             throw ex;
         }
-        return addChange(new HistoryChangeConnect(connection.getNodeA(), connection.getNodeB()));
+        return addChange(new HistoryChangeConnect(connection.getNodeA(), connection.getNodeB(), connection.getObjects()));
     }
 
     public final HistoryChange addChangeDisconnect(Player who, TrackConnection connection) throws ChangeCancelledException {
         handleEvent(new CoasterDeleteConnectionEvent(who, connection));
-        return addChange(new HistoryChangeDisconnect(connection.getNodeA(), connection.getNodeB()));
+        return addChange(new HistoryChangeDisconnect(connection.getNodeA(), connection.getNodeB(), connection.getObjects()));
     }
 
     public final HistoryChange addChangeAfterChangingNode(Player who, TrackNode node, TrackNodeState startState) throws ChangeCancelledException {

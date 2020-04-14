@@ -3,17 +3,21 @@ package com.bergerkiller.bukkit.coasters.tracks.csv;
 import java.io.IOException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
+import com.bergerkiller.bukkit.coasters.tracks.TrackPendingConnection;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
@@ -43,6 +47,8 @@ public class TrackCoasterCSV {
         registerEntry(AnimationStateLinkNodeEntry::new);
         registerEntry(PlayerOrigin::new);
         registerEntry(LockCoasterEntry::new);
+        registerEntry(NamedItemStackEntry::new);
+        registerEntry(ObjectEntry::new);
         registerEntry(NoLimits2Entry::new);
     }
 
@@ -96,10 +102,37 @@ public class TrackCoasterCSV {
     public static final class PendingLink {
         public final TrackNode node;
         public final Vector targetNodePos;
+        public final List<TrackObject> objects;
 
-        public PendingLink(TrackNode node, Vector targetNodePos) {
+        public PendingLink(TrackNode node, Vector targetNodePos, List<TrackObject> objects) {
             this.node = node;
             this.targetNodePos = targetNodePos;
+            this.objects = new ArrayList<TrackObject>(objects);
+        }
+
+        /**
+         * Creates this connection in the world
+         * 
+         * @param coaster
+         */
+        public void create(TrackCoaster coaster) {
+            TrackNode target = coaster.findNodeExact(this.targetNodePos);
+            if (target == null) {
+                target = coaster.getWorld().getTracks().findNodeExact(this.targetNodePos);
+            }
+            if (target != null) {
+                TrackConnection conn = coaster.getWorld().getTracks().connect(this.node, target);
+
+                // Add all track objects
+                conn.addAllObjects(this.objects);
+
+                this.node.pushBackJunction(conn); // Ensures preserved order of connections
+                return;
+            }
+
+            // Ignore: we may connect to it in the future.
+            //this.coaster.getPlugin().getLogger().warning("Failed to create link from " +
+            //    this.coaster.getName() + " " + link.node.getPosition() + " to " + link.targetNodePos);
         }
     }
 
@@ -109,15 +142,17 @@ public class TrackCoasterCSV {
     public static final class CSVReaderState {
         public List<PendingLink> pendingLinks = new ArrayList<PendingLink>();
         public List<Vector> prevNode_pendingLinks = new ArrayList<Vector>();
+        public Map<String, ItemStack> itemStacksByName = new HashMap<>();
+        public List<TrackObject> pendingTrackObjects = new ArrayList<TrackObject>();
         public boolean prevNode_hasDefaultAnimationLinks = true;
         public TrackNode prevNode = null;
         public Matrix4x4 transform = null;
         public CoasterWorld world;
         public TrackCoaster coaster;
 
-        public void addConnectionToAnimationStates(TrackNodeReference reference) {
+        public void addConnectionToAnimationStates(TrackPendingConnection reference) {
             for (TrackNodeAnimationState state : new ArrayList<>(this.prevNode.getAnimationStates())) {
-                TrackNodeReference[] new_connections = LogicUtil.appendArray(state.connections, reference);
+                TrackPendingConnection[] new_connections = LogicUtil.appendArray(state.connections, reference);
                 this.prevNode.setAnimationState(state.name, state.state, new_connections);
             }
         }
@@ -135,9 +170,14 @@ public class TrackCoasterCSV {
 
             // Connect node to previous node
             if (linkToPrevious && this.prevNode != null) {
-                this.world.getTracks().connect(this.prevNode, node);
+                TrackConnection connection = this.world.getTracks().connect(this.prevNode, node);
+
+                // Add all track objects
+                connection.addAllObjects(this.pendingTrackObjects);
+
+                // Add connection to all animation states
                 if (this.prevNode_hasDefaultAnimationLinks && this.prevNode.hasAnimationStates()) {
-                    this.addConnectionToAnimationStates(new TrackNodeReference(node));
+                    this.addConnectionToAnimationStates(new TrackPendingConnection(node, this.pendingTrackObjects));
                 }
                 this.prevNode_pendingLinks.add(this.prevNode.getPosition());
             }
@@ -145,6 +185,7 @@ public class TrackCoasterCSV {
             // Refresh prevNode
             this.prevNode = node;
             this.prevNode_hasDefaultAnimationLinks = true;
+            this.pendingTrackObjects.clear();
         }
     }
 
@@ -340,11 +381,11 @@ public class TrackCoasterCSV {
                 return;
             }
 
-            TrackNodeReference[] connections = TrackNodeReference.EMPTY_ARR;
+            TrackPendingConnection[] connections = TrackPendingConnection.EMPTY_ARR;
             if (state.prevNode_hasDefaultAnimationLinks) {
-                connections = new TrackNodeReference[state.prevNode_pendingLinks.size()];
+                connections = new TrackPendingConnection[state.prevNode_pendingLinks.size()];
                 for (int i = 0; i < connections.length; i++) {
-                    connections[i] = new TrackNodeReference(state.world.getTracks(), state.prevNode_pendingLinks.get(i));
+                    connections[i] = new TrackPendingConnection(state.world.getTracks(), state.prevNode_pendingLinks.get(i));
                 }
             }
             state.prevNode.setAnimationState(this.name, this.createState(), connections);
@@ -395,7 +436,7 @@ public class TrackCoasterCSV {
                 List<TrackNodeAnimationState> states = new ArrayList<>(state.prevNode.getAnimationStates());
                 for (TrackNodeAnimationState oldState : states) {
                     if (oldState.connections.length != 0) {
-                        state.prevNode.setAnimationState(oldState.name, oldState.state, TrackNodeReference.EMPTY_ARR);
+                        state.prevNode.setAnimationState(oldState.name, oldState.state, TrackPendingConnection.EMPTY_ARR);
                     }
                 }
             }
@@ -404,9 +445,11 @@ public class TrackCoasterCSV {
             List<TrackNodeAnimationState> states = state.prevNode.getAnimationStates();
             if (!states.isEmpty()) {
                 TrackNodeAnimationState lastAddedState = states.get(states.size()-1);
-                TrackNodeReference new_link = new TrackNodeReference(state.world.getTracks(), this.pos);
-                TrackNodeReference[] new_connections = LogicUtil.appendArray(lastAddedState.connections, new_link);
+                TrackPendingConnection new_link = new TrackPendingConnection(state.world.getTracks(), this.pos);
+                new_link.addAllObjects(state.pendingTrackObjects);
+                TrackPendingConnection[] new_connections = LogicUtil.appendArray(lastAddedState.connections, new_link);
                 state.prevNode.setAnimationState(lastAddedState.name, lastAddedState.state, new_connections);
+                state.pendingTrackObjects.clear();
             }
         }
     }
@@ -447,11 +490,12 @@ public class TrackCoasterCSV {
                 pos = pos.clone();
                 state.transform.transformPoint(pos);
             }
-            PendingLink link = new PendingLink(state.prevNode, pos);
+            PendingLink link = new PendingLink(state.prevNode, pos, state.pendingTrackObjects);
             state.pendingLinks.add(link);
             state.prevNode_pendingLinks.add(pos);
+            state.pendingTrackObjects.clear();
             if (state.prevNode_hasDefaultAnimationLinks && state.prevNode.hasAnimationStates()) {
-                state.addConnectionToAnimationStates(new TrackNodeReference(state.world.getTracks(), pos));
+                state.addConnectionToAnimationStates(new TrackPendingConnection(state.world.getTracks(), pos));
             }
         }
     }
@@ -479,6 +523,73 @@ public class TrackCoasterCSV {
         @Override
         public void processReader(CSVReaderState state) {
             state.coaster.setLocked(true);
+        }
+    }
+
+    /**
+     * Stores the details of an ItemStack, which can later be referred to again by name
+     */
+    public static final class NamedItemStackEntry extends CSVEntry {
+        public String name;
+        public ItemStack itemStack;
+
+        @Override
+        public boolean detect(StringArrayBuffer buffer) {
+            return buffer.get(0).equals("ITEMSTACK");
+        }
+
+        @Override
+        public void read(StringArrayBuffer buffer) throws SyntaxException {
+            buffer.next();
+            this.name = buffer.next();
+            this.itemStack = buffer.nextItemStack();
+        }
+
+        @Override
+        public void write(StringArrayBuffer buffer) {
+            buffer.put("ITEMSTACK");
+            buffer.put(this.name);
+            buffer.putItemStack(this.itemStack);
+        }
+
+        @Override
+        public void processReader(CSVReaderState state) {
+            state.itemStacksByName.put(this.name, this.itemStack);
+        }
+    }
+
+    /**
+     * Adds an object to a previously created connection
+     */
+    public static final class ObjectEntry extends CSVEntry {
+        public double distance;
+        public String itemName;
+
+        @Override
+        public boolean detect(StringArrayBuffer buffer) {
+            return buffer.get(0).equals("OBJECT");
+        }
+
+        @Override
+        public void read(StringArrayBuffer buffer) throws SyntaxException {
+            buffer.next();
+            this.distance = buffer.nextDouble();
+            this.itemName = buffer.next();
+        }
+
+        @Override
+        public void write(StringArrayBuffer buffer) {
+            buffer.put("OBJECT");
+            buffer.putDouble(this.distance);
+            buffer.put(this.itemName);
+        }
+
+        @Override
+        public void processReader(CSVReaderState state) {
+            ItemStack item = state.itemStacksByName.get(this.itemName);
+            if (item != null) {
+                state.pendingTrackObjects.add(new TrackObject(this.distance, item));
+            }
         }
     }
 

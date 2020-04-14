@@ -83,13 +83,23 @@ public abstract class TrackParticle {
     }
 
     public final TrackParticleState getState(Player viewer) {
-        return this.stateSource.getState(viewer);
+        return this.stateSource.getState(this.getWorld().getPlugin().getEditState(viewer));
     }
 
     /**
      * Called when the particle state changes for a viewer
      */
     public void onStateUpdated(Player viewer) {
+    }
+
+    /**
+     * Gets whether this particle is always visible, even when the viewer is not in the
+     * TC-Coasters edit mode.
+     * 
+     * @return True if always visible
+     */
+    public boolean isAlwaysVisible() {
+        return false;
     }
 
     /**

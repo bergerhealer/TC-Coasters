@@ -1,6 +1,6 @@
 package com.bergerkiller.bukkit.coasters.particles;
 
-import org.bukkit.entity.Player;
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 
 /**
  * The state of a displayed particle
@@ -17,15 +17,15 @@ public enum TrackParticleState {
         /**
          * Gets particle state information for a particular player
          * 
-         * @param viewer
-         * @return state
+         * @param viewer The viewer viewing the particle, including the viewer's state information
+         * @return state of the particle for this viewer
          */
-        public TrackParticleState getState(Player viewer);
+        public TrackParticleState getState(PlayerEditState viewer);
     }
 
     public static Source SOURCE_NONE = new Source() {
         @Override
-        public TrackParticleState getState(Player viewer) {
+        public TrackParticleState getState(PlayerEditState viewer) {
             return DEFAULT;
         }
     };
