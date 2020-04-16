@@ -908,12 +908,20 @@ public class TCCoasters extends PluginBase {
 
             // Argument is specified; set it
             try {
-                if (args.length >= 4) {
+                if (args.length >= 5 && LogicUtil.containsIgnoreCase(args[1], "add", "move")) {
+                    // Add X/Y/Z
+                    final int dx = ParseUtil.parseInt(args[2], 0);
+                    final int dy = ParseUtil.parseInt(args[3], 0);
+                    final int dz = ParseUtil.parseInt(args[4], 0);
+                    state.transformRailBlock((rail) -> { return rail.add(dx, dy, dz); });
+                    sender.sendMessage(ChatColor.YELLOW + "Rail block moved by " + ChatColor.WHITE + dx + "/" + dy + "/" + dz);
+                } else if (args.length >= 4) {
                     // X/Y/Z specified
                     int x = ParseUtil.parseInt(args[1], 0);
                     int y = ParseUtil.parseInt(args[2], 0);
                     int z = ParseUtil.parseInt(args[3], 0);
                     state.setRailBlock(new IntVector3(x, y, z));
+                    sender.sendMessage(ChatColor.YELLOW + "Rail block set to " + ChatColor.WHITE + x + "/" + y + "/" + z);
                 } else if (args.length >= 2) {
                     // BlockFace translate or 'Reset'
                     BlockFace parsedFace = null;
@@ -925,9 +933,9 @@ public class TCCoasters extends PluginBase {
                         }
                     }
                     if (parsedFace != null) {
-                        IntVector3 old = state.getLastEditedNode().getRailBlock(true);
-                        state.setRailBlock(old.add(parsedFace));
-                        sender.sendMessage(ChatColor.YELLOW + "Rail block moved one block " + parsedFace);
+                        final BlockFace faceToMove = parsedFace;
+                        state.transformRailBlock((rail) -> { return rail.add(faceToMove); });
+                        sender.sendMessage(ChatColor.YELLOW + "Rail block moved one block " + faceToMove);
                     } else if (input.equals("reset")) {
                         state.resetRailsBlocks();
                         sender.sendMessage(ChatColor.YELLOW + "Rail block position reset");

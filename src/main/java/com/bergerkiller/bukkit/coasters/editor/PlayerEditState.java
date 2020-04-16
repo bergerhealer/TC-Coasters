@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -1106,34 +1107,15 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @param relative whether the rail blocks of all nodes should maintain the same relative positions
      */
     public void setRailBlock(IntVector3 new_rail, boolean relative) throws ChangeCancelledException {
-        // Deselect nodes we cannot edit
-        this.deselectLockedNodes();
-
-        // Reset
         if (new_rail == null) {
-            if (this.editedNodes.size() == 1) {
-                setRailForNode(this.getHistory(), this.getEditedNodes().iterator().next(), new_rail);
-            } else {
-                HistoryChange changes = this.getHistory().addChangeGroup();
-                for (TrackNode node : this.getEditedNodes()) {
-                    setRailForNode(changes, node, new_rail);
-                }
+            // Reset
+            this.transformRailBlock((rail) -> { return null; });
+        } else if (relative && this.editedNodes.size() > 1) {
+            // Just in case, check for NPE
+            if (lastEdited == null) {
+                return;
             }
-            return;
-        }
 
-        TrackNode lastEdited = this.getLastEditedNode();
-        if (lastEdited == null) {
-            return;
-        }
-
-        // Simplified when its just one node
-        if (this.editedNodes.size() == 1) {
-            setRailForNode(this.getHistory(), lastEdited, new_rail);
-            return;
-        }
-
-        if (relative) {
             // Use last selected node as a basis for the movement
             IntVector3 diff = new_rail.subtract(lastEdited.getRailBlock(true));
             if (diff.equals(IntVector3.ZERO)) {
@@ -1141,17 +1123,10 @@ public class PlayerEditState implements CoasterWorldComponent {
             }
 
             // Offset all edited nodes by diff
-            HistoryChange changes = this.getHistory().addChangeGroup();
-            for (TrackNode node : this.getEditedNodes()) {
-                IntVector3 node_new_rail = node.getRailBlock(true).add(diff);
-                setRailForNode(changes, node, node_new_rail);
-            }
+            this.transformRailBlock((rail) -> { return rail.add(diff); });
         } else {
-            // Set the same rails block for all selected nodes
-            HistoryChange changes = this.getHistory().addChangeGroup();
-            for (TrackNode node : this.getEditedNodes()) {
-                setRailForNode(changes, node, new_rail);
-            }
+            // Absolute set
+            this.transformRailBlock((rail) -> { return new_rail; });
         }
     }
 
@@ -1179,6 +1154,29 @@ public class PlayerEditState implements CoasterWorldComponent {
             // No animation is selected for this node, presume the rail block should be updated for all animation states
             for (TrackNodeAnimationState state : node.getAnimationStates()) {
                 node.setAnimationState(state.name, state.state.changeRail(new_rail), state.connections);
+            }
+        }
+    }
+
+    /**
+     * Transforms the rail blocks of all selected nodes using a transformation function
+     * 
+     * @param manipulator The function that transforms the input block coordinates
+     * @throws ChangeCancelledException
+     */
+    public void transformRailBlock(Function<IntVector3, IntVector3> manipulator) throws ChangeCancelledException {
+        // Deselect nodes we cannot edit
+        this.deselectLockedNodes();
+
+        if (this.editedNodes.size() == 1) {
+            // Simplified
+            TrackNode node = this.editedNodes.keySet().iterator().next();
+            setRailForNode(this.getHistory(), node, manipulator.apply(node.getRailBlock(true)));
+        } else if (!this.editedNodes.isEmpty()) {
+            // Set the same rails block for all selected nodes and save as a single change
+            HistoryChange changes = this.getHistory().addChangeGroup();
+            for (TrackNode node : this.getEditedNodes()) {
+                setRailForNode(changes, node, manipulator.apply(node.getRailBlock(true)));
             }
         }
     }
