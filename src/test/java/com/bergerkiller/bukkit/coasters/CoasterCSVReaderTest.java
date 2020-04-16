@@ -179,6 +179,7 @@ public class CoasterCSVReaderTest {
         ItemStack item = new ItemStack(Material.RAIL, 2);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName("Name with spaces and\ttabs");
+        meta.setCustomModelData(Integer.valueOf(500));
         item.setItemMeta(meta);
 
         // Write to buffer
