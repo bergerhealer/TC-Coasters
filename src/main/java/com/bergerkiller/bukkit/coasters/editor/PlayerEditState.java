@@ -1109,7 +1109,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     public void setRailBlock(IntVector3 new_rail, boolean relative) throws ChangeCancelledException {
         if (new_rail == null) {
             // Reset
-            this.transformRailBlock((rail) -> { return null; });
+            this.transformRailBlock(rail -> null);
         } else if (relative && this.editedNodes.size() > 1) {
             // Just in case, check for NPE
             if (lastEdited == null) {
@@ -1123,10 +1123,10 @@ public class PlayerEditState implements CoasterWorldComponent {
             }
 
             // Offset all edited nodes by diff
-            this.transformRailBlock((rail) -> { return rail.add(diff); });
+            this.transformRailBlock(rail -> rail.add(diff));
         } else {
             // Absolute set
-            this.transformRailBlock((rail) -> { return new_rail; });
+            this.transformRailBlock(rail -> new_rail);
         }
     }
 
