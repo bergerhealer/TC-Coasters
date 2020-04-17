@@ -346,11 +346,15 @@ public class TrackWorld implements CoasterWorldComponent {
      * @param node
      * @param connectedNodes
      */
-    public void resetConnections(TrackNode node, List<TrackNode> connectedNodes) {
+    public void resetConnections(TrackNode node, List<TrackConnectionState> connections) {
         //TODO: Some connections may not change, and this can be optimized!
+        //TODO: This optimization should take into account changes of track objects on the connections!
         disconnectAll(node, false);
-        for (TrackNode connectedNode : connectedNodes) {
-            connect(node, connectedNode);
+
+        for (TrackConnectionState connection : connections) {
+            if (connection.isConnected(node)) {
+                this.connect(connection);
+            }
         }
     }
 
@@ -362,12 +366,14 @@ public class TrackWorld implements CoasterWorldComponent {
      * @return created connection, null on failure
      */
     public TrackConnection connect(TrackConnectionState state) {
-        TrackNode nodeA = this.findNodeExact(state.node_pos_a);
-        TrackNode nodeB = this.findNodeExact(state.node_pos_b);
+        TrackNode nodeA = state.node_a.findOnWorld(this);
+        TrackNode nodeB = state.node_b.findOnWorld(this);
         if (nodeA == null || nodeB == null || nodeA == nodeB) {
             return null;
         } else {
-            return this.connect(nodeA, nodeB);
+            TrackConnection connection = this.connect(nodeA, nodeB);
+            connection.addAllObjects(state.getObjects());
+            return connection;
         }
     }
 
@@ -470,7 +476,7 @@ public class TrackWorld implements CoasterWorldComponent {
 
             // Remove from animations also
             if (fromAnimations && other.hasAnimationStates()) {
-                other.removeAnimationStateConnection(null, new TrackPendingConnection(node));
+                other.removeAnimationStateConnection(null, node);
             }
 
             // Schedule refresh of other node

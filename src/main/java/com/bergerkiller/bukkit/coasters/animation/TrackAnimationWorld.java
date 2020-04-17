@@ -12,14 +12,15 @@ import java.util.stream.Stream;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.entity.CommonEntity;
 import com.bergerkiller.bukkit.common.math.Quaternion;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.cache.RailMemberCache;
 import com.bergerkiller.bukkit.tc.controller.MinecartMember;
@@ -42,8 +43,8 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
         return this._world;
     }
 
-    public void animate(TrackNode node, TrackNodeState target, TrackNodeReference[] node_connections, double duration) {
-        _animations.put(node, new TrackAnimation(node, target, node_connections, MathUtil.floor(duration * 20.0)));
+    public void animate(TrackNode node, TrackNodeState target, TrackConnectionState[] connections, double duration) {
+        _animations.put(node, new TrackAnimation(node, target, connections, MathUtil.floor(duration * 20.0)));
     }
 
     public void updateAll() {
@@ -73,25 +74,18 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
             TrackAnimation anim = anim_iter.next();
 
             // Refresh connections at the start and end of the animation
-            if (anim.target_connections != null) {
+            if (anim.connections != null) {
                 if (anim.isAtEnd()) {
                     // Set all connections to the one specified in the animation
-                    List<TrackNode> connectedNodes = new ArrayList<TrackNode>(anim.target_connections.length);
-                    for (TrackNodeReference connection : anim.target_connections) {
-                        TrackNode connected = connection.getNode();
-                        if (connected != null && connected != anim.node) {
-                            connectedNodes.add(connected);
-                        }
-                    }
-                    getWorld().getTracks().resetConnections(anim.node, connectedNodes);
+                    getWorld().getTracks().resetConnections(anim.node, LogicUtil.asImmutableList(anim.connections));
                 } else if (anim.isAtStart()) {
                     // Remove all connections not part of the target animation state
                     for (TrackConnection conn : anim.node.getConnections()) {
                         TrackNode conn_node = conn.getOtherNode(anim.node);
 
                         boolean exists = false;
-                        for (TrackNodeReference target_connection : anim.target_connections) {
-                            if (target_connection.getNode() == conn_node) {
+                        for (TrackConnectionState target_connection : anim.connections) {
+                            if (target_connection.getOtherNode(anim.node).isReference(conn_node)) {
                                 exists = true;
                                 break;
                             }

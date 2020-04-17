@@ -36,11 +36,12 @@ import com.bergerkiller.bukkit.coasters.events.CoasterSelectNodeEvent;
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
-import com.bergerkiller.bukkit.coasters.tracks.TrackPendingConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
@@ -1352,7 +1353,10 @@ public class PlayerEditState implements CoasterWorldComponent {
 
         // Create new objects when none are selected
         if (this.editedTrackObjects.isEmpty()) {
-            point.connection.addObject(new TrackObject(point.distance, this.getObjectState().getSelectedItem()));
+            //TODO: ChangeCancelledException when disallowed
+            TrackObject object = new TrackObject(point.distance, this.getObjectState().getSelectedItem());
+            point.connection.addObject(object);
+            point.connection.addObjectToAnimationStates(this.selectedAnimation, object);
             return;
         }
 
@@ -1535,6 +1539,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         this.editedTrackObjects.clear();
         for (PlayerEditTrackObject object : objects) {
             object.connection.removeObject(object.object);
+            object.connection.removeObjectFromAnimationStates(this.selectedAnimation, object.object);
         }
     }
 
@@ -1847,18 +1852,11 @@ public class PlayerEditState implements CoasterWorldComponent {
     /**
      * Adds connections to the target node for all animation states defined in the node
      * 
-     * @param node
-     * @param target
+     * @param node The node, first parameter of connect(a,b), to this node connections are added
+     * @param target The target, second parameter of connect(a,b)
      */
-    private void addConnectionForAnimationStates(TrackNode node, TrackNode target) {
-        TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
-        if (animState != null) {
-            // Only add connection for this one animation state
-            node.addAnimationStateConnection(animState.name, new TrackPendingConnection(target));
-        } else {
-            // Add connection to all animation states
-            node.addAnimationStateConnection(null, new TrackPendingConnection(target));
-        }
+    private void addConnectionForAnimationStates(TrackNode node, TrackNodeReference target) {
+        node.addAnimationStateConnection(this.selectedAnimation, TrackConnectionState.create(node, target, Collections.emptyList()));
     }
 
     /**
@@ -1867,14 +1865,7 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @param node
      * @param target
      */
-    private void removeConnectionForAnimationStates(TrackNode node, TrackNode target) {
-        TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
-        if (animState != null) {
-            // Only add connection for this one animation state
-            node.removeAnimationStateConnection(animState.name, new TrackPendingConnection(target));
-        } else {
-            // Add connection to all animation states
-            node.removeAnimationStateConnection(null, new TrackPendingConnection(target));
-        }
+    private void removeConnectionForAnimationStates(TrackNode node, TrackNodeReference target) {
+        node.removeAnimationStateConnection(this.selectedAnimation, target);
     }
 }

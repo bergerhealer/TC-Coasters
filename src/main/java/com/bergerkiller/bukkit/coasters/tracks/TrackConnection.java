@@ -1,8 +1,7 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
 
 import org.bukkit.util.Vector;
@@ -176,29 +175,36 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
         }
     }
 
-    /**
-     * Gets whether objects are added to this connection
-     * 
-     * @return True if objects are added
-     */
+    @Override
     public boolean hasObjects() {
         return this.objects.length > 0;
     }
 
-    /**
-     * Gets an unmodifiable list of objects added to this connection
-     * 
-     * @return objects
-     */
+    @Override
     public List<TrackObject> getObjects() {
-        return (this.objects.length == 0) ? Collections.emptyList() : Arrays.asList(this.objects);
+        return LogicUtil.asImmutableList(this.objects);
     }
 
-    @Override
+    /**
+     * Adds a track object
+     * 
+     * @param object
+     */
     public void addObject(TrackObject object) {
         this.objects = LogicUtil.appendArray(this.objects, object);
         this.markChanged();
         object.onAdded(this, this.getPath());
+    }
+
+    /**
+     * Adds multiple track objects at once
+     * 
+     * @param objects
+     */
+    public void addAllObjects(Collection<TrackObject> objects) {
+        for (TrackObject object : objects) {
+            this.addObject(object);
+        }
     }
 
     /**
@@ -209,18 +215,36 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
      */
     public boolean removeObject(TrackObject object) {
         for (int i = 0; i < this.objects.length; i++) {
-            if (this.objects[i] == object) {
-                if (this.objects.length == 1) {
-                    this.objects = TrackObject.EMPTY;
-                } else {
-                    this.objects = LogicUtil.removeArrayElement(this.objects, i);
-                }
+            if (this.objects[i].equals(object)) {
+                this.objects = TrackObject.removeArrayElement(this.objects, i);
                 this.markChanged();
                 object.onRemoved(this);
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Adds a track object to the animation states of the endpoint nodes of this connection
+     * 
+     * @param name Name of the animation state, null to update all of them
+     * @param object Track object to add
+     */
+    public void addObjectToAnimationStates(String name, TrackObject object) {
+        this.getNodeA().updateAnimationStates(name, state -> state.addTrackObject(TrackConnection.this, object));
+        this.getNodeB().updateAnimationStates(name, state -> state.addTrackObject(TrackConnection.this, object));
+    }
+
+    /**
+     * Removes a track object from the animation states of the endpoint nodes of this connection
+     * 
+     * @param name Name of the animation state, null to update all of them
+     * @param object Track object to remove
+     */
+    public void removeObjectFromAnimationStates(String name, TrackObject object) {
+        this.getNodeA().updateAnimationStates(name, state -> state.removeTrackObject(TrackConnection.this, object));
+        this.getNodeB().updateAnimationStates(name, state -> state.removeTrackObject(TrackConnection.this, object));
     }
 
     /**
@@ -238,12 +262,8 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
             return true;
         } else {
             for (int i = 0; i < this.objects.length; i++) {
-                if (this.objects[i] == object) {
-                    if (this.objects.length == 1) {
-                        this.objects = TrackObject.EMPTY;
-                    } else {
-                        this.objects = LogicUtil.removeArrayElement(this.objects, i);
-                    }
+                if (this.objects[i].equals(object)) {
+                    this.objects = TrackObject.removeArrayElement(this.objects, i);
                     this.markChanged();
 
                     newConnection.objects = LogicUtil.appendArray(newConnection.objects, object);

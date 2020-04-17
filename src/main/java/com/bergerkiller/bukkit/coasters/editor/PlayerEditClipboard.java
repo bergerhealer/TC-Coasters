@@ -18,7 +18,6 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
-import com.bergerkiller.bukkit.coasters.tracks.TrackPendingConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
@@ -89,7 +88,7 @@ public class PlayerEditClipboard {
 
             for (TrackConnection connection : node.getConnections()) {
                 if (editedNodes.contains(connection.getOtherNode(node))) {
-                    this._connections.add(TrackConnectionState.create(connection));
+                    this._connections.add(TrackConnectionState.createDereferenced(connection));
                 }
             }
         }
@@ -122,9 +121,9 @@ public class PlayerEditClipboard {
                 TrackNodeAnimationState[] animations = this._animations.get(node_state);
                 if (animations != null) {
                     for (TrackNodeAnimationState anim : animations) {
-                        TrackPendingConnection[] connections = new TrackPendingConnection[anim.connections.length];
+                        TrackConnectionState[] connections = new TrackConnectionState[anim.connections.length];
                         for (int i = 0; i < connections.length; i++) {
-                            connections[i] = anim.connections[i].transform(tracks, transform);
+                            connections[i] = anim.connections[i].transform(transform);
                         }
                         node.setAnimationState(anim.name, anim.state.transform(transform), connections);
                     }

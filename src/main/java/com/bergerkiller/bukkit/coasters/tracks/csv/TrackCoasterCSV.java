@@ -14,10 +14,11 @@ import org.bukkit.util.Vector;
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
-import com.bergerkiller.bukkit.coasters.tracks.TrackPendingConnection;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
@@ -26,7 +27,6 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Quaternion;
-import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.opencsv.CSVReader;
 
 /**
@@ -97,51 +97,11 @@ public class TrackCoasterCSV {
     }
 
     /**
-     * Link between two nodes, before the link is actually made
-     */
-    public static final class PendingLink {
-        public final TrackNode node;
-        public final Vector targetNodePos;
-        public final List<TrackObject> objects;
-
-        public PendingLink(TrackNode node, Vector targetNodePos, List<TrackObject> objects) {
-            this.node = node;
-            this.targetNodePos = targetNodePos;
-            this.objects = new ArrayList<TrackObject>(objects);
-        }
-
-        /**
-         * Creates this connection in the world
-         * 
-         * @param coaster
-         */
-        public void create(TrackCoaster coaster) {
-            TrackNode target = coaster.findNodeExact(this.targetNodePos);
-            if (target == null) {
-                target = coaster.getWorld().getTracks().findNodeExact(this.targetNodePos);
-            }
-            if (target != null) {
-                TrackConnection conn = coaster.getWorld().getTracks().connect(this.node, target);
-
-                // Add all track objects
-                conn.addAllObjects(this.objects);
-
-                this.node.pushBackJunction(conn); // Ensures preserved order of connections
-                return;
-            }
-
-            // Ignore: we may connect to it in the future.
-            //this.coaster.getPlugin().getLogger().warning("Failed to create link from " +
-            //    this.coaster.getName() + " " + link.node.getPosition() + " to " + link.targetNodePos);
-        }
-    }
-
-    /**
      * State information used while reading CSV data
      */
     public static final class CSVReaderState {
-        public List<PendingLink> pendingLinks = new ArrayList<PendingLink>();
-        public List<Vector> prevNode_pendingLinks = new ArrayList<Vector>();
+        public List<TrackConnectionState> pendingLinks = new ArrayList<TrackConnectionState>();
+        public List<TrackConnectionState> prevNode_pendingLinks = new ArrayList<TrackConnectionState>();
         public Map<String, ItemStack> itemStacksByName = new HashMap<>();
         public List<TrackObject> pendingTrackObjects = new ArrayList<TrackObject>();
         public boolean prevNode_hasDefaultAnimationLinks = true;
@@ -150,10 +110,9 @@ public class TrackCoasterCSV {
         public CoasterWorld world;
         public TrackCoaster coaster;
 
-        public void addConnectionToAnimationStates(TrackPendingConnection reference) {
-            for (TrackNodeAnimationState state : new ArrayList<>(this.prevNode.getAnimationStates())) {
-                TrackPendingConnection[] new_connections = LogicUtil.appendArray(state.connections, reference);
-                this.prevNode.setAnimationState(state.name, state.state, new_connections);
+        public void addConnectionToAnimationStates(TrackConnectionState connection) {
+            for (TrackNodeAnimationState state : this.prevNode.getAnimationStates()) {
+                this.prevNode.addAnimationStateConnection(state.name, connection);
             }
         }
 
@@ -176,10 +135,11 @@ public class TrackCoasterCSV {
                 connection.addAllObjects(this.pendingTrackObjects);
 
                 // Add connection to all animation states
+                TrackConnectionState link = TrackConnectionState.create(this.prevNode, node, this.pendingTrackObjects);
                 if (this.prevNode_hasDefaultAnimationLinks && this.prevNode.hasAnimationStates()) {
-                    this.addConnectionToAnimationStates(new TrackPendingConnection(node, this.pendingTrackObjects));
+                    this.addConnectionToAnimationStates(link);
                 }
-                this.prevNode_pendingLinks.add(this.prevNode.getPosition());
+                this.prevNode_pendingLinks.add(link);
             }
 
             // Refresh prevNode
@@ -381,11 +341,11 @@ public class TrackCoasterCSV {
                 return;
             }
 
-            TrackPendingConnection[] connections = TrackPendingConnection.EMPTY_ARR;
+            TrackConnectionState[] connections = TrackConnectionState.EMPTY;
             if (state.prevNode_hasDefaultAnimationLinks) {
-                connections = new TrackPendingConnection[state.prevNode_pendingLinks.size()];
+                connections = new TrackConnectionState[state.prevNode_pendingLinks.size()];
                 for (int i = 0; i < connections.length; i++) {
-                    connections[i] = new TrackPendingConnection(state.world.getTracks(), state.prevNode_pendingLinks.get(i));
+                    connections[i] = state.prevNode_pendingLinks.get(i).cloneObjects();
                 }
             }
             state.prevNode.setAnimationState(this.name, this.createState(), connections);
@@ -436,7 +396,7 @@ public class TrackCoasterCSV {
                 List<TrackNodeAnimationState> states = new ArrayList<>(state.prevNode.getAnimationStates());
                 for (TrackNodeAnimationState oldState : states) {
                     if (oldState.connections.length != 0) {
-                        state.prevNode.setAnimationState(oldState.name, oldState.state, TrackPendingConnection.EMPTY_ARR);
+                        state.prevNode.setAnimationState(oldState.name, oldState.state, TrackConnectionState.EMPTY);
                     }
                 }
             }
@@ -445,10 +405,8 @@ public class TrackCoasterCSV {
             List<TrackNodeAnimationState> states = state.prevNode.getAnimationStates();
             if (!states.isEmpty()) {
                 TrackNodeAnimationState lastAddedState = states.get(states.size()-1);
-                TrackPendingConnection new_link = new TrackPendingConnection(state.world.getTracks(), this.pos);
-                new_link.addAllObjects(state.pendingTrackObjects);
-                TrackPendingConnection[] new_connections = LogicUtil.appendArray(lastAddedState.connections, new_link);
-                state.prevNode.setAnimationState(lastAddedState.name, lastAddedState.state, new_connections);
+                TrackConnectionState new_link = TrackConnectionState.create(state.prevNode, TrackNodeReference.at(this.pos), state.pendingTrackObjects);
+                state.prevNode.addAnimationStateConnection(lastAddedState.name, new_link);
                 state.pendingTrackObjects.clear();
             }
         }
@@ -490,13 +448,15 @@ public class TrackCoasterCSV {
                 pos = pos.clone();
                 state.transform.transformPoint(pos);
             }
-            PendingLink link = new PendingLink(state.prevNode, pos, state.pendingTrackObjects);
+
+            TrackConnectionState link = TrackConnectionState.create(state.prevNode, TrackNodeReference.at(pos), state.pendingTrackObjects);
             state.pendingLinks.add(link);
-            state.prevNode_pendingLinks.add(pos);
-            state.pendingTrackObjects.clear();
+            state.prevNode_pendingLinks.add(link);
             if (state.prevNode_hasDefaultAnimationLinks && state.prevNode.hasAnimationStates()) {
-                state.addConnectionToAnimationStates(new TrackPendingConnection(state.world.getTracks(), pos));
+                state.addConnectionToAnimationStates(link);
             }
+
+            state.pendingTrackObjects.clear();
         }
     }
 

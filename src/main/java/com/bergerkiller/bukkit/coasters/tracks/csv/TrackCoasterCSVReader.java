@@ -6,7 +6,8 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.PendingLink;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.util.CSVFormatDetectorStream;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
@@ -104,8 +105,12 @@ public class TrackCoasterCSVReader implements AutoCloseable {
         state.coaster.refreshConnections();
 
         // Create all pending connections
-        for (PendingLink link : state.pendingLinks) {
-            link.create(state.coaster);
+        for (TrackConnectionState link : state.pendingLinks) {
+            TrackConnection connection = state.coaster.getWorld().getTracks().connect(link);
+            if (connection != null) {
+                // Ensure junction switching order is preserved
+                connection.getNodeA().pushBackJunction(connection);
+            }
         }
     }
 

@@ -1,37 +1,39 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectHolder;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 
 /**
  * All information stored for connecting one node with another.
- * Connection states can be used in sets, where swapping the two positions
- * has no effect on hashcode or equality.
  */
-public final class TrackConnectionState {
-    public final Vector node_pos_a;
-    public final Vector node_pos_b;
-    public final TrackObject[] objects;
+public final class TrackConnectionState implements TrackObjectHolder {
+    public static final TrackConnectionState[] EMPTY = new TrackConnectionState[0];
+    public final TrackNodeReference node_a;
+    public final TrackNodeReference node_b;
+    private final TrackObject[] objects;
 
-    private TrackConnectionState(Vector node_pos_a, Vector node_pos_b, TrackObject[] objects) {
-        if (node_pos_a == null) {
-            throw new IllegalArgumentException("node_pos_a can not be null");
+    private TrackConnectionState(TrackNodeReference node_a, TrackNodeReference node_b, TrackObject[] objects) {
+        if (node_a == null) {
+            throw new IllegalArgumentException("node_a can not be null");
         }
-        if (node_pos_b == null) {
-            throw new IllegalArgumentException("node_pos_b can not be null");
+        if (node_b == null) {
+            throw new IllegalArgumentException("node_b can not be null");
         }
-        this.node_pos_a = node_pos_a;
-        this.node_pos_b = node_pos_b;
+        this.node_a = node_a;
+        this.node_b = node_b;
         this.objects = objects;
     }
 
     @Override
     public int hashCode() {
-        return node_pos_a.hashCode() ^ node_pos_b.hashCode();
+        return node_a.hashCode() ^ node_b.hashCode();
     }
 
     @Override
@@ -40,20 +42,51 @@ public final class TrackConnectionState {
             return false;
         }
 
-        // Note: swapping pos_a and pos_b is still equal!
         TrackConnectionState other = (TrackConnectionState) o;
-        if (this.node_pos_a.equals(other.node_pos_a)) {
-            return this.node_pos_b.equals(other.node_pos_b);
-        } else if (this.node_pos_a.equals(other.node_pos_b)) {
-            return this.node_pos_b.equals(other.node_pos_a);
-        } else {
+
+        // Make sure objects are the same
+        int numObjects = this.objects.length;
+        if (numObjects != other.objects.length) {
             return false;
+        } else {
+            for (int i = 0; i < numObjects; i++) {
+                if (!(this.objects[i].equals(other.objects[i]))) {
+                    return false;
+                }
+            }
         }
+
+        // Check nodes
+        return this.node_a.isReference(other.node_a) && this.node_b.isReference(other.node_b);
     }
 
     @Override
     public String toString() {
-        return "connection{" + this.node_pos_a + " | " + this.node_pos_b + "}";
+        return "connection{" + this.node_a.getPosition() + " | " + this.node_b.getPosition() + "}";
+    }
+
+    /**
+     * Gets whether the node reference specified references a node used in this connection
+     * 
+     * @param nodeReference
+     * @return True if connected
+     */
+    public boolean isConnected(TrackNodeReference nodeReference) {
+        if (this.node_a == nodeReference || this.node_b == nodeReference) {
+            return true;
+        }
+        Vector position = nodeReference.getPosition();
+        return position.equals(this.node_a.getPosition()) || position.equals(this.node_b.getPosition());
+    }
+
+    /**
+     * Gets the other node referenced by this connection
+     * 
+     * @param nodeReference
+     * @return other node referenced by this connection, not the same as the one referenced by nodeReference
+     */
+    public TrackNodeReference getOtherNode(TrackNodeReference nodeReference) {
+        return this.node_a.isReference(nodeReference) ? this.node_b : this.node_a;
     }
 
     /**
@@ -63,29 +96,145 @@ public final class TrackConnectionState {
      * @return state transformed by the transform
      */
     public TrackConnectionState transform(Matrix4x4 transform) {
-        Vector pos_a = this.node_pos_a.clone();
-        Vector pos_b = this.node_pos_b.clone();
+        Vector pos_a = this.node_a.getPosition().clone();
+        Vector pos_b = this.node_b.getPosition().clone();
         transform.transformPoint(pos_a);
         transform.transformPoint(pos_b);
-        return new TrackConnectionState(pos_a, pos_b, this.objects);
+        return new TrackConnectionState(
+                TrackNodeReference.at(pos_a),
+                TrackNodeReference.at(pos_b),
+                this.objects);
     }
 
-    public static TrackConnectionState create(Vector node_pos_a, Vector node_pos_b, List<TrackObject> objects) {
-        TrackObject[] objects_clone;
-        if (objects == null || objects.isEmpty()) {
-            objects_clone = TrackObject.EMPTY;
-        } else {
-            objects_clone = new TrackObject[objects.size()];
-            for (int i = 0; i < objects.size(); i++) {
-                objects_clone[i] = objects.get(i).clone();
+    /**
+     * Dereferences the nodes and track objects of this track connection, so that future changes to it
+     * are not reflected back in this object.
+     * 
+     * @return defererenced track connection state
+     */
+    public TrackConnectionState dereference() {
+        TrackNodeReference node_a = this.node_a.dereference();
+        TrackNodeReference node_b = this.node_b.dereference();
+        return new TrackConnectionState(node_a, node_b, TrackObject.listToArray(Arrays.asList(this.objects), true));
+    }
+
+    /**
+     * Clones the track objects of this track connection, so that they can be changed without
+     * the returned state also changing them. The nodes are unchanged.
+     * 
+     * @return track connection state with objects cloned
+     */
+    public TrackConnectionState cloneObjects() {
+        return new TrackConnectionState(this.node_a, this.node_b, TrackObject.listToArray(Arrays.asList(this.objects), true));
+    }
+
+    /**
+     * Adds a track object to this connection state, returning a new copy with the object added
+     * 
+     * @param object The track object to add
+     * @return updated connection state
+     */
+    public TrackConnectionState addObject(TrackObject object) {
+        int new_index = this.objects.length;
+        TrackObject[] new_objects = Arrays.copyOf(this.objects, new_index+1);
+        new_objects[new_index] = object.clone();
+        return new TrackConnectionState(this.node_a, this.node_b, new_objects);
+    }
+
+    /**
+     * Removes a track object from this connection state, returning a new copy with the object removed.
+     * If the object was not found, then this same instance is returned.
+     * 
+     * @param object The track object to remove
+     * @return updated connection state
+     */
+    public TrackConnectionState removeObject(TrackObject object) {
+        for (int i = 0; i < this.objects.length; i++) {
+            if (this.objects[i].equals(object)) {
+                TrackObject[] new_objects = TrackObject.removeArrayElement(this.objects, i);
+                return new TrackConnectionState(this.node_a, this.node_b, new_objects);
             }
         }
-        return new TrackConnectionState(node_pos_a, node_pos_b, objects_clone);
+        return this;
     }
 
+    /**
+     * References the nodes directly, if they exist on the world, so that future changes to the nodes
+     * are reflected back in this object. If the nodes are already referenced directly, then
+     * the same connection state object is returned.
+     * 
+     * @param world The world to look for the nodes, if not referenced
+     * @return referenced track connection state
+     */
+    public TrackConnectionState reference(TrackWorld world) {
+        TrackNodeReference node_a = this.node_a.reference(world);
+        TrackNodeReference node_b = this.node_b.reference(world);
+        if (this.node_a == node_a && this.node_b == node_b) {
+            return this;
+        } else {
+            return new TrackConnectionState(node_a, node_b, this.objects);
+        }
+    }
+
+    @Override
+    public List<TrackObject> getObjects() {
+        return LogicUtil.asImmutableList(this.objects);
+    }
+
+    @Override
+    public boolean hasObjects() {
+        return this.objects.length > 0;
+    }
+
+    /**
+     * Creates a track connection state between two nodes. Future changes to the node positions
+     * will be updated inside this state. Track objects are not updated.
+     * 
+     * @param node_a Reference to node A
+     * @param node_b Reference to node B
+     * @param objects The objects to add to the connection
+     * @return referenced connection state
+     */
+    public static TrackConnectionState create(TrackNodeReference node_a, TrackNodeReference node_b, List<TrackObject> objects) {
+        return new TrackConnectionState(node_a, node_b, TrackObject.listToArray(objects, true));
+    }
+
+    /**
+     * Creates a track connection state between two nodes based on a TrackConnection. Future changes to the node positions
+     * will be updated inside this state. Track objects are not updated.
+     * 
+     * @param connection The connection to turn into a connection state
+     * @return referenced connection state
+     */
     public static TrackConnectionState create(TrackConnection connection) {
-        return create(connection.getNodeA().getPosition(),
-                      connection.getNodeB().getPosition(),
-                      connection.getObjects());
+        return create(connection.getNodeA(), connection.getNodeB(), connection.getObjects());
+    }
+
+    /**
+     * Creates a dereferenced track connection state between two nodes, unaffected by future changes to the node
+     * positions or the objects added to the connection.
+     * 
+     * @param node_pos_a The position of node A
+     * @param node_pos_b The position of node B
+     * @param objects The objects to add to the connection
+     * @return dereferenced connection state
+     */
+    public static TrackConnectionState createDereferenced(Vector node_pos_a, Vector node_pos_b, List<TrackObject> objects) {
+        return new TrackConnectionState(TrackNodeReference.at(node_pos_a),
+                                        TrackNodeReference.at(node_pos_b),
+                                        TrackObject.listToArray(objects, true));
+    }
+
+    /**
+     * Creates a dereferenced track connection state between two nodes, unaffected by future changes to the node
+     * positions or the objects added to the connection.
+     * 
+     * @param connection The connection to save to a connection state
+     * @return dereferenced connection state
+     */
+    public static TrackConnectionState createDereferenced(TrackConnection connection) {
+        return createDereferenced(connection.getNodeA().getPosition(),
+                                  connection.getNodeB().getPosition(),
+                                  connection.getObjects());
     }
 }

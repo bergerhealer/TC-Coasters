@@ -12,15 +12,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectHolder;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionPath;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.mountiplex.reflection.util.UniqueHash;
@@ -231,9 +231,11 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
                 anim_entry.setFromState(animState.state);
                 this.write(anim_entry);
                 if (saveConnections) {
-                    for (TrackNodeReference ref : animState.connections) {
+                    for (TrackConnectionState ref : animState.connections) {
+                        this.writeAllObjects(ref);
+
                         TrackCoasterCSV.AnimationStateLinkNodeEntry anim_link_entry = new TrackCoasterCSV.AnimationStateLinkNodeEntry();
-                        anim_link_entry.pos = ref.getPosition();
+                        anim_link_entry.pos = ref.getOtherNode(startNode).getPosition();
                         this.write(anim_link_entry);
                     }
                 }
@@ -311,17 +313,13 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
         this.write(link_entry);
     }
 
-    private void writeAllObjects(TrackConnection connection) throws IOException {
-        for (TrackObject object : connection.getObjects()) {
-            this.writeObject(object);
+    private void writeAllObjects(TrackObjectHolder trackObjectHolder) throws IOException {
+        for (TrackObject object : trackObjectHolder.getObjects()) {
+            TrackCoasterCSV.ObjectEntry object_entry = new TrackCoasterCSV.ObjectEntry();
+            object_entry.distance = object.getDistance();
+            object_entry.itemName = writeItemStack(object.getItem());
+            this.write(object_entry);
         }
-    }
-
-    private void writeObject(TrackObject object) throws IOException {
-        TrackCoasterCSV.ObjectEntry object_entry = new TrackCoasterCSV.ObjectEntry();
-        object_entry.distance = object.getDistance();
-        object_entry.itemName = writeItemStack(object.getItem());
-        this.write(object_entry);
     }
 
     private String writeItemStack(ItemStack itemStack) throws IOException {

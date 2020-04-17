@@ -6,7 +6,6 @@ import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackLockedException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 
 /**
  * Connects or disconnects two nodes
@@ -15,27 +14,20 @@ public class HistoryChangeConnect extends HistoryChange {
     private final TrackConnectionState state;
 
     public HistoryChangeConnect(TrackNode nodeA, TrackNode nodeB, List<TrackObject> objects) {
-        this(nodeA.getWorld(), TrackConnectionState.create(nodeA.getPosition(), nodeB.getPosition(), objects));
-    }
-
-    public HistoryChangeConnect(CoasterWorld world, TrackConnectionState state) {
-        super(world);
-        this.state = state;
+        super(nodeA.getWorld());
+        this.state = TrackConnectionState.createDereferenced(nodeA.getPosition(), nodeB.getPosition(), objects);
     }
 
     @Override
     protected void run(boolean undo) throws TrackLockedException {
-        TrackNode nodeA = this.world.getTracks().findNodeExact(this.state.node_pos_a);
-        TrackNode nodeB = this.world.getTracks().findNodeExact(this.state.node_pos_b);
-        if (nodeA != null && nodeB != null) {
-            if (nodeA.isLocked() || nodeB.isLocked()) {
-                throw new TrackLockedException();
-            }
-            if (undo) {
+        if (undo) {
+            TrackNode nodeA = state.node_a.findOnWorld(this.world.getTracks());
+            TrackNode nodeB = state.node_b.findOnWorld(this.world.getTracks());
+            if (nodeA != null && nodeB != null) {
                 this.world.getTracks().disconnect(nodeA, nodeB);
-            } else {
-                this.world.getTracks().connect(nodeA, nodeB);
             }
+        } else {
+            this.world.getTracks().connect(this.state);
         }
     }
 }

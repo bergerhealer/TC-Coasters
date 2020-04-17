@@ -2,114 +2,79 @@ package com.bergerkiller.bukkit.coasters.tracks;
 
 import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.common.math.Matrix4x4;
+import com.bergerkiller.bukkit.coasters.util.TrackNodePositionReference;
 
 /**
- * Stores a reference to a TrackNode by its unique x/y/z position coordinates.
- * Also caches the last-obtained track node. Provided the track node was cached,
- * the position is updated when the node is moved.
+ * The details required to unique identify a {@link TrackNode}. For obvious reasons,
+ * a TrackNode implements this interface also. What uniquely identifies a TrackNode
+ * is the position information, since no two nodes can exist at the same coordinates.
  */
-public class TrackNodeReference {
-    private TrackWorld world;
-    private TrackNode node;
-    private Vector position;
-    public static final TrackNodeReference[] EMPTY_ARR = new TrackNodeReference[0];
-
-    public TrackNodeReference(TrackWorld world, Vector position) {
-        this.world = world;
-        this.node = null;
-        this.position = position;
-    }
-
-    public TrackNodeReference(TrackNode node) {
-        this.world = node.getWorld().getTracks();
-        this.node = node;
-        this.position = null;
-    }
+public interface TrackNodeReference {
 
     /**
-     * Gets the world where the node can be found
+     * Attempts to find the node referred to by this TrackNodeReference
+     * on the World specified.
      * 
-     * @return world
+     * @param world The world to find the node on
+     * @return track node found, null if not found
      */
-    public TrackWorld getWorld() {
-        return this.world;
-    }
+    TrackNode findOnWorld(TrackWorld world);
 
     /**
-     * Gets the last known or current position of the track node
+     * Gets the exact coordinates of this node
      * 
      * @return position
      */
-    public Vector getPosition() {
-        return (node == null) ? this.position : this.node.getPosition();
-    }
+    Vector getPosition();
 
     /**
-     * Gets the node at the position and on the world indicated by this reference.
-     * If the node can not be found, null is returned.
-     * If found, the node is cached and {@link #getPosition()} will refer to the live
-     * position of the node instead.
+     * Dereferences this track node reference, so that the position
+     * is no longer live-updated if this node reference is a TrackNode already.
+     * This makes sure the reference can be kept offline, without it changing.
      * 
-     * @return node, null if not found
+     * @return dereferenced node reference
      */
-    public TrackNode getNode() {
-        if (this.node != null) {
-            if (this.node.isRemoved()) {
-                // Node was removed, remember the last position it had and break reference
-                this.position = this.node.getPosition();
-                this.node = null;
-            } else {
-                return this.node;
-            }
-        }
-
-        // Attempt finding the node at the coordinates
-        // If found, we don't need to store the position anymore
-        this.node = this.world.findNodeExact(this.position);
-        if (this.node != null) {
-            this.position = null;
-        }
-        return this.node;
-    }
+    TrackNodeReference dereference();
 
     /**
-     * Returns a new TrackNodeReference that references just the position information
-     */
-    public TrackNodeReference dereference() {
-        return new TrackNodeReference(getWorld(), getPosition());
-    }
-
-    /**
-     * Transforms this reference using a transformation matrix. A new world
-     * can also be specified.
+     * References this track node reference to an actual node, so that the
+     * position is live-updated. If the node is not found, this instance is
+     * returned for future referencing.
      * 
-     * @param world The new world for the track node reference
-     * @param transform The transformation matrix to transform the node position with
-     * @return new track node reference
+     * @param world
+     * @return referenced node reference
      */
-    public TrackNodeReference transform(TrackWorld world, Matrix4x4 transform) {
-        Vector new_position = this.getPosition().clone();
-        transform.transformPoint(new_position);
-        return new TrackNodeReference(world, new_position);
+    TrackNodeReference reference(TrackWorld world);
+
+    /**
+     * Gets whether this track node reference references the same node as another reference
+     * 
+     * @param reference
+     * @return True if this reference and the one specified reference the same track node
+     */
+    default boolean isReference(TrackNodeReference reference) {
+        return this == reference || this.getPosition().equals(reference.getPosition());
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (o == this) {
-            return true;
-        } else if (o instanceof TrackNodeReference) {
-            TrackNodeReference other = (TrackNodeReference) o;
-            if (this.node != null) {
-                return this.node == other.getNode();
-            } else if (other.node != null) {
-                return other.node == other.getNode();
-            } else {
-                return this.world.getBukkitWorld() == other.world.getBukkitWorld() &&
-                       this.position.equals(other.position);
-            }
-        } else {
-            return false;
-        }
+    /**
+     * Creates a track node reference that references a node at the given x/y/z coordinates
+     * 
+     * @param x The x-coordinate of the node
+     * @param y The y-coordinate of the node
+     * @param z The z-coordinate of the node
+     * @return Track node reference
+     */
+    public static TrackNodeReference at(double x, double y, double z) {
+        return new TrackNodePositionReference(x, y, z);
+    }
+
+    /**
+     * Creates a track node reference that references a node at the given x/y/z position
+     * 
+     * @param position The x/y/z coordinates of the node
+     * @return Track node reference
+     */
+    public static TrackNodeReference at(Vector position) {
+        return new TrackNodePositionReference(position.getX(), position.getY(), position.getZ());
     }
 }

@@ -1,26 +1,22 @@
 package com.bergerkiller.bukkit.coasters.objects;
 
-import java.util.Collection;
+import java.util.List;
 
 /**
  * Interface for a class that can store Track Objects
  */
 public interface TrackObjectHolder {
     /**
-     * Adds a track object
+     * Gets all added track objects
      * 
-     * @param object
+     * @return list of track objects
      */
-    void addObject(TrackObject object);
+    List<TrackObject> getObjects();
 
     /**
-     * Adds multiple track objects at once
+     * Gets whether track objects are added
      * 
-     * @param objects
+     * @return True if track objects are added
      */
-    default void addAllObjects(Collection<TrackObject> objects) {
-        for (TrackObject object : objects) {
-            this.addObject(object);
-        }
-    }
+    boolean hasObjects();
 }

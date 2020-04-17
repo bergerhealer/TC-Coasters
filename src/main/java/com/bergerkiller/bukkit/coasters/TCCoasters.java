@@ -864,7 +864,7 @@ public class TCCoasters extends PluginBase {
                 }
             } else if (args.length >= 2 && LogicUtil.containsIgnoreCase(args[1], "clear")) {
                 for (TrackNode node : state.getEditedNodes()) {
-                    for (TrackNodeAnimationState anim_state : new ArrayList<>(node.getAnimationStates())) {
+                    for (TrackNodeAnimationState anim_state : node.getAnimationStates()) {
                         node.removeAnimationState(anim_state.name);
                     }
                 }
