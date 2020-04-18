@@ -13,6 +13,8 @@ public class PlayerEditTrackObject {
     public boolean dragDirection;
     public TrackConnection beforeDragConnection;
     public double beforeDragDistance;
+    public boolean beforeDragFlipped;
+    public boolean beforeDragLookingAtFlipped;
 
     public PlayerEditTrackObject(TrackConnection connection, TrackObject object) {
         this.connection = connection;

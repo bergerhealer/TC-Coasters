@@ -107,7 +107,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
         // Compute total distance and invert all the objects's distances
         // This doesn't actually change the position of the object, so it can be done silently
         for (TrackObject object : this.objects) {
-            object.setDistanceSilently(this.getFullDistance() - object.getDistance());
+            object.setDistanceFlippedSilently(this.getFullDistance() - object.getDistance(), object.isFlipped());
         }
 
         //TODO: Technically we got to swap the lines also
@@ -250,18 +250,17 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
 
     /**
      * Moves an existing object to a new connection and/or distance. If the new connection
-     * is the same, it is not removed from this connection.
+     * is the same, it is not removed from this connection. It is made sure the object orientation
+     * stays the same, changing the flipped property if needed.
      * 
      * @param object
      * @param newConnection
      * @param newDistance
+     * @param rightDirection The direction the player moving it is looking to align the objects
      * @return True if the object was found and moved
      */
-    public boolean moveObject(TrackObject object, TrackConnection newConnection, double newDistance) {
-        if (newConnection == this) {
-            object.setDistance(this, newDistance);
-            return true;
-        } else {
+    public boolean moveObject(TrackObject object, TrackConnection newConnection, double newDistance, Vector rightDirection) {
+        if (newConnection != this) {
             for (int i = 0; i < this.objects.length; i++) {
                 if (this.objects[i].equals(object)) {
                     this.objects = TrackObject.removeArrayElement(this.objects, i);
@@ -269,12 +268,16 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
 
                     newConnection.objects = LogicUtil.appendArray(newConnection.objects, object);
                     newConnection.markChanged();
-                    object.setDistanceSilently(newDistance);
-                    object.onShapeUpdated(newConnection);
+                    object.setDistanceComputeFlipped(newConnection, newDistance, rightDirection);
                     return true;
                 }
             }
             return false;
+        } else if (object.getDistance() == newDistance) {
+            return true; // no changes
+        } else {
+            object.setDistanceComputeFlipped(this, newDistance, rightDirection);
+            return true;
         }
     }
 

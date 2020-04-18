@@ -119,18 +119,18 @@ public abstract class HistoryChangeCollection {
         return addChange(new HistoryChangeDeleteTrackObject(connection, object));
     }
 
-    public final HistoryChange addChangeAfterMovingTrackObject(Player who, TrackConnection connection, TrackObject object, TrackConnection old_connection, double old_distance) throws ChangeCancelledException {
+    public final HistoryChange addChangeAfterMovingTrackObject(Player who, TrackConnection connection, TrackObject object, TrackConnection old_connection, double old_distance, boolean old_flipped) throws ChangeCancelledException {
         TrackObject old_object = object.clone();
-        old_object.setDistanceSilently(old_distance);
+        old_object.setDistanceFlippedSilently(old_distance, old_flipped);
         try {
             handleEvent(new CoasterAfterChangeTrackObjectEvent(who, connection, object, old_connection, old_object));
         } catch (ChangeCancelledException ex) {
             // Revert the changes
             if (connection == old_connection) {
-                object.setDistance(connection, old_distance);
+                object.setDistanceFlipped(connection, old_distance, old_flipped);
             } else {
                 connection.removeObject(object);
-                object.setDistanceSilently(old_distance);
+                object.setDistanceFlippedSilently(old_distance, old_flipped);
                 old_connection.addObject(object);
             }
             throw ex;

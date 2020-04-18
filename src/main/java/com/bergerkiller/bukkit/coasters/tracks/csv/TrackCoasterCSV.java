@@ -524,6 +524,7 @@ public class TrackCoasterCSV {
     public static final class ObjectEntry extends CSVEntry {
         public double distance;
         public String itemName;
+        public boolean flipped;
 
         @Override
         public boolean detect(StringArrayBuffer buffer) {
@@ -535,6 +536,7 @@ public class TrackCoasterCSV {
             buffer.next();
             this.distance = buffer.nextDouble();
             this.itemName = buffer.next();
+            this.flipped = buffer.next().equalsIgnoreCase("flipped");
         }
 
         @Override
@@ -542,13 +544,16 @@ public class TrackCoasterCSV {
             buffer.put("OBJECT");
             buffer.putDouble(this.distance);
             buffer.put(this.itemName);
+            if (this.flipped) {
+                buffer.put("FLIPPED");
+            }
         }
 
         @Override
         public void processReader(CSVReaderState state) {
             ItemStack item = state.itemStacksByName.get(this.itemName);
             if (item != null) {
-                state.pendingTrackObjects.add(new TrackObject(this.distance, item));
+                state.pendingTrackObjects.add(new TrackObject(this.distance, item, this.flipped));
             }
         }
     }

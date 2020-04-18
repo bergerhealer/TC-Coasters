@@ -1353,9 +1353,15 @@ public class PlayerEditState implements CoasterWorldComponent {
             return;
         }
 
+        // Player looks into a certain direction, which changes the orientation of the objects
+        Vector rightDirection = this.input.get().getRotation().forwardVector();
+
         // Create new objects when none are selected
         if (this.editedTrackObjects.isEmpty()) {
-            TrackObject object = new TrackObject(point.distance, this.getObjectState().getSelectedItem());
+            // Compare orientation with the direction the player is looking
+            // If inverted, then flip the object
+            boolean flipped = (point.orientation.rightVector().dot(rightDirection) < 0.0);
+            TrackObject object = new TrackObject(point.distance, this.getObjectState().getSelectedItem(), flipped);
             this.getHistory().addChangeBeforeCreateTrackObject(this.player, point.connection, object);
 
             point.connection.addObject(object);
@@ -1407,6 +1413,12 @@ public class PlayerEditState implements CoasterWorldComponent {
                         // Save state prior to drag for history and after change event later
                         editObject.beforeDragConnection = editObject.connection;
                         editObject.beforeDragDistance = editObject.object.getDistance();
+                        editObject.beforeDragFlipped = editObject.object.isFlipped();
+
+                        // Looking at the object from left-to-right or right-to-left?
+                        // This is important when moving the object later
+                        TrackConnection.PointOnPath beforePoint = editObject.connection.findPointAtDistance(editObject.beforeDragDistance);
+                        editObject.beforeDragLookingAtFlipped = (beforePoint.orientation.rightVector().dot(rightDirection) < 0.0);
                     }
                 }
             }
@@ -1414,8 +1426,8 @@ public class PlayerEditState implements CoasterWorldComponent {
             // Successive clicks: move the objects to the point, making use of the relative dragDistance to do so
             HistoryChange changes = this.getHistory().addChangeGroup();
             boolean success = true;
-            success &= moveTrackObjects(point, changes, false);
-            success &= moveTrackObjects(point, changes, true);
+            success &= moveTrackObjects(point, changes, false, rightDirection);
+            success &= moveTrackObjects(point, changes, true, rightDirection);
             if (!success) {
                 throw new ChangeCancelledException();
             }
@@ -1468,7 +1480,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     }
 
     /// Moves selected track objects. Direction defines whether to walk to nodeA (false) or nodeB (true).
-    private boolean moveTrackObjects(TrackConnection.PointOnPath point, HistoryChange changes, boolean initialDirection) {
+    private boolean moveTrackObjects(TrackConnection.PointOnPath point, HistoryChange changes, boolean initialDirection, Vector rightDirection) {
         // Create a sorted list of objects to move, with drag distance increasing
         // Only add objects with the same direction
         SortedSet<PlayerEditTrackObject> objects = new TreeSet<PlayerEditTrackObject>(
@@ -1482,6 +1494,9 @@ public class PlayerEditState implements CoasterWorldComponent {
         if (objects.isEmpty()) {
             return true; // none in this category
         }
+
+        // Optimized: compute up-front
+        Vector rightDirectionFlipped = rightDirection.clone().multiply(-1.0);
 
         // Distance offset based on the point position on the clicked connection
         // This makes the maths easier, as we can just look from the start of the connection
@@ -1499,7 +1514,8 @@ public class PlayerEditState implements CoasterWorldComponent {
                     if (!connection.direction) {
                         objectDistance = connection.getFullDistance() - objectDistance;
                     }
-                    object.connection.moveObject(object.object, connection.connection, objectDistance);
+                    object.connection.moveObject(object.object, connection.connection, objectDistance,
+                            object.beforeDragLookingAtFlipped ? rightDirectionFlipped : rightDirection);
                     object.connection = connection.connection;
                     break; // done!
                 }
@@ -1896,7 +1912,7 @@ public class PlayerEditState implements CoasterWorldComponent {
                 }
                 try {
                     changes.addChangeAfterMovingTrackObject(this.player, editObject.connection, editObject.object,
-                            editObject.beforeDragConnection, editObject.beforeDragDistance);
+                            editObject.beforeDragConnection, editObject.beforeDragDistance, editObject.beforeDragFlipped);
                 } catch (ChangeCancelledException ex) {
                     wasCancelled = true;
                 }
