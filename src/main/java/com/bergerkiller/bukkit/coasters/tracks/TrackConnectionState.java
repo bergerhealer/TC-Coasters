@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.bukkit.util.Vector;
@@ -87,6 +88,18 @@ public final class TrackConnectionState implements TrackObjectHolder {
      */
     public TrackNodeReference getOtherNode(TrackNodeReference nodeReference) {
         return this.node_a.isReference(nodeReference) ? this.node_b : this.node_a;
+    }
+
+    /**
+     * Attempts to find an actual TrackConnection that matches the nodes of this connection state
+     * on a world
+     * 
+     * @param world The world to look for connections
+     * @return found connection, null if not found
+     */
+    public TrackConnection findOnWorld(TrackWorld world) {
+        TrackNode node_a = this.node_a.findOnWorld(world);
+        return (node_a == null) ? null : node_a.findConnectionWith(this.node_b.reference(world));
     }
 
     /**
@@ -236,5 +249,18 @@ public final class TrackConnectionState implements TrackObjectHolder {
         return createDereferenced(connection.getNodeA().getPosition(),
                                   connection.getNodeB().getPosition(),
                                   connection.getObjects());
+    }
+
+    /**
+     * Creates a dereferenced track connection state between two nodes, unaffected by future changes to the node
+     * positions. Objects on the connection are not stored in this state.
+     * 
+     * @param connection The connection to save to a connection state
+     * @return dereferenced connection state
+     */
+    public static TrackConnectionState createDereferencedNoObjects(TrackConnection connection) {
+        return createDereferenced(connection.getNodeA().getPosition(),
+                                  connection.getNodeB().getPosition(),
+                                  Collections.emptyList());
     }
 }

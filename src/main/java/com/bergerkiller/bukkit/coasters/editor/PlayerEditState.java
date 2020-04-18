@@ -31,8 +31,11 @@ import com.bergerkiller.bukkit.coasters.TCCoastersUtil.TargetedBlockInfo;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
+import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeGroup;
 import com.bergerkiller.bukkit.coasters.editor.object.ObjectEditState;
+import com.bergerkiller.bukkit.coasters.events.CoasterBeforeChangeTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterSelectNodeEvent;
+import com.bergerkiller.bukkit.coasters.events.CoasterSelectTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
@@ -496,10 +499,9 @@ public class PlayerEditState implements CoasterWorldComponent {
             return true;
         }
 
-        //TODO!
-        //if (CommonUtil.callEvent(new CoasterSelectNodeEvent(this.player, node)).isCancelled()) {
-        //    return false;
-        //}
+        if (CommonUtil.callEvent(new CoasterSelectTrackObjectEvent(this.player, connection, object)).isCancelled()) {
+            return false;
+        }
 
         this.setEditingTrackObject(connection, object, true);
         return true;
@@ -1353,8 +1355,9 @@ public class PlayerEditState implements CoasterWorldComponent {
 
         // Create new objects when none are selected
         if (this.editedTrackObjects.isEmpty()) {
-            //TODO: ChangeCancelledException when disallowed
             TrackObject object = new TrackObject(point.distance, this.getObjectState().getSelectedItem());
+            this.getHistory().addChangeBeforeCreateTrackObject(this.player, point.connection, object);
+
             point.connection.addObject(object);
             point.connection.addObjectToAnimationStates(this.selectedAnimation, object);
             return;
@@ -1393,10 +1396,29 @@ public class PlayerEditState implements CoasterWorldComponent {
                 TrackObjectDiscoverer right = new TrackObjectDiscoverer(pending, visited, point.connection, true,  point.distance);
                 while (!pending.isEmpty() && (left.next() || right.next()));
             }
+
+            // For all objects we've found, fire before change event and cancel the drag when cancelled
+            for (PlayerEditTrackObject editObject : this.editedTrackObjects.values()) {
+                if (!Double.isNaN(editObject.dragDistance)) {
+                    if (CommonUtil.callEvent(new CoasterBeforeChangeTrackObjectEvent(this.player, editObject.connection, editObject.object)).isCancelled()) {
+                        // Cancelled
+                        editObject.dragDistance = Double.NaN;
+                    } else {
+                        // Save state prior to drag for history and after change event later
+                        editObject.beforeDragConnection = editObject.connection;
+                        editObject.beforeDragDistance = editObject.object.getDistance();
+                    }
+                }
+            }
         } else {
             // Successive clicks: move the objects to the point, making use of the relative dragDistance to do so
-            moveTrackObjects(point, false);
-            moveTrackObjects(point, true);
+            HistoryChange changes = this.getHistory().addChangeGroup();
+            boolean success = true;
+            success &= moveTrackObjects(point, changes, false);
+            success &= moveTrackObjects(point, changes, true);
+            if (!success) {
+                throw new ChangeCancelledException();
+            }
         }
     }
 
@@ -1446,7 +1468,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     }
 
     /// Moves selected track objects. Direction defines whether to walk to nodeA (false) or nodeB (true).
-    private void moveTrackObjects(TrackConnection.PointOnPath point, boolean initialDirection) {
+    private boolean moveTrackObjects(TrackConnection.PointOnPath point, HistoryChange changes, boolean initialDirection) {
         // Create a sorted list of objects to move, with drag distance increasing
         // Only add objects with the same direction
         SortedSet<PlayerEditTrackObject> objects = new TreeSet<PlayerEditTrackObject>(
@@ -1458,7 +1480,7 @@ public class PlayerEditState implements CoasterWorldComponent {
             }
         }
         if (objects.isEmpty()) {
-            return; // none in this category
+            return true; // none in this category
         }
 
         // Distance offset based on the point position on the clicked connection
@@ -1467,6 +1489,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         double distanceOffset = -(initialDirection ? point.distance : (point.connection.getFullDistance() - point.distance));
 
         // Proceed to walk down the connections relative to the point
+        boolean allSuccessful = true;
         WalkingConnection connection = new WalkingConnection(point.connection, initialDirection);
         for (PlayerEditTrackObject object : objects) {
             while (true) {
@@ -1483,10 +1506,11 @@ public class PlayerEditState implements CoasterWorldComponent {
 
                 distanceOffset += connection.getFullDistance();
                 if (!connection.next()) {
-                    return; // end reached
+                    return allSuccessful; // end reached
                 }
             }
         }
+        return allSuccessful;
     }
 
     /**
@@ -1537,9 +1561,20 @@ public class PlayerEditState implements CoasterWorldComponent {
 
         List<PlayerEditTrackObject> objects = new ArrayList<PlayerEditTrackObject>(this.editedTrackObjects.values());
         this.editedTrackObjects.clear();
+        
+        boolean wereChangesCancelled = false;
         for (PlayerEditTrackObject object : objects) {
-            object.connection.removeObject(object.object);
-            object.connection.removeObjectFromAnimationStates(this.selectedAnimation, object.object);
+            try {
+                this.getHistory().addChangeBeforeDeleteTrackObject(this.player, object.connection, object.object);
+                object.connection.removeObject(object.object);
+                object.connection.removeObjectFromAnimationStates(this.selectedAnimation, object.object);
+            } catch (ChangeCancelledException ex) {
+                wereChangesCancelled = true;
+                object.object.onStateUpdated(this.player);
+            }
+        }
+        if (wereChangesCancelled) {
+            throw new ChangeCancelledException();
         }
     }
 
@@ -1845,6 +1880,33 @@ public class PlayerEditState implements CoasterWorldComponent {
                 for (PlayerEditNode editNode : this.editedNodes.values()) {
                     editNode.moveEnd();
                 }
+            }
+        }
+
+        // For moving track objects, store the changes / fire after change event
+        if (this.isMode(PlayerEditMode.OBJECT)) {
+            boolean wasCancelled = false;
+            HistoryChange changes = null;
+            for (PlayerEditTrackObject editObject : this.editedTrackObjects.values()) {
+                if (Double.isNaN(editObject.dragDistance)) {
+                    continue;
+                }
+                if (changes == null) {
+                    changes = new HistoryChangeGroup();
+                }
+                try {
+                    changes.addChangeAfterMovingTrackObject(this.player, editObject.connection, editObject.object,
+                            editObject.beforeDragConnection, editObject.beforeDragDistance);
+                } catch (ChangeCancelledException ex) {
+                    wasCancelled = true;
+                }
+                editObject.moveEnd();
+            }
+            if (changes != null) {
+                this.getHistory().addChange(changes);
+            }
+            if (wasCancelled) {
+                throw new ChangeCancelledException();
             }
         }
     }

@@ -215,10 +215,11 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
      */
     public boolean removeObject(TrackObject object) {
         for (int i = 0; i < this.objects.length; i++) {
-            if (this.objects[i].equals(object)) {
+            TrackObject old_object = this.objects[i];
+            if (old_object.equals(object)) {
                 this.objects = TrackObject.removeArrayElement(this.objects, i);
                 this.markChanged();
-                object.onRemoved(this);
+                old_object.onRemoved(this);
                 return true;
             }
         }

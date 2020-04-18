@@ -11,11 +11,19 @@ public class PlayerEditTrackObject {
     public final TrackObject object;
     public double dragDistance;
     public boolean dragDirection;
+    public TrackConnection beforeDragConnection;
+    public double beforeDragDistance;
 
     public PlayerEditTrackObject(TrackConnection connection, TrackObject object) {
         this.connection = connection;
         this.object = object;
         this.dragDistance = Double.NaN;
         this.dragDirection = false;
+    }
+
+    public void moveEnd() {
+        this.beforeDragConnection = null;
+        this.beforeDragDistance = 0.0;
+        this.dragDistance = Double.NaN;
     }
 }

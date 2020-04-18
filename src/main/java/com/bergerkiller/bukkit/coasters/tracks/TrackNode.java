@@ -538,6 +538,21 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         return tmp;
     }
 
+    /**
+     * Checks the connections to this node for a connection with another node
+     * 
+     * @param nodeReference The node (reference) of the node to find a connection with
+     * @return Track connection found, null if no such connection exists
+     */
+    public final TrackConnection findConnectionWith(TrackNodeReference nodeReference) {
+        for (TrackConnection connection : this._connections) {
+            if (connection.getOtherNode(this).isReference(nodeReference)) {
+                return connection;
+            }
+        }
+        return null;
+    }
+
     public List<TrackNode> getNeighbours() {
         TrackNode[] result = new TrackNode[this._connections.length];
         for (int i = 0; i < this._connections.length; i++) {

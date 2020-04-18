@@ -5,12 +5,16 @@ import java.util.List;
 import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.coasters.events.CoasterAfterChangeNodeEvent;
+import com.bergerkiller.bukkit.coasters.events.CoasterAfterChangeTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterBeforeChangeNodeEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterCreateConnectionEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterCreateNodeEvent;
+import com.bergerkiller.bukkit.coasters.events.CoasterCreateTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterDeleteConnectionEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterDeleteNodeEvent;
+import com.bergerkiller.bukkit.coasters.events.CoasterDeleteTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterEvent;
+import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
@@ -103,6 +107,36 @@ public abstract class HistoryChangeCollection {
         TrackNodeState old_state = node.getState();
         TrackNodeState new_state = old_state.changeRail(new_rail);
         return addChange(new HistoryChangeNode(node.getWorld(), old_state, new_state));
+    }
+
+    public final HistoryChange addChangeBeforeCreateTrackObject(Player who, TrackConnection connection, TrackObject object) throws ChangeCancelledException {
+        handleEvent(new CoasterCreateTrackObjectEvent(who, connection, object));
+        return addChange(new HistoryChangeCreateTrackObject(connection, object));
+    }
+
+    public final HistoryChange addChangeBeforeDeleteTrackObject(Player who, TrackConnection connection, TrackObject object) throws ChangeCancelledException {
+        handleEvent(new CoasterDeleteTrackObjectEvent(who, connection, object));
+        return addChange(new HistoryChangeDeleteTrackObject(connection, object));
+    }
+
+    public final HistoryChange addChangeAfterMovingTrackObject(Player who, TrackConnection connection, TrackObject object, TrackConnection old_connection, double old_distance) throws ChangeCancelledException {
+        TrackObject old_object = object.clone();
+        old_object.setDistanceSilently(old_distance);
+        try {
+            handleEvent(new CoasterAfterChangeTrackObjectEvent(who, connection, object, old_connection, old_object));
+        } catch (ChangeCancelledException ex) {
+            // Revert the changes
+            if (connection == old_connection) {
+                object.setDistance(connection, old_distance);
+            } else {
+                connection.removeObject(object);
+                object.setDistanceSilently(old_distance);
+                old_connection.addObject(object);
+            }
+            throw ex;
+        }
+
+        return addChange(new HistoryChangeTrackObject(old_connection, connection, old_object, object));
     }
 
     public void handleChangeBefore(Player who, TrackNode node) throws ChangeCancelledException {
