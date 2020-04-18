@@ -377,8 +377,8 @@ public enum PlayerEditMode {
             public void onActivate() {
                 try {
                     PlayerEditState state = stateSupplier.get();
-                    if (state.hasEditedTrackObjects()) {
-                        stateSupplier.get().deleteTrackObjects();
+                    if (state.getObjects().hasEditedObjects()) {
+                        state.getObjects().deleteObjects();
                         getDisplay().playSound(CommonSounds.ITEM_BREAK);
                     }
                 } catch (ChangeCancelledException e) {

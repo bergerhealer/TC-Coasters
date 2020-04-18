@@ -37,6 +37,13 @@ public class TrackNodeSearchPath {
         this.current = node;
     }
 
+    /**
+     * Searches for the shortest path from the start node to any of the selected track nodes
+     * 
+     * @param startNode
+     * @param selected
+     * @return shorted path, null if no path could be found
+     */
     public static TrackNodeSearchPath findShortest(TrackNode startNode, Set<TrackNode> selected) {
         // Shortcut
         if (selected.contains(startNode)) {

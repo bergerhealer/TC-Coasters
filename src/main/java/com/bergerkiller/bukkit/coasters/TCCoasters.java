@@ -471,13 +471,13 @@ public class TCCoasters extends PluginBase {
         } else if (args.length > 0 && args[0].equals("delete")) {
             if (state.getMode() == PlayerEditMode.OBJECT) {
                 // Object
-                state.deselectLockedTrackObjects();
-                if (!state.hasEditedTrackObjects()) {
+                state.getObjects().deselectLockedObjects();
+                if (!state.getObjects().hasEditedObjects()) {
                     sender.sendMessage("No track objects selected, nothing has been deleted!");
                 } else {
                     try {
-                        int numDeleted = state.getEditedTrackObjects().size();
-                        state.deleteTrackObjects();
+                        int numDeleted = state.getObjects().getEditedObjects().size();
+                        state.getObjects().deleteObjects();
                         sender.sendMessage("Deleted " + numDeleted + " track objects!");
                     } catch (ChangeCancelledException e) {
                         sender.sendMessage(ChatColor.RED + "Failed to delete some of the track objects!");

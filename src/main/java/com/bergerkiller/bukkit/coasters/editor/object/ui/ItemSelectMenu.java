@@ -20,12 +20,12 @@ public class ItemSelectMenu extends MapWidgetMenu implements ItemDropTarget {
             @Override
             public void onAttached() {
                 super.onAttached();
-                this.setSelectedItem(stateSupplier.get().getObjectState().getSelectedItem());
+                this.setSelectedItem(stateSupplier.get().getObjects().getSelectedItem());
             }
 
             @Override
             public void onSelectedItemChanged() {
-                stateSupplier.get().getObjectState().setSelectedItem(this.getSelectedItem());
+                stateSupplier.get().getObjects().setSelectedItem(this.getSelectedItem());
             }
         });
         this.itemSelector.setPosition(7, 7);

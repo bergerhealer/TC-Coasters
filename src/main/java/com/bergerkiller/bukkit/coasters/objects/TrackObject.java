@@ -12,7 +12,6 @@ import com.bergerkiller.bukkit.coasters.particles.TrackParticleObject;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionPath;
-import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 
 /**
@@ -97,7 +96,7 @@ public class TrackObject implements Cloneable {
         this.particle.setStateSource(new TrackParticleState.Source() {
             @Override
             public TrackParticleState getState(PlayerEditState viewer) {
-                return viewer.getMode() == PlayerEditMode.OBJECT && viewer.isEditingTrackObject(TrackObject.this) ? 
+                return viewer.getMode() == PlayerEditMode.OBJECT && viewer.getObjects().isEditing(TrackObject.this) ? 
                         TrackParticleState.SELECTED : TrackParticleState.DEFAULT;
             }
         });
