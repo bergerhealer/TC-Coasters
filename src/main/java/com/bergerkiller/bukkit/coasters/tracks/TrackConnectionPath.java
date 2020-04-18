@@ -210,50 +210,88 @@ public class TrackConnectionPath {
      * @param playerViewMatrixInverted The view matrix, inverted, for computing with
      * @param t0 Start theta
      * @param t1 End theta
-     * @param out_pos Vector set to the position on the path that was found
      * @return theta value that lies closest
      */
-    public double findClosestPointInView(Matrix4x4 playerViewMatrixInverted, double t0, double t1, Vector out_pos) {
-        // Obtain outer bounds positions, as these are re-used
-        Vector p0 = this.getPosition(t0);
-        Vector p1 = this.getPosition(t1);
-        playerViewMatrixInverted.transformPoint(p0);
-        playerViewMatrixInverted.transformPoint(p1);
-        double d0 = TCCoastersUtil.distanceSquaredXY(p0);
-        double d1 = TCCoastersUtil.distanceSquaredXY(p1);
+    public double findClosestPointInView(Matrix4x4 playerViewMatrixInverted, final double t0, final double t1) {
+        // Create 5 view point options which are linked together
+        ViewPointOption head = new ViewPointOption(null, 5);
+        ViewPointOption m0 = head.next;
+        ViewPointOption m1 = m0.next;
+        ViewPointOption m2 = m1.next;
+        ViewPointOption tail = m2.next;
 
-        // Compute distance from point to point
-        double pp_dist = this.endA.getDistance();
+        // Set head and tail to t0 and t1 respectively
+        head.update(this, playerViewMatrixInverted, t0);
+        tail.update(this, playerViewMatrixInverted, t1);
 
-        // Compute td limit (when we stop looking deeper)
-        // This is based on the point-point length of the connection
-        // Below some value the difference in position is negligible
-        // If distance between the points is (close to) 0 the loop stops instantly
-        final double epsilon = 1e-4;
-        double td_lim = (pp_dist < epsilon) ? 1.0 : (epsilon / pp_dist);
+        while (true) {
+            // Calculate middle 3 points using head and tail theta values
+            double ht = 0.5 * (head.theta + tail.theta);
+            m0.update(this, playerViewMatrixInverted, 0.5 * (head.theta + ht));
+            m1.update(this, playerViewMatrixInverted, ht);
+            m2.update(this, playerViewMatrixInverted, 0.5 * (tail.theta + ht));
 
-        // Take half-theta leaps until td is small enough
-        double td = (t1-t0), tm;
-        Vector pm = new Vector();
-        do {
-            td *= 0.5;
-            tm = t0 + td;
-            pm.copy(this.getPosition(tm, out_pos));
-            playerViewMatrixInverted.transformPoint(pm);
-            double dm = TCCoastersUtil.distanceSquaredXY(pm);
-
-            if (d1 < d0) {
-                t0 = tm;
-                p0.copy(pm);
-                d0 = dm;
-            } else {
-                t1 = tm;
-                p1.copy(pm);
-                d1 = dm;
+            // Find best view point option with lowest distance from where the player is looking
+            ViewPointOption best = head;
+            for (ViewPointOption opt = m0; opt != null; opt = opt.next) {
+                if (opt.distance < best.distance) {
+                    best = opt;
+                }
             }
-        } while (td > td_lim);
 
-        return tm;
+            // Get the view point option directly neighbouring the selected one
+            // At head/tail there is only one option, otherwise lowest distance counts
+            ViewPointOption other;
+            if (best.prev == null || (best.next != null && best.next.distance < best.prev.distance)) {
+                other = best.next;
+            } else {
+                other = best.prev;
+            }
+
+            // If difference in distance is negligible, return the best result
+            if ((other.distance - best.distance) < 1e-5) {
+                return best.theta;
+            }
+
+            // Copy best and other to head/tail in whatever way works best and continue looking
+            if (best == head) {
+                tail.assign(other);
+            } else if (best == tail) {
+                head.assign(other);
+            } else if (other == head) {
+                tail.assign(best);
+            } else if (other == tail) {
+                head.assign(best);
+            } else {
+                head.assign(best);
+                tail.assign(other);
+            }
+        }
+    }
+
+    // Helper class for sorting the different points on the path
+    private static final class ViewPointOption {
+        public final ViewPointOption prev, next;
+        private final Vector position = new Vector();
+        public double theta = 0.0;
+        public double distance;
+
+        public ViewPointOption(ViewPointOption prev, int len) {
+            this.prev = prev;
+            this.next = (len <= 1) ? null : new ViewPointOption(this, len-1);
+        }
+
+        public void update(TrackConnectionPath path, Matrix4x4 playerViewMatrixInverted, double theta) {
+            this.theta = theta;
+            path.getPosition(theta, this.position);
+            playerViewMatrixInverted.transformPoint(this.position);
+            this.distance = TCCoastersUtil.distanceSquaredXY(this.position);
+        }
+
+        public void assign(ViewPointOption opt) {
+            this.theta = opt.theta;
+            this.distance = opt.distance;
+        }
     }
 
     /**

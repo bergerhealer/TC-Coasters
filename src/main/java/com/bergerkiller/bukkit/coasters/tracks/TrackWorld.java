@@ -129,14 +129,14 @@ public class TrackWorld implements CoasterWorldComponent {
                     // Find closest point
                     double theta;
                     TrackConnectionPath path = connection.getPath();
-                    Vector positionOnPath = new Vector();
                     if (connection.getNodeA() == node) {
-                        theta = path.findClosestPointInView(cameraTransform, 0.0, 0.5, positionOnPath);
+                        theta = path.findClosestPointInView(cameraTransform, 0.0, 0.5);
                     } else {
-                        theta = path.findClosestPointInView(cameraTransform, 0.5, 1.0, positionOnPath);
+                        theta = path.findClosestPointInView(cameraTransform, 0.5, 1.0);
                     }
 
                     // View function matching
+                    Vector positionOnPath = path.getPosition(theta);
                     double viewDistance = getViewDistance(cameraTransform, positionOnPath);
                     if (viewDistance < bestViewDistance) {
                         bestViewDistance = viewDistance;
