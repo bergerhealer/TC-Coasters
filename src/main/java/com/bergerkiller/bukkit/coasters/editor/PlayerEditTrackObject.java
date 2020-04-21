@@ -28,4 +28,8 @@ public class PlayerEditTrackObject {
         this.beforeDragDistance = 0.0;
         this.dragDistance = Double.NaN;
     }
+
+    public double getDistancePosition() {
+        return this.dragDirection ? this.dragDistance : -this.dragDistance;
+    }
 }

@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.editor.object;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -35,8 +36,10 @@ import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 public class ObjectEditState {
     private final PlayerEditState editState;
     private final Map<TrackObject, PlayerEditTrackObject> editedTrackObjects = new LinkedHashMap<TrackObject, PlayerEditTrackObject>();
+    private final List<DuplicatedObject> duplicatedObjects = new ArrayList<DuplicatedObject>();
     private TrackObject lastEditedTrackObject = null;
     private long lastEditTrackObjectTime = System.currentTimeMillis();
+    private boolean isDuplicating = false;
     private ItemStack selectedItem;
 
     public ObjectEditState(PlayerEditState editState) {
@@ -147,6 +150,10 @@ public class ObjectEditState {
     }
 
     public void onEditingFinished() throws ChangeCancelledException {
+        // Finalize duplication
+        this.duplicatedObjects.clear();
+        this.isDuplicating = false;
+
         boolean wasCancelled = false;
         HistoryChange changes = null;
         for (PlayerEditTrackObject editObject : this.editedTrackObjects.values()) {
@@ -338,6 +345,9 @@ public class ObjectEditState {
             // First click: calculate the positions of the objects relative to the clicked point
             // If objects aren't accessible from the point, then their dragDistance is set to NaN
 
+            // When sneaking during initial right-click, enable duplicating mode
+            this.isDuplicating = this.editState.isSneaking();
+
             // Reset all objects to NaN
             for (PlayerEditTrackObject editObject : this.editedTrackObjects.values()) {
                 editObject.dragDistance = Double.NaN;
@@ -384,12 +394,16 @@ public class ObjectEditState {
                     }
                 }
             }
+        } else if (this.isDuplicating) {
+            // Successive clicks while drag: duplicate the selected track objects
+            this.duplicateObjects(point);
         } else {
             // Successive clicks: move the objects to the point, making use of the relative dragDistance to do so
+            this.undoDuplicatedObjects();
             HistoryChange changes = this.editState.getHistory().addChangeGroup();
             boolean success = true;
-            success &= moveTrackObjects(point, changes, false, rightDirection);
-            success &= moveTrackObjects(point, changes, true, rightDirection);
+            success &= moveObjects(point, changes, false, rightDirection);
+            success &= moveObjects(point, changes, true, rightDirection);
             if (!success) {
                 throw new ChangeCancelledException();
             }
@@ -589,8 +603,290 @@ public class ObjectEditState {
         }
     }
 
+    /**
+     * Takes existing selected objects and duplicates them until the difference
+     * in distance is filled up.
+     * 
+     * @param point
+     */
+    public void duplicateObjects(TrackConnection.PointOnPath point) {
+        // Collect all selected objects with an initial drag distance in a list and sort by it's position
+        // Can't duplicate if we only have 1 or no objects selected, or the objects are too close together (lag!)
+        DuplicationSourceList objects = new DuplicationSourceList(this.editedTrackObjects.values());
+        if (!objects.isValidSelection()) {
+            this.undoDuplicatedObjects();
+            return;
+        }
+
+        // Check whether any of the objects share a connection with the point
+        boolean isPointOnObjectConnection = false;
+        for (PlayerEditTrackObject editObject : objects.list()) {
+            if (editObject.connection == point.connection) {
+                isPointOnObjectConnection = true;
+                break;
+            }
+        }
+
+        // Find the closest path from where we are looking to the nearest selected track object
+        TrackNodeSearchPath bestPath;
+        if (isPointOnObjectConnection) {
+            bestPath = null;
+        } else {
+            HashSet<TrackNode> nodesOfTrackObjects = new HashSet<TrackNode>();
+            for (PlayerEditTrackObject editObject : objects.list()) {
+                nodesOfTrackObjects.add(editObject.connection.getNodeA());
+                nodesOfTrackObjects.add(editObject.connection.getNodeB());
+            }
+            TrackNode searchStart = (point.distance >= 0.5 * point.connection.getFullDistance()) ?
+                    point.connection.getNodeB() : point.connection.getNodeA();
+            bestPath = TrackNodeSearchPath.findShortest(searchStart, nodesOfTrackObjects);
+            if (bestPath == null) {
+                undoDuplicatedObjects();
+                return;
+            }
+
+            // Make sure the first connection in the search path is of our own point
+            // This could be missing if our search start was accurate
+            if (bestPath.pathConnections.isEmpty() || bestPath.pathConnections.get(0) != point.connection) {
+                bestPath.pathConnections.add(0, point.connection);
+            }
+        }
+
+        // Start from the closest point on the connection
+        int duplicatedObjectIndex = -1;
+        double currentDistance;
+        TrackConnection currentConnection;
+        {
+            PlayerEditTrackObject closestObjectOnSameConnection = null;
+            double edgeDistance = 0.0;
+            if (isPointOnObjectConnection) {
+                // On same connection, find closest to the point clicked
+                double closestDistance = Double.MAX_VALUE;
+                edgeDistance = point.distance;
+                for (PlayerEditTrackObject editObject : objects.list()) {
+                    if (editObject.connection == point.connection) {
+                        double distance = Math.abs(point.distance - editObject.object.getDistance());
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestObjectOnSameConnection = editObject;
+                        }
+                    }
+                }
+            } else {
+                // Different connection, find closest that is connected to the current (last) node
+                double closestDistance = Double.MAX_VALUE;
+                for (PlayerEditTrackObject editObject : objects.list()) {
+                    if (editObject.connection.getNodeA() == bestPath.current) {
+                        double distance = editObject.object.getDistance();
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestObjectOnSameConnection = editObject;
+                            edgeDistance = 0.0;
+                        }
+                    } else if (editObject.connection.getNodeB() == bestPath.current) {
+                        double distance = editObject.connection.getFullDistance() - editObject.object.getDistance();
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestObjectOnSameConnection = editObject;
+                            edgeDistance = editObject.connection.getFullDistance();
+                        }
+                    } else {
+                        continue;
+                    }
+                }
+            }
+
+            // This is impossible, but just in case we handle it
+            // If the closest object is not at the edge of the list, then we can't duplicate
+            // In that case the player is looking in the middle of the objects, which does nothing
+            if (closestObjectOnSameConnection == null || !objects.start(closestObjectOnSameConnection)) {
+                this.undoDuplicatedObjects();
+                return;
+            }
+
+            // Start situation (start from the selected track objects)
+            currentDistance = closestObjectOnSameConnection.object.getDistance();
+            currentConnection = closestObjectOnSameConnection.connection;
+            boolean order = (currentDistance < edgeDistance);
+
+            // Index of connection in bestPath after the currentConnection (reverse order)
+            int nextConnectionIndex = -1;
+            if (bestPath != null) {
+                nextConnectionIndex = bestPath.pathConnections.size()-1;
+                if (bestPath.pathConnections.get(nextConnectionIndex) == currentConnection) {
+                    nextConnectionIndex--;
+                }
+            }
+
+            objectAddLoop:
+            while (true) {
+                double gap = objects.getDistance();
+                TrackObject object = objects.getObject();
+                objects.next();
+                duplicatedObjectIndex++;
+
+                // Add towards point
+                if (order) {
+                    currentDistance += gap;
+                } else {
+                    currentDistance -= gap;
+                }
+
+                // While exceeding, go to next connection, unless no longer possible
+                while (order ? (currentDistance >= edgeDistance) : (currentDistance <= edgeDistance)) {
+                    if (bestPath == null || nextConnectionIndex < 0) {
+                        break objectAddLoop;
+                    }
+
+                    // Remove remainder of current connection from distance
+                    if (order) {
+                        currentDistance -= edgeDistance;
+                    } else {
+                        currentDistance = (edgeDistance - currentDistance);
+                    }
+
+                    TrackConnection nextConnection = bestPath.pathConnections.get(nextConnectionIndex--);
+                    order = currentConnection.isConnected(nextConnection.getNodeA());
+                    currentConnection = nextConnection;
+                    if (currentConnection == point.connection) {
+                        edgeDistance = point.distance;
+                    } else if (order) {
+                        edgeDistance = currentConnection.getFullDistance();
+                    } else {
+                        edgeDistance = 0.0;
+                    }
+                    if (!order) {
+                        currentDistance = currentConnection.getFullDistance() - currentDistance;
+                    }
+                }
+
+                // Check if distance matches what is set in our already duplicated objects
+                // If not, remove all of them past this point and create a new one
+                if (duplicatedObjectIndex < this.duplicatedObjects.size()) {
+                    DuplicatedObject dupe = this.duplicatedObjects.get(duplicatedObjectIndex);
+                    if (dupe.connection == currentConnection && dupe.object.getDistance() == currentDistance) {
+                        continue;
+                    }
+                    this.undoDuplicatedObjects(duplicatedObjectIndex);
+                }
+
+                // Place a new one down
+                this.duplicatedObjects.add(DuplicatedObject.create(currentConnection, currentDistance, object));
+            }
+        }
+
+        // Remove excess objects
+        this.undoDuplicatedObjects(duplicatedObjectIndex);
+    }
+
+    private static final class DuplicationSourceList {
+        private final List<PlayerEditTrackObject> sourceObjects;
+        private int index;
+        private boolean indexIncreasing;
+
+        public DuplicationSourceList(Collection<PlayerEditTrackObject> inSourceObjects) {
+            this.sourceObjects = new ArrayList<PlayerEditTrackObject>(inSourceObjects.size());
+            for (PlayerEditTrackObject editObject : inSourceObjects) {
+                if (!Double.isNaN(editObject.dragDistance)) {
+                    this.sourceObjects.add(editObject);
+                }
+            }
+            this.sourceObjects.sort((a, b) -> Double.compare(a.getDistancePosition(), b.getDistancePosition()));
+        }
+
+        public List<PlayerEditTrackObject> list() {
+            return this.sourceObjects;
+        }
+
+        public boolean isValidSelection() {
+            if (this.sourceObjects.size() < 2) {
+                return false;
+            }
+
+            double pmin = this.sourceObjects.get(0).getDistancePosition();
+            double pmax = this.sourceObjects.get(this.sourceObjects.size()-1).getDistancePosition();
+            if ((pmax - pmin) < 1e-3) {
+                return false; // too close together
+            }
+
+            return true;
+        }
+
+        public boolean start(PlayerEditTrackObject editObject) {
+            if (editObject == this.sourceObjects.get(0)) {
+                this.index = this.sourceObjects.size()-2;
+                this.indexIncreasing = false;
+                return true;
+            } else if (editObject == this.sourceObjects.get(this.sourceObjects.size()-1)) {
+                this.index = 1;
+                this.indexIncreasing = true;
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        /**
+         * Call after placing an object to begin with the next one
+         */
+        public void next() {
+            if (this.indexIncreasing) {
+                if (++this.index >= this.sourceObjects.size()) {
+                    this.index = 1;
+                }
+            } else {
+                if (--this.index < 0) {
+                    this.index = this.sourceObjects.size()-2;
+                }
+            }
+        }
+
+        /**
+         * Gets the next object to place down
+         * 
+         * @return next object
+         */
+        public TrackObject getObject() {
+            return this.sourceObjects.get(this.index).object;
+        }
+
+        /**
+         * Gets the distance step towards placing the next object
+         * 
+         * @return next distance
+         */
+        public double getDistance() {
+            PlayerEditTrackObject a, b;
+            if (this.indexIncreasing) {
+                a = this.sourceObjects.get(this.index - 1);
+                b = this.sourceObjects.get(this.index);
+            } else {
+                a = this.sourceObjects.get(this.index);
+                b = this.sourceObjects.get(this.index + 1);
+            }
+            return b.getDistancePosition() - a.getDistancePosition();
+        }
+    }
+
+    /**
+     * Removes all objects that were previously duplicated onto the tracks
+     */
+    public void undoDuplicatedObjects() {
+        for (DuplicatedObject dupe : this.duplicatedObjects) {
+            dupe.remove();
+        }
+        this.duplicatedObjects.clear();
+    }
+
+    private void undoDuplicatedObjects(int startIndex) {
+        for (int i = startIndex; i < this.duplicatedObjects.size(); i++) {
+            this.duplicatedObjects.get(i).remove();
+        }
+        this.duplicatedObjects.subList(startIndex, this.duplicatedObjects.size()).clear();
+    }
+
     /// Moves selected track objects. Direction defines whether to walk to nodeA (false) or nodeB (true).
-    private boolean moveTrackObjects(TrackConnection.PointOnPath point, HistoryChange changes, boolean initialDirection, Vector rightDirection) {
+    private boolean moveObjects(TrackConnection.PointOnPath point, HistoryChange changes, boolean initialDirection, Vector rightDirection) {
         // Create a sorted list of objects to move, with drag distance increasing
         // Only add objects with the same direction
         SortedSet<PlayerEditTrackObject> objects = new TreeSet<PlayerEditTrackObject>(
