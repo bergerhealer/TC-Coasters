@@ -342,9 +342,12 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             TrackNode neighbour = conn.getOtherNode(this);
 
             Vector v = neighbour.getPosition().clone().subtract(this.getPosition());
-            double n = MathUtil.getNormalizationFactor(v);
-            if (!Double.isInfinite(n)) {
-                v.multiply(n);
+            double lsq = v.lengthSquared();
+            if (lsq > 1e-20) {
+                // Divide by length to normalize the vector
+                // Divide by length again to make short sections have a bigger impact on directionality
+                // This can be combined as dividing by length squared
+                v.multiply(1.0 / lsq);
 
                 if (connections.size() > 2) {
                     // Best fit applies
