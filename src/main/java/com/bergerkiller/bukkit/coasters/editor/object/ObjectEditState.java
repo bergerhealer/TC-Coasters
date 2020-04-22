@@ -1,7 +1,6 @@
 package com.bergerkiller.bukkit.coasters.editor.object;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -17,11 +16,13 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
-import com.bergerkiller.bukkit.coasters.editor.PlayerEditTrackObject;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeGroup;
+import com.bergerkiller.bukkit.coasters.editor.object.util.ConnectionChain;
+import com.bergerkiller.bukkit.coasters.editor.object.util.DuplicationSourceList;
+import com.bergerkiller.bukkit.coasters.editor.object.util.TrackObjectDiscoverer;
 import com.bergerkiller.bukkit.coasters.events.CoasterBeforeChangeTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterSelectTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
@@ -35,7 +36,7 @@ import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 
 public class ObjectEditState {
     private final PlayerEditState editState;
-    private final Map<TrackObject, PlayerEditTrackObject> editedTrackObjects = new LinkedHashMap<TrackObject, PlayerEditTrackObject>();
+    private final Map<TrackObject, ObjectEditTrackObject> editedTrackObjects = new LinkedHashMap<TrackObject, ObjectEditTrackObject>();
     private final List<DuplicatedObject> duplicatedObjects = new ArrayList<DuplicatedObject>();
     private TrackObject lastEditedTrackObject = null;
     private long lastEditTrackObjectTime = System.currentTimeMillis();
@@ -156,7 +157,7 @@ public class ObjectEditState {
 
         boolean wasCancelled = false;
         HistoryChange changes = null;
-        for (PlayerEditTrackObject editObject : this.editedTrackObjects.values()) {
+        for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
             if (Double.isNaN(editObject.dragDistance)) {
                 continue;
             }
@@ -213,7 +214,7 @@ public class ObjectEditState {
                 changed = false;
             } else {
                 changed = true;
-                this.editedTrackObjects.put(object, new PlayerEditTrackObject(connection, object));
+                this.editedTrackObjects.put(object, new ObjectEditTrackObject(connection, object));
             }
         } else {
             changed = (this.editedTrackObjects.remove(object) != null);
@@ -259,9 +260,9 @@ public class ObjectEditState {
      */
     public boolean deselectLockedObjects() {
         boolean hadLockedTrackObjects = false;
-        Iterator<PlayerEditTrackObject> iter = this.editedTrackObjects.values().iterator();
+        Iterator<ObjectEditTrackObject> iter = this.editedTrackObjects.values().iterator();
         while (iter.hasNext()) {
-            PlayerEditTrackObject editObject = iter.next();
+            ObjectEditTrackObject editObject = iter.next();
             if (editObject.connection.isLocked()) {
                 iter.remove();
                 hadLockedTrackObjects = true;
@@ -287,11 +288,11 @@ public class ObjectEditState {
             return;
         }
 
-        List<PlayerEditTrackObject> objects = new ArrayList<PlayerEditTrackObject>(this.editedTrackObjects.values());
+        List<ObjectEditTrackObject> objects = new ArrayList<ObjectEditTrackObject>(this.editedTrackObjects.values());
         this.editedTrackObjects.clear();
         
         boolean wereChangesCancelled = false;
-        for (PlayerEditTrackObject object : objects) {
+        for (ObjectEditTrackObject object : objects) {
             try {
                 this.editState.getHistory().addChangeBeforeDeleteTrackObject(this.getPlayer(), object.connection, object.object);
                 object.connection.removeObject(object.object);
@@ -349,14 +350,14 @@ public class ObjectEditState {
             this.isDuplicating = this.editState.isSneaking();
 
             // Reset all objects to NaN
-            for (PlayerEditTrackObject editObject : this.editedTrackObjects.values()) {
+            for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
                 editObject.dragDistance = Double.NaN;
             }
 
             // First do the objects on the clicked connection itself
-            Map<TrackObject, PlayerEditTrackObject> pending = new HashMap<TrackObject, PlayerEditTrackObject>(this.editedTrackObjects);
+            Map<TrackObject, ObjectEditTrackObject> pending = new HashMap<TrackObject, ObjectEditTrackObject>(this.editedTrackObjects);
             for (TrackObject object : point.connection.getObjects()) {
-                PlayerEditTrackObject editObject = pending.remove(object);
+                ObjectEditTrackObject editObject = pending.remove(object);
                 if (editObject != null) {
                     editObject.dragDistance = object.getDistance() - point.distance;
                     editObject.dragDirection = (editObject.dragDistance >= 0.0);
@@ -373,11 +374,11 @@ public class ObjectEditState {
                 Set<TrackConnection> visited = new HashSet<TrackConnection>();
                 TrackObjectDiscoverer left  = new TrackObjectDiscoverer(pending, visited, point.connection, false, point.distance);
                 TrackObjectDiscoverer right = new TrackObjectDiscoverer(pending, visited, point.connection, true,  point.distance);
-                while (!pending.isEmpty() && (left.next() || right.next()));
+                while (left.next() || right.next());
             }
 
             // For all objects we've found, fire before change event and cancel the drag when cancelled
-            for (PlayerEditTrackObject editObject : this.editedTrackObjects.values()) {
+            for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
                 if (Double.isNaN(editObject.dragDistance)) {
                     continue;
                 }
@@ -430,7 +431,7 @@ public class ObjectEditState {
         {
             TrackObject closestObjectOnSameConnection = null;
             double closestDistance = Double.MAX_VALUE;
-            for (PlayerEditTrackObject editObject : this.editedTrackObjects.values()) {
+            for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
                 if (editObject.connection == startConnection && editObject.object != startObject) {
                     double distance = Math.abs(startObject.getDistance() - editObject.object.getDistance());
                     if (distance < closestDistance) {
@@ -454,9 +455,9 @@ public class ObjectEditState {
 
         // Make use of the node flood selecting, using the nodes from the objects we have selected
         // For start node, we pick the node closest to the start object
-        List<PlayerEditTrackObject> editedTrackObjects = new ArrayList<PlayerEditTrackObject>(this.editedTrackObjects.values());
+        List<ObjectEditTrackObject> editedTrackObjects = new ArrayList<ObjectEditTrackObject>(this.editedTrackObjects.values());
         HashSet<TrackNode> nodesOfTrackObjects = new HashSet<TrackNode>();
-        for (PlayerEditTrackObject editObject : editedTrackObjects) {
+        for (ObjectEditTrackObject editObject : editedTrackObjects) {
             if (editObject.object != startObject) {
                 nodesOfTrackObjects.add(editObject.connection.getNodeA());
                 nodesOfTrackObjects.add(editObject.connection.getNodeB());
@@ -480,7 +481,7 @@ public class ObjectEditState {
             double bestObjectDistance = 0.0;
             boolean bestObjectDirection = false;
             double bestObjectDistanceToEnd = Double.MAX_VALUE;
-            for (PlayerEditTrackObject editObject : editedTrackObjects) {
+            for (ObjectEditTrackObject editObject : editedTrackObjects) {
                 if (editObject.object == startObject) {
                     continue;
                 }
@@ -561,52 +562,6 @@ public class ObjectEditState {
         }
     }
 
-    // Helper class for createTrackObject() drag start logic
-    private static class TrackObjectDiscoverer {
-        public final Map<TrackObject, PlayerEditTrackObject> pending;
-        public final Set<TrackConnection> visited;
-        public final WalkingConnection connection;
-        public boolean initialDirection;
-        public double distance;
-
-        public TrackObjectDiscoverer(Map<TrackObject, PlayerEditTrackObject> pending, Set<TrackConnection> visited, TrackConnection connection, boolean direction, double pointDistance) {
-            this.pending = pending;
-            this.visited = visited;
-            this.connection = new WalkingConnection(connection, direction);
-            this.initialDirection = direction;
-            this.distance = direction ? (connection.getFullDistance() - pointDistance) : pointDistance;
-        }
-
-        public boolean next() {
-            // Next connection
-            if (!this.connection.next()) {
-                return false;
-            }
-
-            // If already visited, abort
-            if (!this.visited.add(this.connection.connection)) {
-                this.connection.connection = null;
-                return false;
-            }
-
-            // Check all objects on connection
-            for (TrackObject object : this.connection.connection.getObjects()) {
-                PlayerEditTrackObject editObject = this.pending.remove(object);
-                if (editObject != null) {
-                    double objectDistance = object.getDistance();
-                    if (!this.connection.direction) {
-                        objectDistance = connection.getFullDistance() - objectDistance;
-                    }
-                    editObject.dragDirection = this.initialDirection;
-                    editObject.dragDistance = this.distance + objectDistance;
-                    editObject.alignmentFlipped = (object.isFlipped() != this.connection.direction) != this.initialDirection;
-                }
-            }
-            this.distance += this.connection.getFullDistance();
-            return true;
-        }
-    }
-
     /**
      * Takes existing selected objects and duplicates them until the difference
      * in distance is filled up.
@@ -624,7 +579,7 @@ public class ObjectEditState {
 
         // Check whether any of the objects share a connection with the point
         boolean isPointOnObjectConnection = false;
-        for (PlayerEditTrackObject editObject : objects.list()) {
+        for (ObjectEditTrackObject editObject : objects.list()) {
             if (editObject.connection == point.connection) {
                 isPointOnObjectConnection = true;
                 break;
@@ -637,7 +592,7 @@ public class ObjectEditState {
             bestPath = null;
         } else {
             HashSet<TrackNode> nodesOfTrackObjects = new HashSet<TrackNode>();
-            for (PlayerEditTrackObject editObject : objects.list()) {
+            for (ObjectEditTrackObject editObject : objects.list()) {
                 nodesOfTrackObjects.add(editObject.connection.getNodeA());
                 nodesOfTrackObjects.add(editObject.connection.getNodeB());
             }
@@ -661,13 +616,13 @@ public class ObjectEditState {
         double currentDistance;
         TrackConnection currentConnection;
         {
-            PlayerEditTrackObject closestObjectOnSameConnection = null;
+            ObjectEditTrackObject closestObjectOnSameConnection = null;
             double edgeDistance = 0.0;
             if (isPointOnObjectConnection) {
                 // On same connection, find closest to the point clicked
                 double closestDistance = Double.MAX_VALUE;
                 edgeDistance = point.distance;
-                for (PlayerEditTrackObject editObject : objects.list()) {
+                for (ObjectEditTrackObject editObject : objects.list()) {
                     if (editObject.connection == point.connection) {
                         double distance = Math.abs(point.distance - editObject.object.getDistance());
                         if (distance < closestDistance) {
@@ -679,7 +634,7 @@ public class ObjectEditState {
             } else {
                 // Different connection, find closest that is connected to the current (last) node
                 double closestDistance = Double.MAX_VALUE;
-                for (PlayerEditTrackObject editObject : objects.list()) {
+                for (ObjectEditTrackObject editObject : objects.list()) {
                     if (editObject.connection.getNodeA() == bestPath.current) {
                         double distance = editObject.object.getDistance();
                         if (distance < closestDistance) {
@@ -725,7 +680,7 @@ public class ObjectEditState {
             objectAddLoop:
             while (true) {
                 double gap = objects.getDistance();
-                PlayerEditTrackObject editObject = objects.getObject();
+                ObjectEditTrackObject editObject = objects.getObject();
                 objects.next();
                 duplicatedObjectIndex++;
 
@@ -786,99 +741,6 @@ public class ObjectEditState {
         this.undoDuplicatedObjects(duplicatedObjectIndex);
     }
 
-    private static final class DuplicationSourceList {
-        private final List<PlayerEditTrackObject> sourceObjects;
-        private int index;
-        private boolean indexIncreasing;
-
-        public DuplicationSourceList(Collection<PlayerEditTrackObject> inSourceObjects) {
-            this.sourceObjects = new ArrayList<PlayerEditTrackObject>(inSourceObjects.size());
-            for (PlayerEditTrackObject editObject : inSourceObjects) {
-                if (!Double.isNaN(editObject.dragDistance)) {
-                    this.sourceObjects.add(editObject);
-                }
-            }
-            this.sourceObjects.sort((a, b) -> Double.compare(a.getDistancePosition(), b.getDistancePosition()));
-        }
-
-        public List<PlayerEditTrackObject> list() {
-            return this.sourceObjects;
-        }
-
-        public boolean isIndexIncreasing() {
-            return this.indexIncreasing;
-        }
-
-        public boolean isValidSelection() {
-            if (this.sourceObjects.size() < 2) {
-                return false;
-            }
-
-            double pmin = this.sourceObjects.get(0).getDistancePosition();
-            double pmax = this.sourceObjects.get(this.sourceObjects.size()-1).getDistancePosition();
-            if ((pmax - pmin) < 1e-3) {
-                return false; // too close together
-            }
-
-            return true;
-        }
-
-        public boolean start(PlayerEditTrackObject editObject) {
-            if (editObject == this.sourceObjects.get(0)) {
-                this.index = this.sourceObjects.size()-2;
-                this.indexIncreasing = false;
-                return true;
-            } else if (editObject == this.sourceObjects.get(this.sourceObjects.size()-1)) {
-                this.index = 1;
-                this.indexIncreasing = true;
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        /**
-         * Call after placing an object to begin with the next one
-         */
-        public void next() {
-            if (this.indexIncreasing) {
-                if (++this.index >= this.sourceObjects.size()) {
-                    this.index = 1;
-                }
-            } else {
-                if (--this.index < 0) {
-                    this.index = this.sourceObjects.size()-2;
-                }
-            }
-        }
-
-        /**
-         * Gets the next object to place down
-         * 
-         * @return next object
-         */
-        public PlayerEditTrackObject getObject() {
-            return this.sourceObjects.get(this.index);
-        }
-
-        /**
-         * Gets the distance step towards placing the next object
-         * 
-         * @return next distance
-         */
-        public double getDistance() {
-            PlayerEditTrackObject a, b;
-            if (this.indexIncreasing) {
-                a = this.sourceObjects.get(this.index - 1);
-                b = this.sourceObjects.get(this.index);
-            } else {
-                a = this.sourceObjects.get(this.index);
-                b = this.sourceObjects.get(this.index + 1);
-            }
-            return b.getDistancePosition() - a.getDistancePosition();
-        }
-    }
-
     /**
      * Removes all objects that were previously duplicated onto the tracks
      */
@@ -900,10 +762,10 @@ public class ObjectEditState {
     private boolean moveObjects(TrackConnection.PointOnPath point, HistoryChange changes, boolean initialDirection, Vector rightDirection) {
         // Create a sorted list of objects to move, with drag distance increasing
         // Only add objects with the same direction
-        SortedSet<PlayerEditTrackObject> objects = new TreeSet<PlayerEditTrackObject>(
+        SortedSet<ObjectEditTrackObject> objects = new TreeSet<ObjectEditTrackObject>(
             (a, b) -> Double.compare(a.dragDistance, b.dragDistance)
         );
-        for (PlayerEditTrackObject editObject : this.editedTrackObjects.values()) {
+        for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
             if (editObject.dragDirection == initialDirection && !Double.isNaN(editObject.dragDistance)) {
                 objects.add(editObject);
             }
@@ -922,8 +784,8 @@ public class ObjectEditState {
 
         // Proceed to walk down the connections relative to the point
         boolean allSuccessful = true;
-        WalkingConnection connection = new WalkingConnection(point.connection, initialDirection);
-        for (PlayerEditTrackObject object : objects) {
+        ConnectionChain connection = new ConnectionChain(point.connection, initialDirection);
+        for (ObjectEditTrackObject object : objects) {
             while (true) {
                 // Check if the object can fit within the remaining distance on the current connection
                 double objectDistance = object.dragDistance - distanceOffset;
@@ -944,42 +806,6 @@ public class ObjectEditState {
             }
         }
         return allSuccessful;
-    }
-
-    /**
-     * Tracks a Connection that can walk in either direction towards the next connection
-     * of the chain.
-     */
-    private static class WalkingConnection {
-        public TrackConnection connection;
-        public boolean direction;
-
-        public WalkingConnection(TrackConnection connection, boolean direction) {
-            this.connection = connection;
-            this.direction = direction;
-        }
-
-        public double getFullDistance() {
-            return this.connection.getFullDistance();
-        }
-
-        public boolean next() {
-            if (this.connection == null) {
-                return false;
-            }
-
-            // Pick next connection. We don't really support junctions that well.
-            TrackNode next = this.direction ? this.connection.getNodeB() : this.connection.getNodeA();
-            List<TrackConnection> nextConnections = next.getConnections();
-            if (nextConnections.size() <= 1) {
-                this.connection = null;
-                return false;
-            } else {
-                this.connection = (nextConnections.get(0) == this.connection) ? nextConnections.get(1) : nextConnections.get(0);
-                this.direction = (this.connection.getNodeA() == next);
-                return true;
-            }
-        }
     }
 }
 

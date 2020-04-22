@@ -1,4 +1,4 @@
-package com.bergerkiller.bukkit.coasters.editor;
+package com.bergerkiller.bukkit.coasters.editor.object;
 
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
@@ -6,7 +6,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 /**
  * Metadata about a single track object being edited
  */
-public class PlayerEditTrackObject {
+public class ObjectEditTrackObject {
     public TrackConnection connection;
     public final TrackObject object;
     /**
@@ -39,7 +39,7 @@ public class PlayerEditTrackObject {
      */
     public boolean beforeDragLookingAtFlipped;
 
-    public PlayerEditTrackObject(TrackConnection connection, TrackObject object) {
+    public ObjectEditTrackObject(TrackConnection connection, TrackObject object) {
         this.connection = connection;
         this.object = object;
         this.dragDistance = Double.NaN;
