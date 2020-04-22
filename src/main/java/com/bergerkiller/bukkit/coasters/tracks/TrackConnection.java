@@ -106,8 +106,9 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
 
         // Compute total distance and invert all the objects's distances
         // This doesn't actually change the position of the object, so it can be done silently
+        // Flipped is inverted also, because the motion vector on the path reverses direction
         for (TrackObject object : this.objects) {
-            object.setDistanceFlippedSilently(this.getFullDistance() - object.getDistance(), object.isFlipped());
+            object.setDistanceFlippedSilently(this.getFullDistance() - object.getDistance(), !object.isFlipped());
         }
 
         //TODO: Technically we got to swap the lines also
@@ -536,9 +537,6 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
         double theta = path.findPointThetaAtDistance(distance);
         Vector position = path.getPosition(theta);
         Vector motionVector = path.getMotionVector(theta);
-        if ((motionVector.getX() + motionVector.getY() + motionVector.getZ()) < 0.0) {
-            motionVector.multiply(-1.0);
-        }
         Quaternion orientation = Quaternion.fromLookDirection(motionVector, this.getOrientation(theta));
         return new TrackConnection.PointOnPath(this, theta, distance, position, orientation);
     }

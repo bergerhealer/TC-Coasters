@@ -360,6 +360,7 @@ public class ObjectEditState {
                 if (editObject != null) {
                     editObject.dragDistance = object.getDistance() - point.distance;
                     editObject.dragDirection = (editObject.dragDistance >= 0.0);
+                    editObject.alignmentFlipped = object.isFlipped();
                     if (!editObject.dragDirection) {
                         editObject.dragDistance = -editObject.dragDistance;
                     }
@@ -377,22 +378,24 @@ public class ObjectEditState {
 
             // For all objects we've found, fire before change event and cancel the drag when cancelled
             for (PlayerEditTrackObject editObject : this.editedTrackObjects.values()) {
-                if (!Double.isNaN(editObject.dragDistance)) {
-                    if (CommonUtil.callEvent(new CoasterBeforeChangeTrackObjectEvent(this.getPlayer(), editObject.connection, editObject.object)).isCancelled()) {
-                        // Cancelled
-                        editObject.dragDistance = Double.NaN;
-                    } else {
-                        // Save state prior to drag for history and after change event later
-                        editObject.beforeDragConnection = editObject.connection;
-                        editObject.beforeDragDistance = editObject.object.getDistance();
-                        editObject.beforeDragFlipped = editObject.object.isFlipped();
-
-                        // Looking at the object from left-to-right or right-to-left?
-                        // This is important when moving the object later
-                        TrackConnection.PointOnPath beforePoint = editObject.connection.findPointAtDistance(editObject.beforeDragDistance);
-                        editObject.beforeDragLookingAtFlipped = (beforePoint.orientation.rightVector().dot(rightDirection) < 0.0);
-                    }
+                if (Double.isNaN(editObject.dragDistance)) {
+                    continue;
                 }
+                if (!this.isDuplicating && CommonUtil.callEvent(new CoasterBeforeChangeTrackObjectEvent(this.getPlayer(), editObject.connection, editObject.object)).isCancelled()) {
+                    // Cancelled
+                    editObject.dragDistance = Double.NaN;
+                    continue;
+                }
+
+                // Save state prior to drag for history and after change event later
+                editObject.beforeDragConnection = editObject.connection;
+                editObject.beforeDragDistance = editObject.object.getDistance();
+                editObject.beforeDragFlipped = editObject.object.isFlipped();
+
+                // Looking at the object from left-to-right or right-to-left?
+                // This is important when moving the object later
+                TrackConnection.PointOnPath beforePoint = editObject.connection.findPointAtDistance(editObject.beforeDragDistance);
+                editObject.beforeDragLookingAtFlipped = (beforePoint.orientation.rightVector().dot(rightDirection) < 0.0);
             }
         } else if (this.isDuplicating) {
             // Successive clicks while drag: duplicate the selected track objects
@@ -596,6 +599,7 @@ public class ObjectEditState {
                     }
                     editObject.dragDirection = this.initialDirection;
                     editObject.dragDistance = this.distance + objectDistance;
+                    editObject.alignmentFlipped = (object.isFlipped() != this.connection.direction) != this.initialDirection;
                 }
             }
             this.distance += this.connection.getFullDistance();
@@ -721,7 +725,7 @@ public class ObjectEditState {
             objectAddLoop:
             while (true) {
                 double gap = objects.getDistance();
-                TrackObject object = objects.getObject();
+                PlayerEditTrackObject editObject = objects.getObject();
                 objects.next();
                 duplicatedObjectIndex++;
 
@@ -770,8 +774,11 @@ public class ObjectEditState {
                     this.undoDuplicatedObjects(duplicatedObjectIndex);
                 }
 
+                // Compute flipped 
+                boolean flipped = (editObject.alignmentFlipped != order) != objects.isIndexIncreasing();
+
                 // Place a new one down
-                this.duplicatedObjects.add(DuplicatedObject.create(currentConnection, currentDistance, object));
+                this.duplicatedObjects.add(DuplicatedObject.create(currentConnection, currentDistance, editObject.object, flipped));
             }
         }
 
@@ -796,6 +803,10 @@ public class ObjectEditState {
 
         public List<PlayerEditTrackObject> list() {
             return this.sourceObjects;
+        }
+
+        public boolean isIndexIncreasing() {
+            return this.indexIncreasing;
         }
 
         public boolean isValidSelection() {
@@ -846,8 +857,8 @@ public class ObjectEditState {
          * 
          * @return next object
          */
-        public TrackObject getObject() {
-            return this.sourceObjects.get(this.index).object;
+        public PlayerEditTrackObject getObject() {
+            return this.sourceObjects.get(this.index);
         }
 
         /**

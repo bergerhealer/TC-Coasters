@@ -16,9 +16,9 @@ public class DuplicatedObject {
         this.connection.removeObject(this.object);
     }
 
-    public static DuplicatedObject create(TrackConnection connection, double distance, TrackObject object) {
+    public static DuplicatedObject create(TrackConnection connection, double distance, TrackObject object, boolean flipped) {
         DuplicatedObject dupe = new DuplicatedObject(connection, object.clone());
-        dupe.object.setDistanceFlippedSilently(distance, false); //TODO: Compute flipped!
+        dupe.object.setDistanceFlippedSilently(distance, flipped);
         dupe.connection.addObject(dupe.object);
         return dupe;
     }

@@ -38,6 +38,12 @@ public class TrackObject implements Cloneable {
         return this.distance;
     }
 
+    /**
+     * Whether the track object front is facing along the direction from connection node A to B (false),
+     * or flipped from node B to A (true)
+     * 
+     * @return True if flipped
+     */
     public boolean isFlipped() {
         return this.flipped;
     }
