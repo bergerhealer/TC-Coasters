@@ -19,8 +19,10 @@ import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
+import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCreateTrackObject;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeGroup;
 import com.bergerkiller.bukkit.coasters.editor.object.util.ConnectionChain;
+import com.bergerkiller.bukkit.coasters.editor.object.util.DuplicatedObject;
 import com.bergerkiller.bukkit.coasters.editor.object.util.DuplicationSourceList;
 import com.bergerkiller.bukkit.coasters.editor.object.util.TrackObjectDiscoverer;
 import com.bergerkiller.bukkit.coasters.events.CoasterBeforeChangeTrackObjectEvent;
@@ -151,32 +153,48 @@ public class ObjectEditState {
     }
 
     public void onEditingFinished() throws ChangeCancelledException {
-        // Finalize duplication
-        this.duplicatedObjects.clear();
-        this.isDuplicating = false;
+        if (this.isDuplicating) {
+            // Duplicating finished
+            this.isDuplicating = false;
 
-        boolean wasCancelled = false;
-        HistoryChange changes = null;
-        for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
-            if (Double.isNaN(editObject.dragDistance)) {
-                continue;
+            // Finalize duplication with a history update
+            if (!this.duplicatedObjects.isEmpty()) {
+                HistoryChange changes = this.editState.getHistory().addChangeGroup();
+                for (DuplicatedObject dupe : this.duplicatedObjects) {
+                    changes.addChange(new HistoryChangeCreateTrackObject(dupe.connection, dupe.object));
+                }
+                this.duplicatedObjects.clear();
             }
-            if (changes == null) {
-                changes = new HistoryChangeGroup();
+
+            // Reset drag info
+            for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
+                editObject.moveEnd();
             }
-            try {
-                changes.addChangeAfterMovingTrackObject(this.getPlayer(), editObject.connection, editObject.object,
-                        editObject.beforeDragConnection, editObject.beforeDragDistance, editObject.beforeDragFlipped);
-            } catch (ChangeCancelledException ex) {
-                wasCancelled = true;
+        } else {
+            // Dragging/moving objects finished
+            boolean wasCancelled = false;
+            HistoryChange changes = null;
+            for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
+                if (Double.isNaN(editObject.dragDistance)) {
+                    continue;
+                }
+                if (changes == null) {
+                    changes = new HistoryChangeGroup();
+                }
+                try {
+                    changes.addChangeAfterMovingTrackObject(this.getPlayer(), editObject.connection, editObject.object,
+                            editObject.beforeDragConnection, editObject.beforeDragDistance, editObject.beforeDragFlipped);
+                } catch (ChangeCancelledException ex) {
+                    wasCancelled = true;
+                }
+                editObject.moveEnd();
             }
-            editObject.moveEnd();
-        }
-        if (changes != null) {
-            this.editState.getHistory().addChange(changes);
-        }
-        if (wasCancelled) {
-            throw new ChangeCancelledException();
+            if (changes != null) {
+                this.editState.getHistory().addChange(changes);
+            }
+            if (wasCancelled) {
+                throw new ChangeCancelledException();
+            }
         }
     }
 
@@ -732,8 +750,18 @@ public class ObjectEditState {
                 // Compute flipped 
                 boolean flipped = (editObject.alignmentFlipped != order) != objects.isIndexIncreasing();
 
-                // Place a new one down
-                this.duplicatedObjects.add(DuplicatedObject.create(currentConnection, currentDistance, editObject.object, flipped));
+                // Create a duplicated track object
+                DuplicatedObject dupe = DuplicatedObject.create(currentConnection, currentDistance, editObject.object, flipped);
+
+                // Check permissions that we can create this object, but do not yet update history
+                // History is updated in one go when we finish editing/duplicating
+                if (!dupe.testCanCreate(this.getPlayer())) {
+                    break; // abort
+                }
+
+                // Create the object
+                dupe.add(this.editState.getSelectedAnimation());
+                this.duplicatedObjects.add(dupe);
             }
         }
 
