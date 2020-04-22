@@ -120,7 +120,7 @@ public class TrackWorld implements CoasterWorldComponent {
                 // Check all connections
                 for (TrackConnection connection : node.getConnections()) {
                     // Skip if way out of range
-                    double d_sq = 2.0 * connection._endA.getDistance();
+                    double d_sq = connection._endA.getDistance();
                     d_sq *= d_sq;
                     if (node_viewDistanceSq > d_sq) {
                         continue;

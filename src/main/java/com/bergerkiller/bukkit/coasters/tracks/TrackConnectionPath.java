@@ -54,7 +54,7 @@ public class TrackConnectionPath {
         // Walk down the produced node linked list and find the exact theta at distance
         Node current = root;
         double remaining = distance;
-        while (true) {
+        while (current != null) {
             if (current.distanceToNext >= remaining) {
                 // End reached. Interpolate positions using remaining distance
                 double s = remaining / current.distanceToNext;
@@ -63,6 +63,9 @@ public class TrackConnectionPath {
             remaining -= current.distanceToNext;
             current = current.next;
         }
+
+        // Past end of path
+        return 1.0;
     }
 
     /**
@@ -442,8 +445,8 @@ public class TrackConnectionPath {
 
         Vector pA_f = pA.clone().subtract(delta.clone().multiply(pA.dot(delta)));
         Vector pB_f = pB.clone().subtract(delta.clone().multiply(pB.dot(delta)));
-        Vector dA_f = dA.clone().subtract(delta.clone().multiply(dA.dot(delta))).multiply(this.endA.getDistance());
-        Vector dB_f = dB.clone().subtract(delta.clone().multiply(dB.dot(delta))).multiply(this.endB.getDistance());
+        Vector dA_f = dA.clone().subtract(delta.clone().multiply(dA.dot(delta))).multiply(this.endA.getStrength());
+        Vector dB_f = dB.clone().subtract(delta.clone().multiply(dB.dot(delta))).multiply(this.endB.getStrength());
         Vector t0_pA_f = pA_f.clone().multiply(b0.fpA);
         Vector t0_pB_f = pB_f.clone().multiply(b0.fpB);
         Vector t0_dA_f = dA_f.clone().multiply(b0.fdA);
@@ -580,8 +583,8 @@ public class TrackConnectionPath {
     }
 
     private Vector bezier(double fpA, double fpB, double fdA, double fdB, Vector out_vec) {
-        double pfdA = fdA * this.endA.getDistance();
-        double pfdB = fdB * this.endB.getDistance();
+        double pfdA = fdA * this.endA.getStrength();
+        double pfdB = fdB * this.endB.getStrength();
         Vector pA = this.endA.getPosition();
         Vector pB = this.endB.getPosition();
         Vector dA = this.endA.getDirection();
@@ -599,7 +602,7 @@ public class TrackConnectionPath {
      */
     public static abstract class EndPoint {
         private Vector direction = new Vector();
-        private double distance = 0.0;
+        private double strength = 0.0;
 
         // These must be implemented as input for the algorithm
         public abstract Vector getNodePosition();
@@ -623,7 +626,7 @@ public class TrackConnectionPath {
         }
 
         private final void updateDistance() {
-            this.distance = 0.5 * getNodePosition().distance(getOtherNodePosition());
+            this.strength = 0.5 * getNodePosition().distance(getOtherNodePosition());
             if (Double.isNaN(this.direction.getX())) {
                 this.direction = new Vector(1.0, 0.0, 0.0);
             }
@@ -638,12 +641,21 @@ public class TrackConnectionPath {
         }
 
         /**
-         * Gets half the distance between the node of this end point and the other node
+         * Gets the distance between the two nodes
          * 
-         * @return half distance
+         * @return distance
          */
         public final double getDistance() {
-            return this.distance;
+            return 2.0 * this.strength;
+        }
+
+        /**
+         * Gets the strength of the curve, based on distance between the nodes
+         * 
+         * @return curve strength
+         */
+        public final double getStrength() {
+            return this.strength;
         }
 
         public static EndPoint create(Vector nodePosition, Vector nodeDirection, Vector otherPosition, Vector otherDirection) {
