@@ -41,6 +41,15 @@ public class PlayerEditHistory extends HistoryChangeCollection {
     }
 
     /**
+     * Gets the last change added to this history
+     * 
+     * @return last change, null if no changes are known
+     */
+    public HistoryChange getLastChange() {
+        return this.history.peekLast();
+    }
+
+    /**
      * Undoes the last change.
      * 
      * @return True if the undo was performed

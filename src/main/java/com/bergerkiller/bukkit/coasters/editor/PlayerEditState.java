@@ -49,6 +49,7 @@ import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
+import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
@@ -85,6 +86,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     private Block targetedBlock = null;
     private BlockFace targetedBlockFace = BlockFace.UP;
     private String selectedAnimation = null;
+    private HistoryChange draggingCreateNewNodeChange = null; // used when player left-clicks while dragging a node
 
     public PlayerEditState(TCCoasters plugin, Player player) {
         this.plugin = plugin;
@@ -490,14 +492,50 @@ public class PlayerEditState implements CoasterWorldComponent {
 
         // When holding right-click and clicking left-click in position mode, create a new node and drag that
         if (this.getMode() == PlayerEditMode.POSITION && this.isHoldingRightClick()) {
+            // Complete moving the original selected node(s), call onEditingFinished
+            try {
+                this.onEditingFinished();
+                this.heldDownTicks = 0;
+            } catch (ChangeCancelledException e) {
+                // Couldn't place the node(s) here, the change was aborted
+                // This also aborts creating the new node to keep things sane
+                this.clearEditedNodes();
+                return true;
+            }
+
             Vector pos;
             if (this.getEditedNodes().size() == 1) {
-                pos = this.getEditedNodes().iterator().next().getPosition();
+                pos = this.getEditedNodes().iterator().next().getPosition().clone();
+
+                // We must make minor changes to the position so the node position is 'unique'
+                // The findNodeExact function has an accuracy of 1e-6, increments of 1e-5 will be sufficient
+                // Move the node closer/further from the player perspective, so at least it doesn't translate visibly
+                // Use a poor man's randomness to either bring the point closer or further from the player
+                // That way over the course of many clicks, the position shouldn't drift too badly
+                Vector dir = pos.clone().subtract(this.player.getEyeLocation().toVector());
+                {
+                    double dir_lsq = dir.lengthSquared();
+                    if (dir_lsq < 1e-5) {
+                        dir = this.player.getEyeLocation().getDirection();
+                    } else {
+                        dir.multiply(MathUtil.getNormalizationFactorLS(dir_lsq));
+                    }
+                }
+                if (Math.random() >= 0.5) {
+                    dir.multiply(1e-5);
+                } else {
+                    dir.multiply(-1e-5);
+                }
+                pos.add(dir);
+                while (this.getWorld().getTracks().findNodeExact(pos) != null) {
+                    pos.add(dir);
+                }
             } else {
                 pos = this.getNewNodePos();
             }
             try {
                 this.createNewNode(pos, null, false);
+                this.draggingCreateNewNodeChange = this.getHistory().getLastChange();
             } catch (ChangeCancelledException e) {
                 // Do nothing, the left click simply didn't do anything.
             }
@@ -1239,6 +1277,15 @@ public class PlayerEditState implements CoasterWorldComponent {
         // Deselect locked nodes that we cannot edit
         this.deselectLockedNodes();
 
+        // When we left-clicked while right-click dragging earlier, we made some changes to split the node
+        // We want the new position of this dragged node to be merged with those changes, so only one undo is needed
+        // If this is not the case, then we just add a new change to the history itself
+        HistoryChangeCollection dragParent = this.getHistory();
+        if (this.draggingCreateNewNodeChange != null && this.draggingCreateNewNodeChange == this.getHistory().getLastChange()) {
+            dragParent = this.draggingCreateNewNodeChange;
+        }
+        this.draggingCreateNewNodeChange = null;
+
         // When drag-dropping a node onto a node, 'merge' the two
         // Do so by connecting all other neighbours of the dragged node to the node
         if (this.getMode() == PlayerEditMode.POSITION && this.getEditedNodes().size() == 1) {
@@ -1275,12 +1322,12 @@ public class PlayerEditState implements CoasterWorldComponent {
                 try {
                     List<TrackNode> connectedNodes = draggedNode.node.getNeighbours();
 
-                    // Track all the changes we are doing down below.
-                    HistoryChange changes = this.getHistory().addChangeAfterChangingNode(
-                            this.player, draggedNode.node, draggedNode.startState);
+                    // Undo the changes to the node position as a result of the drag
+                    draggedNode.node.setState(draggedNode.startState);
 
-                    // Delete dragged node
-                    changes.addChangeDeleteNode(this.player, draggedNode.node);
+                    // Track all the changes we are doing down below.
+                    // Delete the original node, and connections to the node, the player was dragging
+                    HistoryChange changes = dragParent.addChangeDeleteNode(this.player, draggedNode.node);
                     draggedNode.node.remove();
 
                     // Connect all that was connected to it, with the one dropped on
@@ -1302,10 +1349,13 @@ public class PlayerEditState implements CoasterWorldComponent {
 
         // For position/orientation, store the changes
         if (this.isMode(PlayerEditMode.POSITION, PlayerEditMode.ORIENTATION)) {
-            HistoryChange changes = this.getHistory().addChangeGroup();
+            HistoryChange changes = null;
             try {
                 for (PlayerEditNode editNode : this.editedNodes.values()) {
                     if (editNode.hasMoveBegun()) {
+                        if (changes == null) {
+                            changes = dragParent.addChangeGroup();
+                        }
                         changes.addChangeAfterChangingNode(this.player, editNode.node, editNode.startState);
 
                         // Update position and orientation of animation state, if one is selected
