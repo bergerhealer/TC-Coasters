@@ -118,6 +118,10 @@ public class ObjectEditState {
                     this.undoDuplicatedObjects();
                     this.isDuplicating = false;
                     this.startDrag(point, false);
+                } else if (this.editedTrackObjects.size() == 1) {
+                    // If only one object is selected, duplicate it and resume dragging the original object
+                    ObjectEditTrackObject editObject = this.editedTrackObjects.values().iterator().next();
+                    editObject.connection.addObject(editObject.object.clone());
                 } else {
                     // Finish the drag action and switch to duplicate mode
                     try {
@@ -125,7 +129,6 @@ public class ObjectEditState {
                         this.startDrag(point, true);
                     } catch (ChangeCancelledException e) {
                         this.clearEditedTrackObjects();
-                        return true;
                     }
                 }
             }
