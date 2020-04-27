@@ -106,13 +106,37 @@ public class ObjectEditState {
     }
 
     public boolean onLeftClick() {
+        // Find point on path clicked
+        TrackConnection.PointOnPath point = this.getWorld().getTracks().findPointOnPath(this.getPlayer().getEyeLocation());
+
+        // While holding right-click, left-click switches to duplicating mode
+        if (this.editState.isHoldingRightClick()) {
+            // Switch to duplicate mode
+            if (point != null) {
+                if (this.isDuplicating) {
+                    // Cancel duplicating and switch back to dragging mode
+                    this.undoDuplicatedObjects();
+                    this.isDuplicating = false;
+                    this.startDrag(point, false);
+                } else {
+                    // Finish the drag action and switch to duplicate mode
+                    try {
+                        this.onEditingFinished();
+                        this.startDrag(point, true);
+                    } catch (ChangeCancelledException e) {
+                        this.clearEditedTrackObjects();
+                        return true;
+                    }
+                }
+            }
+            return true;
+        }
+
         // Single object selection mode
         if (!this.editState.isSneaking()) {
             clearEditedTrackObjects();
         }
 
-        // Find point on path clicked
-        TrackConnection.PointOnPath point = this.getWorld().getTracks().findPointOnPath(this.getPlayer().getEyeLocation());
         if (point == null) {
             return true;
         }
@@ -361,61 +385,7 @@ public class ObjectEditState {
         this.deselectLockedObjects();
 
         if (this.editState.getHeldDownTicks() == 0) {
-            // First click: calculate the positions of the objects relative to the clicked point
-            // If objects aren't accessible from the point, then their dragDistance is set to NaN
-
-            // When sneaking during initial right-click, enable duplicating mode
-            this.isDuplicating = this.editState.isSneaking();
-
-            // Reset all objects to NaN
-            for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
-                editObject.dragDistance = Double.NaN;
-            }
-
-            // First do the objects on the clicked connection itself
-            Map<TrackObject, ObjectEditTrackObject> pending = new HashMap<TrackObject, ObjectEditTrackObject>(this.editedTrackObjects);
-            for (TrackObject object : point.connection.getObjects()) {
-                ObjectEditTrackObject editObject = pending.remove(object);
-                if (editObject != null) {
-                    editObject.dragDistance = object.getDistance() - point.distance;
-                    editObject.dragDirection = (editObject.dragDistance >= 0.0);
-                    editObject.alignmentFlipped = object.isFlipped();
-                    if (!editObject.dragDirection) {
-                        editObject.dragDistance = -editObject.dragDistance;
-                    }
-                }
-            }
-
-            // If there's more, perform discovery in the two directions from the point's connection
-            // Do this stepwise, so in a loop we find the nearest distance ideally
-            if (!pending.isEmpty()) {
-                Set<TrackConnection> visited = new HashSet<TrackConnection>();
-                TrackObjectDiscoverer left  = new TrackObjectDiscoverer(pending, visited, point.connection, false, point.distance);
-                TrackObjectDiscoverer right = new TrackObjectDiscoverer(pending, visited, point.connection, true,  point.distance);
-                while (left.next() || right.next());
-            }
-
-            // For all objects we've found, fire before change event and cancel the drag when cancelled
-            for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
-                if (Double.isNaN(editObject.dragDistance)) {
-                    continue;
-                }
-                if (!this.isDuplicating && CommonUtil.callEvent(new CoasterBeforeChangeTrackObjectEvent(this.getPlayer(), editObject.connection, editObject.object)).isCancelled()) {
-                    // Cancelled
-                    editObject.dragDistance = Double.NaN;
-                    continue;
-                }
-
-                // Save state prior to drag for history and after change event later
-                editObject.beforeDragConnection = editObject.connection;
-                editObject.beforeDragDistance = editObject.object.getDistance();
-                editObject.beforeDragFlipped = editObject.object.isFlipped();
-
-                // Looking at the object from left-to-right or right-to-left?
-                // This is important when moving the object later
-                TrackConnection.PointOnPath beforePoint = editObject.connection.findPointAtDistance(editObject.beforeDragDistance);
-                editObject.beforeDragLookingAtFlipped = (beforePoint.orientation.rightVector().dot(rightDirection) < 0.0);
-            }
+            this.startDrag(point, false);
         } else if (this.isDuplicating) {
             // Successive clicks while drag: duplicate the selected track objects
             this.duplicateObjects(point);
@@ -432,6 +402,72 @@ public class ObjectEditState {
         }
     }
 
+    /**
+     * Initializes a new drag operation
+     * 
+     * @param point The point the player looks at
+     * @param duplicating Whether duplicating mode is active or not
+     */
+    private void startDrag(TrackConnection.PointOnPath point, boolean duplicating) {
+        // First click: calculate the positions of the objects relative to the clicked point
+        // If objects aren't accessible from the point, then their dragDistance is set to NaN
+
+        // When sneaking during initial right-click, enable duplicating mode
+        this.isDuplicating = duplicating;
+
+        // Reset all objects to NaN
+        for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
+            editObject.dragDistance = Double.NaN;
+        }
+
+        // First do the objects on the clicked connection itself
+        Map<TrackObject, ObjectEditTrackObject> pending = new HashMap<TrackObject, ObjectEditTrackObject>(this.editedTrackObjects);
+        for (TrackObject object : point.connection.getObjects()) {
+            ObjectEditTrackObject editObject = pending.remove(object);
+            if (editObject != null) {
+                editObject.dragDistance = object.getDistance() - point.distance;
+                editObject.dragDirection = (editObject.dragDistance >= 0.0);
+                editObject.alignmentFlipped = object.isFlipped();
+                if (!editObject.dragDirection) {
+                    editObject.dragDistance = -editObject.dragDistance;
+                }
+            }
+        }
+
+        // If there's more, perform discovery in the two directions from the point's connection
+        // Do this stepwise, so in a loop we find the nearest distance ideally
+        if (!pending.isEmpty()) {
+            Set<TrackConnection> visited = new HashSet<TrackConnection>();
+            TrackObjectDiscoverer left  = new TrackObjectDiscoverer(pending, visited, point.connection, false, point.distance);
+            TrackObjectDiscoverer right = new TrackObjectDiscoverer(pending, visited, point.connection, true,  point.distance);
+            while (left.next() || right.next());
+        }
+
+        // For all objects we've found, fire before change event and cancel the drag when cancelled
+        for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
+            if (Double.isNaN(editObject.dragDistance)) {
+                continue;
+            }
+            if (!this.isDuplicating && CommonUtil.callEvent(new CoasterBeforeChangeTrackObjectEvent(this.getPlayer(), editObject.connection, editObject.object)).isCancelled()) {
+                // Cancelled
+                editObject.dragDistance = Double.NaN;
+                continue;
+            }
+
+            // Save state prior to drag for history and after change event later
+            editObject.beforeDragConnection = editObject.connection;
+            editObject.beforeDragDistance = editObject.object.getDistance();
+            editObject.beforeDragFlipped = editObject.object.isFlipped();
+
+            // Player looks into a certain direction, which changes the orientation of the objects
+            Vector rightDirection = this.editState.getInput().get().getRotation().forwardVector();
+
+            // Looking at the object from left-to-right or right-to-left?
+            // This is important when moving the object later
+            TrackConnection.PointOnPath beforePoint = editObject.connection.findPointAtDistance(editObject.beforeDragDistance);
+            editObject.beforeDragLookingAtFlipped = (beforePoint.orientation.rightVector().dot(rightDirection) < 0.0);
+        }
+    }
 
     /**
      * Selects all the track objects of all connections accessible from the start connection,
