@@ -121,9 +121,12 @@ public class TrackWorld implements CoasterWorldComponent {
                 for (TrackConnection connection : node.getConnections()) {
                     // Skip if way out of range
                     double d_sq = connection._endA.getDistance();
+                    if (node_pos.getZ() < -d_sq) {
+                        continue; // likely entirely behind the player
+                    }
                     d_sq *= d_sq;
                     if (node_viewDistanceSq > d_sq) {
-                        continue;
+                        continue; // too far away left/right/up/down
                     }
 
                     // Find closest point

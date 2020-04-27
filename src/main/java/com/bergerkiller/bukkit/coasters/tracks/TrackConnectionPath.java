@@ -215,69 +215,105 @@ public class TrackConnectionPath {
      * @param t1 End theta
      * @return theta value that lies closest
      */
-    public double findClosestPointInView(Matrix4x4 playerViewMatrixInverted, final double t0, final double t1) {
+    public double findClosestPointInView(Matrix4x4 playerViewMatrixInverted, double t0, double t1) {
         // Create 5 view point options which are linked together
         ViewPointOption head = new ViewPointOption(null, 5);
-        ViewPointOption m0 = head.next;
-        ViewPointOption m1 = m0.next;
-        ViewPointOption m2 = m1.next;
-        ViewPointOption tail = m2.next;
+        ViewPointOption tail = head.next.next.next.next;
 
-        // Set head and tail to t0 and t1 respectively
+        // Initialize head and tail
         head.update(this, playerViewMatrixInverted, t0);
         tail.update(this, playerViewMatrixInverted, t1);
 
+        return findClosestPointOptionInView(playerViewMatrixInverted, head, ViewPointOption.NONE).theta;
+    }
+
+    private ViewPointOption findClosestPointOptionInView(Matrix4x4 playerViewMatrixInverted, ViewPointOption head, ViewPointOption alternative) {
+        // Take the middle point and the head/tail of the 5-point view point options
+        ViewPointOption mid = head.next.next;
+        ViewPointOption tail = mid.next.next;
+
+        search:
         while (true) {
             // Calculate middle 3 points using head and tail theta values
             double ht = 0.5 * (head.theta + tail.theta);
-            m0.update(this, playerViewMatrixInverted, 0.5 * (head.theta + ht));
-            m1.update(this, playerViewMatrixInverted, ht);
-            m2.update(this, playerViewMatrixInverted, 0.5 * (tail.theta + ht));
+            mid.prev.update(this, playerViewMatrixInverted, 0.5 * (head.theta + ht));
+            mid.update(this, playerViewMatrixInverted, ht);
+            mid.next.update(this, playerViewMatrixInverted, 0.5 * (tail.theta + ht));
 
-            // Find best view point option with lowest distance from where the player is looking
+            // Narrow the search window until we've found a peak on the curve
+            // If we find two peaks, then split the search in two
             ViewPointOption best = head;
-            for (ViewPointOption opt = m0; opt != null; opt = opt.next) {
-                if (opt.distance < best.distance) {
-                    best = opt;
+
+            narrowing: {
+                ViewPointOption other = tail;
+                while (best.distance >= best.next.distance) {
+                    best = best.next;
+                    if (best == other) {
+                        break narrowing; // Found peak, narrow the window
+                    }
                 }
+                while (other.distance >= other.prev.distance) {
+                    other = other.prev;
+                    if (best == other) {
+                        break narrowing; // Found peak, narrow the window
+                    }
+                }
+
+                // There are two curves here. Split in two separate search operations.
+                // Original method:
+                //   ViewPointOption a = findClosestPointOptionInView(playerViewMatrixInverted, head.theta, mid.theta);
+                //   ViewPointOption b = findClosestPointOptionInView(playerViewMatrixInverted, mid.theta, tail.theta);
+                //   return (a.distance > b.distance) ? b : a;
+
+                // New:
+                // One is run in a recursive function invocation, the other continues running here.
+                // It replaces any previous (worse) alternative we found prior
+                ViewPointOption new_alternative_head = new ViewPointOption(null, 5);
+                new_alternative_head.assign(head);
+                new_alternative_head.next.next.next.next.assign(mid);
+                alternative = findClosestPointOptionInView(playerViewMatrixInverted, new_alternative_head, alternative);
+
+                // Resume this function between mid and tail
+                head.assign(mid);
+                continue search;
             }
 
-            // Get the view point option directly neighbouring the selected one
-            // At head/tail there is only one option, otherwise lowest distance counts
-            ViewPointOption other;
-            if (best.prev == null || (best.next != null && best.next.distance < best.prev.distance)) {
-                other = best.next;
+            // Found a 'best' node that follows a simple parabolic curve ^
+            // Find best view point option with lowest distance from where the player is looking
+            if (best == head || best.prev == head) {
+                // Only tail has to be assigned, head is already good
+                tail.assign(best.next);
+            } else if (best == tail || best.next == tail) {
+                // Only head has to be assigned, tail is already good
+                head.assign(best.prev);
             } else {
-                other = best.prev;
+                // Head and tail both must be assigned
+                head.assign(best.prev);
+                tail.assign(best.next);
             }
 
             // If difference in distance is negligible, return the best result
-            if ((other.distance - best.distance) < 1e-5) {
-                return best.theta;
-            }
-
-            // Copy best and other to head/tail in whatever way works best and continue looking
-            if (best == head) {
-                tail.assign(other);
-            } else if (best == tail) {
-                head.assign(other);
-            } else if (other == head) {
-                tail.assign(best);
-            } else if (other == tail) {
-                head.assign(best);
-            } else {
-                head.assign(best);
-                tail.assign(other);
+            if ((head.distance - best.distance) < 1e-5 && (tail.distance - best.distance) < 1e-5) {
+                return (best.distance > alternative.distance) ? alternative : best;
             }
         }
     }
 
     // Helper class for sorting the different points on the path
     private static final class ViewPointOption {
+        public static final ViewPointOption NONE = new ViewPointOption();
         public final ViewPointOption prev, next;
         private final Vector position = new Vector();
         public double theta = 0.0;
         public double distance;
+
+        // No alternative constructor
+        private ViewPointOption() {
+            this.prev = null;
+            this.next = null;
+            this.theta = 0.0;
+            this.distance = Double.MAX_VALUE;
+        }
 
         public ViewPointOption(ViewPointOption prev, int len) {
             this.prev = prev;
