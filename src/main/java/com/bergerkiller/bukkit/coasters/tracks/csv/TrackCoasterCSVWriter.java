@@ -315,6 +315,7 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
         for (TrackObject object : trackObjectHolder.getObjects()) {
             TrackCoasterCSV.ObjectEntry object_entry = new TrackCoasterCSV.ObjectEntry();
             object_entry.distance = object.getDistance();
+            object_entry.flipped = object.isFlipped();
             object_entry.itemName = writeTrackObjectType(object.getType());
             this.write(object_entry);
         }
