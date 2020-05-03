@@ -43,8 +43,25 @@ public abstract class HistoryChangeCollection {
      */
     public abstract void removeChange(HistoryChange change);
 
+    /**
+     * Gets whether changes were added using {@link #addChange(HistoryChange)}.
+     * 
+     * @return True if there are changes
+     */
+    public abstract boolean hasChanges();
+
     public final HistoryChange addChangeGroup() {
         return addChange(new HistoryChangeGroup());
+    }
+
+    /**
+     * Returns a history change that adds itself to this collection when the first
+     * element is added. If no elements are ever added, then this change is not added either.
+     * 
+     * @return change added
+     */
+    public final HistoryChange addLazyChangeGroup() {
+        return new HistoryChangeLazyGroup(this);
     }
 
     private <T extends CoasterEvent> T handleEvent(T event) throws ChangeCancelledException {
@@ -117,6 +134,18 @@ public abstract class HistoryChangeCollection {
     public final HistoryChange addChangeBeforeDeleteTrackObject(Player who, TrackConnection connection, TrackObject object) throws ChangeCancelledException {
         handleEvent(new CoasterDeleteTrackObjectEvent(who, connection, object));
         return addChange(new HistoryChangeDeleteTrackObject(connection, object));
+    }
+
+    public final HistoryChange addChangeAfterChangingTrackObjectType(Player who, TrackConnection connection, TrackObject object, TrackObject old_object) throws ChangeCancelledException {
+        try {
+            handleEvent(new CoasterAfterChangeTrackObjectEvent(who, connection, object, connection, old_object));
+        } catch (ChangeCancelledException ex) {
+            // Revert the changes
+            object.setType(connection, old_object.getType());
+            throw ex;
+        }
+
+        return addChange(new HistoryChangeTrackObject(connection, connection, old_object, object));
     }
 
     public final HistoryChange addChangeAfterMovingTrackObject(Player who, TrackConnection connection, TrackObject object, TrackConnection old_connection, double old_distance, boolean old_flipped) throws ChangeCancelledException {

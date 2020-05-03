@@ -55,6 +55,7 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
         }
 
         this.type = type;
+        connection.markChanged();
 
         // Update particle (if already spawned)
         if (this.particle != null) {

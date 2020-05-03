@@ -46,6 +46,7 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleOb
     @Override
     public void updateParticle(TrackParticleObject particle, TrackConnection.PointOnPath point) {
         particle.setPositionOrientation(point.position, point.orientation);
+        particle.setItem(this.item);
     }
 
     @Override
@@ -63,5 +64,10 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleOb
         } else {
             return false;
         }
+    }
+
+    @Override
+    public String toString() {
+        return "{TrackObjectType[ItemStack] item=" + this.item + "}";
     }
 }

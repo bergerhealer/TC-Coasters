@@ -85,7 +85,7 @@ public abstract class HistoryChange extends HistoryChangeCollection {
      * @return childChange added
      */
     @Override
-    public final HistoryChange addChange(HistoryChange childChange) {
+    public HistoryChange addChange(HistoryChange childChange) {
         this.children.add(childChange);
         return childChange;
     }
@@ -93,5 +93,10 @@ public abstract class HistoryChange extends HistoryChangeCollection {
     @Override
     public void removeChange(HistoryChange childChange) {
         this.children.remove(childChange);
+    }
+
+    @Override
+    public boolean hasChanges() {
+        return !this.children.isEmpty();
     }
 }

@@ -34,6 +34,7 @@ public class TrackParticleObject extends TrackParticle {
     private int entityId = -1;
     private boolean positionChanged = false;
     private boolean poseChanged = false;
+    private boolean itemChanged = false;
 
     protected TrackParticleObject(Vector position, Quaternion orientation, ItemStack item) {
         this.position = DoubleOctree.Entry.create(position, this);
@@ -51,6 +52,14 @@ public class TrackParticleObject extends TrackParticle {
         if (!this.position.equalsCoord(position)) {
             this.position = updatePosition(this.position, position);
             this.positionChanged = true;
+            this.scheduleUpdateAppearance();
+        }
+    }
+
+    public void setItem(ItemStack item) {
+        if (this.item != item && !this.item.equals(item)) {
+            this.item = item;
+            this.itemChanged = true;
             this.scheduleUpdateAppearance();
         }
     }
@@ -151,6 +160,13 @@ public class TrackParticleObject extends TrackParticle {
                 DataWatcher meta = new DataWatcher();
                 meta.set(EntityArmorStandHandle.DATA_POSE_HEAD, this.pose);
                 this.broadcastPacket(PacketPlayOutEntityMetadataHandle.createNew(this.entityId, meta, true));
+            }
+        }
+        if (this.itemChanged) {
+            this.itemChanged = false;
+
+            if (this.entityId != -1) {
+                this.broadcastPacket(PacketPlayOutEntityEquipmentHandle.createNew(this.entityId, EquipmentSlot.HEAD, this.item));
             }
         }
     }

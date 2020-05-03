@@ -40,6 +40,11 @@ public class PlayerEditHistory extends HistoryChangeCollection {
         this.history.remove(change);
     }
 
+    @Override
+    public boolean hasChanges() {
+        return !this.history.isEmpty();
+    }
+
     /**
      * Gets the last change added to this history
      * 

@@ -83,6 +83,18 @@ public class ObjectEditState {
         }
         this.selectedType = type;
         this.editState.markChanged();
+
+        Iterator<ObjectEditTrackObject> iter = this.editedTrackObjects.values().iterator();
+        while (iter.hasNext()) {
+            ObjectEditTrackObject editObject = iter.next();
+            if (CommonUtil.callEvent(new CoasterBeforeChangeTrackObjectEvent(getPlayer(), editObject.connection, editObject.object)).isCancelled()) {
+                iter.remove();
+                editObject.object.onStateUpdated(this.getPlayer());
+                this.editState.markChanged();
+                continue;
+            }
+            editObject.object.setType(editObject.connection, type);
+        }
     }
 
     public void load(ConfigurationNode config) {
@@ -288,6 +300,7 @@ public class ObjectEditState {
             } else {
                 changed = true;
                 this.editedTrackObjects.put(object, new ObjectEditTrackObject(connection, object));
+                this.selectedType = object.getType();
             }
         } else {
             changed = (this.editedTrackObjects.remove(object) != null);
