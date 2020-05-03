@@ -188,7 +188,7 @@ public class ObjectEditState {
         TrackObject bestObject = null;
         double bestDistance = 4.0; // within 4.0 distance to select it (TODO: larger wiggle room when further away?)
         for (TrackObject object : point.connection.getObjects()) {
-            double distance = Math.abs(object.getDistanceA() - point.distance);
+            double distance = Math.abs(object.getDistance() - point.distance);
             if (distance < bestDistance) {
                 bestDistance = distance;
                 bestObject = object;
@@ -469,7 +469,7 @@ public class ObjectEditState {
         for (TrackObject object : point.connection.getObjects()) {
             ObjectEditTrackObject editObject = pending.remove(object);
             if (editObject != null) {
-                editObject.dragDistance = object.getDistanceA() - point.distance;
+                editObject.dragDistance = object.getDistance() - point.distance;
                 editObject.dragDirection = (editObject.dragDistance >= 0.0);
                 editObject.alignmentFlipped = object.isFlipped();
                 if (!editObject.dragDirection) {
@@ -500,7 +500,7 @@ public class ObjectEditState {
 
             // Save state prior to drag for history and after change event later
             editObject.beforeDragConnection = editObject.connection;
-            editObject.beforeDragDistance = editObject.object.getDistanceA();
+            editObject.beforeDragDistance = editObject.object.getDistance();
             editObject.beforeDragFlipped = editObject.object.isFlipped();
 
             // Player looks into a certain direction, which changes the orientation of the objects
@@ -531,7 +531,7 @@ public class ObjectEditState {
             double closestDistance = Double.MAX_VALUE;
             for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
                 if (editObject.connection == startConnection && editObject.object != startObject) {
-                    double distance = Math.abs(startObject.getDistanceA() - editObject.object.getDistanceA());
+                    double distance = Math.abs(startObject.getDistance() - editObject.object.getDistance());
                     if (distance < closestDistance) {
                         closestDistance = distance;
                         closestObjectOnSameConnection = editObject.object;
@@ -540,10 +540,10 @@ public class ObjectEditState {
             }
             if (closestObjectOnSameConnection != null) {
                 // Add all objects in between the distance range
-                double d_from = Math.min(startObject.getDistanceA(), closestObjectOnSameConnection.getDistanceA());
-                double d_to   = Math.max(startObject.getDistanceA(), closestObjectOnSameConnection.getDistanceA());
+                double d_from = Math.min(startObject.getDistance(), closestObjectOnSameConnection.getDistance());
+                double d_to   = Math.max(startObject.getDistance(), closestObjectOnSameConnection.getDistance());
                 for (TrackObject object : startConnection.getObjects()) {
-                    if (object.getDistanceA() >= d_from && object.getDistanceA() <= d_to) {
+                    if (object.getDistance() >= d_from && object.getDistance() <= d_to) {
                         this.selectTrackObject(startConnection, object);
                     }
                 }
@@ -561,7 +561,7 @@ public class ObjectEditState {
                 nodesOfTrackObjects.add(editObject.connection.getNodeB());
             }
         }
-        boolean searchRight = (startObject.getDistanceA() >= 0.5 * startConnection.getFullDistance());
+        boolean searchRight = (startObject.getDistance() >= 0.5 * startConnection.getFullDistance());
         TrackNode searchStart = searchRight ? startConnection.getNodeB() : startConnection.getNodeA();
         TrackNodeSearchPath bestPath = TrackNodeSearchPath.findShortest(searchStart, nodesOfTrackObjects);
 
@@ -570,7 +570,7 @@ public class ObjectEditState {
             // If best path contains the other node of the start connection, then fill select to the right
             // Otherwise, select all objects to the left of the start object
             boolean searchWentRight = searchRight == (bestPath.path.contains(startConnection.getOtherNode(searchStart)));
-            this.selectObjectsBeyondDistance(startConnection, searchWentRight, startObject.getDistanceA());
+            this.selectObjectsBeyondDistance(startConnection, searchWentRight, startObject.getDistance());
             bestPath.pathConnections.remove(startConnection);
 
             // The current node is one that has a connection with one of the track objects we had selected
@@ -589,14 +589,14 @@ public class ObjectEditState {
                     continue;
                 }
 
-                double distance = editObject.object.getDistanceA();
+                double distance = editObject.object.getDistance();
                 if (!direction) {
                     distance = editObject.connection.getFullDistance() - distance;
                 }
                 if (distance < bestObjectDistanceToEnd) {
                     bestObjectDistanceToEnd = distance;
                     bestConnection = editObject.connection;
-                    bestObjectDistance = editObject.object.getDistanceA();
+                    bestObjectDistance = editObject.object.getDistance();
                     bestObjectDirection = direction;
                 }
             }
@@ -616,8 +616,8 @@ public class ObjectEditState {
 
     private void selectObjectsBeyondDistance(TrackConnection connection, boolean direction, double distance) {
         for (TrackObject object : connection.getObjects()) {
-            if (direction ? (object.getDistanceA() <= distance) :
-                            (object.getDistanceA() >= distance)
+            if (direction ? (object.getDistance() <= distance) :
+                            (object.getDistance() >= distance)
             ) {
                 this.selectTrackObject(connection, object);
             }
@@ -722,7 +722,7 @@ public class ObjectEditState {
                 edgeDistance = point.distance;
                 for (ObjectEditTrackObject editObject : objects.list()) {
                     if (editObject.connection == point.connection) {
-                        double distance = Math.abs(point.distance - editObject.object.getDistanceA());
+                        double distance = Math.abs(point.distance - editObject.object.getDistance());
                         if (distance < closestDistance) {
                             closestDistance = distance;
                             closestObjectOnSameConnection = editObject;
@@ -734,14 +734,14 @@ public class ObjectEditState {
                 double closestDistance = Double.MAX_VALUE;
                 for (ObjectEditTrackObject editObject : objects.list()) {
                     if (editObject.connection.getNodeA() == bestPath.current) {
-                        double distance = editObject.object.getDistanceA();
+                        double distance = editObject.object.getDistance();
                         if (distance < closestDistance) {
                             closestDistance = distance;
                             closestObjectOnSameConnection = editObject;
                             edgeDistance = 0.0;
                         }
                     } else if (editObject.connection.getNodeB() == bestPath.current) {
-                        double distance = editObject.connection.getFullDistance() - editObject.object.getDistanceA();
+                        double distance = editObject.connection.getFullDistance() - editObject.object.getDistance();
                         if (distance < closestDistance) {
                             closestDistance = distance;
                             closestObjectOnSameConnection = editObject;
@@ -762,7 +762,7 @@ public class ObjectEditState {
             }
 
             // Start situation (start from the selected track objects)
-            currentDistance = closestObjectOnSameConnection.object.getDistanceA();
+            currentDistance = closestObjectOnSameConnection.object.getDistance();
             currentConnection = closestObjectOnSameConnection.connection;
             boolean order = (currentDistance < edgeDistance);
 
@@ -821,7 +821,7 @@ public class ObjectEditState {
                 // If not, remove all of them past this point and create a new one
                 if (duplicatedObjectIndex < this.duplicatedObjects.size()) {
                     DuplicatedObject dupe = this.duplicatedObjects.get(duplicatedObjectIndex);
-                    if (dupe.connection == currentConnection && dupe.object.getDistanceA() == currentDistance) {
+                    if (dupe.connection == currentConnection && dupe.object.getDistance() == currentDistance) {
                         continue;
                     }
                     this.undoDuplicatedObjects(duplicatedObjectIndex);
