@@ -108,7 +108,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
         // This doesn't actually change the position of the object, so it can be done silently
         // Flipped is inverted also, because the motion vector on the path reverses direction
         for (TrackObject object : this.objects) {
-            object.setDistanceFlippedSilently(this.getFullDistance() - object.getDistance(), !object.isFlipped());
+            object.setDistanceFlippedSilently(this.getFullDistance() - object.getDistanceA(), !object.isFlipped());
         }
 
         //TODO: Technically we got to swap the lines also
@@ -274,7 +274,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
                 }
             }
             return false;
-        } else if (object.getDistance() == newDistance) {
+        } else if (object.getDistanceA() == newDistance) {
             return true; // no changes
         } else {
             object.setDistanceComputeFlipped(this, newDistance, rightDirection);

@@ -11,6 +11,7 @@ import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionPath;
+import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 
@@ -21,17 +22,20 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
     public static final TrackObject[] EMPTY = new TrackObject[0];
     private TrackObjectType<?> type;
     private TrackParticle particle;
-    private double distance;
-    private boolean flipped;
+    private double distanceA, distanceB;
 
     public TrackObject(TrackObjectType<?> type, double distance, boolean flipped) {
+        this(type, distance, flipped ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
+    }
+
+    public TrackObject(TrackObjectType<?> type, double distanceA, double distanceB) {
         if (type == null) {
             throw new IllegalArgumentException("Track object type can not be null");
         }
         this.type = type;
         this.particle = null;
-        this.distance = distance;
-        this.flipped = flipped;
+        this.distanceA = distanceA;
+        this.distanceB = distanceB;
     }
 
     /**
@@ -72,18 +76,45 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
         }
     }
 
-    public double getDistance() {
-        return this.distance;
+    /**
+     * Gets the distance from the start of the connection to where the first point (back)
+     * of the object is located.
+     * 
+     * @return distance of the back position
+     */
+    public double getDistanceA() {
+        return this.distanceA;
+    }
+
+    /**
+     * Gets the distance from the start of the connection to where the second point (front)
+     * of the object is located.
+     * 
+     * @return distance of the front position
+     */
+    public double getDistanceB() {
+        return isOnPoint() ? this.distanceA : this.distanceB;
+    }
+
+    /**
+     * Gets whether this object is located on a single point on the track, rather than
+     * two points with front and back facing those two points.
+     * 
+     * @return True if the object is on a single point on the track
+     */
+    public boolean isOnPoint() {
+        return Double.isInfinite(this.distanceB);
     }
 
     /**
      * Whether the track object front is facing along the direction from connection node A to B (false),
-     * or flipped from node B to A (true)
+     * or flipped from node B to A (true). This property also works when the two distances are
+     * equal.
      * 
      * @return True if flipped
      */
     public boolean isFlipped() {
-        return this.flipped;
+        return this.distanceA > this.distanceB;
     }
 
     /**
@@ -97,13 +128,12 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
      * @param rightDirection
      */
     public void setDistanceComputeFlipped(TrackConnection connection, double distance, Vector rightDirection) {
-        this.distance = distance;
-        TrackConnection.PointOnPath point = connection.findPointAtDistance(this.distance);
-        this.flipped = (point.orientation.rightVector().dot(rightDirection) < 0.0);
+        TrackConnection.PointOnPath point = connection.findPointAtDistance(distance);
+        this.setDistanceFlippedSilently(distance, point.orientation.rightVector().dot(rightDirection) < 0.0);
         connection.markChanged();
 
         if (this.particle != null) {
-            if (this.flipped) {
+            if (this.isFlipped()) {
                 point.orientation.rotateYFlip();
             }
             this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
@@ -118,17 +148,19 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
      * @param flipped
      */
     public void setDistanceFlipped(TrackConnection connection, double distance, boolean flipped) {
-        if (this.distance != distance || this.flipped != flipped) {
-            this.distance = distance;
-            this.flipped = flipped;
+        double distanceA = distance;
+        double distanceB = flipped ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
+        if (this.distanceA != distanceA || this.distanceB != distanceB) {
+            this.distanceA = distanceA;
+            this.distanceB = distanceB;
             connection.markChanged();
             this.onShapeUpdated(connection);
         }
     }
 
     public void setDistanceFlippedSilently(double distance, boolean flipped) {
-        this.distance = distance;
-        this.flipped = flipped;
+        this.distanceA = distance;
+        this.distanceB = flipped ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
     }
 
     public void onAdded(TrackConnection connection, TrackConnectionPath path) {
@@ -138,11 +170,25 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
     }
 
     private TrackConnection.PointOnPath findPointOnPath(TrackConnection connection) {
-        TrackConnection.PointOnPath point = connection.findPointAtDistance(this.distance);
-        if (this.flipped) {
-            point.orientation.rotateYFlip();
+        TrackConnection.PointOnPath pointA = connection.findPointAtDistance(this.distanceA);
+        if (this.isOnPoint()) {
+            if (this.isFlipped()) {
+                pointA.orientation.rotateYFlip();
+            }
+            return pointA;
         }
-        return point;
+
+        TrackConnection.PointOnPath pointB = connection.findPointAtDistance(this.distanceB);
+
+        // Given these two points, create a point exactly in the middle
+        // We modify the pointA/B vectors, this is fine, we don't reuse them.
+        Vector direction = pointB.position.subtract(pointA.position);
+        Vector position = pointA.position.add(direction.multiply(0.5));
+        Quaternion orientation = Quaternion.slerp(pointA.orientation, pointB.orientation, 0.5);
+        if (orientation.forwardVector().dot(direction) < 0.0) {
+            orientation.rotateYFlip();
+        }
+        return new TrackConnection.PointOnPath(connection, Double.NaN, Double.NaN, position, orientation);
     }
 
     public void onRemoved(TrackConnection connection) {
@@ -154,10 +200,7 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
 
     public void onShapeUpdated(TrackConnection connection) {
         if (this.particle != null) {
-            TrackConnection.PointOnPath point = connection.findPointAtDistance(this.distance);
-            if (this.flipped) {
-                point.orientation.rotateYFlip();
-            }
+            TrackConnection.PointOnPath point = findPointOnPath(connection);
             this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
         }
     }
@@ -170,7 +213,7 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
 
     @Override
     public TrackObject clone() {
-        return new TrackObject(this.type, this.distance, this.flipped);
+        return new TrackObject(this.type, this.distanceA, this.distanceB);
     }
 
     @Override
@@ -179,9 +222,9 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
             return true;
         } else if (o instanceof TrackObject) {
             TrackObject other = (TrackObject) o;
-            return this.distance == other.distance &&
-                   this.type.equals(other.type) &&
-                   this.flipped == other.flipped;
+            return this.distanceA == other.distanceA &&
+                   this.distanceB == other.distanceB &&
+                   this.type.equals(other.type);
         } else {
             return false;
         }

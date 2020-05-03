@@ -618,9 +618,9 @@ public class TrackCoasterCSV {
      * Adds an object to a previously created connection
      */
     public static final class ObjectEntry extends CSVEntry {
-        public double distance;
+        public double distanceA;
+        public double distanceB;
         public String itemName;
-        public boolean flipped;
 
         @Override
         public boolean detect(StringArrayBuffer buffer) {
@@ -630,26 +630,58 @@ public class TrackCoasterCSV {
         @Override
         public void read(StringArrayBuffer buffer) throws SyntaxException {
             buffer.next();
-            this.distance = buffer.nextDouble();
-            this.itemName = buffer.next();
-            this.flipped = buffer.next().equalsIgnoreCase("flipped");
+
+            this.distanceA = buffer.nextDouble();
+
+            // If this is a number or equals 'flipped' or 'not_flipped', then we changed the format
+            // Older formats put the item name here
+            {
+                String nameOrDistanceB = buffer.next();
+                if (nameOrDistanceB.isEmpty()) {
+                    // Distance and nothing specified, on a single point and not flipped
+                    this.distanceB = Double.POSITIVE_INFINITY;
+                    this.itemName = buffer.next();
+                } else if (nameOrDistanceB.equalsIgnoreCase("flipped")) {
+                    // Distance and flipped specified, on a single point and flipped
+                    this.distanceB = Double.NEGATIVE_INFINITY;
+                    this.itemName = buffer.next();
+                } else {
+                    try {
+                        // Two distances specified (not on a single point)
+                        this.distanceB = Double.parseDouble(nameOrDistanceB);
+                        this.itemName = buffer.next();
+                    } catch (NumberFormatException ex) {
+                        // Legacy: distance, item name, flipped
+                        this.itemName = nameOrDistanceB;
+                        if (buffer.next().equalsIgnoreCase("flipped")) {
+                            this.distanceB = Double.NEGATIVE_INFINITY;
+                        } else {
+                            this.distanceB = Double.POSITIVE_INFINITY;
+                        }
+                    }
+                }
+            }
         }
 
         @Override
         public void write(StringArrayBuffer buffer) {
             buffer.put("OBJECT");
-            buffer.putDouble(this.distance);
-            buffer.put(this.itemName);
-            if (this.flipped) {
-                buffer.put("FLIPPED");
+            buffer.putDouble(this.distanceA);
+            if (this.distanceB == Double.POSITIVE_INFINITY) {
+                buffer.put("");
+            } else if (this.distanceA == Double.NEGATIVE_INFINITY) {
+                buffer.put("flipped");
+            } else {
+                buffer.putDouble(this.distanceB);
             }
+            buffer.put(this.itemName);
         }
 
         @Override
         public void processReader(CSVReaderState state) {
             TrackObjectType<?> type = state.trackObjectTypesByName.get(this.itemName);
             if (type != null) {
-                state.pendingTrackObjects.add(new TrackObject(type, this.distance, this.flipped));
+                state.pendingTrackObjects.add(new TrackObject(type, this.distanceA, this.distanceB));
             }
         }
     }

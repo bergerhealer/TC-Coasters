@@ -314,7 +314,12 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
     private void writeAllObjects(TrackObjectHolder trackObjectHolder) throws IOException {
         for (TrackObject object : trackObjectHolder.getObjects()) {
             TrackCoasterCSV.ObjectEntry object_entry = new TrackCoasterCSV.ObjectEntry();
-            object_entry.distance = object.getDistance();
+            object_entry.distanceA = object.getDistanceA();
+            if (object.isOnPoint()) {
+                object_entry.distanceB = object.isFlipped() ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
+            } else {
+                object_entry.distanceB = object.getDistanceB();
+            }
             object_entry.itemName = writeTrackObjectType(object.getType());
             this.write(object_entry);
         }

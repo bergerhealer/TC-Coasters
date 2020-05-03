@@ -47,7 +47,7 @@ public class TrackObjectDiscoverer {
         for (TrackObject object : this.connection.connection.getObjects()) {
             ObjectEditTrackObject editObject = this.pending.remove(object);
             if (editObject != null) {
-                double objectDistance = object.getDistance();
+                double objectDistance = object.getDistanceA();
                 if (!this.connection.direction) {
                     objectDistance = connection.getFullDistance() - objectDistance;
                 }
