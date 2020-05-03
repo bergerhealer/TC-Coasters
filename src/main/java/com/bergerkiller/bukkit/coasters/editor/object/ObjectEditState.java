@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.editor.object;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -10,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.logging.Level;
 
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -28,9 +30,14 @@ import com.bergerkiller.bukkit.coasters.editor.object.util.TrackObjectDiscoverer
 import com.bergerkiller.bukkit.coasters.events.CoasterBeforeChangeTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterSelectTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItemStack;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
+import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV;
+import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
+import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.config.ConfigurationNode;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
@@ -43,33 +50,54 @@ public class ObjectEditState {
     private TrackObject lastEditedTrackObject = null;
     private long lastEditTrackObjectTime = System.currentTimeMillis();
     private boolean isDuplicating = false;
-    private ItemStack selectedItem;
+    private TrackObjectType<?> selectedType;
 
     public ObjectEditState(PlayerEditState editState) {
         this.editState = editState;
-        this.selectedItem = new ItemStack(MaterialUtil.getFirst("RAIL", "LEGACY_RAILS"));
+        this.selectedType = createDefaultObjectType();
     }
 
-    public ItemStack getSelectedItem() {
-        return this.selectedItem;
+    private static TrackObjectType<?> createDefaultObjectType() {
+        return TrackObjectTypeItemStack.create(new ItemStack(MaterialUtil.getFirst("RAIL", "LEGACY_RAILS")));
     }
 
-    public void setSelectedItem(ItemStack item) {
-        this.selectedItem = item;
+    /**
+     * Gets the selected track object type information
+     * 
+     * @return selected track object type
+     */
+    public TrackObjectType<?> getSelectedType() {
+        return this.selectedType;
+    }
+
+    /**
+     * Sets the selected track object type information to a new value.
+     * Refreshes all selected track objects to use this new type.
+     * New objects placed will have this same type.
+     * 
+     * @param type
+     */
+    public void setSelectedType(TrackObjectType<?> type) {
+        if (type == null) {
+            throw new IllegalArgumentException("Type can not be null");
+        }
+        this.selectedType = type;
+        this.editState.markChanged();
     }
 
     public void load(ConfigurationNode config) {
-        ItemStack item = config.get("item", ItemStack.class);
-        if (item != null) {
-            this.selectedItem = item;
-        }
+        this.selectedType = parseType(config);
     }
 
     public void save(ConfigurationNode config) {
-        if (this.selectedItem == null) {
-            config.remove("item");
+        // Make use of the CSV format to save the selected track object type information
+        TrackCoasterCSV.TrackObjectTypeEntry<?> entry = TrackCoasterCSV.createTrackObjectTypeEntry("SELECTED", this.selectedType);
+        if (entry != null) {
+            StringArrayBuffer buffer = new StringArrayBuffer();
+            entry.write(buffer);
+            config.set("selectedTrackObject", Arrays.asList(buffer.toArray()));
         } else {
-            config.set("item", this.selectedItem);
+            config.remove("selectedTrackObject");
         }
     }
 
@@ -376,7 +404,7 @@ public class ObjectEditState {
             // Compare orientation with the direction the player is looking
             // If inverted, then flip the object
             boolean flipped = (point.orientation.rightVector().dot(rightDirection) < 0.0);
-            TrackObject object = new TrackObject(point.distance, this.getSelectedItem(), flipped);
+            TrackObject object = new TrackObject(this.getSelectedType(), point.distance, flipped);
             this.editState.getHistory().addChangeBeforeCreateTrackObject(this.getPlayer(), point.connection, object);
 
             point.connection.addObject(object);
@@ -823,6 +851,30 @@ public class ObjectEditState {
             this.duplicatedObjects.get(i).remove();
         }
         this.duplicatedObjects.subList(startIndex, this.duplicatedObjects.size()).clear();
+    }
+
+    /// Makes use of the CSV format to load the selected track object type information
+    private TrackObjectType<?> parseType(ConfigurationNode config) {
+        if (config.contains("selectedTrackObject")) {
+            List<String> values = config.getList("selectedTrackObject", String.class);
+            if (values != null && !values.isEmpty()) {
+                StringArrayBuffer buffer = new StringArrayBuffer();
+                buffer.load(values);
+                try {
+                    TrackCoasterCSV.CSVEntry entry = TrackCoasterCSV.decode(buffer);
+                    if (entry instanceof TrackCoasterCSV.TrackObjectTypeEntry) {
+                        TrackCoasterCSV.TrackObjectTypeEntry<?> typeEntry = (TrackCoasterCSV.TrackObjectTypeEntry<?>) entry;
+                        if (typeEntry.objectType != null) {
+                            return typeEntry.objectType;
+                        }
+                    }
+                } catch (SyntaxException e) {
+                    this.editState.getPlugin().getLogger().log(Level.WARNING, "Failed to load track object type for " +
+                            this.getPlayer().getName(), e);
+                }
+            }
+        }
+        return createDefaultObjectType();
     }
 
     /// Moves selected track objects. Direction defines whether to walk to nodeA (false) or nodeB (true).

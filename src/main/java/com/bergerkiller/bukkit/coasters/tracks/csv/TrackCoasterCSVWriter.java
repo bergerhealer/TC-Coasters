@@ -12,17 +12,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.bukkit.inventory.ItemStack;
-
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectHolder;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
-import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.mountiplex.reflection.util.UniqueHash;
 import com.opencsv.CSVWriter;
 
@@ -37,7 +35,7 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
     private final Set<TrackNode> writtenNodes = new HashSet<TrackNode>();
     private final Set<TrackConnection> writtenConnections = new HashSet<TrackConnection>();
     private final List<TrackConnection> currConnections = new ArrayList<TrackConnection>();
-    private final Map<ItemStack, String> writtenItemStacks = new HashMap<ItemStack, String>();
+    private final Map<TrackObjectType<?>, String> writterTrackObjectTypes = new HashMap<TrackObjectType<?>, String>();
     private final UniqueHash writtenItemNameHash = new UniqueHash();
     private boolean writeLinksToForeignNodes = true;
 
@@ -317,29 +315,26 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
         for (TrackObject object : trackObjectHolder.getObjects()) {
             TrackCoasterCSV.ObjectEntry object_entry = new TrackCoasterCSV.ObjectEntry();
             object_entry.distance = object.getDistance();
-            object_entry.itemName = writeItemStack(object.getItem());
+            object_entry.itemName = writeTrackObjectType(object.getType());
             this.write(object_entry);
         }
     }
 
-    private String writeItemStack(ItemStack itemStack) throws IOException {
-        if (itemStack == null) {
+    private <T extends TrackObjectType<?>> String writeTrackObjectType(T type) throws IOException {
+        if (type == null) {
             return "";
         }
-        String name = this.writtenItemStacks.get(itemStack);
+        String name = this.writterTrackObjectTypes.get(type);
         if (name == null) {
             // Generate a name not already used
-            if (ItemUtil.hasDurability(itemStack)) {
-                name = this.writtenItemNameHash.nextHex() + "_I_" + itemStack.getType() + "_" + itemStack.getDurability();
-            } else {
-                name = this.writtenItemNameHash.nextHex() + "_I_" + itemStack.getType();
-            }
-            this.writtenItemStacks.put(itemStack, name);
+            name = this.writtenItemNameHash.nextHex() + "_" + type.generateName();
+            this.writterTrackObjectTypes.put(type, name);
 
-            TrackCoasterCSV.NamedItemStackEntry item_entry = new TrackCoasterCSV.NamedItemStackEntry();
-            item_entry.name = name;
-            item_entry.itemStack = itemStack;
-            this.write(item_entry);
+            // Write the type out
+            TrackCoasterCSV.TrackObjectTypeEntry<T> entry = TrackCoasterCSV.createTrackObjectTypeEntry(name, type);
+            if (entry != null) {
+                this.write(entry);
+            }
         }
         return name;
     }

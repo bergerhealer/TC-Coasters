@@ -5,6 +5,8 @@ import java.util.function.Supplier;
 import org.bukkit.inventory.ItemStack;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItemStack;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.tc.attachments.ui.ItemDropTarget;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetMenu;
@@ -20,12 +22,24 @@ public class ItemSelectMenu extends MapWidgetMenu implements ItemDropTarget {
             @Override
             public void onAttached() {
                 super.onAttached();
-                this.setSelectedItem(stateSupplier.get().getObjects().getSelectedItem());
+
+                TrackObjectType<?> type = stateSupplier.get().getObjects().getSelectedType();
+                if (type instanceof TrackObjectTypeItemStack) {
+                    this.setSelectedItem(((TrackObjectTypeItemStack) type).getItem());
+                }
             }
 
             @Override
             public void onSelectedItemChanged() {
-                stateSupplier.get().getObjects().setSelectedItem(this.getSelectedItem());
+                ItemStack item = this.getSelectedItem();
+                if (item == null) {
+                    return;
+                }
+                TrackObjectType<?> type = stateSupplier.get().getObjects().getSelectedType();
+                if (type instanceof TrackObjectTypeItemStack) {
+                    type = TrackObjectTypeItemStack.changeItem((TrackObjectTypeItemStack) type, item);
+                    stateSupplier.get().getObjects().setSelectedType(type);
+                }
             }
         });
         this.itemSelector.setPosition(7, 7);

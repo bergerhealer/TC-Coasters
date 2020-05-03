@@ -118,7 +118,7 @@ public class PlayerEditState implements CoasterWorldComponent {
 
             this.editMode = config.get("mode", PlayerEditMode.DISABLED);
             this.selectedAnimation = config.get("selectedAnimation", String.class, null);
-            this.getObjects().load(config.getNode("object"));
+            this.getObjects().load(config);
             this.editedNodes.clear();
             this.editedNodesByAnimationName.clear();
             this.editedAnimationNamesChanged = true;
@@ -165,7 +165,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         } else {
             config.set("selectedAnimation", this.selectedAnimation);
         }
-        this.getObjects().save(config.getNode("object"));
+        this.getObjects().save(config);
         config.save();
     }
 

@@ -12,6 +12,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItemStack;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
@@ -27,6 +29,7 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Quaternion;
+import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.opencsv.CSVReader;
 
 /**
@@ -34,9 +37,15 @@ import com.opencsv.CSVReader;
  */
 public class TrackCoasterCSV {
     private static final List<Map.Entry<CSVEntry, Supplier<CSVEntry>>> _entryTypes = new ArrayList<>();
+    private static final Map<Class<?>, Supplier<TrackObjectTypeEntry<?>>> _trackObjectTypes = new HashMap<>();
 
     public static void registerEntry(Supplier<CSVEntry> entrySupplier) {
-        _entryTypes.add(new AbstractMap.SimpleEntry<CSVEntry, Supplier<CSVEntry>>(entrySupplier.get(), entrySupplier));
+        CSVEntry entry = entrySupplier.get();
+        _entryTypes.add(new AbstractMap.SimpleEntry<CSVEntry, Supplier<CSVEntry>>(entry, entrySupplier));
+        if (entry instanceof TrackObjectTypeEntry) {
+            Class<?> objectTypeClass = ((TrackObjectTypeEntry<?>) entry).getTrackObjectTypeClass();
+            _trackObjectTypes.put(objectTypeClass, CommonUtil.unsafeCast(entrySupplier));
+        }
     }
 
     static {
@@ -47,9 +56,34 @@ public class TrackCoasterCSV {
         registerEntry(AnimationStateLinkNodeEntry::new);
         registerEntry(PlayerOrigin::new);
         registerEntry(LockCoasterEntry::new);
-        registerEntry(NamedItemStackEntry::new);
         registerEntry(ObjectEntry::new);
         registerEntry(NoLimits2Entry::new);
+
+        // Object types
+        registerEntry(TrackObjectTypeItemStackEntry::new);
+    }
+
+    /**
+     * Creates the appropriate entry for writing a track object type.
+     * Returns null if the type is not registered.
+     * The entry is initialized with the name and type.
+     * 
+     * @param name The name to store in the entry
+     * @param type The track object type to store in the entry
+     * @return entry for this type, if not registered, is null
+     */
+    public static <T extends TrackObjectType<?>> TrackObjectTypeEntry<T> createTrackObjectTypeEntry(String name, T type) {
+        if (type == null) {
+            return null;
+        }
+        Supplier<TrackObjectTypeEntry<?>> supplier = _trackObjectTypes.get(type.getClass());
+        if (supplier == null) {
+            return null;
+        }
+        TrackObjectTypeEntry<T> entry = CommonUtil.unsafeCast(supplier.get());
+        entry.name = name;
+        entry.objectType = type;
+        return entry;
     }
 
     /**
@@ -83,7 +117,7 @@ public class TrackCoasterCSV {
      * 
      * @param buffer
      * @return decoded entry, null if no entry was identified inside the buffer
-     * @throws EntrySyntaxException if decoding the entry fails
+     * @throws SyntaxException if decoding the entry fails
      */
     public static CSVEntry decode(StringArrayBuffer buffer) throws SyntaxException {
         for (Map.Entry<CSVEntry, Supplier<CSVEntry>> registeredEntry : _entryTypes) {
@@ -102,7 +136,7 @@ public class TrackCoasterCSV {
     public static final class CSVReaderState {
         public List<TrackConnectionState> pendingLinks = new ArrayList<TrackConnectionState>();
         public List<TrackConnectionState> prevNode_pendingLinks = new ArrayList<TrackConnectionState>();
-        public Map<String, ItemStack> itemStacksByName = new HashMap<>();
+        public Map<String, TrackObjectType<?>> trackObjectTypesByName = new HashMap<>();
         public List<TrackObject> pendingTrackObjects = new ArrayList<TrackObject>();
         public boolean prevNode_hasDefaultAnimationLinks = true;
         public TrackNode prevNode = null;
@@ -487,34 +521,96 @@ public class TrackCoasterCSV {
     }
 
     /**
-     * Stores the details of an ItemStack, which can later be referred to again by name
+     * Declares the details of a track object type implementation
      */
-    public static final class NamedItemStackEntry extends CSVEntry {
+    public static abstract class TrackObjectTypeEntry<T extends TrackObjectType<?>> extends CSVEntry {
         public String name;
-        public ItemStack itemStack;
+        public T objectType;
+
+        /**
+         * Gets the type name identifying this track object type entry.
+         * This is written out, and used to detect this entry.
+         * 
+         * @return type name
+         */
+        public abstract String getType();
+
+        /**
+         * Gets the type of class created by this entry. When saving, this
+         * identifies the entry to use when writing a type to csv.
+         *
+         * @return track object type class
+         */
+        public abstract Class<T> getTrackObjectTypeClass();
+
+        /**
+         * Reads further details of a track object
+         * 
+         * @param buffer The buffer to read from
+         * @return Fully parsed object type
+         * @throws SyntaxException
+         */
+        public abstract T readDetails(StringArrayBuffer buffer) throws SyntaxException;
+
+        /**
+         * Writes further details of the track object
+         * 
+         * @param buffer The buffer to write to
+         * @param objectType The object type to write
+         */
+        public abstract void writeDetails(StringArrayBuffer buffer, T objectType);
 
         @Override
         public boolean detect(StringArrayBuffer buffer) {
-            return buffer.get(0).equals("ITEMSTACK");
+            return buffer.get(0).equals(getType());
         }
 
         @Override
         public void read(StringArrayBuffer buffer) throws SyntaxException {
             buffer.next();
             this.name = buffer.next();
-            this.itemStack = buffer.nextItemStack();
+            this.objectType = this.readDetails(buffer);
         }
 
         @Override
         public void write(StringArrayBuffer buffer) {
-            buffer.put("ITEMSTACK");
+            buffer.put(getType());
             buffer.put(this.name);
-            buffer.putItemStack(this.itemStack);
+            writeDetails(buffer, this.objectType);
         }
 
         @Override
         public void processReader(CSVReaderState state) {
-            state.itemStacksByName.put(this.name, this.itemStack);
+            state.trackObjectTypesByName.put(this.name, this.objectType);
+        }
+    }
+
+    /**
+     * Stores the details of an ItemStack, which can later be referred to again by name
+     */
+    public static final class TrackObjectTypeItemStackEntry extends TrackObjectTypeEntry<TrackObjectTypeItemStack> {
+        @Override
+        public String getType() {
+            return "ITEMSTACK";
+        }
+
+        @Override
+        public Class<TrackObjectTypeItemStack> getTrackObjectTypeClass() {
+            return TrackObjectTypeItemStack.class;
+        }
+
+        @Override
+        public TrackObjectTypeItemStack readDetails(StringArrayBuffer buffer) throws SyntaxException {
+            ItemStack itemStack = buffer.nextItemStack();
+            if (itemStack == null) {
+                return null;
+            }
+            return TrackObjectTypeItemStack.create(itemStack);
+        }
+
+        @Override
+        public void writeDetails(StringArrayBuffer buffer, TrackObjectTypeItemStack objectType) {
+            buffer.putItemStack(objectType.getItem());
         }
     }
 
@@ -551,9 +647,9 @@ public class TrackCoasterCSV {
 
         @Override
         public void processReader(CSVReaderState state) {
-            ItemStack item = state.itemStacksByName.get(this.itemName);
-            if (item != null) {
-                state.pendingTrackObjects.add(new TrackObject(this.distance, item, this.flipped));
+            TrackObjectType<?> type = state.trackObjectTypesByName.get(this.itemName);
+            if (type != null) {
+                state.pendingTrackObjects.add(new TrackObject(type, this.distance, this.flipped));
             }
         }
     }

@@ -605,6 +605,10 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
             this.orientation = orientation;
         }
 
+        public CoasterWorld getWorld() {
+            return this.connection.getWorld();
+        }
+
         @Override
         public String toString() {
             return "{x=" + position.getX() + ", y=" + position.getY() + ", z=" + position.getZ() + ", distance=" + distance + "}";

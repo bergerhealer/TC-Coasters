@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.util;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
@@ -32,16 +33,35 @@ public class StringArrayBuffer implements Iterator<String> {
      * @param data to load
      */
     public void load(String[] data) {
-        if (data.length > this.buffer.length) {
+        growBuffer(data.length);
+        System.arraycopy(data, 0, this.buffer, 0, data.length);
+        this.size = data.length;
+        this.index = 0;
+    }
+
+    /**
+     * Loads this buffer with the data specified.
+     * Size will equal the data's length and read index will be reset to 0.
+     * 
+     * @param data to load
+     */
+    public void load(List<String> data) {
+        growBuffer(data.size());
+        this.size = data.size();
+        this.index = 0;
+        for (int i = 0; i < this.size; i++) {
+            this.buffer[i] = data.get(i);
+        }
+    }
+
+    private void growBuffer(int size) {
+        if (size > this.buffer.length) {
             int new_size = this.buffer.length;
-            while (data.length > new_size) {
+            while (size > new_size) {
                 new_size *= 2;
             }
             this.buffer = new String[new_size];
         }
-        System.arraycopy(data, 0, this.buffer, 0, data.length);
-        this.size = data.length;
-        this.index = 0;
     }
 
     /**

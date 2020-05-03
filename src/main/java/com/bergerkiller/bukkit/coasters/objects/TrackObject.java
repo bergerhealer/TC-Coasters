@@ -3,35 +3,72 @@ package com.bergerkiller.bukkit.coasters.objects;
 import java.util.List;
 
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
-import com.bergerkiller.bukkit.coasters.particles.TrackParticleObject;
+import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionPath;
+import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 
 /**
  * A single object on a connection
  */
-public class TrackObject implements Cloneable {
+public class TrackObject implements Cloneable, TrackParticleState.Source {
     public static final TrackObject[] EMPTY = new TrackObject[0];
+    private TrackObjectType<?> type;
+    private TrackParticle particle;
     private double distance;
     private boolean flipped;
-    private TrackParticleObject particle = null;
-    private ItemStack item;
 
-    public TrackObject(double distance, ItemStack item, boolean flipped) {
+    public TrackObject(TrackObjectType<?> type, double distance, boolean flipped) {
+        if (type == null) {
+            throw new IllegalArgumentException("Track object type can not be null");
+        }
+        this.type = type;
+        this.particle = null;
         this.distance = distance;
-        this.item = item;
         this.flipped = flipped;
     }
 
-    public ItemStack getItem() {
-        return this.item;
+    /**
+     * Gets the type of object displayed
+     * 
+     * @return object type
+     */
+    public TrackObjectType<?> getType() {
+        return this.type;
+    }
+
+    /**
+     * Sets the type of object displayed
+     * 
+     * @param connection Connection on which it is displayed (used for internal calculations)
+     * @param type The object type displayed
+     */
+    public void setType(TrackConnection connection, TrackObjectType<?> type) {
+        if (type == null) {
+            throw new IllegalArgumentException("Track object type can not be null");
+        }
+
+        this.type = type;
+
+        // Update particle (if already spawned)
+        if (this.particle != null) {
+            TrackConnection.PointOnPath point = findPointOnPath(connection);
+            if (this.type.getClass() == type.getClass()) {
+                // Same type, different properties, only an update of the particle is needed
+                this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
+            } else {
+                // Recreate (different type)
+                this.particle.remove();
+                this.particle = this.type.createParticle(point);
+                this.particle.setStateSource(this);
+            }
+        }
     }
 
     public double getDistance() {
@@ -68,7 +105,7 @@ public class TrackObject implements Cloneable {
             if (this.flipped) {
                 point.orientation.rotateYFlip();
             }
-            this.particle.setPositionOrientation(point.position, point.orientation);
+            this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
         }
     }
 
@@ -94,18 +131,17 @@ public class TrackObject implements Cloneable {
     }
 
     public void onAdded(TrackConnection connection, TrackConnectionPath path) {
+        TrackConnection.PointOnPath point = findPointOnPath(connection);
+        this.particle = this.type.createParticle(point);
+        this.particle.setStateSource(this);
+    }
+
+    private TrackConnection.PointOnPath findPointOnPath(TrackConnection connection) {
         TrackConnection.PointOnPath point = connection.findPointAtDistance(this.distance);
         if (this.flipped) {
             point.orientation.rotateYFlip();
         }
-        this.particle = connection.getWorld().getParticles().addParticleObject(point.position, point.orientation, item);
-        this.particle.setStateSource(new TrackParticleState.Source() {
-            @Override
-            public TrackParticleState getState(PlayerEditState viewer) {
-                return viewer.getMode() == PlayerEditMode.OBJECT && viewer.getObjects().isEditing(TrackObject.this) ? 
-                        TrackParticleState.SELECTED : TrackParticleState.DEFAULT;
-            }
-        });
+        return point;
     }
 
     public void onRemoved(TrackConnection connection) {
@@ -121,7 +157,7 @@ public class TrackObject implements Cloneable {
             if (this.flipped) {
                 point.orientation.rotateYFlip();
             }
-            this.particle.setPositionOrientation(point.position, point.orientation);
+            this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
         }
     }
 
@@ -133,7 +169,7 @@ public class TrackObject implements Cloneable {
 
     @Override
     public TrackObject clone() {
-        return new TrackObject(this.distance, this.item, this.flipped);
+        return new TrackObject(this.type, this.distance, this.flipped);
     }
 
     @Override
@@ -143,11 +179,17 @@ public class TrackObject implements Cloneable {
         } else if (o instanceof TrackObject) {
             TrackObject other = (TrackObject) o;
             return this.distance == other.distance &&
-                   this.item.equals(other.item) &&
+                   this.type.equals(other.type) &&
                    this.flipped == other.flipped;
         } else {
             return false;
         }
+    }
+
+    @Override
+    public TrackParticleState getState(PlayerEditState viewer) {
+        return viewer.getMode() == PlayerEditMode.OBJECT && viewer.getObjects().isEditing(this) ? 
+                TrackParticleState.SELECTED : TrackParticleState.DEFAULT;
     }
 
     /**
