@@ -41,8 +41,8 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         return this._world;
     }
 
-    public TrackParticleObject addParticleObject(Vector position, Quaternion orientation, ItemStack item, double width) {
-        return addParticle(new TrackParticleObject(position, orientation, item, width));
+    public TrackParticleArmorStandItem addParticleObject(Vector position, Quaternion orientation, ItemStack item, double width) {
+        return addParticle(new TrackParticleArmorStandItem(position, orientation, item, width));
     }
 
     public TrackParticleText addParticleTextNoItem(Vector position, String text) {

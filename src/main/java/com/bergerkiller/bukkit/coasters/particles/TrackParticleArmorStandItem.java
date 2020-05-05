@@ -29,7 +29,7 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityL
 /**
  * Displays an item or 3D model using the head of an armorstand
  */
-public class TrackParticleObject extends TrackParticle {
+public class TrackParticleArmorStandItem extends TrackParticle {
     private static final double ARMORSTAND_HEAD_OFFSET = 1.44;
     private static final ItemStack MARKER_ITEM = new ItemStack(MaterialUtil.getFirst("REDSTONE_TORCH", "LEGACY_REDSTONE_TORCH_ON"));
     private DoubleOctree.Entry<TrackParticle> position;
@@ -43,7 +43,7 @@ public class TrackParticleObject extends TrackParticle {
     private boolean poseChanged = false;
     private boolean itemChanged = false;
 
-    protected TrackParticleObject(Vector position, Quaternion orientation, ItemStack item, double width) {
+    protected TrackParticleArmorStandItem(Vector position, Quaternion orientation, ItemStack item, double width) {
         this.position = DoubleOctree.Entry.create(position, this);
         this.orientation = orientation.clone();
         this.item = item;

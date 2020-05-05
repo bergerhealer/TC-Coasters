@@ -2,7 +2,7 @@ package com.bergerkiller.bukkit.coasters.objects;
 
 import org.bukkit.inventory.ItemStack;
 
-import com.bergerkiller.bukkit.coasters.particles.TrackParticleObject;
+import com.bergerkiller.bukkit.coasters.particles.TrackParticleArmorStandItem;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
@@ -10,7 +10,7 @@ import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 /**
  * Item stack displayed on an armorstand
  */
-public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleObject> {
+public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleArmorStandItem> {
     private final double width;
     private final ItemStack item;
 
@@ -67,12 +67,12 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleOb
     }
 
     @Override
-    public TrackParticleObject createParticle(TrackConnection.PointOnPath point) {
+    public TrackParticleArmorStandItem createParticle(TrackConnection.PointOnPath point) {
         return point.getWorld().getParticles().addParticleObject(point.position, point.orientation, this.item, this.width);
     }
 
     @Override
-    public void updateParticle(TrackParticleObject particle, TrackConnection.PointOnPath point) {
+    public void updateParticle(TrackParticleArmorStandItem particle, TrackConnection.PointOnPath point) {
         particle.setPositionOrientation(point.position, point.orientation);
         particle.setItem(this.item);
         particle.setWidth(this.width);
