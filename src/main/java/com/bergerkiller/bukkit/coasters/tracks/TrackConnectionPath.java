@@ -1,36 +1,35 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
+import static com.bergerkiller.bukkit.coasters.TCCoastersUtil.sumComponents;
+
+import com.bergerkiller.bukkit.coasters.tracks.path.Bezier;
+import com.bergerkiller.bukkit.coasters.tracks.path.EndPoint;
+import com.bergerkiller.bukkit.coasters.tracks.path.Node;
+import com.bergerkiller.bukkit.coasters.tracks.path.TrackConnectionPathImpl;
+import com.bergerkiller.bukkit.coasters.tracks.path.ViewPointOption;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 
 /**
  * Helper object for computing track path information
  */
-public class TrackConnectionPath {
-    public final EndPoint endA;
-    public final EndPoint endB;
+public interface TrackConnectionPath {
 
-    public TrackConnectionPath(EndPoint endA, EndPoint endB) {
-        this.endA = endA;
-        this.endB = endB;
-    }
+    /**
+     * Gets the bezier path start endpoint
+     * 
+     * @return end point A
+     */
+    EndPoint getEndA();
 
-    // Currently only used under test
-    public static TrackConnectionPath create(Vector endA_position, Vector endA_direction, Vector endB_position, Vector endB_direction) {
-        return new TrackConnectionPath(
-                EndPoint.create(endA_position, endA_direction, endB_position, endB_direction),
-                EndPoint.create(endB_position, endB_direction, endA_position, endA_direction));
-    }
-
-    private static double sumComponents(Vector v) {
-        return v.getX() + v.getY() + v.getZ();
-    }
+    /**
+     * Gets the bezier path end endpoint
+     * 
+     * @return end point B
+     */
+    EndPoint getEndB();
 
     /**
      * Walks this path from the start a distance towards the end, calculating the theta
@@ -39,7 +38,7 @@ public class TrackConnectionPath {
      * @param distance The distance to walk from the start
      * @return theta value of the point at the distance
      */
-    public double findPointThetaAtDistance(double distance) {
+    default double findPointThetaAtDistance(double distance) {
         if (distance <= 0.0) {
             // Past start of path
             return 0.0;
@@ -75,136 +74,8 @@ public class TrackConnectionPath {
      * @param t1 End theta
      * @return Estimated distance
      */
-    public double computeDistance(double t0, double t1) {
+    default double computeDistance(double t0, double t1) {
         return Node.init(this, t0, t1).define(this, 1e-4, Double.MAX_VALUE);
-    }
-
-    /**
-     * A single node on a discrete version of this connection path.
-     * Only one discrete path can exist at one time, this memory is cached and reused.
-     */
-    private static class Node {
-        private static Node[] node_cache = new Node[] { new Node(), new Node() };
-        private static final AtomicInteger node_index = new AtomicInteger(0);
-        public Node next;
-        public final Vector position;
-        public double theta;
-        public double distanceToNext;
-
-        private Node() {
-            this.position = new Vector();
-        }
-
-        /**
-         * Inserts nodes between this node and this node's end of the chain until the
-         * difference falls below the precision specified. The path is defined from start to finish,
-         * with max_distance used to abort path construction early on.
-         * 
-         * @param path The path used to calculate the node positions
-         * @param precision The precision at which to subdivide the path
-         * @param max_distance The maximum distance above which to stop defining further
-         * @return total distance of the computed path
-         */
-        public double define(TrackConnectionPath path, double precision, double max_distance) {
-            // Process in a loop
-            double totalDistance = 0.0;
-            Node current = this;
-            while (true) {
-                // Insert two nodes between current and current's next node
-                // Keep the original distance to next, we need it for termination
-                double currentNextDistance = current.distanceToNext;
-                double t0 = current.theta;
-                double t1 = current.next.theta;
-                double ht = 0.5 * (t0 + t1);
-
-                // Insert three nodes between current and next and compute their distances
-                // We insert three so we can avoid the S-curve trap that can occur with a quadratic bezier curve
-                // We don't insert two because the theta values are slow in binary (0.333...) (0.5* is fast!)
-                current.insertThree();
-
-                // Compute positions and distances between the creates nodes
-                Node m0 = current.next;
-                Node m1 = m0.next;
-                Node m2 = m1.next;
-                m0.computePosition(path, 0.5 * (t0 + ht));
-                m1.computePosition(path, ht);
-                m2.computePosition(path, 0.5 * (t1 + ht));
-                double summed = current.computeDistanceToNext() +
-                                m0.computeDistanceToNext() +
-                                m1.computeDistanceToNext() +
-                                m2.computeDistanceToNext();
-     
-                // If distance difference is small enough, then this section is complete
-                if ((summed - currentNextDistance) < precision) {
-                    totalDistance += summed;
-                    current = m2.next;
-                    if (current.next == null || totalDistance > max_distance) {
-                        break;
-                    }
-                }
-            }
-            return totalDistance;
-        }
-
-        public void computePosition(TrackConnectionPath path, double theta) {
-            this.theta = theta;
-            path.getPosition(theta, this.position);
-        }
-
-        public double computeDistanceToNext() {
-            return this.distanceToNext = this.position.distance(this.next.position);
-        }
-
-        /**
-         * Inserts tree more nodes between this node and this node's next node.
-         */
-        public void insertThree() {
-            int index = node_index.getAndAdd(3);
-            Node last;
-
-            // Get the last node. (Ab)use out of bounds exception to resize the cache if needed
-            try {
-                last = node_cache[index + 2];
-            } catch (ArrayIndexOutOfBoundsException ex) {
-                reserve();
-                last = node_cache[index + 2];
-            }
-
-            last.next = this.next;
-            this.next = node_cache[index];
-            this.next.next = node_cache[index + 1];
-            this.next.next.next = last;
-        }
-
-        /**
-         * Resets the node cache and initializes it with the start and end nodes of the path
-         * to compute.
-         * 
-         * @param path
-         * @param t0
-         * @param t1
-         * @return root node
-         */
-        public static Node init(TrackConnectionPath path, double t0, double t1) {
-            node_index.set(2);
-            Node root = node_cache[0];
-            root.next = node_cache[1];
-            root.next.next = null;
-            root.computePosition(path, t0);
-            root.next.computePosition(path, t1);
-            root.computeDistanceToNext();
-            return root;
-        }
-
-        // Doubles the capacity of the cache, with a size of at least 512
-        private static void reserve() {
-            int old_size = node_cache.length;
-            int new_size = Math.max(512, old_size * 2);
-            node_cache = Arrays.copyOf(node_cache, new_size);
-            for (int i = old_size; i < new_size; i++) {
-                node_cache[i] = new Node();
-            }
-        }
     }
 
     /**
@@ -215,7 +86,7 @@ public class TrackConnectionPath {
      * @param t1 End theta
      * @return theta value that lies closest
      */
-    public double findClosestPointInView(Matrix4x4 playerViewMatrixInverted, double t0, double t1) {
+    default double findClosestPointInView(Matrix4x4 playerViewMatrixInverted, double t0, double t1) {
         // Create 5 view point options which are linked together
         ViewPointOption head = new ViewPointOption(null, 5);
         ViewPointOption tail = head.next.next.next.next;
@@ -224,113 +95,7 @@ public class TrackConnectionPath {
         head.update(this, playerViewMatrixInverted, t0);
         tail.update(this, playerViewMatrixInverted, t1);
 
-        return findClosestPointOptionInView(playerViewMatrixInverted, head, ViewPointOption.NONE).theta;
-    }
-
-    private ViewPointOption findClosestPointOptionInView(Matrix4x4 playerViewMatrixInverted, ViewPointOption head, ViewPointOption alternative) {
-        // Take the middle point and the head/tail of the 5-point view point options
-        ViewPointOption mid = head.next.next;
-        ViewPointOption tail = mid.next.next;
-
-        search:
-        while (true) {
-            // Calculate middle 3 points using head and tail theta values
-            double ht = 0.5 * (head.theta + tail.theta);
-            mid.prev.update(this, playerViewMatrixInverted, 0.5 * (head.theta + ht));
-            mid.update(this, playerViewMatrixInverted, ht);
-            mid.next.update(this, playerViewMatrixInverted, 0.5 * (tail.theta + ht));
-
-            // Narrow the search window until we've found a peak on the curve
-            // If we find two peaks, then split the search in two
-            ViewPointOption best = head;
-
-            narrowing: {
-                ViewPointOption other = tail;
-                while (best.distance >= best.next.distance) {
-                    best = best.next;
-                    if (best == other) {
-                        break narrowing; // Found peak, narrow the window
-                    }
-                }
-                while (other.distance >= other.prev.distance) {
-                    other = other.prev;
-                    if (best == other) {
-                        break narrowing; // Found peak, narrow the window
-                    }
-                }
-
-                // There are two curves here. Split in two separate search operations.
-                // Original method:
-                //   ViewPointOption a = findClosestPointOptionInView(playerViewMatrixInverted, head.theta, mid.theta);
-                //   ViewPointOption b = findClosestPointOptionInView(playerViewMatrixInverted, mid.theta, tail.theta);
-                //   return (a.distance > b.distance) ? b : a;
-
-                // New:
-                // One is run in a recursive function invocation, the other continues running here.
-                // It replaces any previous (worse) alternative we found prior
-                ViewPointOption new_alternative_head = new ViewPointOption(null, 5);
-                new_alternative_head.assign(head);
-                new_alternative_head.next.next.next.next.assign(mid);
-                alternative = findClosestPointOptionInView(playerViewMatrixInverted, new_alternative_head, alternative);
-
-                // Resume this function between mid and tail
-                head.assign(mid);
-                continue search;
-            }
-
-            // Found a 'best' node that follows a simple parabolic curve ^
-            // Find best view point option with lowest distance from where the player is looking
-            if (best == head || best.prev == head) {
-                // Only tail has to be assigned, head is already good
-                tail.assign(best.next);
-            } else if (best == tail || best.next == tail) {
-                // Only head has to be assigned, tail is already good
-                head.assign(best.prev);
-            } else {
-                // Head and tail both must be assigned
-                head.assign(best.prev);
-                tail.assign(best.next);
-            }
-
-            // If difference in distance is negligible, return the best result
-            if ((head.distance - best.distance) < 1e-5 && (tail.distance - best.distance) < 1e-5) {
-                return (best.distance > alternative.distance) ? alternative : best;
-            }
-        }
-    }
-
-    // Helper class for sorting the different points on the path
-    private static final class ViewPointOption {
-        public static final ViewPointOption NONE = new ViewPointOption();
-        public final ViewPointOption prev, next;
-        private final Vector position = new Vector();
-        public double theta = 0.0;
-        public double distance;
-
-        // No alternative constructor
-        private ViewPointOption() {
-            this.prev = null;
-            this.next = null;
-            this.theta = 0.0;
-            this.distance = Double.MAX_VALUE;
-        }
-
-        public ViewPointOption(ViewPointOption prev, int len) {
-            this.prev = prev;
-            this.next = (len <= 1) ? null : new ViewPointOption(this, len-1);
-        }
-
-        public void update(TrackConnectionPath path, Matrix4x4 playerViewMatrixInverted, double theta) {
-            this.theta = theta;
-            path.getPosition(theta, this.position);
-            playerViewMatrixInverted.transformPoint(this.position);
-            this.distance = TCCoastersUtil.distanceSquaredXY(this.position);
-        }
-
-        public void assign(ViewPointOption opt) {
-            this.theta = opt.theta;
-            this.distance = opt.distance;
-        }
+        return ViewPointOption.findClosestPointOptionInView(this, playerViewMatrixInverted, head, ViewPointOption.NONE).theta;
     }
 
     /**
@@ -342,7 +107,7 @@ public class TrackConnectionPath {
      * @param t1
      * @return linear error
      */
-    public double getLinearError(double t0, double t1) {
+    default double getLinearError(double t0, double t1) {
         // Swap t0 and t1 to make sure t1 > t0
         // When this is not done the error could be negative if t0 > t1.
         // TODO: Make an ABS of the error at the end is easier.
@@ -463,10 +228,10 @@ public class TrackConnectionPath {
          * This means you can sum the X/Y/Z multipliers together and only use a single group.
          */
 
-        BezierInput b0 = new BezierInput().setup_k1(t0);
-        BezierInput b1 = new BezierInput().setup_k1(t1);
+        Bezier b0 = Bezier.create(this).setup_k1(t0);
+        Bezier b1 = Bezier.create(this).setup_k1(t1);
 
-        Vector delta = bezier(b1.fpA-b0.fpA, b1.fpB-b0.fpB, b1.fdA-b0.fdA, b1.fdB-b0.fdB);
+        Vector delta = Bezier.compute(this.getEndA(), this.getEndB(), b1.fpA-b0.fpA, b1.fpB-b0.fpB, b1.fdA-b0.fdA, b1.fdB-b0.fdB, new Vector());
         double delta_NZ = MathUtil.getNormalizationFactor(delta);
         if (Double.isFinite(delta_NZ)) {
             delta.multiply(delta_NZ);
@@ -474,15 +239,18 @@ public class TrackConnectionPath {
             return 0.0; // Zero length path
         }
 
-        Vector pA = this.endA.getPosition();
-        Vector pB = this.endB.getPosition();
-        Vector dA = this.endA.getDirection();
-        Vector dB = this.endB.getDirection();
+        EndPoint endA = this.getEndA();
+        EndPoint endB = this.getEndB();
+
+        Vector pA = endA.getPosition();
+        Vector pB = endB.getPosition();
+        Vector dA = endA.getDirection();
+        Vector dB = endB.getDirection();
 
         Vector pA_f = pA.clone().subtract(delta.clone().multiply(pA.dot(delta)));
         Vector pB_f = pB.clone().subtract(delta.clone().multiply(pB.dot(delta)));
-        Vector dA_f = dA.clone().subtract(delta.clone().multiply(dA.dot(delta))).multiply(this.endA.getStrength());
-        Vector dB_f = dB.clone().subtract(delta.clone().multiply(dB.dot(delta))).multiply(this.endB.getStrength());
+        Vector dA_f = dA.clone().subtract(delta.clone().multiply(dA.dot(delta))).multiply(endA.getStrength());
+        Vector dB_f = dB.clone().subtract(delta.clone().multiply(dB.dot(delta))).multiply(endB.getStrength());
         Vector t0_pA_f = pA_f.clone().multiply(b0.fpA);
         Vector t0_pB_f = pB_f.clone().multiply(b0.fpB);
         Vector t0_dA_f = dA_f.clone().multiply(b0.fdA);
@@ -564,9 +332,9 @@ public class TrackConnectionPath {
      * @param t [0 ... 1]
      * @return absition at t
      */
-    public Vector getAbsition(double t) {
+    default Vector getAbsition(double t) {
         // Primitive of getPosition(t)
-        return bezier(new BezierInput().setup_k2(t));
+        return Bezier.create(this).setup_k2(t).compute();
     }
 
     /**
@@ -575,8 +343,8 @@ public class TrackConnectionPath {
      * @param t [0 ... 1]
      * @return position at t
      */    
-    public Vector getPosition(double t) {
-        return bezier(new BezierInput().setup_k1(t));
+    default Vector getPosition(double t) {
+        return Bezier.create(this).setup_k1(t).compute();
     }
 
     /**
@@ -586,8 +354,8 @@ public class TrackConnectionPath {
      * @param out_pos Vector value which will be set to the position at t
      * @return out_pos
      */
-    public Vector getPosition(double t, Vector out_pos) {
-        return bezier(new BezierInput().setup_k1(t), out_pos);
+    default Vector getPosition(double t, Vector out_pos) {
+        return Bezier.create(this).setup_k1(t).compute(out_pos);
     }
 
     /**
@@ -596,9 +364,9 @@ public class TrackConnectionPath {
      * @param t [0 ... 1]
      * @return motion vector at t
      */
-    public Vector getMotionVector(double t) {
+    default Vector getMotionVector(double t) {
         // Derivative of getPosition(t)
-        Vector motion = bezier(new BezierInput().setup_k0(t));
+        Vector motion = Bezier.create(this).setup_k0(t).compute();
         double motion_NZ = MathUtil.getNormalizationFactor(motion);
         if (Double.isFinite(motion_NZ)) {
             motion.multiply(motion_NZ);
@@ -606,183 +374,18 @@ public class TrackConnectionPath {
         return motion;
     }
 
-    private Vector bezier(BezierInput bezier) {
-        return bezier(bezier, new Vector());
-    }
-
-    private Vector bezier(BezierInput bezier, Vector out_vec) {
-        return bezier(bezier.fpA, bezier.fpB, bezier.fdA, bezier.fdB, out_vec);
-    }
-
-    private Vector bezier(double fpA, double fpB, double fdA, double fdB) {
-        return bezier(fpA, fpB, fdA, fdB, new Vector());
-    }
-
-    private Vector bezier(double fpA, double fpB, double fdA, double fdB, Vector out_vec) {
-        double pfdA = fdA * this.endA.getStrength();
-        double pfdB = fdB * this.endB.getStrength();
-        Vector pA = this.endA.getPosition();
-        Vector pB = this.endB.getPosition();
-        Vector dA = this.endA.getDirection();
-        Vector dB = this.endB.getDirection();
-        out_vec.setX(fpA*pA.getX() + fpB*pB.getX() + pfdA*dA.getX() + pfdB*dB.getX());
-        out_vec.setY(fpA*pA.getY() + fpB*pB.getY() + pfdA*dA.getY() + pfdB*dB.getY());
-        out_vec.setZ(fpA*pA.getZ() + fpB*pB.getZ() + pfdA*dA.getZ() + pfdB*dB.getZ());
-        return out_vec;
-    }
-
     /**
-     * An endpoint of a bezier curve, which computes and stores the
-     * direction of the curve and the distance (weight) of the end.
-     * Right now the weight for both ends are always equal.
+     * Creates a track connection path with the given bezier curve end point positions and directions
+     * 
+     * @param endA_position
+     * @param endA_direction
+     * @param endB_position
+     * @param endB_direction
+     * @return path
      */
-    public static abstract class EndPoint {
-        private Vector direction = new Vector();
-        private double strength = 0.0;
-
-        // These must be implemented as input for the algorithm
-        public abstract Vector getNodePosition();
-        public abstract Vector getNodeDirection();
-        public abstract Vector getOtherNodePosition();
-        public abstract Vector getOtherNodeDirection();
-
-        public void initAuto() {
-            this.direction = getOtherNodePosition().clone().subtract(getNodePosition()).normalize();
-            this.updateDistance();
-        }
-
-        public void initNormal() {
-            this.direction = getNodeDirection();
-            this.updateDistance();
-        }
-
-        public void initInverted() {
-            this.direction = getNodeDirection().clone().multiply(-1.0);
-            this.updateDistance();
-        }
-
-        private final void updateDistance() {
-            this.strength = 0.5 * getNodePosition().distance(getOtherNodePosition());
-            if (Double.isNaN(this.direction.getX())) {
-                this.direction = new Vector(1.0, 0.0, 0.0);
-            }
-        }
-
-        public final Vector getPosition() {
-            return this.getNodePosition();
-        }
-
-        public final Vector getDirection() {
-            return this.direction;
-        }
-
-        /**
-         * Gets the distance between the two nodes
-         * 
-         * @return distance
-         */
-        public final double getDistance() {
-            return 2.0 * this.strength;
-        }
-
-        /**
-         * Gets the strength of the curve, based on distance between the nodes
-         * 
-         * @return curve strength
-         */
-        public final double getStrength() {
-            return this.strength;
-        }
-
-        public static EndPoint create(Vector nodePosition, Vector nodeDirection, Vector otherPosition, Vector otherDirection) {
-            return new EndPointImpl(nodePosition, nodeDirection, otherPosition, otherDirection);
-        }
-    }
-
-    private static class EndPointImpl extends EndPoint {
-        private final Vector _nodePosition;
-        private final Vector _nodeDirection;
-        private final Vector _otherPosition;
-        private final Vector _otherDirection;
-
-        public EndPointImpl(Vector nodePosition, Vector nodeDirection, Vector otherPosition, Vector otherDirection) {
-            this._nodePosition = nodePosition;
-            this._nodeDirection = nodeDirection.clone().normalize();
-            this._otherPosition = otherPosition;
-            this._otherDirection = otherDirection.clone().normalize();
-        }
-
-        @Override
-        public Vector getNodePosition() {
-            return _nodePosition;
-        }
-
-        @Override
-        public Vector getNodeDirection() {
-            return _nodeDirection;
-        }
-
-        @Override
-        public Vector getOtherNodePosition() {
-            return _otherPosition;
-        }
-
-        @Override
-        public Vector getOtherNodeDirection() {
-            return _otherDirection;
-        }
-    }
-
-    // https://pomax.github.io/bezierinfo/#decasteljau
-    private final class BezierInput {
-        public double fpA, fpB, fdA, fdB;
-
-        public BezierInput setup_k0(double t) {
-            double t2 = t*t;
-
-            // fpB = -6t^2 + 6t
-            // fpA = 6t^2 - 6t
-            // fdB = -9t^2 + 6t
-            // fdA = 9t^2 - 12t + 3
-
-            fpB = 6.0 * (t - t2);
-            fpA = -fpB;
-            fdB = fpB - 3.0 * t2;
-            fdA = -fdB - 6.0 * t + 3.0;
-            return this;
-        }
-
-        public BezierInput setup_k1(double t) {
-            double t2 = t*t;
-            double t3 = t2*t;
-
-            // fpA = 2t^3 - 3t^2 + 1.0
-            // fpB = -2t^3 + 3t^2
-            // fdA = 3t^3 - 6t^2 + 3t
-            // fdB = -3t^3 + 3t^2
-
-            fpB = -2.0 * t3 + 3.0 * t2;
-            fpA = -fpB + 1.0;
-            fdB = fpB - t3;
-            fdA = -fpB + t3 + 3.0 * (t - t2);
-            return this;
-        }
-
-        public BezierInput setup_k2(double t) {
-            double t2 = t*t;
-            double t3 = t2*t;
-            double t4 = t2*t2;
-
-            // fpB = -0.5t^4 + t^3
-            // fpA = 0.5t^4 - t^3 + t
-            // fdB = -0.75t^4 + t^3
-            // fdA = 0.75t^4 - 2t^3 + 1.5t^2
-
-            fpB = -0.5 * t4 + t3;
-            fpA = -fpB + t;
-            fdB = -0.75 * t4 + t3;
-            fdA = -fdB - t3 + 1.5*t2;
-            return this;
-        }
+    public static TrackConnectionPath create(Vector endA_position, Vector endA_direction, Vector endB_position, Vector endB_direction) {
+        return new TrackConnectionPathImpl(
+                EndPoint.create(endA_position, endA_direction, endB_position, endB_direction),
+                EndPoint.create(endB_position, endB_direction, endA_position, endA_direction));
     }
 }

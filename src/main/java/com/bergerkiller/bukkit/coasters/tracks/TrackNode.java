@@ -384,7 +384,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             TrackConnection conn = connections.get(i);
 
             // Recalculate the smoothening algorithm for all connections
-            TrackConnection.EndPoint end;
+            TrackConnection.NodeEndPoint end;
             if (this == conn._endA.node) {
                 end = conn._endA;
             } else {

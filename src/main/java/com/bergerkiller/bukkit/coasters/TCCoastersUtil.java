@@ -46,6 +46,10 @@ public class TCCoastersUtil {
         return p.getX()*p.getX()+p.getY()*p.getY();
     }
 
+    public static double sumComponents(Vector v) {
+        return v.getX() + v.getY() + v.getZ();
+    }
+
     public static void snapToBlock(World world, Vector eyePos, Vector position, Vector orientation) {
         // Direction vector to move into to find a free air block
         double wX = eyePos.getX() - position.getX();

@@ -105,7 +105,6 @@ public class TrackWorld implements CoasterWorldComponent {
 
         double bestViewDistance = Double.MAX_VALUE;
         TrackConnection bestConnection = null;
-        TrackConnectionPath bestPath = null;
         double bestTheta = 0.0;
         Vector bestPosition = null;
         for (TrackCoaster coaster : getCoasters()) {
@@ -131,20 +130,18 @@ public class TrackWorld implements CoasterWorldComponent {
 
                     // Find closest point
                     double theta;
-                    TrackConnectionPath path = connection.getPath();
                     if (connection.getNodeA() == node) {
-                        theta = path.findClosestPointInView(cameraTransform, 0.0, 0.5);
+                        theta = connection.findClosestPointInView(cameraTransform, 0.0, 0.5);
                     } else {
-                        theta = path.findClosestPointInView(cameraTransform, 0.5, 1.0);
+                        theta = connection.findClosestPointInView(cameraTransform, 0.5, 1.0);
                     }
 
                     // View function matching
-                    Vector positionOnPath = path.getPosition(theta);
+                    Vector positionOnPath = connection.getPosition(theta);
                     double viewDistance = getViewDistance(cameraTransform, positionOnPath);
                     if (viewDistance < bestViewDistance) {
                         bestViewDistance = viewDistance;
                         bestConnection = connection;
-                        bestPath = path;
                         bestTheta = theta;
                         bestPosition = positionOnPath;
                     }
@@ -156,12 +153,12 @@ public class TrackWorld implements CoasterWorldComponent {
         }
 
         // Get motion vector on the path. Make sure it is consistent, flip it to always be net positive.
-        Vector motionVector = bestPath.getMotionVector(bestTheta);
+        Vector motionVector = bestConnection.getMotionVector(bestTheta);
         if ((motionVector.getX() + motionVector.getY() + motionVector.getZ()) < 0.0) {
             motionVector.multiply(-1.0);
         }
 
-        double bestDistance = bestPath.computeDistance(0.0, bestTheta);
+        double bestDistance = bestConnection.computeDistance(0.0, bestTheta);
         Quaternion bestOrientation = Quaternion.fromLookDirection(motionVector, bestConnection.getOrientation(bestTheta));
         return new TrackConnection.PointOnPath(bestConnection, bestTheta, bestDistance, bestPosition, bestOrientation);
     }

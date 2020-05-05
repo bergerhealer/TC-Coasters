@@ -132,7 +132,7 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
         this.flipped = flipped;
     }
 
-    public void onAdded(TrackConnection connection, TrackConnectionPath path) {
+    public void onAdded(TrackConnection connection) {
         TrackConnection.PointOnPath point = findPointOnPath(connection);
         this.particle = this.type.createParticle(point);
         this.particle.setStateSource(this);

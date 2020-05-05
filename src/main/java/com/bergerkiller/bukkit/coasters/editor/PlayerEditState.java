@@ -1097,7 +1097,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         // Select these created nodes
         List<TrackNode> createdConnNodes = new ArrayList<TrackNode>();
         for (TrackConnection conn : selectedConnections) {
-            Vector newNodePos = conn.getPath().getPosition(0.5);
+            Vector newNodePos = conn.getPosition(0.5);
             Vector newNodeOri = conn.getOrientation(0.5);
 
             this.setEditing(conn.getNodeA(), false);

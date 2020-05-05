@@ -16,10 +16,10 @@ import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectHolder;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
-import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionPath;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
+import com.bergerkiller.bukkit.coasters.tracks.path.EndPoint;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.mountiplex.reflection.util.UniqueHash;
 import com.opencsv.CSVWriter;
@@ -95,7 +95,7 @@ public class TrackCoasterCSVWriter implements AutoCloseable {
             if (chain.links.isEmpty()) {
                 entry.setOrientation(node.getDirection(), node.getOrientation());
             } else {
-                TrackConnectionPath.EndPoint firstStartPoint = chain.links.get(0).getEndPoint(node);
+                EndPoint firstStartPoint = chain.links.get(0).getEndPoint(node);
                 entry.setOrientation(firstStartPoint.getDirection(), node.getOrientation());
             }
             this.write(entry);

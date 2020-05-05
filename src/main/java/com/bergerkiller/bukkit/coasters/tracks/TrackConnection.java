@@ -10,6 +10,7 @@ import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectHolder;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleLine;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
+import com.bergerkiller.bukkit.coasters.tracks.path.EndPoint;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -22,17 +23,17 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 /**
  * The connection between two track nodes
  */
-public class TrackConnection implements Lockable, CoasterWorldComponent, TrackObjectHolder {
+public class TrackConnection implements Lockable, CoasterWorldComponent, TrackObjectHolder, TrackConnectionPath {
     protected static final TrackConnection[] EMPTY_ARR = new TrackConnection[0];
-    protected EndPoint _endA;
-    protected EndPoint _endB;
+    protected NodeEndPoint _endA;
+    protected NodeEndPoint _endB;
     private List<TrackParticleLine> lines = new ArrayList<TrackParticleLine>();
     private TrackObject[] objects = TrackObject.EMPTY;
     private double fullDistance = Double.NaN;
 
     protected TrackConnection(TrackNode nodeA, TrackNode nodeB) {
-        this._endA = new EndPoint(nodeA, nodeB);
-        this._endB = new EndPoint(nodeB, nodeA);
+        this._endA = new NodeEndPoint(nodeA, nodeB);
+        this._endB = new NodeEndPoint(nodeB, nodeA);
     }
 
     @Override
@@ -58,13 +59,23 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
         return this._endB.node;
     }
 
+    @Override
+    public EndPoint getEndA() {
+        return this._endA;
+    }
+
+    @Override
+    public EndPoint getEndB() {
+        return this._endB;
+    }
+
     /**
      * Gets the endpoint of node making up this connection pair
      * 
      * @param node to get the end point for
      * @return end point
      */
-    public TrackConnectionPath.EndPoint getEndPoint(TrackNode node) {
+    public EndPoint getEndPoint(TrackNode node) {
         return (this._endA.node == node) ? this._endA : this._endB;
     }
 
@@ -86,7 +97,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
      */
     public double getFullDistance() {
         if (Double.isNaN(this.fullDistance)) {
-            this.fullDistance = this.getPath().computeDistance(0.0, 1.0);
+            this.fullDistance = this.computeDistance(0.0, 1.0);
         }
         return this.fullDistance;
     }
@@ -99,7 +110,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
     public void swapEnds() {
         // Swap endpoints
         {
-            EndPoint tmp = this._endA;
+            NodeEndPoint tmp = this._endA;
             this._endA = this._endB;
             this._endB = tmp;
         }
@@ -168,11 +179,11 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
     public Vector getNearEndPosition(TrackNode endNode) {
         int n = this.getPointCount();
         if (n <= 2) {
-            return this.getPath().getPosition(0.5);
+            return this.getPosition(0.5);
         } else if (endNode == this.getNodeA()) {
-            return this.getPath().getPosition((double) 1 / (double) (n-1));
+            return this.getPosition((double) 1 / (double) (n-1));
         } else {
-            return this.getPath().getPosition((double) (n-2) / (double) (n-1));
+            return this.getPosition((double) (n-2) / (double) (n-1));
         }
     }
 
@@ -194,7 +205,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
     public void addObject(TrackObject object) {
         this.objects = LogicUtil.appendArray(this.objects, object);
         this.markChanged();
-        object.onAdded(this, this.getPath());
+        object.onAdded(this);
     }
 
     /**
@@ -295,14 +306,13 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
         // d1 and d2 are the diff between p1-p3 and p2-p4
 
         // Calculate the points forming the line
-        TrackConnectionPath path = this.getPath();
         int n = this.getPointCount();
         Vector[] points = new Vector[n];
         points[0] = this._endA.node.getPosition();
         points[n-1] = this._endB.node.getPosition();
         for (int i = 1; i < (n-1); i++) {
             double t = ((double) i / (double) (n-1));
-            points[i] = path.getPosition(t);
+            points[i] = getPosition(t);
         }
 
         if ((n - 1) != this.lines.size()) {
@@ -336,8 +346,6 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
      * @param t1
      */
     public void buildPath(List<RailPath.Point> points, IntVector3 railsPos, double smoothness, double t0, double t1) {
-        TrackConnectionPath path = this.getPath();
-
         // Initial point
         points.add(getPathPoint(railsPos,  t0));
 
@@ -359,7 +367,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
             double curr_t1 = t1;
             do {
                 // When error is small enough, stop
-                double error = path.getLinearError(curr_t0, curr_t1);
+                double error = getLinearError(curr_t0, curr_t1);
                 if (error <= threshold) {
                     //System.out.println("ADD SEGMENT DELTA=" + (curr_t1 - curr_t0) + " ERROR " + error);
                     break;
@@ -480,7 +488,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
      * @return point at t
      */
     public RailPath.Point getPathPoint(IntVector3 railsPos, double t) {
-        Vector pos = getPath().getPosition(t);
+        Vector pos = getPosition(t);
         pos.setX(pos.getX() - railsPos.x);
         pos.setY(pos.getY() - railsPos.y);
         pos.setZ(pos.getZ() - railsPos.z);
@@ -496,9 +504,8 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
      * @return path position
      */
     public RailPath.Position getPathPosition(TrackNode from, double t) {
-        TrackConnectionPath path = this.getPath();
-        RailPath.Position p = RailPath.Position.fromPosDir(path.getPosition(t), getOrientation(t));
-        p.setMotion(path.getMotionVector(t));
+        RailPath.Position p = RailPath.Position.fromPosDir(getPosition(t), getOrientation(t));
+        p.setMotion(getMotionVector(t));
         if (from == this._endB.node) {
             p.invertMotion();
         }
@@ -516,16 +523,6 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
     }
 
     /**
-     * Gets the path of this track connection, from which spatial information
-     * can be computed.
-     * 
-     * @return path
-     */
-    public TrackConnectionPath getPath() {
-        return new TrackConnectionPath(this._endA, this._endB);
-    }
-
-    /**
      * Walks this path from the start a distance towards the end, obtaining a point
      * on the path found a distance away.
      * 
@@ -533,10 +530,9 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
      * @return point on the path at distance
      */
     public TrackConnection.PointOnPath findPointAtDistance(double distance) {
-        TrackConnectionPath path = this.getPath();
-        double theta = path.findPointThetaAtDistance(distance);
-        Vector position = path.getPosition(theta);
-        Vector motionVector = path.getMotionVector(theta);
+        double theta = findPointThetaAtDistance(distance);
+        Vector position = getPosition(theta);
+        Vector motionVector = getMotionVector(theta);
         Quaternion orientation = Quaternion.fromLookDirection(motionVector, this.getOrientation(theta));
         return new TrackConnection.PointOnPath(this, theta, distance, position, orientation);
     }
@@ -569,15 +565,14 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
 
         Vector position = a.clone().midpoint(b);
         Vector motionVector = b.clone().subtract(a).normalize();
-        double theta = this.getPath().findPointThetaAtDistance(distance);
+        double theta = this.findPointThetaAtDistance(distance);
         Vector up = this.getOrientation(theta);
         Quaternion orientation = Quaternion.fromLookDirection(motionVector, up);
         return new TrackConnection.PointOnPath(this, theta, distance, position, orientation);
     }
 
     private Vector findPos(double distance) {
-        TrackConnectionPath path = this.getPath();
-        double theta = path.findPointThetaAtDistance(distance);
+        double theta = findPointThetaAtDistance(distance);
         if (theta <= 0.0) {
             // Try previous connection in chain
             List<TrackConnection> prev = this.getNodeA().getConnections();
@@ -601,17 +596,17 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
                 }
             }
         } else {
-            return path.getPosition(theta);
+            return getPosition(theta);
         }
 
         // Neighbour is unavailable, extrapolate using path motion
-        Vector motion = path.getMotionVector(theta);
+        Vector motion = getMotionVector(theta);
         if (distance < 0.0) {
             motion.multiply(distance);
         } else {
             motion.multiply(distance - this.getFullDistance());
         }
-        return path.getPosition(theta).add(motion);
+        return getPosition(theta).add(motion);
     }
 
     public void destroyParticles() {
@@ -630,11 +625,11 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
     }
 
     // metadata for a single endpoint
-    protected static class EndPoint extends TrackConnectionPath.EndPoint {
+    protected static class NodeEndPoint extends EndPoint {
         protected final TrackNode node;
         protected final TrackNode other;
 
-        public EndPoint(TrackNode node, TrackNode other) {
+        public NodeEndPoint(TrackNode node, TrackNode other) {
             this.node = node;
             this.other = other;
         }

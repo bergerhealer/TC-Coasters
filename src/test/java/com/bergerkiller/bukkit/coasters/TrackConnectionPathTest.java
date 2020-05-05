@@ -22,8 +22,8 @@ public class TrackConnectionPathTest {
     @Test
     public void testTrackSingleEndedA() {
         TrackConnectionPath path = createTestPath();
-        path.endA.initNormal();
-        path.endB.initAuto();
+        path.getEndA().initNormal();
+        path.getEndB().initAuto();
 
         // Position vector
         assertVectorEquals(path.getPosition(0.0), 20.0, 30.0, -502.0);
@@ -49,8 +49,8 @@ public class TrackConnectionPathTest {
     @Test
     public void testTrackSingleEndedB() {
         TrackConnectionPath path = createTestPath();
-        path.endA.initAuto();
-        path.endB.initInverted();
+        path.getEndA().initAuto();
+        path.getEndB().initInverted();
 
         // Position vector
         assertVectorEquals(path.getPosition(0.0), 20.0, 30.0, -502.0);
@@ -76,8 +76,8 @@ public class TrackConnectionPathTest {
     @Test
     public void testTrackDoubleEnded() {
         TrackConnectionPath path = createTestPath();
-        path.endA.initNormal();
-        path.endB.initInverted();
+        path.getEndA().initNormal();
+        path.getEndB().initInverted();
 
         // Position vector
         assertVectorEquals(path.getPosition(0.0), 20.0, 30.0, -502.0);
@@ -103,8 +103,8 @@ public class TrackConnectionPathTest {
     @Test
     public void testTrackStraight() {
         TrackConnectionPath path = createTestPath();
-        path.endA.initAuto();
-        path.endB.initAuto();
+        path.getEndA().initAuto();
+        path.getEndB().initAuto();
 
         // Position vector
         assertVectorEquals(path.getPosition(0.0), 20.0, 30.0, -502.0);
@@ -131,8 +131,8 @@ public class TrackConnectionPathTest {
     public void testTrackSamePoints() {
         TrackConnectionPath path = TrackConnectionPath.create(new Vector(20.0, 30.0, -502.0), new Vector(-0.4, 0.1, 1.0),
                                                               new Vector(20.0, 30.0, -502.0), new Vector(-0.3, 0.3, 1.0));
-        path.endA.initAuto();
-        path.endB.initAuto();
+        path.getEndA().initAuto();
+        path.getEndB().initAuto();
 
         // Position vector
         assertVectorEquals(path.getPosition(0.0), 20.0, 30.0, -502.0);
@@ -187,8 +187,8 @@ public class TrackConnectionPathTest {
         // This would cause problems with a simple binary algorithm
         TrackConnectionPath path = TrackConnectionPath.create(new Vector(-20.0, 30.0, -502.0), new Vector(0.0, 0.0, 1.0),
                                                               new Vector(20.0, 30.0, -502.0), new Vector(0.0, 0.0, 1.0));
-        path.endA.initNormal();
-        path.endB.initInverted();
+        path.getEndA().initNormal();
+        path.getEndB().initInverted();
 
         double distance = path.computeDistance(0.0, 1.0);
         double distanceEval = computeDistanceEval(path, 0.0, 1.0);
@@ -203,8 +203,8 @@ public class TrackConnectionPathTest {
         for (int i = 0; i < 10; i++) {
             TrackConnectionPath path = TrackConnectionPath.create(new Vector(20.0, 30.0, -502.0), randDirection(rand),
                                                                   new Vector(25.0, 25.0, -490.0), randDirection(rand));
-            path.endA.initNormal();
-            path.endB.initInverted();
+            path.getEndA().initNormal();
+            path.getEndB().initInverted();
 
             double distance = path.computeDistance(0.0, 1.0);
             double distanceEval = computeDistanceEval(path, 0.0, 1.0);
@@ -246,8 +246,8 @@ public class TrackConnectionPathTest {
         for (int i = 0; i < num_paths; i++) {
             TrackConnectionPath path = TrackConnectionPath.create(new Vector(20.0, 30.0, -502.0), randDirection(rand),
                                                                   new Vector(25.0, 25.0, -490.0), randDirection(rand));
-            path.endA.initNormal();
-            path.endB.initInverted();
+            path.getEndA().initNormal();
+            path.getEndB().initInverted();
 
             long time_a = System.nanoTime();
             for (int n = 0; n < num_iterations; n++) {
