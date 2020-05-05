@@ -5,8 +5,8 @@ import org.bukkit.util.Vector;
 import static com.bergerkiller.bukkit.coasters.TCCoastersUtil.sumComponents;
 
 import com.bergerkiller.bukkit.coasters.tracks.path.Bezier;
+import com.bergerkiller.bukkit.coasters.tracks.path.Discrete;
 import com.bergerkiller.bukkit.coasters.tracks.path.EndPoint;
-import com.bergerkiller.bukkit.coasters.tracks.path.Node;
 import com.bergerkiller.bukkit.coasters.tracks.path.TrackConnectionPathImpl;
 import com.bergerkiller.bukkit.coasters.tracks.path.ViewPointOption;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
@@ -44,14 +44,14 @@ public interface TrackConnectionPath {
             return 0.0;
         }
 
-        Node root = Node.init(this, 0.0, 1.0);
-        if (root.define(this, 1e-4, distance) < distance) {
+        Discrete discrete = Discrete.INSTANCE.init(this);
+        if (discrete.getTotalDistance() < distance) {
             // Past end of path
             return 1.0;
         }
 
         // Walk down the produced node linked list and find the exact theta at distance
-        Node current = root;
+        Discrete.Node current = discrete.head;
         double remaining = distance;
         while (current != null) {
             if (current.distanceToNext >= remaining) {
@@ -75,7 +75,7 @@ public interface TrackConnectionPath {
      * @return Estimated distance
      */
     default double computeDistance(double t0, double t1) {
-        return Node.init(this, t0, t1).define(this, 1e-4, Double.MAX_VALUE);
+        return Discrete.INSTANCE.init(this, t0, t1).getTotalDistance();
     }
 
     /**
