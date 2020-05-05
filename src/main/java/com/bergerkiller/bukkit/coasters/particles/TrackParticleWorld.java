@@ -20,6 +20,7 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.math.Quaternion;
+import com.bergerkiller.bukkit.common.wrappers.BlockData;
 
 /**
  * Tracks and updates all the particle items on a single world
@@ -41,7 +42,11 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         return this._world;
     }
 
-    public TrackParticleArmorStandItem addParticleObject(Vector position, Quaternion orientation, ItemStack item, double width) {
+    public TrackParticleFallingBlock addParticleFallingBlock(Vector position, Quaternion orientation, BlockData material, double width) {
+        return addParticle(new TrackParticleFallingBlock(position, orientation, material, width));
+    }
+
+    public TrackParticleArmorStandItem addParticleArmorStandItem(Vector position, Quaternion orientation, ItemStack item, double width) {
         return addParticle(new TrackParticleArmorStandItem(position, orientation, item, width));
     }
 

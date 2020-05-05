@@ -5,7 +5,6 @@ import java.util.UUID;
 
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
@@ -17,36 +16,32 @@ import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
+import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
 import com.bergerkiller.bukkit.tc.Util;
 import com.bergerkiller.generated.net.minecraft.server.EntityArmorStandHandle;
 import com.bergerkiller.generated.net.minecraft.server.EntityHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityEquipmentHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityMetadataHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityTeleportHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityLivingHandle;
+import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityHandle;
 
-/**
- * Displays an item or 3D model using the head of an armorstand
- */
-public class TrackParticleArmorStandItem extends TrackParticle {
-    private static final double ARMORSTAND_HEAD_OFFSET = 1.44;
+public class TrackParticleFallingBlock extends TrackParticle {
     private static final ItemStack MARKER_ITEM = new ItemStack(MaterialUtil.getFirst("REDSTONE_TORCH", "LEGACY_REDSTONE_TORCH_ON"));
     private DoubleOctree.Entry<TrackParticle> position;
     private Quaternion orientation;
-    private ItemStack item;
+    private BlockData material;
     private double width;
     private int entityId = -1;
     private int markerA_entityId = -1;
     private int markerB_entityId = -1;
     private boolean positionChanged = false;
     private boolean poseChanged = false;
-    private boolean itemChanged = false;
+    private boolean materialChanged = false;
 
-    protected TrackParticleArmorStandItem(Vector position, Quaternion orientation, ItemStack item, double width) {
+    protected TrackParticleFallingBlock(Vector position, Quaternion orientation, BlockData material, double width) {
         this.position = DoubleOctree.Entry.create(position, this);
         this.orientation = orientation.clone();
-        this.item = item;
+        this.material = material;
         this.width = width;
     }
 
@@ -63,10 +58,10 @@ public class TrackParticleArmorStandItem extends TrackParticle {
         }
     }
 
-    public void setItem(ItemStack item) {
-        if (this.item != item && !this.item.equals(item)) {
-            this.item = item;
-            this.itemChanged = true;
+    public void setMaterial(BlockData material) {
+        if (this.material != material) {
+            this.material = material;
+            this.materialChanged = true;
             this.scheduleUpdateAppearance();
         }
     }
@@ -102,29 +97,27 @@ public class TrackParticleArmorStandItem extends TrackParticle {
 
         TrackParticleState state = getState(viewer);
 
+        PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.createNew();
+        spawnPacket.setEntityId(this.entityId);
+        spawnPacket.setEntityUUID(UUID.randomUUID());
+        spawnPacket.setEntityType(EntityType.FALLING_BLOCK);
+        spawnPacket.setPosX(position.getX());
+        spawnPacket.setPosY(position.getY());
+        spawnPacket.setPosZ(position.getZ());
+        spawnPacket.setYaw(0.0f);
+        spawnPacket.setPitch(0.0f);
+        spawnPacket.setFallingBlockData(material);
+        PacketUtil.sendPacket(viewer, spawnPacket);
+
         DataWatcher metadata = new DataWatcher();
-        metadata.set(EntityArmorStandHandle.DATA_POSE_HEAD, Util.getArmorStandPose(orientation));
-        metadata.set(EntityHandle.DATA_FLAGS, (byte) EntityHandle.DATA_FLAG_INVISIBLE);
+        metadata.set(EntityHandle.DATA_NO_GRAVITY, true);
 
         if (state == TrackParticleState.SELECTED) {
-            metadata.setByte(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, EntityArmorStandHandle.DATA_FLAG_SET_MARKER);
             metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_GLOWING, true);
             metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_ON_FIRE, Common.evaluateMCVersion(">", "1.8"));
         }
 
-        PacketPlayOutSpawnEntityLivingHandle spawnPacket = PacketPlayOutSpawnEntityLivingHandle.createNew();
-        spawnPacket.setEntityId(this.entityId);
-        spawnPacket.setEntityUUID(UUID.randomUUID());
-        spawnPacket.setEntityType(EntityType.ARMOR_STAND);
-        spawnPacket.setPosX(position.getX());
-        spawnPacket.setPosY(position.getY() - ARMORSTAND_HEAD_OFFSET);
-        spawnPacket.setPosZ(position.getZ());
-        spawnPacket.setYaw(0.0f);
-        spawnPacket.setPitch(0.0f);
-        spawnPacket.setHeadYaw(0.0f);
-        PacketUtil.sendEntityLivingSpawnPacket(viewer, spawnPacket, metadata);
-
-        PacketUtil.sendPacket(viewer, PacketPlayOutEntityEquipmentHandle.createNew(this.entityId, EquipmentSlot.HEAD, this.item));
+        PacketUtil.sendPacket(viewer, PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true));
 
         if (state == TrackParticleState.SELECTED) {
             spawnMarkers(viewer);
@@ -229,6 +222,16 @@ public class TrackParticleArmorStandItem extends TrackParticle {
 
     @Override
     public void updateAppearance() {
+        if (this.materialChanged) {
+            this.materialChanged = false;
+            this.positionChanged = false;
+            this.poseChanged = false;
+
+            for (Player viewer : this.getViewers()) {
+                this.makeHiddenFor(viewer);
+                this.makeVisibleFor(viewer);
+            }
+        }
         if (this.positionChanged) {
             this.positionChanged = false;
 
@@ -236,7 +239,7 @@ public class TrackParticleArmorStandItem extends TrackParticle {
                 PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
                         this.entityId,
                         this.position.getX(),
-                        this.position.getY() - ARMORSTAND_HEAD_OFFSET,
+                        this.position.getY(),
                         this.position.getZ(),
                         0.0f, 0.0f, false);
                 this.broadcastPacket(tpPacket);
@@ -259,13 +262,6 @@ public class TrackParticleArmorStandItem extends TrackParticle {
                 DataWatcher meta = new DataWatcher();
                 meta.set(EntityArmorStandHandle.DATA_POSE_HEAD, Util.getArmorStandPose(orientation));
                 this.broadcastPacket(PacketPlayOutEntityMetadataHandle.createNew(this.entityId, meta, true));
-            }
-        }
-        if (this.itemChanged) {
-            this.itemChanged = false;
-
-            if (this.entityId != -1) {
-                this.broadcastPacket(PacketPlayOutEntityEquipmentHandle.createNew(this.entityId, EquipmentSlot.HEAD, this.item));
             }
         }
     }

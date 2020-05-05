@@ -4,12 +4,15 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.config.JsonSerializer;
 import com.bergerkiller.bukkit.common.config.JsonSerializer.JsonSyntaxException;
+import com.bergerkiller.bukkit.common.utils.ParseUtil;
+import com.bergerkiller.bukkit.common.wrappers.BlockData;
 
 /**
  * An array of String values. When reading a value that does not exist
@@ -109,6 +112,15 @@ public class StringArrayBuffer implements Iterator<String> {
     }
 
     /**
+     * Sets the next BlockData value
+     * 
+     * @param material
+     */
+    public void putBlockData(BlockData material) {
+        put(material.getType().name());
+    }
+
+    /**
      * Sets the next IntVector3 value
      * 
      * @param value to set
@@ -178,6 +190,21 @@ public class StringArrayBuffer implements Iterator<String> {
         } catch (JsonSyntaxException e) {
             throw new SyntaxException(-1, this.index+1, "Invalid ItemStack Json(" + e.getMessage() + ")");
         }
+    }
+
+    /**
+     * Gets the next BlockData value, which consists of the material and possibly some state info
+     * 
+     * @return next BlockData value
+     * @throws SyntaxException
+     */
+    public BlockData nextBlockData() throws SyntaxException {
+        String name = next();
+        Material mat = ParseUtil.parseMaterial(name, null);
+        if (mat == null) {
+            throw new SyntaxException(-1, this.index+1, "Unknown material type: " + name);
+        }
+        return BlockData.fromMaterial(mat);
     }
 
     /**

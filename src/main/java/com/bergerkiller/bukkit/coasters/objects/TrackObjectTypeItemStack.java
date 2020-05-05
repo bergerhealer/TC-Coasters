@@ -68,7 +68,7 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
 
     @Override
     public TrackParticleArmorStandItem createParticle(TrackConnection.PointOnPath point) {
-        return point.getWorld().getParticles().addParticleObject(point.position, point.orientation, this.item, this.width);
+        return point.getWorld().getParticles().addParticleArmorStandItem(point.position, point.orientation, this.item, this.width);
     }
 
     @Override
@@ -89,7 +89,7 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
             return true;
         } else if (o instanceof TrackObjectTypeItemStack) {
             TrackObjectTypeItemStack other = (TrackObjectTypeItemStack) o;
-            return this.item.equals(other.item);
+            return this.item.equals(other.item) && this.width == other.width;
         } else {
             return false;
         }
