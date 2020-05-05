@@ -18,7 +18,6 @@ import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
-import com.bergerkiller.bukkit.tc.Util;
 import com.bergerkiller.generated.net.minecraft.server.EntityArmorStandHandle;
 import com.bergerkiller.generated.net.minecraft.server.EntityHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityMetadataHandle;
@@ -35,7 +34,6 @@ public class TrackParticleFallingBlock extends TrackParticle {
     private int markerA_entityId = -1;
     private int markerB_entityId = -1;
     private boolean positionChanged = false;
-    private boolean poseChanged = false;
     private boolean materialChanged = false;
 
     protected TrackParticleFallingBlock(Vector position, Quaternion orientation, BlockData material, double width) {
@@ -48,7 +46,7 @@ public class TrackParticleFallingBlock extends TrackParticle {
     public void setPositionOrientation(Vector position, Quaternion orientation) {
         if (!this.orientation.equals(orientation)) {
             this.orientation.setTo(orientation);
-            this.poseChanged = true;
+            this.positionChanged = true;
             this.scheduleUpdateAppearance();
         }
         if (!this.position.equalsCoord(position)) {
@@ -97,6 +95,8 @@ public class TrackParticleFallingBlock extends TrackParticle {
 
         TrackParticleState state = getState(viewer);
 
+        Vector ypr = this.orientation.getYawPitchRoll();
+
         PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.createNew();
         spawnPacket.setEntityId(this.entityId);
         spawnPacket.setEntityUUID(UUID.randomUUID());
@@ -104,8 +104,8 @@ public class TrackParticleFallingBlock extends TrackParticle {
         spawnPacket.setPosX(position.getX());
         spawnPacket.setPosY(position.getY());
         spawnPacket.setPosZ(position.getZ());
-        spawnPacket.setYaw(0.0f);
-        spawnPacket.setPitch(0.0f);
+        spawnPacket.setYaw((float) ypr.getY());
+        spawnPacket.setPitch((float) ypr.getX());
         spawnPacket.setFallingBlockData(material);
         PacketUtil.sendPacket(viewer, spawnPacket);
 
@@ -225,7 +225,6 @@ public class TrackParticleFallingBlock extends TrackParticle {
         if (this.materialChanged) {
             this.materialChanged = false;
             this.positionChanged = false;
-            this.poseChanged = false;
 
             for (Player viewer : this.getViewers()) {
                 this.makeHiddenFor(viewer);
@@ -236,12 +235,13 @@ public class TrackParticleFallingBlock extends TrackParticle {
             this.positionChanged = false;
 
             if (this.entityId != -1) {
+                Vector ypr = this.orientation.getYawPitchRoll();
                 PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
                         this.entityId,
                         this.position.getX(),
                         this.position.getY(),
                         this.position.getZ(),
-                        0.0f, 0.0f, false);
+                        (float) ypr.getY(), (float) ypr.getX(), false);
                 this.broadcastPacket(tpPacket);
             }
 
@@ -253,15 +253,6 @@ public class TrackParticleFallingBlock extends TrackParticle {
 
             if (this.width <= 0.0) {
                 this.markerB_entityId = -1;
-            }
-        }
-        if (this.poseChanged) {
-            this.poseChanged = false;
-
-            if (this.entityId != -1) {
-                DataWatcher meta = new DataWatcher();
-                meta.set(EntityArmorStandHandle.DATA_POSE_HEAD, Util.getArmorStandPose(orientation));
-                this.broadcastPacket(PacketPlayOutEntityMetadataHandle.createNew(this.entityId, meta, true));
             }
         }
     }
