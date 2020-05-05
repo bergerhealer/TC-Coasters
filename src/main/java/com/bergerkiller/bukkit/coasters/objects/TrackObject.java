@@ -10,7 +10,6 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
-import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionPath;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 
