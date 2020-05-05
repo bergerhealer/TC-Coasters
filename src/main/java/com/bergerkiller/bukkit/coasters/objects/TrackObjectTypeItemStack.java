@@ -68,13 +68,14 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleOb
 
     @Override
     public TrackParticleObject createParticle(TrackConnection.PointOnPath point) {
-        return point.getWorld().getParticles().addParticleObject(point.position, point.orientation, this.item);
+        return point.getWorld().getParticles().addParticleObject(point.position, point.orientation, this.item, this.width);
     }
 
     @Override
     public void updateParticle(TrackParticleObject particle, TrackConnection.PointOnPath point) {
         particle.setPositionOrientation(point.position, point.orientation);
         particle.setItem(this.item);
+        particle.setWidth(this.width);
     }
 
     @Override

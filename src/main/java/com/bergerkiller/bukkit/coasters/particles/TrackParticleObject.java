@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.particles;
 
+import java.util.Collections;
 import java.util.UUID;
 
 import org.bukkit.entity.EntityType;
@@ -8,11 +9,13 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.util.VirtualArrowItem;
 import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
+import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
 import com.bergerkiller.bukkit.tc.Util;
@@ -28,24 +31,28 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityL
  */
 public class TrackParticleObject extends TrackParticle {
     private static final double ARMORSTAND_HEAD_OFFSET = 1.44;
+    private static final ItemStack MARKER_ITEM = new ItemStack(MaterialUtil.getFirst("REDSTONE_TORCH", "LEGACY_REDSTONE_TORCH_ON"));
     private DoubleOctree.Entry<TrackParticle> position;
-    private Vector pose;
+    private Quaternion orientation;
     private ItemStack item;
+    private double width;
     private int entityId = -1;
+    private int markerA_entityId = -1;
+    private int markerB_entityId = -1;
     private boolean positionChanged = false;
     private boolean poseChanged = false;
     private boolean itemChanged = false;
 
-    protected TrackParticleObject(Vector position, Quaternion orientation, ItemStack item) {
+    protected TrackParticleObject(Vector position, Quaternion orientation, ItemStack item, double width) {
         this.position = DoubleOctree.Entry.create(position, this);
-        this.pose = Util.getArmorStandPose(orientation);
+        this.orientation = orientation.clone();
         this.item = item;
+        this.width = width;
     }
 
     public void setPositionOrientation(Vector position, Quaternion orientation) {
-        Vector pose = Util.getArmorStandPose(orientation);
-        if (!this.pose.equals(pose)) {
-            this.pose.copy(pose);
+        if (!this.orientation.equals(orientation)) {
+            this.orientation.setTo(orientation);
             this.poseChanged = true;
             this.scheduleUpdateAppearance();
         }
@@ -60,6 +67,14 @@ public class TrackParticleObject extends TrackParticle {
         if (this.item != item && !this.item.equals(item)) {
             this.item = item;
             this.itemChanged = true;
+            this.scheduleUpdateAppearance();
+        }
+    }
+
+    public void setWidth(double width) {
+        if (this.width != width) {
+            this.width = width;
+            this.positionChanged = true;
             this.scheduleUpdateAppearance();
         }
     }
@@ -88,7 +103,7 @@ public class TrackParticleObject extends TrackParticle {
         TrackParticleState state = getState(viewer);
 
         DataWatcher metadata = new DataWatcher();
-        metadata.set(EntityArmorStandHandle.DATA_POSE_HEAD, this.pose);
+        metadata.set(EntityArmorStandHandle.DATA_POSE_HEAD, Util.getArmorStandPose(orientation));
         metadata.set(EntityHandle.DATA_FLAGS, (byte) EntityHandle.DATA_FLAG_INVISIBLE);
 
         if (state == TrackParticleState.SELECTED) {
@@ -110,6 +125,65 @@ public class TrackParticleObject extends TrackParticle {
         PacketUtil.sendEntityLivingSpawnPacket(viewer, spawnPacket, metadata);
 
         PacketUtil.sendPacket(viewer, PacketPlayOutEntityEquipmentHandle.createNew(this.entityId, EquipmentSlot.HEAD, this.item));
+
+        if (state == TrackParticleState.SELECTED) {
+            spawnMarkers(viewer);
+        }
+    }
+
+    private void spawnMarkers(Player viewer) {
+        // Spawn 1 or 2 marker entities to denote the position on the path
+        if (this.width <= 0.0) {
+            this.markerA_entityId = VirtualArrowItem.create(this.markerA_entityId)
+                    .item(MARKER_ITEM)
+                    .position(this.position, this.orientation)
+                    .spawn(viewer);
+        } else {
+            Vector dir = this.orientation.forwardVector().multiply(0.5 * this.width);
+            this.markerA_entityId = VirtualArrowItem.create(this.markerA_entityId)
+                    .item(MARKER_ITEM)
+                    .position(this.position.toVector().subtract(dir), this.orientation)
+                    .spawn(viewer);
+            this.markerB_entityId = VirtualArrowItem.create(this.markerB_entityId)
+                    .item(MARKER_ITEM)
+                    .position(this.position.toVector().add(dir), this.orientation)
+                    .spawn(viewer);
+        }
+    }
+
+    private void moveMarkers(Player viewer) {
+        // Move 1 or 2 marker entities to denote the position on the path
+        if (this.width <= 0.0) {
+            // Move first item
+            VirtualArrowItem.create(this.markerA_entityId)
+                    .position(this.position, this.orientation)
+                    .move(Collections.singleton(viewer));
+
+            // Despawn second item if a previous width was set
+            if (this.markerB_entityId != -1) {
+                VirtualArrowItem.create(this.markerB_entityId).destroy(viewer);
+            }
+        } else {
+            // Move both items
+            Vector dir = this.orientation.forwardVector().multiply(0.5 * this.width);
+            VirtualArrowItem itemA = VirtualArrowItem.create(this.markerA_entityId)
+                    .item(MARKER_ITEM)
+                    .position(this.position.toVector().subtract(dir), this.orientation);
+            VirtualArrowItem itemB = VirtualArrowItem.create(this.markerB_entityId)
+                    .item(MARKER_ITEM)
+                    .position(this.position.toVector().add(dir), this.orientation);
+
+            if (itemA.hasEntityId()) {
+                itemA.move(Collections.singleton(viewer));
+            } else {
+                this.markerA_entityId = itemA.spawn(viewer);
+            }
+            if (itemB.hasEntityId()) {
+                itemB.move(Collections.singleton(viewer));
+            } else {
+                this.markerB_entityId = itemB.spawn(viewer);
+            }
+        }
     }
 
     @Override
@@ -123,10 +197,12 @@ public class TrackParticleObject extends TrackParticle {
     public void onStateUpdated(Player viewer) {
         super.onStateUpdated(viewer);
 
+        TrackParticleState state = getState(viewer);
+
         if (this.entityId != -1) {
             DataWatcher metadata = new DataWatcher();
             metadata.set(EntityHandle.DATA_FLAGS, (byte) EntityHandle.DATA_FLAG_INVISIBLE);
-            if (getState(viewer) == TrackParticleState.SELECTED) {
+            if (state == TrackParticleState.SELECTED) {
                 metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_GLOWING, true);
                 metadata.setByte(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, EntityArmorStandHandle.DATA_FLAG_SET_MARKER);
                 metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_ON_FIRE, Common.evaluateMCVersion(">", "1.8"));
@@ -135,6 +211,13 @@ public class TrackParticleObject extends TrackParticle {
                 metadata.setByte(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, 0);
             }
             PacketUtil.sendPacket(viewer, PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true));
+        }
+
+        VirtualArrowItem.create(this.markerA_entityId).destroy(viewer);
+        VirtualArrowItem.create(this.markerB_entityId).destroy(viewer);
+
+        if (state == TrackParticleState.SELECTED) {
+            spawnMarkers(viewer);
         }
     }
 
@@ -152,13 +235,23 @@ public class TrackParticleObject extends TrackParticle {
                         0.0f, 0.0f, false);
                 this.broadcastPacket(tpPacket);
             }
+
+            for (Player viewer : this.getViewers()) {
+                if (getState(viewer) == TrackParticleState.SELECTED) {
+                    moveMarkers(viewer);
+                }
+            }
+
+            if (this.width <= 0.0) {
+                this.markerB_entityId = -1;
+            }
         }
         if (this.poseChanged) {
             this.poseChanged = false;
 
             if (this.entityId != -1) {
                 DataWatcher meta = new DataWatcher();
-                meta.set(EntityArmorStandHandle.DATA_POSE_HEAD, this.pose);
+                meta.set(EntityArmorStandHandle.DATA_POSE_HEAD, Util.getArmorStandPose(orientation));
                 this.broadcastPacket(PacketPlayOutEntityMetadataHandle.createNew(this.entityId, meta, true));
             }
         }

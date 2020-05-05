@@ -49,6 +49,10 @@ public class VirtualArrowItem {
         return new VirtualArrowItem(entityId);
     }
 
+    public boolean hasEntityId() {
+        return this.entityId != -1;
+    }
+
     public VirtualArrowItem glowing(boolean glowing) {
         this.glowing = glowing;
         return this;
