@@ -11,6 +11,7 @@ import com.bergerkiller.bukkit.coasters.objects.TrackObjectHolder;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleLine;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.tracks.path.EndPoint;
+import com.bergerkiller.bukkit.coasters.tracks.path.WidthSearcher;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -551,62 +552,22 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
             return findPointAtDistance(distance);
         }
 
-        double dt = 0.5 * width;
-        double width_sq = width * width;
-        Vector a, b;
-        do {
-            a = findPos(distance - dt);
-            b = findPos(distance + dt);
-            if (a.distanceSquared(b) >= width_sq) {
-                break;
-            }
-            dt += 0.01;
-        } while (dt <= width);
+        WidthSearcher searcher = WidthSearcher.INSTANCE.init(this, distance);
+        searcher.search(width);
 
-        Vector position = a.clone().midpoint(b);
-        Vector motionVector = b.clone().subtract(a).normalize();
-        double theta = this.findPointThetaAtDistance(distance);
-        Vector up = this.getOrientation(theta);
-        Quaternion orientation = Quaternion.fromLookDirection(motionVector, up);
-        return new TrackConnection.PointOnPath(this, theta, distance, position, orientation);
-    }
-
-    private Vector findPos(double distance) {
-        double theta = findPointThetaAtDistance(distance);
-        if (theta <= 0.0) {
-            // Try previous connection in chain
-            List<TrackConnection> prev = this.getNodeA().getConnections();
-            if (prev.size() >= 2) {
-                TrackConnection prevConn = (prev.get(0) == this ? prev.get(1) : prev.get(0));
-                if (prevConn.getNodeA() == this.getNodeA()) {
-                    return prevConn.findPos(-distance);
-                } else {
-                    return prevConn.findPos(prevConn.getFullDistance() + distance);
-                }
-            }
-        } else if (theta >= 1.0) {
-            // Try next connection in chain
-            List<TrackConnection> next = this.getNodeB().getConnections();
-            if (next.size() >= 2) {
-                TrackConnection nextConn = (next.get(0) == this ? next.get(1) : next.get(0));
-                if (nextConn.getNodeA() == this.getNodeB()) {
-                    return nextConn.findPos(distance - this.getFullDistance());
-                } else {
-                    return nextConn.findPos(nextConn.getFullDistance() - (distance - this.getFullDistance()));
-                }
-            }
-        } else {
-            return getPosition(theta);
+        Vector mid_direction = searcher.pointB.position.clone().subtract(searcher.pointA.position);
+        double lengthSquared = mid_direction.lengthSquared();
+        if (lengthSquared <= 1e-10) {
+            return searcher.pointA.toPointOnPath();
         }
 
-        // Neighbour is unavailable, extrapolate using path motion
-        Vector motion = getMotionVector(theta);
-        if (distance < 0.0) {
-            motion.multiply(distance);
-        } else {
-            motion.multiply(distance - this.getFullDistance());
-        }
-        return getPosition(theta).add(motion);
+        Vector mid_position = new Vector(searcher.pointA.position.getX() + 0.5 * mid_direction.getX(),
+                                         searcher.pointA.position.getY() + 0.5 * mid_direction.getY(),
+                                         searcher.pointA.position.getZ() + 0.5 * mid_direction.getZ());
+        mid_direction.multiply(MathUtil.getNormalizationFactorLS(lengthSquared));
+        Vector mid_up = Util.lerpOrientation(searcher.pointA.getOrientation(), searcher.pointB.getOrientation(), 0.5);
+        Quaternion mid_orientation = Quaternion.fromLookDirection(mid_direction, mid_up);
+        return new PointOnPath(this, 0.5, distance, mid_position, mid_orientation);
     }
 
     public void destroyParticles() {

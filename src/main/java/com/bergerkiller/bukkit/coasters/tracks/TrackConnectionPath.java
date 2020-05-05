@@ -39,32 +39,7 @@ public interface TrackConnectionPath {
      * @return theta value of the point at the distance
      */
     default double findPointThetaAtDistance(double distance) {
-        if (distance <= 0.0) {
-            // Past start of path
-            return 0.0;
-        }
-
-        Discrete discrete = Discrete.INSTANCE.init(this);
-        if (discrete.getTotalDistance() < distance) {
-            // Past end of path
-            return 1.0;
-        }
-
-        // Walk down the produced node linked list and find the exact theta at distance
-        Discrete.Node current = discrete.head;
-        double remaining = distance;
-        while (current != null) {
-            if (current.distanceToNext >= remaining) {
-                // End reached. Interpolate positions using remaining distance
-                double s = remaining / current.distanceToNext;
-                return (1.0 - s) * current.theta + s * current.next.theta;
-            }
-            remaining -= current.distanceToNext;
-            current = current.next;
-        }
-
-        // Past end of path
-        return 1.0;
+        return distance <= 0.0 ? 0.0 : Discrete.INSTANCE.init(this).findTheta(distance);
     }
 
     /**

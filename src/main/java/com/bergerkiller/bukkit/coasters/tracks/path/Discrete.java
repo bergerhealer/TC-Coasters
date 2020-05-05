@@ -20,6 +20,7 @@ public class Discrete {
     public final Node head = new Node();
     public final Node tail = new Node();
     private Node[] node_cache = new Node[] { head, tail };
+    private TrackConnectionPath path;
     private int node_index = 0;
     private double totalDistance;
 
@@ -44,13 +45,14 @@ public class Discrete {
      * @return this
      */
     public Discrete init(TrackConnectionPath path, double t0, double t1) {
-        node_index = 2;
+        this.path = path;
+        this.node_index = 2;
         head.next = tail;
         tail.next = null;
-        head.computePosition(path, t0);
-        tail.computePosition(path, t1);
+        head.computePosition(t0);
+        tail.computePosition(t1);
         head.computeDistanceToNext();
-        totalDistance = head.define(path);
+        totalDistance = head.define();
         return this;
     }
 
@@ -61,6 +63,37 @@ public class Discrete {
      */
     public double getTotalDistance() {
         return this.totalDistance;
+    }
+
+    /**
+     * Walks this discrete path from head to tail to find the exact theta value
+     * at the distance
+     * 
+     * @param distance Distance from the head
+     * @return theta at the distance
+     */
+    public double findTheta(double distance) {
+        if (distance <= 0.0) {
+            return 0.0;
+        } else if (distance >= this.totalDistance) {
+            return 1.0;
+        } else {
+            // Walk down the produced node linked list and find the exact theta at distance
+            Node current = head;
+            double remaining = distance;
+            while (current != null) {
+                if (current.distanceToNext >= remaining) {
+                    // End reached. Interpolate positions using remaining distance
+                    double s = remaining / current.distanceToNext;
+                    return (1.0 - s) * current.theta + s * current.next.theta;
+                }
+                remaining -= current.distanceToNext;
+                current = current.next;
+            }
+
+            // Past end of path (weird!)
+            return 1.0;
+        }
     }
 
     // Doubles the capacity of the cache, with a size of at least 512
@@ -93,10 +126,9 @@ public class Discrete {
          * difference falls below the precision specified. The path is defined from start to finish,
          * with max_distance used to abort path construction early on.
          * 
-         * @param path The path used to calculate the node positions
          * @return total distance of the computed path
          */
-        public double define(TrackConnectionPath path) {
+        public double define() {
             // Process in a loop
             double totalDistance = 0.0;
             Node current = this;
@@ -117,9 +149,9 @@ public class Discrete {
                 Node m0 = current.next;
                 Node m1 = m0.next;
                 Node m2 = m1.next;
-                m0.computePosition(path, 0.5 * (t0 + ht));
-                m1.computePosition(path, ht);
-                m2.computePosition(path, 0.5 * (t1 + ht));
+                m0.computePosition(0.5 * (t0 + ht));
+                m1.computePosition(ht);
+                m2.computePosition(0.5 * (t1 + ht));
                 double summed = current.computeDistanceToNext() +
                                 m0.computeDistanceToNext() +
                                 m1.computeDistanceToNext() +
@@ -137,19 +169,19 @@ public class Discrete {
             return totalDistance;
         }
 
-        public void computePosition(TrackConnectionPath path, double theta) {
+        private void computePosition(double theta) {
             this.theta = theta;
             path.getPosition(theta, this.position);
         }
 
-        public double computeDistanceToNext() {
+        private double computeDistanceToNext() {
             return this.distanceToNext = this.position.distance(this.next.position);
         }
 
         /**
          * Inserts tree more nodes between this node and this node's next node.
          */
-        public void insertThree() {
+        private void insertThree() {
             int index = node_index;
             node_index += 3;
             Node last;
