@@ -11,6 +11,22 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
  */
 public interface TrackObjectType<P extends TrackParticle> {
     /**
+     * Gets the width of the object on the tracks, changing the attachment points
+     * to the track.
+     * 
+     * @return width
+     */
+    double getWidth();
+
+    /**
+     * Creates a copy of this track object type with the width updated
+     * 
+     * @param width
+     * @return clone of this type with width changed
+     */
+    TrackObjectType<P> setWidth(double width);
+
+    /**
      * Generates a name to easily identify this track object type.
      * It can include any details, such as material names.
      * This name is written to csv.

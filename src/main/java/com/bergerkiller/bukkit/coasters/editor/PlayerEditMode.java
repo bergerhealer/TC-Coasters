@@ -9,6 +9,7 @@ import org.bukkit.block.BlockFace;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
+import com.bergerkiller.bukkit.coasters.editor.object.ObjectEditState;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemSelectMenu;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -386,5 +387,23 @@ public enum PlayerEditMode {
                 }
             }
         }).setText("Delete").setBounds(0, 15, 60, 13);
+
+        tab.addWidget(new MapWidgetNumberBox() {
+            @Override
+            public void onAttached() {
+                super.onAttached();
+
+                ObjectEditState state = stateSupplier.get().getObjects();
+                this.setValue(state.getSelectedType().getWidth());
+            }
+
+            @Override
+            public void onValueChanged() {
+                ObjectEditState state = stateSupplier.get().getObjects();
+                if (this.getValue() != state.getSelectedType().getWidth()) {
+                    state.setSelectedType(state.getSelectedType().setWidth(this.getValue()));
+                }
+            }
+        }).setBounds(0, 29, 70, 13);
     }
 }

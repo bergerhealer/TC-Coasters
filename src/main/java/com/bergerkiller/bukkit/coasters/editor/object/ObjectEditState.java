@@ -14,7 +14,6 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
@@ -41,7 +40,6 @@ import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.config.ConfigurationNode;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
-import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 
 public class ObjectEditState {
     private final PlayerEditState editState;
@@ -54,11 +52,7 @@ public class ObjectEditState {
 
     public ObjectEditState(PlayerEditState editState) {
         this.editState = editState;
-        this.selectedType = createDefaultObjectType();
-    }
-
-    private static TrackObjectType<?> createDefaultObjectType() {
-        return TrackObjectTypeItemStack.create(new ItemStack(MaterialUtil.getFirst("RAIL", "LEGACY_RAILS")));
+        this.selectedType = TrackObjectTypeItemStack.createDefault();
     }
 
     /**
@@ -887,7 +881,7 @@ public class ObjectEditState {
                 }
             }
         }
-        return createDefaultObjectType();
+        return TrackObjectTypeItemStack.createDefault();
     }
 
     /// Moves selected track objects. Direction defines whether to walk to nodeA (false) or nodeB (true).

@@ -541,6 +541,79 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
         return new TrackConnection.PointOnPath(this, theta, distance, position, orientation);
     }
 
+    /**
+     * Walks this path from the start a distance towards the end, obtaining a point
+     * on the path found a distance away. The width can be set to non-zero to find
+     * the middle between two points on the path width apart.
+     * 
+     * @param distance The distance to walk from the start
+     * @param width The width between two points on the path between which to find a point
+     * @return point on the path at distance
+     */
+    public TrackConnection.PointOnPath findPointAtDistance(double distance, double width) {
+        if (width <= 0.0) {
+            return findPointAtDistance(distance);
+        }
+
+        double dt = 0.5 * width;
+        double width_sq = width * width;
+        Vector a, b;
+        do {
+            a = findPos(distance - dt);
+            b = findPos(distance + dt);
+            if (a.distanceSquared(b) >= width_sq) {
+                break;
+            }
+            dt += 0.01;
+        } while (dt <= width);
+
+        Vector position = a.clone().midpoint(b);
+        Vector motionVector = b.clone().subtract(a).normalize();
+        double theta = this.getPath().findPointThetaAtDistance(distance);
+        Vector up = this.getOrientation(theta);
+        Quaternion orientation = Quaternion.fromLookDirection(motionVector, up);
+        return new TrackConnection.PointOnPath(this, theta, distance, position, orientation);
+    }
+
+    private Vector findPos(double distance) {
+        TrackConnectionPath path = this.getPath();
+        double theta = path.findPointThetaAtDistance(distance);
+        if (theta <= 0.0) {
+            // Try previous connection in chain
+            List<TrackConnection> prev = this.getNodeA().getConnections();
+            if (prev.size() >= 2) {
+                TrackConnection prevConn = (prev.get(0) == this ? prev.get(1) : prev.get(0));
+                if (prevConn.getNodeA() == this.getNodeA()) {
+                    return prevConn.findPos(-distance);
+                } else {
+                    return prevConn.findPos(prevConn.getFullDistance() + distance);
+                }
+            }
+        } else if (theta >= 1.0) {
+            // Try next connection in chain
+            List<TrackConnection> next = this.getNodeB().getConnections();
+            if (next.size() >= 2) {
+                TrackConnection nextConn = (next.get(0) == this ? next.get(1) : next.get(0));
+                if (nextConn.getNodeA() == this.getNodeB()) {
+                    return nextConn.findPos(distance - this.getFullDistance());
+                } else {
+                    return nextConn.findPos(nextConn.getFullDistance() - (distance - this.getFullDistance()));
+                }
+            }
+        } else {
+            return path.getPosition(theta);
+        }
+
+        // Neighbour is unavailable, extrapolate using path motion
+        Vector motion = path.getMotionVector(theta);
+        if (distance < 0.0) {
+            motion.multiply(distance);
+        } else {
+            motion.multiply(distance - this.getFullDistance());
+        }
+        return path.getPosition(theta).add(motion);
+    }
+
     public void destroyParticles() {
         for (int i = 0; i < this.lines.size(); i++) {
             this.lines.get(i).remove();

@@ -37,7 +37,7 @@ public class ItemSelectMenu extends MapWidgetMenu implements ItemDropTarget {
                 }
                 TrackObjectType<?> type = stateSupplier.get().getObjects().getSelectedType();
                 if (type instanceof TrackObjectTypeItemStack) {
-                    type = TrackObjectTypeItemStack.changeItem((TrackObjectTypeItemStack) type, item);
+                    type = ((TrackObjectTypeItemStack) type).setItem(item);
                     stateSupplier.get().getObjects().setSelectedType(type);
                 }
             }

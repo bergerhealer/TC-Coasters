@@ -30,6 +30,7 @@ import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
+import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.opencsv.CSVReader;
 
 /**
@@ -526,6 +527,7 @@ public class TrackCoasterCSV {
     public static abstract class TrackObjectTypeEntry<T extends TrackObjectType<?>> extends CSVEntry {
         public String name;
         public T objectType;
+        protected double width;
 
         /**
          * Gets the type name identifying this track object type entry.
@@ -569,6 +571,14 @@ public class TrackCoasterCSV {
         public void read(StringArrayBuffer buffer) throws SyntaxException {
             buffer.next();
             this.name = buffer.next();
+
+            // Width, with support for legacy behavior when ItemStack info was stored
+            if (ParseUtil.isNumeric(buffer.peek())) {
+                this.width = buffer.nextDouble();
+            } else {
+                this.width = 0.0;
+            }
+
             this.objectType = this.readDetails(buffer);
         }
 
@@ -576,6 +586,7 @@ public class TrackCoasterCSV {
         public void write(StringArrayBuffer buffer) {
             buffer.put(getType());
             buffer.put(this.name);
+            buffer.putDouble(this.objectType.getWidth());
             writeDetails(buffer, this.objectType);
         }
 
@@ -605,7 +616,7 @@ public class TrackCoasterCSV {
             if (itemStack == null) {
                 return null;
             }
-            return TrackObjectTypeItemStack.create(itemStack);
+            return TrackObjectTypeItemStack.create(this.width, itemStack);
         }
 
         @Override

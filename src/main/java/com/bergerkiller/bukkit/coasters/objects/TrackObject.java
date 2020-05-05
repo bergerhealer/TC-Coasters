@@ -98,7 +98,8 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
      */
     public void setDistanceComputeFlipped(TrackConnection connection, double distance, Vector rightDirection) {
         this.distance = distance;
-        TrackConnection.PointOnPath point = connection.findPointAtDistance(this.distance);
+        this.flipped = false;
+        TrackConnection.PointOnPath point = this.findPointOnPath(connection);
         this.flipped = (point.orientation.rightVector().dot(rightDirection) < 0.0);
         connection.markChanged();
 
@@ -138,7 +139,7 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
     }
 
     private TrackConnection.PointOnPath findPointOnPath(TrackConnection connection) {
-        TrackConnection.PointOnPath point = connection.findPointAtDistance(this.distance);
+        TrackConnection.PointOnPath point = connection.findPointAtDistance(this.distance, this.type.getWidth());
         if (this.flipped) {
             point.orientation.rotateYFlip();
         }
@@ -154,10 +155,7 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
 
     public void onShapeUpdated(TrackConnection connection) {
         if (this.particle != null) {
-            TrackConnection.PointOnPath point = connection.findPointAtDistance(this.distance);
-            if (this.flipped) {
-                point.orientation.rotateYFlip();
-            }
+            TrackConnection.PointOnPath point = findPointOnPath(connection);
             this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
         }
     }
