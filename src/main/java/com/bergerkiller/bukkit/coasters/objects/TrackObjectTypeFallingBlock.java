@@ -100,7 +100,7 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
     public void drawImage(MapCanvas canvas) {
         Model model = TCConfig.resourcePack.getBlockModel(this.material);
         canvas.setLightOptions(0.0f, 1.0f, new Vector3(-1, 1, -1));
-        canvas.drawModel(model, 1.0f, 27, 22, DebugUtil.getFloatValue("a", 225.0f), DebugUtil.getFloatValue("b", -45.0f));
+        canvas.drawModel(model, 1.0f, 27, 22, 225.0f, -45.0f);
     }
 
     @Override
