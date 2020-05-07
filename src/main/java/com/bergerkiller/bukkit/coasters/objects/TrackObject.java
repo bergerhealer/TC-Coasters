@@ -53,20 +53,21 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
             throw new IllegalArgumentException("Track object type can not be null");
         }
 
+        boolean typeClassChanged = (this.type.getClass() != type.getClass());
         this.type = type;
         connection.markChanged();
 
         // Update particle (if already spawned)
         if (this.particle != null) {
             TrackConnection.PointOnPath point = findPointOnPath(connection);
-            if (this.type.getClass() == type.getClass()) {
-                // Same type, different properties, only an update of the particle is needed
-                this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
-            } else {
+            if (typeClassChanged) {
                 // Recreate (different type)
                 this.particle.remove();
                 this.particle = this.type.createParticle(point);
                 this.particle.setStateSource(this);
+            } else {
+                // Same type, different properties, only an update of the particle is needed
+                this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
             }
         }
     }

@@ -30,6 +30,7 @@ import com.bergerkiller.bukkit.coasters.events.CoasterBeforeChangeTrackObjectEve
 import com.bergerkiller.bukkit.coasters.events.CoasterSelectTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeFallingBlock;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItemStack;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
@@ -52,7 +53,7 @@ public class ObjectEditState {
 
     public ObjectEditState(PlayerEditState editState) {
         this.editState = editState;
-        this.selectedType = TrackObjectTypeItemStack.createDefault();
+        this.selectedType = TrackObjectTypeFallingBlock.createDefault();
     }
 
     /**

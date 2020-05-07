@@ -6,6 +6,7 @@ import org.bukkit.inventory.ItemStack;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeFallingBlock;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItemStack;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.tc.attachments.ui.ItemDropTarget;
@@ -26,6 +27,8 @@ public class ItemSelectMenu extends MapWidgetMenu implements ItemDropTarget {
                 TrackObjectType<?> type = stateSupplier.get().getObjects().getSelectedType();
                 if (type instanceof TrackObjectTypeItemStack) {
                     this.setSelectedItem(((TrackObjectTypeItemStack) type).getItem());
+                } else if (type instanceof TrackObjectTypeFallingBlock) {
+                    this.setSelectedItem(((TrackObjectTypeFallingBlock) type).getMaterial().createItem(1));
                 }
             }
 
@@ -35,10 +38,10 @@ public class ItemSelectMenu extends MapWidgetMenu implements ItemDropTarget {
                 if (item == null) {
                     return;
                 }
-                TrackObjectType<?> type = stateSupplier.get().getObjects().getSelectedType();
-                if (type instanceof TrackObjectTypeItemStack) {
-                    type = ((TrackObjectTypeItemStack) type).setItem(item);
-                    stateSupplier.get().getObjects().setSelectedType(type);
+                TrackObjectType<?> oldType = stateSupplier.get().getObjects().getSelectedType();
+                TrackObjectType<?> newType = oldType.acceptItem(this.getSelectedItem());
+                if (oldType != newType) {
+                    stateSupplier.get().getObjects().setSelectedType(newType);
                 }
             }
         });

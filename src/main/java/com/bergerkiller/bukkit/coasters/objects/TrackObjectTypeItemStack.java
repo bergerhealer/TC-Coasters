@@ -1,11 +1,18 @@
 package com.bergerkiller.bukkit.coasters.objects;
 
+import java.util.function.Supplier;
+
 import org.bukkit.inventory.ItemStack;
 
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemSelectMenu;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleArmorStandItem;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
+import com.bergerkiller.bukkit.common.map.MapCanvas;
+import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
+import com.bergerkiller.bukkit.tc.TCConfig;
 
 /**
  * Item stack displayed on an armorstand
@@ -15,6 +22,9 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
     private final ItemStack item;
 
     private TrackObjectTypeItemStack(double width, ItemStack item) {
+        if (item == null) {
+            throw new IllegalArgumentException("Item can not be null");
+        }
         this.width = width;
         this.item = item;
     }
@@ -25,6 +35,11 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
 
     public static TrackObjectTypeItemStack createDefault() {
         return create(0.0, new ItemStack(MaterialUtil.getFirst("RAIL", "LEGACY_RAILS")));
+    }
+
+    @Override
+    public String getTitle() {
+        return "Item";
     }
 
     @Override
@@ -76,6 +91,26 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
         particle.setPositionOrientation(point.position, point.orientation);
         particle.setItem(this.item);
         particle.setWidth(this.width);
+    }
+
+    @Override
+    public boolean isSameImage(TrackObjectType<?> type) {
+        return this.getItem().equals(((TrackObjectTypeItemStack) type).getItem());
+    }
+
+    @Override
+    public void drawImage(MapCanvas canvas) {
+        canvas.fillItem(TCConfig.resourcePack, this.item);
+    }
+
+    @Override
+    public void openMenu(MapWidget parent, Supplier<PlayerEditState> stateSupplier) {
+        parent.addWidget(new ItemSelectMenu(stateSupplier));
+    }
+
+    @Override
+    public TrackObjectTypeItemStack acceptItem(ItemStack item) {
+        return this.setItem(item);
     }
 
     @Override

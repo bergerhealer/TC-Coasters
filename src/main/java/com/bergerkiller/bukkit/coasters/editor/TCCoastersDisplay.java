@@ -107,12 +107,16 @@ public class TCCoastersDisplay extends MapDisplay {
         this.setReceiveInputWhenHolding(false);
     }
 
-    public boolean acceptItem(ItemStack item) {
+    @Override
+    public boolean onItemDrop(Player player, ItemStack item) {
         if (item == null) {
             return false;
         }
 
         MapWidget activated = this.getActivatedWidget();
+        if (!(activated instanceof ItemDropTarget)) {
+            activated = this.getFocusedWidget();
+        }
         return (activated instanceof ItemDropTarget) ?
                 ((ItemDropTarget) activated).acceptItem(item) : false;
     }

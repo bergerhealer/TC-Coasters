@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.tracks.csv;
 import java.io.IOException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,13 +42,15 @@ import com.opencsv.CSVReader;
 public class TrackCoasterCSV {
     private static final List<Map.Entry<CSVEntry, Supplier<CSVEntry>>> _entryTypes = new ArrayList<>();
     private static final Map<Class<?>, Supplier<TrackObjectTypeEntry<?>>> _trackObjectTypes = new HashMap<>();
+    private static final List<TrackObjectType<?>> _trackObjectTypeDefaults = new ArrayList<>();
 
     public static void registerEntry(Supplier<CSVEntry> entrySupplier) {
         CSVEntry entry = entrySupplier.get();
         _entryTypes.add(new AbstractMap.SimpleEntry<CSVEntry, Supplier<CSVEntry>>(entry, entrySupplier));
         if (entry instanceof TrackObjectTypeEntry) {
-            Class<?> objectTypeClass = ((TrackObjectTypeEntry<?>) entry).getTrackObjectTypeClass();
-            _trackObjectTypes.put(objectTypeClass, CommonUtil.unsafeCast(entrySupplier));
+            TrackObjectType<?> type = ((TrackObjectTypeEntry<?>) entry).getDefaultType();
+            _trackObjectTypes.put(type.getClass(), CommonUtil.unsafeCast(entrySupplier));
+            _trackObjectTypeDefaults.add(type);
         }
     }
 
@@ -65,6 +68,15 @@ public class TrackCoasterCSV {
         // Object types
         registerEntry(TrackObjectTypeItemStackEntry::new);
         registerEntry(TrackObjectTypeFallingBlockEntry::new);
+    }
+
+    /**
+     * Gets a list of track object types which are default selectable
+     * 
+     * @return unmodifiable list of default track object types
+     */
+    public static List<TrackObjectType<?>> getDefaultTrackObjectTypes() {
+        return Collections.unmodifiableList(_trackObjectTypeDefaults);
     }
 
     /**
@@ -541,12 +553,13 @@ public class TrackCoasterCSV {
         public abstract String getType();
 
         /**
-         * Gets the type of class created by this entry. When saving, this
-         * identifies the entry to use when writing a type to csv.
+         * Gets the default value for the type created by this entry. When saving, this
+         * identifies the entry to use when writing a type to csv. It also sets the
+         * default type selected when switched in the editor.
          *
          * @return track object type class
          */
-        public abstract Class<T> getTrackObjectTypeClass();
+        public abstract T getDefaultType();
 
         /**
          * Reads further details of a track object
@@ -609,8 +622,8 @@ public class TrackCoasterCSV {
         }
 
         @Override
-        public Class<TrackObjectTypeItemStack> getTrackObjectTypeClass() {
-            return TrackObjectTypeItemStack.class;
+        public TrackObjectTypeItemStack getDefaultType() {
+            return TrackObjectTypeItemStack.createDefault();
         }
 
         @Override
@@ -638,8 +651,8 @@ public class TrackCoasterCSV {
         }
 
         @Override
-        public Class<TrackObjectTypeFallingBlock> getTrackObjectTypeClass() {
-            return TrackObjectTypeFallingBlock.class;
+        public TrackObjectTypeFallingBlock getDefaultType() {
+            return TrackObjectTypeFallingBlock.createDefault();
         }
 
         @Override

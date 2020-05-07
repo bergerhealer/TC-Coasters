@@ -1,9 +1,21 @@
 package com.bergerkiller.bukkit.coasters.objects;
 
+import java.util.function.Supplier;
+
+import org.bukkit.inventory.ItemStack;
+
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemSelectMenu;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleFallingBlock;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
+import com.bergerkiller.bukkit.common.map.MapCanvas;
+import com.bergerkiller.bukkit.common.map.util.Model;
+import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
+import com.bergerkiller.bukkit.common.math.Vector3;
+import com.bergerkiller.bukkit.common.utils.DebugUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
+import com.bergerkiller.bukkit.tc.TCConfig;
 
 /**
  * Item stack displayed on an armorstand
@@ -13,6 +25,9 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
     private final BlockData material;
 
     private TrackObjectTypeFallingBlock(double width, BlockData material) {
+        if (material == null) {
+            throw new IllegalArgumentException("Material can not be null");
+        }
         this.width = width;
         this.material = material;
     }
@@ -23,6 +38,11 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
 
     public static TrackObjectTypeFallingBlock createDefault() {
         return create(0.0, BlockData.fromMaterial(MaterialUtil.getFirst("RAIL", "LEGACY_RAILS")));
+    }
+
+    @Override
+    public String getTitle() {
+        return "Block";
     }
 
     @Override
@@ -69,6 +89,33 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
         particle.setPositionOrientation(point.position, point.orientation);
         particle.setMaterial(this.material);
         particle.setWidth(this.width);
+    }
+
+    @Override
+    public boolean isSameImage(TrackObjectType<?> type) {
+        return this.getMaterial().equals(((TrackObjectTypeFallingBlock) type).getMaterial());
+    }
+
+    @Override
+    public void drawImage(MapCanvas canvas) {
+        Model model = TCConfig.resourcePack.getBlockModel(this.material);
+        canvas.setLightOptions(0.0f, 1.0f, new Vector3(-1, 1, -1));
+        canvas.drawModel(model, 1.0f, 27, 22, DebugUtil.getFloatValue("a", 225.0f), DebugUtil.getFloatValue("b", -45.0f));
+    }
+
+    @Override
+    public void openMenu(MapWidget parent, Supplier<PlayerEditState> stateSupplier) {
+        parent.addWidget(new ItemSelectMenu(stateSupplier));
+    }
+
+    @Override
+    public TrackObjectTypeFallingBlock acceptItem(ItemStack item) {
+        BlockData block = BlockData.fromItemStack(item);
+        if (block != null) {
+            return this.setMaterial(block);
+        } else {
+            return this;
+        }
     }
 
     @Override

@@ -4,14 +4,12 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.config.JsonSerializer;
 import com.bergerkiller.bukkit.common.config.JsonSerializer.JsonSyntaxException;
-import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 
 /**
@@ -117,7 +115,7 @@ public class StringArrayBuffer implements Iterator<String> {
      * @param material
      */
     public void putBlockData(BlockData material) {
-        put(material.getType().name());
+        put(material.serializeToString());
     }
 
     /**
@@ -199,12 +197,12 @@ public class StringArrayBuffer implements Iterator<String> {
      * @throws SyntaxException
      */
     public BlockData nextBlockData() throws SyntaxException {
-        String name = next();
-        Material mat = ParseUtil.parseMaterial(name, null);
-        if (mat == null) {
-            throw new SyntaxException(-1, this.index+1, "Unknown material type: " + name);
+        String serialized = next();
+        BlockData blockData = BlockData.fromString(serialized);
+        if (blockData == null) {
+            throw new SyntaxException(-1, this.index+1, "Unknown block data: " + serialized);
         }
-        return BlockData.fromMaterial(mat);
+        return blockData;
     }
 
     /**
