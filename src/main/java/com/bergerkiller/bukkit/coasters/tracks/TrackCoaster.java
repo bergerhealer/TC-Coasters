@@ -161,6 +161,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
      * Removes all nodes and connections of this coaster
      */
     public void clear() {
+        getWorld().getRails().purge(this._nodes);
         for (TrackNode node : this._nodes) {
             this.getWorld().getTracks().disconnectAll(node, true);
             node.onRemoved();
