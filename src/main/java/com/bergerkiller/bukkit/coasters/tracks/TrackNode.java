@@ -102,7 +102,11 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
 
     @Override
     public CoasterWorld getWorld() {
-        return this._coaster.getWorld();
+        try {
+            return this._coaster.getWorld();
+        } catch (NullPointerException ex) {
+            throw new IllegalStateException("Node was removed and has no world");
+        }
     }
 
     /**

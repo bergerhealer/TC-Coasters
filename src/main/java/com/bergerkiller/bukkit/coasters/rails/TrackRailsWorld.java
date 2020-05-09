@@ -18,6 +18,7 @@ import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.util.HashSetCache;
 import com.bergerkiller.bukkit.coasters.util.RailSectionBlockIterator;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
@@ -36,9 +37,9 @@ public class TrackRailsWorld implements CoasterWorldComponent {
     private final CoasterWorld _world;
     private final ListMultimap<IntVector3, TrackRailsSection> sectionsByRails = LinkedListMultimap.create(10000);
     private final SetMultimap<IntVector3, TrackRailsSection> sectionsByBlock = HashMultimap.create(10000, 2);
-    private final Map<TrackNode, TrackNodeMeta> trackNodeMeta = new IdentityHashMap<TrackNode, TrackNodeMeta>();
-    private final HashSet<IntVector3> addedTrackBlocks = new HashSet<IntVector3>();
-    private final HashSet<IntVector3> addedTrackRails = new HashSet<IntVector3>();
+    private final Map<TrackNode, TrackNodeMeta> trackNodeMeta = new IdentityHashMap<>();
+    private final Map<TrackNode, Set<IntVector3>> tmpNodeBlocks = new IdentityHashMap<>();
+    private final HashSetCache hashSetCache = HashSetCache.create();
 
     public TrackRailsWorld(CoasterWorld world) {
         this._world = world;
@@ -52,6 +53,7 @@ public class TrackRailsWorld implements CoasterWorldComponent {
     public void clear() {
         this.sectionsByBlock.clear();
         this.sectionsByRails.clear();
+        this.trackNodeMeta.clear();
     }
 
     public Collection<TrackRailsSection> findAtBlock(Block block) {
@@ -94,6 +96,10 @@ public class TrackRailsWorld implements CoasterWorldComponent {
      */
     public void purge(Collection<TrackNode> nodes) {
         try {
+            Set<TrackRailsSection> sectionsToReAdd = hashSetCache.createNew();
+            Set<IntVector3> addedTrackRails = hashSetCache.createNew();
+            Set<IntVector3> addedTrackBlocks = hashSetCache.createNew();
+
             // Collect all block and rail coordinates affected
             for (TrackNode node : nodes) {
                 TrackNodeMeta meta = trackNodeMeta.remove(node);
@@ -104,7 +110,6 @@ public class TrackRailsWorld implements CoasterWorldComponent {
             }
 
             // Remove from the found coordinates
-            HashSet<TrackRailsSection> sectionsToReAdd = new HashSet<TrackRailsSection>();
             for (IntVector3 railBlock : addedTrackRails) {
                 removeFromMap(sectionsByRails.get(railBlock), nodes, sectionsToReAdd);
             }
@@ -117,8 +122,8 @@ public class TrackRailsWorld implements CoasterWorldComponent {
                 addSectionToMap(reAdd);
             }
         } finally {
-            addedTrackRails.clear();
-            addedTrackBlocks.clear();
+            // Invalidates all sets created up above
+            finishAddingSectionsToMap();
         }
     }
 
@@ -152,11 +157,8 @@ public class TrackRailsWorld implements CoasterWorldComponent {
                     addSectionToMap(new TrackRailsSection(node, rails, node.buildPath(conn, other), false));
                 }
             }
-
-            // Map all added nodes to the track node
-            trackNodeMeta.put(node, new TrackNodeMeta(rails, addedTrackBlocks));
         } finally {
-            addedTrackBlocks.clear();
+            finishAddingSectionsToMap();
         }
     }
 
@@ -214,7 +216,7 @@ public class TrackRailsWorld implements CoasterWorldComponent {
 
                         // Remove sections we are replacing from the by-block-position mapping
                         for (TrackRailsSection mergedSection : sectionsToMerge) {
-                            TrackNodeMeta meta = trackNodeMeta.get(mergedSection.node);
+                            TrackNodeMeta meta = trackNodeMeta.remove(mergedSection.node);
                             if (meta != null) {
                                 for (IntVector3 posBlock : meta.blocks) {
                                     sectionsByBlock.get(posBlock).remove(mergedSection);
@@ -273,9 +275,23 @@ public class TrackRailsWorld implements CoasterWorldComponent {
         }
     }
 
+    private void finishAddingSectionsToMap() {
+        // Map all added nodes to the track node
+        // We may be adding more than one node, because of merging tracks at the same rails
+        for (Map.Entry<TrackNode, Set<IntVector3>> entry : tmpNodeBlocks.entrySet()) {
+            trackNodeMeta.put(entry.getKey(), new TrackNodeMeta(entry.getKey().getRailBlock(true), entry.getValue()));
+        }
+
+        // Wipe caches
+        tmpNodeBlocks.clear();
+        hashSetCache.reset();
+    }
+
     private void mapSectionToBlock(IntVector3 key, Collection<IntVector3> suppressed, TrackRailsSection section) {
         if (!suppressed.contains(key) && sectionsByBlock.get(key).add(section)) {
-            addedTrackBlocks.add(key);
+            section.getNodes().forEach(node -> {
+                tmpNodeBlocks.computeIfAbsent(node, unused -> hashSetCache.createNew()).add(key);
+            });
         }
     }
 
@@ -304,7 +320,6 @@ public class TrackRailsWorld implements CoasterWorldComponent {
             while (sections_iter.hasNext()) {
                 TrackRailsSection section = sections_iter.next();
                 if (section.containsNode(nodes)) {
-
                     // Sub-sections that should not be removed, should be re-added later
                     if (section instanceof TrackRailsSectionLinked) { // optimization. Can remove.
                         for (TrackRailsSection part : section.getAllSections()) {
