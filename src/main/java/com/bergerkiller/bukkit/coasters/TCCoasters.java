@@ -45,7 +45,6 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldImpl;
 import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.Hastebin;
-import com.bergerkiller.bukkit.common.Hastebin.DownloadResult;
 import com.bergerkiller.bukkit.common.Hastebin.UploadResult;
 import com.bergerkiller.bukkit.common.PluginBase;
 import com.bergerkiller.bukkit.common.Task;
@@ -581,43 +580,47 @@ public class TCCoasters extends PluginBase {
                 sender.sendMessage(ChatColor.RED + "Please specify the URL to a Hastebin-hosted paste to download from");
                 return true;
             }
-            this.hastebin.download(args[1]).thenAccept(new Consumer<Hastebin.DownloadResult>() {
-                @Override
-                public void accept(DownloadResult t) {
-                    if (!t.success()) {
-                        sender.sendMessage(ChatColor.RED + "Failed to import coaster: " + t.error());
-                        return;
-                    }
-                    TrackCoaster coaster = state.getWorld().getTracks().createNewEmpty(generateNewCoasterName());
-                    try {
-                        coaster.loadFromStream(t.contentInputStream(), PlayerOrigin.getForPlayer(state.getPlayer()));
-                        if (coaster.getNodes().isEmpty()) {
-                            sender.sendMessage(ChatColor.RED + "Failed to decode any coaster nodes!");
-                            coaster.remove();
-                            return;
-                        }
-                    } catch (CoasterLoadException ex) {
-                        sender.sendMessage(ChatColor.RED + ex.getMessage());
-                        if (coaster.getNodes().isEmpty()) {
-                            coaster.remove();
-                            return;
-                        }
-                    }
-
-                    // Handle event
-                    if (CommonUtil.callEvent(new CoasterImportEvent(p, coaster)).isCancelled()) {
-                        sender.sendMessage(ChatColor.RED + "Coaster could not be imported here!");
-                        coaster.remove();
-                        return;
-                    }
-                    if (coaster.getNodes().isEmpty()) {
-                        sender.sendMessage(ChatColor.RED + "None of the nodes could be imported here!");
-                        coaster.remove();
-                        return;
-                    }
-
-                    sender.sendMessage(ChatColor.GREEN + "Coaster with " + coaster.getNodes().size() + " nodes imported!");
+            final Player player = (Player) sender;
+            this.hastebin.download(args[1]).thenAccept(download -> {
+                if (!download.success()) {
+                    sender.sendMessage(ChatColor.RED + "Failed to import coaster: " + download.error());
+                    return;
                 }
+
+                PlayerEditState dlEditState = getEditState(player);
+                TrackCoaster coaster = dlEditState.getWorld().getTracks().createNewEmpty(generateNewCoasterName());
+                try {
+                    coaster.loadFromStream(download.contentInputStream(), PlayerOrigin.getForPlayer(dlEditState.getPlayer()));
+                    if (coaster.getNodes().isEmpty()) {
+                        sender.sendMessage(ChatColor.RED + "Failed to decode any coaster nodes!");
+                        coaster.remove();
+                        return;
+                    }
+                } catch (CoasterLoadException ex) {
+                    sender.sendMessage(ChatColor.RED + ex.getMessage());
+                    if (coaster.getNodes().isEmpty()) {
+                        coaster.remove();
+                        return;
+                    }
+                }
+
+                // Handle event
+                if (CommonUtil.callEvent(new CoasterImportEvent(p, coaster)).isCancelled()) {
+                    sender.sendMessage(ChatColor.RED + "Coaster could not be imported here!");
+                    coaster.remove();
+                    return;
+                }
+                if (coaster.getNodes().isEmpty()) {
+                    sender.sendMessage(ChatColor.RED + "None of the nodes could be imported here!");
+                    coaster.remove();
+                    return;
+                }
+
+                // Create a history change for the entire coaster details
+                // This allows the player to undo this
+                dlEditState.getHistory().addChangeAfterCreatingCoaster(coaster);
+
+                sender.sendMessage(ChatColor.GREEN + "Coaster with " + coaster.getNodes().size() + " nodes imported!");
             });
         } else if (args.length > 0 && args[0].equals("export")) {
             TCCoastersPermissions.EXPORT.handle(sender);

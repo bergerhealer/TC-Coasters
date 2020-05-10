@@ -1,6 +1,8 @@
 package com.bergerkiller.bukkit.coasters.editor.history;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.bukkit.entity.Player;
 
@@ -15,6 +17,7 @@ import com.bergerkiller.bukkit.coasters.events.CoasterDeleteNodeEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterDeleteTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterEvent;
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
+import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
@@ -166,6 +169,25 @@ public abstract class HistoryChangeCollection {
         }
 
         return addChange(new HistoryChangeTrackObject(old_connection, connection, old_object, object));
+    }
+
+    /**
+     * Adds a change for after a player (already) created a full coaster. No events or permissions are checked.
+     * 
+     * @param coaster
+     * @return change
+     */
+    public final HistoryChange addChangeAfterCreatingCoaster(TrackCoaster coaster) {
+        HistoryChange group = this.addChangeGroup();
+        Set<TrackConnection> connections = new LinkedHashSet<TrackConnection>();
+        for (TrackNode node : coaster.getNodes()) {
+            group.addChange(new HistoryChangeCreateNode(node));
+            connections.addAll(node.getConnections());
+        }
+        for (TrackConnection connection : connections) {
+            group.addChange(new HistoryChangeConnect(connection.getNodeA(), connection.getNodeB(), connection.getObjects()));
+        }
+        return group;
     }
 
     public void handleChangeBefore(Player who, TrackNode node) throws ChangeCancelledException {
