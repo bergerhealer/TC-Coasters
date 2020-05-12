@@ -17,7 +17,10 @@ public abstract class TrackParticle {
     protected TrackParticleWorld world;
     private ImmutablePlayerSet viewers = ImmutablePlayerSet.EMPTY;
     private TrackParticleState.Source stateSource = TrackParticleState.SOURCE_NONE;
-    protected boolean updateAppearanceQueued = false;
+    private int flags = 0;
+
+    protected static final int FLAG_APPEARANCE_DIRTY = (1<<0);
+    protected static final int FLAG_ALWAYS_VISIBLE   = (1<<1);
 
     public TrackParticleWorld getWorld() {
         return this.world;
@@ -55,6 +58,58 @@ public abstract class TrackParticle {
                 makeHiddenFor(viewer);
             }
         }
+    }
+
+    /**
+     * Sets or clears a flag of this particle. Returns true if the flag changed.
+     * 
+     * @param flag
+     * @param set Whether to set (true) or clear (flag) the flag
+     * @return True if the flag changed
+     */
+    protected final boolean setFlag(int flag, boolean set) {
+        if (((this.flags & flag) != 0) != set) {
+            this.flags ^= flag;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Sets a flag of this particle. Returns true if the flag changed.
+     * 
+     * @param flag
+     * @return True if the flag changed (was cleared before)
+     */
+    protected final boolean setFlag(int flag) {
+        if ((this.flags & flag) == 0) {
+            this.flags |= flag;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Clears a flag of this particle. Returns true if the flag changed.
+     * @param flag
+     * @return True if the flag changed (was set before)
+     */
+    protected final boolean clearFlag(int flag) {
+        if ((this.flags & flag) != 0) {
+            this.flags &= ~flag;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Reads the current set-state of a flag of this particle
+     * 
+     * @param flag
+     * @return True if flag is set
+     */
+    protected final boolean getFlag(int flag) {
+        return (this.flags & flag) != 0;
     }
 
     public ImmutablePlayerSet getViewers() {
@@ -98,8 +153,18 @@ public abstract class TrackParticle {
      * 
      * @return True if always visible
      */
-    public boolean isAlwaysVisible() {
-        return false;
+    public final boolean isAlwaysVisible() {
+        return getFlag(FLAG_ALWAYS_VISIBLE);
+    }
+
+    /**
+     * Sets whether this particle is always visible, even when the viewer is not in the
+     * TC-Coasters edit mode.
+     * 
+     * @param alwaysVisible True if this particle is always visible
+     */
+    public final void setAlwaysVisible(boolean alwaysVisible) {
+        setFlag(FLAG_ALWAYS_VISIBLE, alwaysVisible);
     }
 
     /**
@@ -124,8 +189,7 @@ public abstract class TrackParticle {
     public abstract boolean usesEntityId(int entityId);
 
     protected void scheduleUpdateAppearance() {
-        if (!this.updateAppearanceQueued) {
-            this.updateAppearanceQueued = true;
+        if (setFlag(FLAG_APPEARANCE_DIRTY)) {
             this.world.appearanceUpdates.add(this);
         }
     }

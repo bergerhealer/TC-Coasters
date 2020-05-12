@@ -30,6 +30,9 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityL
  * Displays an item or 3D model using the head of an armorstand
  */
 public class TrackParticleArmorStandItem extends TrackParticle {
+    protected static final int FLAG_POSITION_CHANGED  = (1<<2);
+    protected static final int FLAG_POSE_CHANGED      = (1<<3);
+    protected static final int FLAG_ITEM_CHANGED      = (1<<4);
     private static final double ARMORSTAND_HEAD_OFFSET = 1.44;
     private static final ItemStack MARKER_ITEM = new ItemStack(MaterialUtil.getFirst("REDSTONE_TORCH", "LEGACY_REDSTONE_TORCH_ON"));
     private DoubleOctree.Entry<TrackParticle> position;
@@ -39,9 +42,6 @@ public class TrackParticleArmorStandItem extends TrackParticle {
     private int entityId = -1;
     private int markerA_entityId = -1;
     private int markerB_entityId = -1;
-    private boolean positionChanged = false;
-    private boolean poseChanged = false;
-    private boolean itemChanged = false;
 
     protected TrackParticleArmorStandItem(Vector position, Quaternion orientation, ItemStack item, double width) {
         this.position = DoubleOctree.Entry.create(position, this);
@@ -53,12 +53,12 @@ public class TrackParticleArmorStandItem extends TrackParticle {
     public void setPositionOrientation(Vector position, Quaternion orientation) {
         if (!this.orientation.equals(orientation)) {
             this.orientation.setTo(orientation);
-            this.poseChanged = true;
+            this.setFlag(FLAG_POSE_CHANGED);
             this.scheduleUpdateAppearance();
         }
         if (!this.position.equalsCoord(position)) {
             this.position = updatePosition(this.position, position);
-            this.positionChanged = true;
+            this.setFlag(FLAG_POSITION_CHANGED);
             this.scheduleUpdateAppearance();
         }
     }
@@ -66,7 +66,7 @@ public class TrackParticleArmorStandItem extends TrackParticle {
     public void setItem(ItemStack item) {
         if (this.item != item && !this.item.equals(item)) {
             this.item = item;
-            this.itemChanged = true;
+            this.setFlag(FLAG_ITEM_CHANGED);
             this.scheduleUpdateAppearance();
         }
     }
@@ -74,7 +74,7 @@ public class TrackParticleArmorStandItem extends TrackParticle {
     public void setWidth(double width) {
         if (this.width != width) {
             this.width = width;
-            this.positionChanged = true;
+            this.setFlag(FLAG_POSITION_CHANGED);
             this.scheduleUpdateAppearance();
         }
     }
@@ -87,11 +87,6 @@ public class TrackParticleArmorStandItem extends TrackParticle {
     @Override
     protected void onRemoved() {
         removePosition(this.position);
-    }
-
-    @Override
-    public boolean isAlwaysVisible() {
-        return true;
     }
 
     @Override
@@ -229,9 +224,7 @@ public class TrackParticleArmorStandItem extends TrackParticle {
 
     @Override
     public void updateAppearance() {
-        if (this.positionChanged) {
-            this.positionChanged = false;
-
+        if (this.clearFlag(FLAG_POSITION_CHANGED)) {
             if (this.entityId != -1) {
                 PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
                         this.entityId,
@@ -252,21 +245,13 @@ public class TrackParticleArmorStandItem extends TrackParticle {
                 this.markerB_entityId = -1;
             }
         }
-        if (this.poseChanged) {
-            this.poseChanged = false;
-
-            if (this.entityId != -1) {
-                DataWatcher meta = new DataWatcher();
-                meta.set(EntityArmorStandHandle.DATA_POSE_HEAD, Util.getArmorStandPose(orientation));
-                this.broadcastPacket(PacketPlayOutEntityMetadataHandle.createNew(this.entityId, meta, true));
-            }
+        if (this.clearFlag(FLAG_POSE_CHANGED) && this.entityId != -1) {
+            DataWatcher meta = new DataWatcher();
+            meta.set(EntityArmorStandHandle.DATA_POSE_HEAD, Util.getArmorStandPose(orientation));
+            this.broadcastPacket(PacketPlayOutEntityMetadataHandle.createNew(this.entityId, meta, true));
         }
-        if (this.itemChanged) {
-            this.itemChanged = false;
-
-            if (this.entityId != -1) {
-                this.broadcastPacket(PacketPlayOutEntityEquipmentHandle.createNew(this.entityId, EquipmentSlot.HEAD, this.item));
-            }
+        if (this.clearFlag(FLAG_ITEM_CHANGED) && this.entityId != -1) {
+            this.broadcastPacket(PacketPlayOutEntityEquipmentHandle.createNew(this.entityId, EquipmentSlot.HEAD, this.item));
         }
     }
 

@@ -33,23 +33,22 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityL
  * junction names on the track.
  */
 public class TrackParticleText extends TrackParticle {
+    protected static final int FLAG_POSITION_CHANGED    = (1<<2);
+    protected static final int FLAG_TEXT_CHANGED        = (1<<3);
+    protected static final int FLAG_TEXT_COLOR_CHANGED  = (1<<4);
+    protected static final int FLAG_SHOW_ITEM           = (1<<5);
     private static final Vector ITEM_OFFSET = new Vector(0.0, -0.34, 0.0);
     private static final Vector ARMORSTAND_OFFSET = new Vector(0.0, -2.5, 0.0);
     private int entityId = -1;
-    private UUID entityUUID = null;
     private ChatColor textColor = ChatColor.BLACK;
     private String text;
     private DoubleOctree.Entry<TrackParticle> position;
-    private boolean showItem;
-    private boolean positionChanged = false;
-    private boolean textChanged = false;
-    private boolean textColorChanged = false;
 
     protected TrackParticleText(Vector position, String text, boolean showItem) {
         this.position = DoubleOctree.Entry.create(position, this);
         this.text = text;
         this.textColor = getTextColor(this.text);
-        this.showItem = showItem;
+        this.setFlag(FLAG_SHOW_ITEM, showItem);
     }
 
     @Override
@@ -65,7 +64,7 @@ public class TrackParticleText extends TrackParticle {
     public void setPosition(Vector position) {
         if (!this.position.equalsCoord(position)) {
             this.position = updatePosition(this.position, position);
-            this.positionChanged = true;
+            this.setFlag(FLAG_POSITION_CHANGED);
             this.scheduleUpdateAppearance();
         }
     }
@@ -73,11 +72,11 @@ public class TrackParticleText extends TrackParticle {
     public void setText(String text) {
         if (!this.text.equals(text)) {
             this.text = text;
-            this.textChanged = true;
+            this.setFlag(FLAG_TEXT_CHANGED);
             ChatColor color = getTextColor(text);
             if (this.textColor != color) {
                 this.textColor = color;
-                this.textColorChanged = true;
+                this.setFlag(FLAG_TEXT_COLOR_CHANGED);
             }
             this.scheduleUpdateAppearance();
         }
@@ -92,7 +91,6 @@ public class TrackParticleText extends TrackParticle {
     public void makeVisibleFor(Player viewer) {
         if (this.entityId == -1) {
             this.entityId = EntityUtil.getUniqueEntityId();
-            this.entityUUID = UUID.randomUUID();
         }
 
         DataWatcher metadata = new DataWatcher();
@@ -100,11 +98,11 @@ public class TrackParticleText extends TrackParticle {
         metadata.set(EntityHandle.DATA_CUSTOM_NAME_VISIBLE, true);
         metadata.set(EntityHandle.DATA_CUSTOM_NAME, ChatText.fromMessage(this.text));
 
-        if (this.showItem) {
+        if (this.getFlag(FLAG_SHOW_ITEM)) {
             // Spawns a hovering item entity
             PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.T.newHandleNull();
             spawnPacket.setEntityId(this.entityId);
-            spawnPacket.setEntityUUID(this.entityUUID);
+            spawnPacket.setEntityUUID(UUID.randomUUID());
             spawnPacket.setEntityType(EntityType.DROPPED_ITEM);
             spawnPacket.setPosX(this.position.getX() + ITEM_OFFSET.getX());
             spawnPacket.setPosY(this.position.getY() + ITEM_OFFSET.getY());
@@ -129,7 +127,7 @@ public class TrackParticleText extends TrackParticle {
             // Spawns an invisible armorstand, which displays only the nametag
             PacketPlayOutSpawnEntityLivingHandle spawnPacket = PacketPlayOutSpawnEntityLivingHandle.T.newHandleNull();
             spawnPacket.setEntityId(this.entityId);
-            spawnPacket.setEntityUUID(this.entityUUID);
+            spawnPacket.setEntityUUID(UUID.randomUUID());
             spawnPacket.setEntityType(EntityType.ARMOR_STAND);
             spawnPacket.setPosX(this.position.getX() + ARMORSTAND_OFFSET.getX());
             spawnPacket.setPosY(this.position.getY() + ARMORSTAND_OFFSET.getY());
@@ -152,30 +150,23 @@ public class TrackParticleText extends TrackParticle {
 
     @Override
     public void updateAppearance() {
-        if (this.positionChanged) {
-            this.positionChanged = false;
-            if (this.entityId != -1) {
-                PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
-                        this.entityId,
-                        this.position.getX() + ITEM_OFFSET.getX(),
-                        this.position.getY() + ITEM_OFFSET.getY(),
-                        this.position.getZ() + ITEM_OFFSET.getZ(),
-                        0.0f, 0.0f, false);
-                broadcastPacket(tpPacket);
-            }
+        if (this.clearFlag(FLAG_POSITION_CHANGED) && this.entityId != -1) {
+            PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+                    this.entityId,
+                    this.position.getX() + ITEM_OFFSET.getX(),
+                    this.position.getY() + ITEM_OFFSET.getY(),
+                    this.position.getZ() + ITEM_OFFSET.getZ(),
+                    0.0f, 0.0f, false);
+            broadcastPacket(tpPacket);
         }
-        if (this.textChanged) {
-            this.textChanged = false;
-            if (this.entityId != -1) {
-                DataWatcher metadata = new DataWatcher();
-                metadata.set(EntityItemHandle.DATA_CUSTOM_NAME, ChatText.fromMessage(this.text));
-                if (this.textColorChanged && this.showItem) {
-                    this.textColorChanged = false;
-                    metadata.set(EntityItemHandle.DATA_ITEM, getItem(this.textColor));
-                }
-                PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
-                broadcastPacket(metaPacket);
+        if (this.clearFlag(FLAG_TEXT_CHANGED) && this.entityId != -1) {
+            DataWatcher metadata = new DataWatcher();
+            metadata.set(EntityItemHandle.DATA_CUSTOM_NAME, ChatText.fromMessage(this.text));
+            if (this.getFlag(FLAG_SHOW_ITEM) && this.clearFlag(FLAG_TEXT_COLOR_CHANGED)) {
+                metadata.set(EntityItemHandle.DATA_ITEM, getItem(this.textColor));
             }
+            PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
+            broadcastPacket(metaPacket);
         }
     }
 

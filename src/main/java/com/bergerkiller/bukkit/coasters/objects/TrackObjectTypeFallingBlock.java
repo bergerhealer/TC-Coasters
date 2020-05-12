@@ -80,7 +80,9 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
 
     @Override
     public TrackParticleFallingBlock createParticle(TrackConnection.PointOnPath point) {
-        return point.getWorld().getParticles().addParticleFallingBlock(point.position, point.orientation, this.material, this.width);
+        TrackParticleFallingBlock particle = point.getWorld().getParticles().addParticleFallingBlock(point.position, point.orientation, this.material, this.width);
+        particle.setAlwaysVisible(true);
+        return particle;
     }
 
     @Override

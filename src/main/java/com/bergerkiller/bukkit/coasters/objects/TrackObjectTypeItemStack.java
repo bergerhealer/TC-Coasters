@@ -83,7 +83,9 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
 
     @Override
     public TrackParticleArmorStandItem createParticle(TrackConnection.PointOnPath point) {
-        return point.getWorld().getParticles().addParticleArmorStandItem(point.position, point.orientation, this.item, this.width);
+        TrackParticleArmorStandItem particle = point.getWorld().getParticles().addParticleArmorStandItem(point.position, point.orientation, this.item, this.width);
+        particle.setAlwaysVisible(true);
+        return particle;
     }
 
     @Override

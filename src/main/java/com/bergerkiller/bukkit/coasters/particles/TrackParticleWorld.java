@@ -138,7 +138,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
             int size = this.appearanceUpdates.size();
             for (int i = 0; i < size; i++) {
                 TrackParticle particle = this.appearanceUpdates.get(i);
-                particle.updateAppearanceQueued = false;
+                particle.clearFlag(TrackParticle.FLAG_APPEARANCE_DIRTY);
                 particle.updateAppearance();
             }
             this.appearanceUpdates.subList(0, size).clear();

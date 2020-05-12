@@ -14,6 +14,8 @@ import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 
 public class TrackParticleFallingBlock extends TrackParticle {
+    protected static final int FLAG_POSITION_CHANGED = (1<<2);
+    protected static final int FLAG_MATERIAL_CHANGED = (1<<3);
     private static final ItemStack MARKER_ITEM = new ItemStack(MaterialUtil.getFirst("REDSTONE_TORCH", "LEGACY_REDSTONE_TORCH_ON"));
     private DoubleOctree.Entry<TrackParticle> position;
     private Quaternion orientation;
@@ -23,8 +25,6 @@ public class TrackParticleFallingBlock extends TrackParticle {
     private int entityId = -1;
     private int markerA_entityId = -1;
     private int markerB_entityId = -1;
-    private boolean positionChanged = false;
-    private boolean materialChanged = false;
 
     protected TrackParticleFallingBlock(Vector position, Quaternion orientation, BlockData material, double width) {
         this.position = DoubleOctree.Entry.create(position, this);
@@ -36,12 +36,12 @@ public class TrackParticleFallingBlock extends TrackParticle {
     public void setPositionOrientation(Vector position, Quaternion orientation) {
         if (!this.orientation.equals(orientation)) {
             this.orientation.setTo(orientation);
-            this.positionChanged = true;
+            this.setFlag(FLAG_POSITION_CHANGED);
             this.scheduleUpdateAppearance();
         }
         if (!this.position.equalsCoord(position)) {
             this.position = updatePosition(this.position, position);
-            this.positionChanged = true;
+            this.setFlag(FLAG_POSITION_CHANGED);
             this.scheduleUpdateAppearance();
         }
     }
@@ -49,7 +49,7 @@ public class TrackParticleFallingBlock extends TrackParticle {
     public void setMaterial(BlockData material) {
         if (this.material != material) {
             this.material = material;
-            this.materialChanged = true;
+            this.setFlag(FLAG_MATERIAL_CHANGED);
             this.scheduleUpdateAppearance();
         }
     }
@@ -57,7 +57,7 @@ public class TrackParticleFallingBlock extends TrackParticle {
     public void setWidth(double width) {
         if (this.width != width) {
             this.width = width;
-            this.positionChanged = true;
+            this.setFlag(FLAG_POSITION_CHANGED);
             this.scheduleUpdateAppearance();
         }
     }
@@ -70,11 +70,6 @@ public class TrackParticleFallingBlock extends TrackParticle {
     @Override
     protected void onRemoved() {
         removePosition(this.position);
-    }
-
-    @Override
-    public boolean isAlwaysVisible() {
-        return true;
     }
 
     @Override
@@ -182,34 +177,31 @@ public class TrackParticleFallingBlock extends TrackParticle {
 
     @Override
     public void updateAppearance() {
-        if (this.materialChanged) {
-            this.materialChanged = false;
-            this.positionChanged = false;
+        if (this.clearFlag(FLAG_MATERIAL_CHANGED)) {
+            this.clearFlag(FLAG_POSITION_CHANGED);
 
             for (Player viewer : this.getViewers()) {
                 this.makeHiddenFor(viewer);
                 this.makeVisibleFor(viewer);
             }
         }
-        if (this.positionChanged) {
-            this.positionChanged = false;
-
+        if (this.clearFlag(FLAG_POSITION_CHANGED)) {
             VirtualFallingBlock block = VirtualFallingBlock.create(this.holderEntityId, this.entityId)
-                .position(this.position)
-                .smoothMovement(true)
-                .move(this.getViewers());
-            this.holderEntityId = block.holderEntityId();
-            this.entityId = block.entityId();
+                    .position(this.position)
+                    .smoothMovement(true)
+                    .move(this.getViewers());
+                this.holderEntityId = block.holderEntityId();
+                this.entityId = block.entityId();
 
-            for (Player viewer : this.getViewers()) {
-                if (getState(viewer) == TrackParticleState.SELECTED) {
-                    moveMarkers(viewer);
+                for (Player viewer : this.getViewers()) {
+                    if (getState(viewer) == TrackParticleState.SELECTED) {
+                        moveMarkers(viewer);
+                    }
                 }
-            }
 
-            if (this.width <= 0.0) {
-                this.markerB_entityId = -1;
-            }
+                if (this.width <= 0.0) {
+                    this.markerB_entityId = -1;
+                }
         }
     }
 

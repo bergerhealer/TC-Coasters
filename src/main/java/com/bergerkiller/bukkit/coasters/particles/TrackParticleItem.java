@@ -21,13 +21,13 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityH
  * A particle consisting of a floating item
  */
 public class TrackParticleItem extends TrackParticle {
+    protected static final int FLAG_POSITION_CHANGED  = (1<<2);
+    protected static final int FLAG_ITEM_CHANGED      = (1<<3);
     private static final Vector OFFSET = new Vector(0.0, -0.34, 0.0);
     private TrackParticleItemType itemType = TrackParticleItemType.DEFAULT;
     private DoubleOctree.Entry<TrackParticle> position;
     private int entityId = -1;
     private UUID entityUUID = null;
-    private boolean positionChanged = false;
-    private boolean itemChanged = false;
 
     public TrackParticleItem(Vector position) {
         this.position = DoubleOctree.Entry.create(position, this);
@@ -46,7 +46,7 @@ public class TrackParticleItem extends TrackParticle {
     public void setPosition(Vector position) {
         if (this.position.distanceSquared(position) > (0.001 * 0.001)) {
             this.position = updatePosition(this.position, position);
-            this.positionChanged = true;
+            this.setFlag(FLAG_POSITION_CHANGED);
             this.scheduleUpdateAppearance();
         }
     }
@@ -54,7 +54,7 @@ public class TrackParticleItem extends TrackParticle {
     public void setItemType(TrackParticleItemType itemType) {
         if (!this.itemType.equals(itemType)) {
             this.itemType = itemType;
-            this.itemChanged = true;
+            this.setFlag(FLAG_ITEM_CHANGED);
             this.scheduleUpdateAppearance();
         }
     }
@@ -66,21 +66,16 @@ public class TrackParticleItem extends TrackParticle {
 
     @Override
     public void updateAppearance() {
-        if (this.positionChanged) {
-            this.positionChanged = false;
-            if (this.entityId != -1) {
-                PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
-                        this.entityId,
-                        this.position.getX() + OFFSET.getX(),
-                        this.position.getY() + OFFSET.getY(),
-                        this.position.getZ() + OFFSET.getZ(),
-                        0.0f, 0.0f, false);
-                broadcastPacket(tpPacket);
-            }
+        if (this.clearFlag(FLAG_POSITION_CHANGED) && this.entityId != -1) {
+            PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+                    this.entityId,
+                    this.position.getX() + OFFSET.getX(),
+                    this.position.getY() + OFFSET.getY(),
+                    this.position.getZ() + OFFSET.getZ(),
+                    0.0f, 0.0f, false);
+            broadcastPacket(tpPacket);
         }
-        if (this.itemChanged) {
-            this.itemChanged = false;
-
+        if (this.clearFlag(FLAG_ITEM_CHANGED) && this.entityId != -1) {
             for (Player viewer : this.getViewers()) {
                 DataWatcher metadata = new DataWatcher();
                 metadata.set(EntityItemHandle.DATA_ITEM, this.itemType.getItem(this.getState(viewer)));

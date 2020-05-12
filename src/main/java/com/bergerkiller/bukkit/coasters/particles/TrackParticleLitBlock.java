@@ -10,10 +10,10 @@ import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 
 public class TrackParticleLitBlock extends TrackParticle {
+    protected static final int FLAG_POSITION_CHANGED  = (1<<2);
     private DoubleOctree.Entry<TrackParticle> position;
     private int holderEntityId = -1;
     private int entityId = -1;
-    private boolean positionChanged = false;
 
     public TrackParticleLitBlock(IntVector3 block) {
         this.position = DoubleOctree.Entry.create(block.midX(), block.y, block.midZ(), this);
@@ -32,7 +32,7 @@ public class TrackParticleLitBlock extends TrackParticle {
     public void setBlock(IntVector3 block) {
         if (block != null && !this.position.equalsBlockCoord(block)) {
             this.position = updatePosition(this.position, DoubleOctree.Entry.create(block.midX(), block.y, block.midZ(), this));
-            this.positionChanged = true;
+            this.setFlag(FLAG_POSITION_CHANGED);
             this.scheduleUpdateAppearance();
         }
     }
@@ -75,8 +75,7 @@ public class TrackParticleLitBlock extends TrackParticle {
 
     @Override
     public void updateAppearance() {
-        if (this.positionChanged) {
-            this.positionChanged = false;
+        if (this.clearFlag(FLAG_POSITION_CHANGED)) {
             VirtualFallingBlock.create(this.holderEntityId, this.entityId)
                 .position(this.position)
                 .smoothMovement(false)

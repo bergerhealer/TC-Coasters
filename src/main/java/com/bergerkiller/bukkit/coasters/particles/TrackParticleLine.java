@@ -23,12 +23,12 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityL
  * A particle consisting of a line created using a leash between two invisible entities
  */
 public class TrackParticleLine extends TrackParticle {
+    protected static final int FLAG_POSITION_CHANGED  = (1<<2);
+    protected static final int FLAG_NEEDS_RESPAWN     = (1<<3);
     private static final Vector OFFSET1 = new Vector(0.7, 0.16, -0.5);
     private static final Vector OFFSET2 = new Vector(0.0, -1.1, -0.2);
     private DoubleOctree.Entry<TrackParticle> p1, p2;
     private int e1 = -1, e2 = -1;
-    private boolean positionChanged = false;
-    private boolean needsRespawn = false;
 
     public TrackParticleLine(Vector p1, Vector p2) {
         this.setPositions(p1, p2);
@@ -60,11 +60,12 @@ public class TrackParticleLine extends TrackParticle {
             this.p2 = DoubleOctree.Entry.create(p2, this);
         } else if (!this.p1.equalsCoord(p1) || !this.p2.equalsCoord(p2)) {
             // When p1 and p2 swap around, respawn everything to prevent visual glitches
-            this.needsRespawn = this.p1.distanceSquared(p1) > this.p2.distanceSquared(p1) &&
-                                this.p2.distanceSquared(p2) > this.p1.distanceSquared(p2);
+            this.setFlag(FLAG_NEEDS_RESPAWN,
+                    this.p1.distanceSquared(p1) > this.p2.distanceSquared(p1) &&
+                    this.p2.distanceSquared(p2) > this.p1.distanceSquared(p2));
 
             // Mark position changed and update points
-            this.positionChanged = true;
+            this.setFlag(FLAG_POSITION_CHANGED);
             this.p1 = updatePosition(this.p1, p1);
             this.p2 = updatePosition(this.p2, p2);
             this.scheduleUpdateAppearance();
@@ -79,17 +80,14 @@ public class TrackParticleLine extends TrackParticle {
 
     @Override
     public void updateAppearance() {
-        if (this.needsRespawn) {
-            this.needsRespawn = false;
-            this.positionChanged = false;
+        if (this.clearFlag(FLAG_NEEDS_RESPAWN)) {
+            this.clearFlag(FLAG_POSITION_CHANGED);
             for (Player player : this.getViewers()) {
                 makeHiddenFor(player);
                 makeVisibleFor(player);
             }
         }
-        if (this.positionChanged) {
-            this.positionChanged = false;
-
+        if (this.clearFlag(FLAG_POSITION_CHANGED)) {
             if (this.e1 != -1) {
                 PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
                         this.e1,
