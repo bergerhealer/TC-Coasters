@@ -1,26 +1,17 @@
 package com.bergerkiller.bukkit.coasters.particles;
 
-import java.util.UUID;
-
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.util.VirtualFallingBlock;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
-import com.bergerkiller.bukkit.common.protocol.PacketType;
-import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
-import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
-import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
-import com.bergerkiller.generated.net.minecraft.server.EntityHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityMetadataHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityTeleportHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityHandle;
 
 public class TrackParticleLitBlock extends TrackParticle {
     private DoubleOctree.Entry<TrackParticle> position;
+    private int holderEntityId = -1;
     private int entityId = -1;
     private boolean positionChanged = false;
 
@@ -58,31 +49,19 @@ public class TrackParticleLitBlock extends TrackParticle {
 
     @Override
     public void makeVisibleFor(Player viewer) {
-        if (this.entityId == -1) {
-            this.entityId = EntityUtil.getUniqueEntityId();
-        }
+        VirtualFallingBlock block = VirtualFallingBlock.create(this.holderEntityId, this.entityId)
+            .position(this.position)
+            .smoothMovement(false)
+            .material(getMat(viewer))
+            .spawn(viewer);
 
-        PacketPlayOutSpawnEntityHandle packet = PacketPlayOutSpawnEntityHandle.T.newHandleNull();
-        packet.setEntityId(this.entityId);
-        packet.setEntityUUID(UUID.randomUUID());
-        packet.setPosX(this.position.getX());
-        packet.setPosY(this.position.getY());
-        packet.setPosZ(this.position.getZ());
-        packet.setEntityType(EntityType.FALLING_BLOCK);
-        packet.setFallingBlockData(getMat(viewer));
-        PacketUtil.sendPacket(viewer, packet);
-
-        DataWatcher metadata = new DataWatcher();
-        metadata.set(EntityHandle.DATA_NO_GRAVITY, true);
-        PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
-        PacketUtil.sendPacket(viewer, metaPacket);
+        this.holderEntityId = block.holderEntityId();
+        this.entityId = block.entityId();
     }
 
     @Override
     public void makeHiddenFor(Player viewer) {
-        if (this.entityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.entityId));
-        }
+        VirtualFallingBlock.create(this.holderEntityId, this.entityId).destroy(viewer);
     }
 
     @Override
@@ -98,15 +77,10 @@ public class TrackParticleLitBlock extends TrackParticle {
     public void updateAppearance() {
         if (this.positionChanged) {
             this.positionChanged = false;
-            if (this.entityId != -1) {
-                PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
-                        this.entityId,
-                        this.position.getX(),
-                        this.position.getY(),
-                        this.position.getZ(),
-                        0.0f, 0.0f, false);
-                broadcastPacket(tpPacket);
-            }
+            VirtualFallingBlock.create(this.holderEntityId, this.entityId)
+                .position(this.position)
+                .smoothMovement(false)
+                .move(this.getViewers());
         }
     }
 

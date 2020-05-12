@@ -29,7 +29,7 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityH
  * in a given orientation.
  */
 public class VirtualArrowItem {
-    private int entityId = -1;
+    private int entityId;
     private boolean glowing = false;
     private double posX, posY, posZ;
     private Vector rotation;

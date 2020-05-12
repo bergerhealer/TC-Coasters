@@ -1,28 +1,17 @@
 package com.bergerkiller.bukkit.coasters.particles;
 
 import java.util.Collections;
-import java.util.UUID;
 
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.util.VirtualArrowItem;
-import com.bergerkiller.bukkit.common.Common;
+import com.bergerkiller.bukkit.coasters.util.VirtualFallingBlock;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.math.Quaternion;
-import com.bergerkiller.bukkit.common.protocol.PacketType;
-import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
-import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
-import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
-import com.bergerkiller.generated.net.minecraft.server.EntityArmorStandHandle;
-import com.bergerkiller.generated.net.minecraft.server.EntityHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityMetadataHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityTeleportHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityHandle;
 
 public class TrackParticleFallingBlock extends TrackParticle {
     private static final ItemStack MARKER_ITEM = new ItemStack(MaterialUtil.getFirst("REDSTONE_TORCH", "LEGACY_REDSTONE_TORCH_ON"));
@@ -30,6 +19,7 @@ public class TrackParticleFallingBlock extends TrackParticle {
     private Quaternion orientation;
     private BlockData material;
     private double width;
+    private int holderEntityId = -1;
     private int entityId = -1;
     private int markerA_entityId = -1;
     private int markerB_entityId = -1;
@@ -88,36 +78,29 @@ public class TrackParticleFallingBlock extends TrackParticle {
     }
 
     @Override
-    public void makeVisibleFor(Player viewer) {
-        if (this.entityId == -1) {
-            this.entityId = EntityUtil.getUniqueEntityId();
+    public void makeHiddenFor(Player viewer) {
+        VirtualFallingBlock.create(this.holderEntityId, this.entityId).destroy(viewer);
+        if (this.markerA_entityId != -1) {
+            VirtualArrowItem.create(this.markerA_entityId).destroy(viewer);
         }
+        if (this.markerB_entityId != -1) {
+            VirtualArrowItem.create(this.markerB_entityId).destroy(viewer);
+        }
+    }
 
+    @Override
+    public void makeVisibleFor(Player viewer) {
         TrackParticleState state = getState(viewer);
 
-        Vector ypr = this.orientation.getYawPitchRoll();
+        VirtualFallingBlock block = VirtualFallingBlock.create(this.holderEntityId, this.entityId)
+                .position(this.position)
+                .smoothMovement(true)
+                .material(this.material)
+                .glowing(state == TrackParticleState.SELECTED)
+                .spawn(viewer);
 
-        PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.createNew();
-        spawnPacket.setEntityId(this.entityId);
-        spawnPacket.setEntityUUID(UUID.randomUUID());
-        spawnPacket.setEntityType(EntityType.FALLING_BLOCK);
-        spawnPacket.setPosX(position.getX());
-        spawnPacket.setPosY(position.getY());
-        spawnPacket.setPosZ(position.getZ());
-        spawnPacket.setYaw((float) ypr.getY());
-        spawnPacket.setPitch((float) ypr.getX());
-        spawnPacket.setFallingBlockData(material);
-        PacketUtil.sendPacket(viewer, spawnPacket);
-
-        DataWatcher metadata = new DataWatcher();
-        metadata.set(EntityHandle.DATA_NO_GRAVITY, true);
-
-        if (state == TrackParticleState.SELECTED) {
-            metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_GLOWING, true);
-            metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_ON_FIRE, Common.evaluateMCVersion(">", "1.8"));
-        }
-
-        PacketUtil.sendPacket(viewer, PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true));
+        this.holderEntityId = block.holderEntityId();
+        this.entityId = block.entityId();
 
         if (state == TrackParticleState.SELECTED) {
             spawnMarkers(viewer);
@@ -180,37 +163,14 @@ public class TrackParticleFallingBlock extends TrackParticle {
     }
 
     @Override
-    public void makeHiddenFor(Player viewer) {
-        if (this.entityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.entityId));
-        }
-        if (this.markerA_entityId != -1) {
-            VirtualArrowItem.create(this.markerA_entityId).destroy(viewer);
-        }
-        if (this.markerB_entityId != -1) {
-            VirtualArrowItem.create(this.markerB_entityId).destroy(viewer);
-        }
-    }
-
-    @Override
     public void onStateUpdated(Player viewer) {
         super.onStateUpdated(viewer);
 
         TrackParticleState state = getState(viewer);
 
-        if (this.entityId != -1) {
-            DataWatcher metadata = new DataWatcher();
-            metadata.set(EntityHandle.DATA_FLAGS, (byte) EntityHandle.DATA_FLAG_INVISIBLE);
-            if (state == TrackParticleState.SELECTED) {
-                metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_GLOWING, true);
-                metadata.setByte(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, EntityArmorStandHandle.DATA_FLAG_SET_MARKER);
-                metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_ON_FIRE, Common.evaluateMCVersion(">", "1.8"));
-            } else {
-                metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_GLOWING, false);
-                metadata.setByte(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, 0);
-            }
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true));
-        }
+        VirtualFallingBlock.create(this.holderEntityId, this.entityId)
+            .glowing(state == TrackParticleState.SELECTED)
+            .updateMetadata(viewer);
 
         VirtualArrowItem.create(this.markerA_entityId).destroy(viewer);
         VirtualArrowItem.create(this.markerB_entityId).destroy(viewer);
@@ -234,16 +194,12 @@ public class TrackParticleFallingBlock extends TrackParticle {
         if (this.positionChanged) {
             this.positionChanged = false;
 
-            if (this.entityId != -1) {
-                Vector ypr = this.orientation.getYawPitchRoll();
-                PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
-                        this.entityId,
-                        this.position.getX(),
-                        this.position.getY(),
-                        this.position.getZ(),
-                        (float) ypr.getY(), (float) ypr.getX(), false);
-                this.broadcastPacket(tpPacket);
-            }
+            VirtualFallingBlock block = VirtualFallingBlock.create(this.holderEntityId, this.entityId)
+                .position(this.position)
+                .smoothMovement(true)
+                .move(this.getViewers());
+            this.holderEntityId = block.holderEntityId();
+            this.entityId = block.entityId();
 
             for (Player viewer : this.getViewers()) {
                 if (getState(viewer) == TrackParticleState.SELECTED) {
