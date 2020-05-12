@@ -695,6 +695,7 @@ public class TCCoasters extends PluginBase {
                 }
                 sender.sendMessage("");
 
+                sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " [new_value]");
                 sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " (add/align) [value]");
                 sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " average");
                 return true;
@@ -901,6 +902,107 @@ public class TCCoasters extends PluginBase {
                 sender.sendMessage(ChatColor.RED + "/tcc animation [add/remove/select] [name]");
                 sender.sendMessage(ChatColor.RED + "/tcc animation play [name] (duration)");
                 sender.sendMessage(ChatColor.RED + "/tcc animation clear");
+            }
+        } else if (args.length > 0 && LogicUtil.contains(args[0], "railx", "raily", "railz")) {
+            boolean modify_x = LogicUtil.contains(args[0], "railx");
+            boolean modify_y = LogicUtil.contains(args[0], "raily");
+            boolean modify_z = LogicUtil.contains(args[0], "railz");
+
+            if (args.length == 1) {
+                // Compute average value for the selected axis
+                int averageValue = 0;
+                for (TrackNode node : state.getEditedNodes()) {
+                    if (modify_x) {
+                        averageValue += node.getRailBlock(true).x;
+                    } else if (modify_y) {
+                        averageValue += node.getRailBlock(true).y;
+                    } else if (modify_z) {
+                        averageValue += node.getRailBlock(true).z;
+                    }
+                }
+                averageValue /= state.getEditedNodes().size();
+
+                if (modify_x) {
+                    sender.sendMessage(ChatColor.YELLOW + "Current rail block X-Coordinate: " + ChatColor.WHITE + averageValue);
+                } else if (modify_y) {
+                    sender.sendMessage(ChatColor.YELLOW + "Current rail block Y-Coordinate: " + ChatColor.WHITE + averageValue);
+                } else if (modify_z) {
+                    sender.sendMessage(ChatColor.YELLOW + "Current rail block Z-Coordinate: " + ChatColor.WHITE + averageValue);
+                }
+                sender.sendMessage("");
+
+                sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " [new_value]");
+                sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " add [value]");
+                sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " average");
+                return true;
+            }
+
+            boolean add = LogicUtil.contains(args[1], "add", "rel", "relative", "move", "off", "offset");
+            boolean avg = LogicUtil.contains(args[1], "avg", "average");
+            if (add && args.length == 2) {
+                sender.sendMessage(ChatColor.RED + "/tcc " + args[0] + " add [value]");
+                return true;
+            }
+
+            state.deselectLockedNodes();
+            if (state.getEditedNodes().isEmpty()) {
+                sender.sendMessage("You don't have any nodes selected!");
+                return true;
+            }
+
+            final int value;
+            if (avg) {
+                // Compute average value for the selected axis
+                int averageValue = 0;
+                for (TrackNode node : state.getEditedNodes()) {
+                    if (modify_x) {
+                        averageValue += node.getRailBlock(true).x;
+                    } else if (modify_y) {
+                        averageValue += node.getRailBlock(true).y;
+                    } else if (modify_z) {
+                        averageValue += node.getRailBlock(true).z;
+                    }
+                }
+                value = averageValue / state.getEditedNodes().size();
+            } else {
+                // User input
+                value = ParseUtil.parseInt(add ? args[2] : args[1], Integer.MAX_VALUE);
+                if (value == Integer.MAX_VALUE) {
+                    sender.sendMessage(ChatColor.RED + "Invalid value specified!");
+                    return true;
+                }
+            }
+
+            // Perform the actual operation on the x,y or z coordinates of the selected nodes
+            try {
+                if (add) {
+                    // Add to the coordinate
+                    if (modify_x) {
+                        state.transformRailBlock(rail -> rail.add(value, 0, 0));
+                        sender.sendMessage(ChatColor.GREEN + "Added "+ value + " to the rail block X-Position of all selected nodes!");
+                    } else if (modify_y) {
+                        state.transformRailBlock(rail -> rail.add(0, value, 0));
+                        sender.sendMessage(ChatColor.GREEN + "Added "+ value + " to the rail block Y-Position of all selected nodes!");
+                    } else if (modify_z) {
+                        state.transformRailBlock(rail -> rail.add(0, 0, value));
+                        sender.sendMessage(ChatColor.GREEN + "Added "+ value + " to the rail block Z-Position of all selected nodes!");
+                    }
+                } else {
+                    // Make average
+                    if (modify_x) {
+                        state.transformRailBlock(rail -> new IntVector3(value, rail.y, rail.z));
+                        sender.sendMessage(ChatColor.GREEN + "The rail block X-Position of all the selected nodes has been set to " + value + "!");
+                    } else if (modify_y) {
+                        state.transformRailBlock(rail -> new IntVector3(rail.x, value, rail.z));
+                        sender.sendMessage(ChatColor.GREEN + "The rail block Y-Position of all the selected nodes has been set to " + value + "!");
+                    } else if (modify_z) {
+                        state.transformRailBlock(rail -> new IntVector3(rail.x, rail.y, value));
+                        sender.sendMessage(ChatColor.GREEN + "The rail block Z-Position of all the selected nodes has been set to " + value + "!");
+                    }
+                }
+            } catch (ChangeCancelledException ex) {
+                sender.sendMessage(ChatColor.RED + "The rail block position of one or more nodes could not be changed");
+                return true;
             }
         } else if (args.length > 0 && LogicUtil.contains(args[0], "rail", "rails", "railblock", "railsblock")) {
             state.deselectLockedNodes();
