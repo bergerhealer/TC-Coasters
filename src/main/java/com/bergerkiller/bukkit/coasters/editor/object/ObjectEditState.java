@@ -84,8 +84,11 @@ public class ObjectEditState {
             ObjectEditTrackObject editObject = iter.next();
             if (CommonUtil.callEvent(new CoasterBeforeChangeTrackObjectEvent(getPlayer(), editObject.connection, editObject.object)).isCancelled()) {
                 iter.remove();
-                editObject.object.onStateUpdated(this.getPlayer());
+                editObject.object.onStateUpdated(editObject.connection, this.editState);
                 this.editState.markChanged();
+
+                // May have caused a particle visibility change
+                getWorld().getParticles().scheduleViewerUpdate(this.getPlayer());
                 continue;
             }
             editObject.object.setType(editObject.connection, type);
@@ -126,7 +129,7 @@ public class ObjectEditState {
 
     public void clearEditedTrackObjects() {
         if (!this.editedTrackObjects.isEmpty()) {
-            ArrayList<TrackObject> oldObjects = new ArrayList<TrackObject>(this.getEditedObjects());
+            ArrayList<ObjectEditTrackObject> oldObjects = new ArrayList<ObjectEditTrackObject>(this.editedTrackObjects.values());
             this.editedTrackObjects.clear();
 
             //this.editedAnimationNamesChanged |= !this.editedNodesByAnimationName.isEmpty();
@@ -134,15 +137,18 @@ public class ObjectEditState {
             //this.lastEdited = null;
 
             this.editState.markChanged();
-            for (TrackObject oldObject : oldObjects) {
-                oldObject.onStateUpdated(this.getPlayer());
+            for (ObjectEditTrackObject oldObject : oldObjects) {
+                oldObject.object.onStateUpdated(oldObject.connection, this.editState);
             }
+
+            // May have caused a particle visibility change
+            getWorld().getParticles().scheduleViewerUpdate(this.getPlayer());
         }
     }
 
     public void onModeChanged() {
-        for (TrackObject object : this.getEditedObjects()) {
-            object.onStateUpdated(this.getPlayer());
+        for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
+            editObject.object.onStateUpdated(editObject.connection, this.editState);
         }
     }
 
@@ -318,7 +324,7 @@ public class ObjectEditState {
         }
         if (changed) {
             // Can be caused by the node being removed, handle that here
-            object.onStateUpdated(this.getPlayer());
+            object.onStateUpdated(connection, this.editState);
 
             /*
             for (TrackNodeAnimationState state : node.getAnimationStates()) {
@@ -334,6 +340,9 @@ public class ObjectEditState {
             this.lastEditedTrackObject = object;
             this.lastEditTrackObjectTime = System.currentTimeMillis();
             this.editState.markChanged();
+
+            // May have caused a particle visibility change
+            getWorld().getParticles().scheduleViewerUpdate(this.getPlayer());
         }
     }
 
@@ -363,7 +372,7 @@ public class ObjectEditState {
             if (editObject.connection.isLocked()) {
                 iter.remove();
                 hadLockedTrackObjects = true;
-                editObject.object.onStateUpdated(this.getPlayer());
+                editObject.object.onStateUpdated(editObject.connection, this.editState);
                 this.lastEditedTrackObject = editObject.object;
             }
         }
@@ -371,6 +380,9 @@ public class ObjectEditState {
             this.lastEditTrackObjectTime = System.currentTimeMillis();
             this.editState.markChanged();
             TCCoastersLocalization.LOCKED.message(this.getPlayer());
+
+            // May have caused a particle visibility change
+            getWorld().getParticles().scheduleViewerUpdate(this.getPlayer());
         }
         return hadLockedTrackObjects;
     }
@@ -396,7 +408,7 @@ public class ObjectEditState {
                 object.connection.removeObjectFromAnimationStates(this.editState.getSelectedAnimation(), object.object);
             } catch (ChangeCancelledException ex) {
                 wereChangesCancelled = true;
-                object.object.onStateUpdated(this.getPlayer());
+                object.object.onStateUpdated(object.connection, this.editState);
             }
         }
         if (wereChangesCancelled) {

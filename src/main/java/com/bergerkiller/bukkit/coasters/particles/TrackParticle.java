@@ -33,14 +33,12 @@ public abstract class TrackParticle {
     /**
      * Called when the particle is added to a world
      */
-    protected void onAdded() {
-    }
+    protected abstract void onAdded();
 
     /**
      * Called right before a particle is removed from a world
      */
-    protected void onRemoved() {
-    }
+    protected abstract void onRemoved();
 
     /**
      * Updates whether a particle is visible or not to a player, spawning or de-spawning it

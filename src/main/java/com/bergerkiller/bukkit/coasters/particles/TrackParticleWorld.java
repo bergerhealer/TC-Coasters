@@ -42,12 +42,16 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         return this._world;
     }
 
-    public TrackParticleFallingBlock addParticleFallingBlock(Vector position, Quaternion orientation, BlockData material, double width) {
-        return addParticle(new TrackParticleFallingBlock(position, orientation, material, width));
+    public TrackParticleWidthMarker addParticleWidthMarker(Vector position, Quaternion orientation, double width) {
+        return addParticle(new TrackParticleWidthMarker(position, orientation, width));
     }
 
-    public TrackParticleArmorStandItem addParticleArmorStandItem(Vector position, Quaternion orientation, ItemStack item, double width) {
-        return addParticle(new TrackParticleArmorStandItem(position, orientation, item, width));
+    public TrackParticleFallingBlock addParticleFallingBlock(Vector position, Quaternion orientation, BlockData material) {
+        return addParticle(new TrackParticleFallingBlock(position, orientation, material));
+    }
+
+    public TrackParticleArmorStandItem addParticleArmorStandItem(Vector position, Quaternion orientation, ItemStack item) {
+        return addParticle(new TrackParticleArmorStandItem(position, orientation, item));
     }
 
     public TrackParticleText addParticleTextNoItem(Vector position, String text) {

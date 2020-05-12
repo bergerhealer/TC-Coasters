@@ -1,14 +1,15 @@
 package com.bergerkiller.bukkit.coasters.objects;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
+import com.bergerkiller.bukkit.coasters.particles.TrackParticleWidthMarker;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
@@ -20,6 +21,7 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
     public static final TrackObject[] EMPTY = new TrackObject[0];
     private TrackObjectType<?> type;
     private TrackParticle particle;
+    private TrackParticleWidthMarker particleWidthMarker;
     private double distance;
     private boolean flipped;
 
@@ -29,6 +31,7 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
         }
         this.type = type;
         this.particle = null;
+        this.particleWidthMarker = null;
         this.distance = distance;
         this.flipped = flipped;
     }
@@ -70,6 +73,9 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
                 this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
             }
         }
+        if (this.particleWidthMarker != null) {
+            this.particleWidthMarker.setWidth(this.type.getWidth());
+        }
     }
 
     public double getDistance() {
@@ -108,6 +114,9 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
                 point.orientation.rotateYFlip();
             }
             this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
+        }
+        if (this.particleWidthMarker != null) {
+            this.particleWidthMarker.setPositionOrientation(point.position, point.orientation);
         }
     }
 
@@ -148,21 +157,54 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
 
     public void onRemoved(TrackConnection connection) {
         if (this.particle != null) {
-            connection.getWorld().getParticles().removeParticle(this.particle);
+            this.particle.remove();
             this.particle = null;
+        }
+        if (this.particleWidthMarker != null) {
+            this.particleWidthMarker.remove();
+            this.particleWidthMarker = null;
         }
     }
 
     public void onShapeUpdated(TrackConnection connection) {
+        if (this.particle == null && this.particleWidthMarker == null) {
+            return;
+        }
+        TrackConnection.PointOnPath point = findPointOnPath(connection);
+        if (this.particleWidthMarker != null) {
+            this.particleWidthMarker.setPositionOrientation(point.position, point.orientation);
+        }
         if (this.particle != null) {
-            TrackConnection.PointOnPath point = findPointOnPath(connection);
             this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
         }
     }
 
-    public void onStateUpdated(Player viewer) {
+    public void onStateUpdated(TrackConnection connection, PlayerEditState editState) {
         if (this.particle != null) {
-            this.particle.onStateUpdated(viewer);
+            this.particle.onStateUpdated(editState.getPlayer());
+        }
+
+        boolean isViewerEditing = (this.getState(editState) == TrackParticleState.SELECTED);
+        if (isViewerEditing) {
+            // Someone is definitely viewing this marker! Spawn it if we have not.
+            if (this.particleWidthMarker == null) {
+                TrackConnection.PointOnPath point = findPointOnPath(connection);
+                this.particleWidthMarker = point.getWorld().getParticles().addParticleWidthMarker(
+                        point.position, point.orientation, this.type.getWidth());
+                this.particleWidthMarker.setStateSource(this);
+            }
+        } else if (this.particleWidthMarker != null) {
+            // Check if anybody is still viewing this marker. If not, get rid of it.
+            final AtomicBoolean hasOtherEditStateViewing = new AtomicBoolean(false);
+            connection.getPlugin().forAllEditStates(otherEditState -> {
+                if (otherEditState != editState && getState(otherEditState) == TrackParticleState.SELECTED) {
+                    hasOtherEditStateViewing.set(true);
+                }
+            });
+            if (!hasOtherEditStateViewing.get()) {
+                this.particleWidthMarker.remove();
+                this.particleWidthMarker = null;
+            }
         }
     }
 
