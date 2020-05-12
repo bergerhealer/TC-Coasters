@@ -170,12 +170,13 @@ public class ObjectEditState {
             return true;
         }
 
-        // Single object selection mode
-        if (!this.editState.isSneaking()) {
-            clearEditedTrackObjects();
-        }
+        // Single or multiple object selection mode
+        boolean isMultiSelect = this.editState.isSneaking();
 
         if (point == null) {
+            if (!isMultiSelect) {
+                clearEditedTrackObjects();
+            }
             return true;
         }
 
@@ -190,15 +191,24 @@ public class ObjectEditState {
             }
         }
         if (bestObject == null) {
+            if (!isMultiSelect) {
+                clearEditedTrackObjects();
+            }
             return true;
         }
 
         long lastEditTime = getLastEditTime(bestObject);
         if (lastEditTime > 300) {
             // Toggle edit state
-            if (isEditing(bestObject)) {
+            if (isEditing(bestObject) && (isMultiSelect || this.editedTrackObjects.size() == 1)) {
+                // Disable just this object when it's our only selection,
+                // or when multi-select is active
                 setEditingTrackObject(point.connection, bestObject, false);
             } else {
+                // Deselect all previous objects when multiselect is off, and select the object
+                if (!isMultiSelect) {
+                    clearEditedTrackObjects();
+                }
                 selectTrackObject(point.connection, bestObject);
             }
         } else {
