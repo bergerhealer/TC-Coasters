@@ -4,17 +4,20 @@ import java.util.function.Supplier;
 
 import org.bukkit.inventory.ItemStack;
 
+import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemSelectMenu;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleFallingBlock;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
+import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.TrackObjectTypeEntry;
+import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
+import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.map.MapCanvas;
 import com.bergerkiller.bukkit.common.map.util.Model;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import com.bergerkiller.bukkit.common.math.Vector3;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
-import com.bergerkiller.bukkit.tc.TCConfig;
 
 /**
  * Item stack displayed on an armorstand
@@ -98,8 +101,8 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
     }
 
     @Override
-    public void drawImage(MapCanvas canvas) {
-        Model model = TCConfig.resourcePack.getBlockModel(this.material);
+    public void drawImage(TCCoasters plugin, MapCanvas canvas) {
+        Model model = plugin.getResourcePack().getBlockModel(this.material);
         canvas.setLightOptions(0.0f, 1.0f, new Vector3(-1, 1, -1));
         canvas.drawModel(model, 1.0f, 27, 22, 225.0f, -45.0f);
     }
@@ -139,5 +142,31 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
     @Override
     public String toString() {
         return "{TrackObjectType[FallingBlock] material=" + this.material.getBlockName() + "}";
+    }
+
+    /**
+     * Stores the details of a material (in a falling block), which can later be referred to again by name
+     */
+    public static final class CSVEntry extends TrackObjectTypeEntry<TrackObjectTypeFallingBlock> {
+        @Override
+        public String getType() {
+            return "BLOCK";
+        }
+
+        @Override
+        public TrackObjectTypeFallingBlock getDefaultType() {
+            return TrackObjectTypeFallingBlock.createDefault();
+        }
+
+        @Override
+        public TrackObjectTypeFallingBlock readDetails(StringArrayBuffer buffer) throws SyntaxException {
+            BlockData material = buffer.nextBlockData();
+            return TrackObjectTypeFallingBlock.create(this.width, material);
+        }
+
+        @Override
+        public void writeDetails(StringArrayBuffer buffer, TrackObjectTypeFallingBlock objectType) {
+            buffer.putBlockData(objectType.getMaterial());
+        }
     }
 }

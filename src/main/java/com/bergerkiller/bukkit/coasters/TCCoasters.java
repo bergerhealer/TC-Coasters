@@ -52,6 +52,7 @@ import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.localization.LocalizationEnum;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
+import com.bergerkiller.bukkit.common.map.MapResourcePack;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
@@ -60,6 +61,7 @@ import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
+import com.bergerkiller.bukkit.tc.TCConfig;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
 import com.bergerkiller.bukkit.tc.signactions.SignAction;
@@ -118,6 +120,15 @@ public class TCCoasters extends PluginBase {
      */
     public Collection<CoasterWorld> getCoasterWorlds() {
         return CommonUtil.unsafeCast(this.worlds.values());
+    }
+
+    /**
+     * Gets the resource pack used when drawing icons and 3d models
+     * 
+     * @return resource pack
+     */
+    public MapResourcePack getResourcePack() {
+        return TCConfig.resourcePack; // return TrainCarts' RP
     }
 
     public synchronized void forAllEditStates(Consumer<PlayerEditState> function) {

@@ -4,15 +4,18 @@ import java.util.function.Supplier;
 
 import org.bukkit.inventory.ItemStack;
 
+import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemSelectMenu;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleArmorStandItem;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
+import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.TrackObjectTypeEntry;
+import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
+import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.map.MapCanvas;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
-import com.bergerkiller.bukkit.tc.TCConfig;
 
 /**
  * Item stack displayed on an armorstand
@@ -101,8 +104,8 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
     }
 
     @Override
-    public void drawImage(MapCanvas canvas) {
-        canvas.fillItem(TCConfig.resourcePack, this.item);
+    public void drawImage(TCCoasters plugin, MapCanvas canvas) {
+        canvas.fillItem(plugin.getResourcePack(), this.item);
     }
 
     @Override
@@ -135,5 +138,34 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
     @Override
     public String toString() {
         return "{TrackObjectType[ItemStack] item=" + this.item + "}";
+    }
+
+    /**
+     * Stores the details of an ItemStack, which can later be referred to again by name
+     */
+    public static final class CSVEntry extends TrackObjectTypeEntry<TrackObjectTypeItemStack> {
+        @Override
+        public String getType() {
+            return "ITEMSTACK";
+        }
+
+        @Override
+        public TrackObjectTypeItemStack getDefaultType() {
+            return TrackObjectTypeItemStack.createDefault();
+        }
+
+        @Override
+        public TrackObjectTypeItemStack readDetails(StringArrayBuffer buffer) throws SyntaxException {
+            ItemStack itemStack = buffer.nextItemStack();
+            if (itemStack == null) {
+                return null;
+            }
+            return TrackObjectTypeItemStack.create(this.width, itemStack);
+        }
+
+        @Override
+        public void writeDetails(StringArrayBuffer buffer, TrackObjectTypeItemStack objectType) {
+            buffer.putItemStack(objectType.getItem());
+        }
     }
 }

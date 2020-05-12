@@ -80,7 +80,7 @@ public class TypeSelectMenu extends MapWidget implements ItemDropTarget {
         // Could be an expensive draw, so cache it
         if (this._displayedTypeTexture == null) {
             this._displayedTypeTexture = MapTexture.createEmpty(this.getWidth()-4, this.getHeight()-4);
-            this._displayedType.drawImage(this._displayedTypeTexture);
+            this._displayedType.drawImage(this._stateSupplier.get().getPlugin(), this._displayedTypeTexture);
         }
 
         // Draw static background of a button

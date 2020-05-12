@@ -4,6 +4,7 @@ import java.util.function.Supplier;
 
 import org.bukkit.inventory.ItemStack;
 
+import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
@@ -77,9 +78,10 @@ public interface TrackObjectType<P extends TrackParticle> {
     /**
      * Draws an icon describing this track object type to a canvas
      * 
+     * @param plugin The TCCoasters plugin instance
      * @param canvas The canvas to draw it on
      */
-    void drawImage(MapCanvas canvas);
+    void drawImage(TCCoasters plugin, MapCanvas canvas);
 
     /**
      * Opens the menu when this track object type is activated (spacebar)

@@ -9,13 +9,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeFallingBlock;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItemStack;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeLeash;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
@@ -33,7 +33,6 @@ import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
-import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.opencsv.CSVReader;
 
 /**
@@ -66,8 +65,9 @@ public class TrackCoasterCSV {
         registerEntry(NoLimits2Entry::new);
 
         // Object types
-        registerEntry(TrackObjectTypeItemStackEntry::new);
-        registerEntry(TrackObjectTypeFallingBlockEntry::new);
+        registerEntry(TrackObjectTypeItemStack.CSVEntry::new);
+        registerEntry(TrackObjectTypeFallingBlock.CSVEntry::new);
+        registerEntry(TrackObjectTypeLeash.CSVEntry::new);
     }
 
     /**
@@ -609,61 +609,6 @@ public class TrackCoasterCSV {
         @Override
         public void processReader(CSVReaderState state) {
             state.trackObjectTypesByName.put(this.name, this.objectType);
-        }
-    }
-
-    /**
-     * Stores the details of an ItemStack, which can later be referred to again by name
-     */
-    public static final class TrackObjectTypeItemStackEntry extends TrackObjectTypeEntry<TrackObjectTypeItemStack> {
-        @Override
-        public String getType() {
-            return "ITEMSTACK";
-        }
-
-        @Override
-        public TrackObjectTypeItemStack getDefaultType() {
-            return TrackObjectTypeItemStack.createDefault();
-        }
-
-        @Override
-        public TrackObjectTypeItemStack readDetails(StringArrayBuffer buffer) throws SyntaxException {
-            ItemStack itemStack = buffer.nextItemStack();
-            if (itemStack == null) {
-                return null;
-            }
-            return TrackObjectTypeItemStack.create(this.width, itemStack);
-        }
-
-        @Override
-        public void writeDetails(StringArrayBuffer buffer, TrackObjectTypeItemStack objectType) {
-            buffer.putItemStack(objectType.getItem());
-        }
-    }
-
-    /**
-     * Stores the details of a material (in a falling block), which can later be referred to again by name
-     */
-    public static final class TrackObjectTypeFallingBlockEntry extends TrackObjectTypeEntry<TrackObjectTypeFallingBlock> {
-        @Override
-        public String getType() {
-            return "BLOCK";
-        }
-
-        @Override
-        public TrackObjectTypeFallingBlock getDefaultType() {
-            return TrackObjectTypeFallingBlock.createDefault();
-        }
-
-        @Override
-        public TrackObjectTypeFallingBlock readDetails(StringArrayBuffer buffer) throws SyntaxException {
-            BlockData material = buffer.nextBlockData();
-            return TrackObjectTypeFallingBlock.create(this.width, material);
-        }
-
-        @Override
-        public void writeDetails(StringArrayBuffer buffer, TrackObjectTypeFallingBlock objectType) {
-            buffer.putBlockData(objectType.getMaterial());
         }
     }
 
