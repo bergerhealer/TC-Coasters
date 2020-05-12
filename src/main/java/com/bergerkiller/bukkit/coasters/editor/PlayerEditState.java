@@ -550,18 +550,41 @@ public class PlayerEditState implements CoasterWorldComponent {
         // Go by all track nodes on the server, and pick those close in view on the same world
         // The transformed point is a projective view of the Minecart in the player's vision
         // X/Y is left-right/up-down and Z is depth after the transformation is applied
-        TrackNode bestNode = null;
+        Set<TrackNode> bestNodes = new HashSet<TrackNode>();
         TrackConnection bestJunction = null;
         double bestDistance = Double.MAX_VALUE;
 
+        // When in rail mode, look up using the rail block of the nodes as well
+        // Ignore nodes that don't have a rail block set
+        if (this.getMode() == PlayerEditMode.RAILS) {
+            for (TrackCoaster coaster : getWorld().getTracks().getCoasters()) {
+                for (TrackNode node : coaster.getNodes()) {
+                    if (node.getRailBlock(false) != null) {
+                        double distance = node.getRailBlockViewDistance(cameraTransform);
+                        if (distance <= bestDistance) {
+                            // Multi-select the nodes when they match the same rail block
+                            if (distance < bestDistance) {
+                                bestNodes.clear();
+                            }
+                            bestNodes.add(node);
+                            bestDistance = distance;
+                            bestJunction = null;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Clicking on a node, or a junction floating block particle
         for (TrackCoaster coaster : getWorld().getTracks().getCoasters()) {
             for (TrackNode node : coaster.getNodes()) {
                 // Node itself
                 {
                     double distance = node.getViewDistance(cameraTransform);
                     if (distance < bestDistance) {
+                        bestNodes.clear();
+                        bestNodes.add(node);
                         bestDistance = distance;
-                        bestNode = node;
                         bestJunction = null;
                     }
                 }
@@ -572,8 +595,9 @@ public class PlayerEditState implements CoasterWorldComponent {
                     for (TrackConnection conn : node.getConnections()) {
                         double distance = node.getJunctionViewDistance(cameraTransform, conn);
                         if (distance < bestDistance) {
+                            bestNodes.clear();
+                            bestNodes.add(node);
                             bestDistance = distance;
-                            bestNode = node;
                             bestJunction = conn;
                         }
                     }
@@ -581,7 +605,7 @@ public class PlayerEditState implements CoasterWorldComponent {
             }
         }
 
-        if (bestNode == null) {
+        if (bestNodes.isEmpty()) {
             if (!this.isSneaking()) {
                 clearEditedNodes();
             }
@@ -590,11 +614,16 @@ public class PlayerEditState implements CoasterWorldComponent {
 
         // Switch junction when clicking on one
         if (bestJunction != null) {
-            bestNode.switchJunction(bestJunction);
+            bestNodes.iterator().next().switchJunction(bestJunction);
             return true;
         }
 
-        long lastEditTime = getLastEditTime(bestNode);
+        // Check whether the current selection matches a previous selection
+        // If so, a toggle is requested
+        boolean isSameSelection = this.getEditedNodes().equals(bestNodes);
+
+        long lastEditTime = bestNodes.contains(this.lastEdited) ?
+                (System.currentTimeMillis() - this.lastEditTime) : Long.MAX_VALUE;
         if (lastEditTime > 300) {
             // Single node selection mode
             if (!this.isSneaking()) {
@@ -602,20 +631,24 @@ public class PlayerEditState implements CoasterWorldComponent {
             }
 
             // Toggle edit state
-            if (isEditing(bestNode)) {
-                setEditing(bestNode, false);
-            } else {
-                selectNode(bestNode);
+            for (TrackNode bestNode : bestNodes) {
+                if (isSameSelection) {
+                    setEditing(bestNode, false);
+                } else {
+                    selectNode(bestNode);
+                }
             }
 
-        } else if (isEditing(bestNode)) {
+        } else if (isSameSelection) {
             // Mass-selection mode
             if (this.isSneaking()) {
                 // Select all nodes between the clicked node and the nearest other selected node
-                this.floodSelectNearest(bestNode);
+                for (TrackNode bestNode : bestNodes) {
+                    this.floodSelectNearest(bestNode);
+                }
             } else {
                 // Flood-fill select all nodes connected from bestNode
-                this.floodSelect(bestNode);
+                this.floodSelect(bestNodes);
             }
         }
 
@@ -630,10 +663,21 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @param startNode to flood select from
      */
     public void floodSelect(TrackNode startNode) {
+        floodSelect(Collections.singleton(startNode));
+    }
+
+    /**
+     * Selects nodes and all nodes connected to it, recursively.
+     * This will select an entire coaster or piece of track, for example.
+     * Any previous selection is cleared.
+     * 
+     * @param startNodes to flood select from
+     */
+    public void floodSelect(Collection<TrackNode> startNodes) {
         this.clearEditedNodes();
 
         List<TrackNode> pending = new ArrayList<TrackNode>(2);
-        pending.add(startNode);
+        pending.addAll(startNodes);
 
         while (!pending.isEmpty()) {
             TrackNode node = pending.remove(0);

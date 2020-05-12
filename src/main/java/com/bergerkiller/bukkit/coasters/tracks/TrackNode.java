@@ -793,6 +793,16 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                         getViewDistance(cameraTransform, this.getUpPosition()));
     }
 
+    public double getRailBlockViewDistance(Matrix4x4 cameraTransform) {
+        if (this._railBlock != null) {
+            return getViewDistance(cameraTransform, new Vector(
+                    this._railBlock.midX(),
+                    this._railBlock.midY(),
+                    this._railBlock.midZ()));
+        }
+        return getViewDistance(cameraTransform, this.getPosition());
+    }
+
     private static double getViewDistance(Matrix4x4 cameraTransform, Vector pos) {
         pos = pos.clone();
         cameraTransform.transformPoint(pos);
