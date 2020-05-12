@@ -140,6 +140,12 @@ public class ObjectEditState {
         }
     }
 
+    public void onModeChanged() {
+        for (TrackObject object : this.getEditedObjects()) {
+            object.onStateUpdated(this.getPlayer());
+        }
+    }
+
     public boolean onLeftClick() {
         // Find point on path clicked
         TrackConnection.PointOnPath point = this.getWorld().getTracks().findPointOnPath(this.getPlayer().getEyeLocation());

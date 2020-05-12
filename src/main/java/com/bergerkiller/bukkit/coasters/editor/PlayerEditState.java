@@ -396,6 +396,9 @@ public class PlayerEditState implements CoasterWorldComponent {
             for (TrackNode node : this.getEditedNodes()) {
                 node.onStateUpdated(this.player);
             }
+
+            // Tell object state too
+            this.getObjects().onModeChanged();
         }
     }
 
