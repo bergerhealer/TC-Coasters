@@ -106,24 +106,15 @@ public class TypeSelectMenu extends MapWidget implements ItemDropTarget {
     }
 
     @Override
-    public void onKey(MapKeyEvent event) {
-        if (event.getKey() == MapPlayerInput.Key.LEFT) {
-            switchType(-1);
-        } else if (event.getKey() == MapPlayerInput.Key.RIGHT) {
-            switchType(1);
-        } else {
-            super.onKey(event);
-        }
-    }
-
-    @Override
     public void onKeyPressed(MapKeyEvent event) {
         if (event.getKey() == MapPlayerInput.Key.LEFT) {
             this._leftArrow.setPressed(true);
             this._rightArrow.setPressed(false);
+            switchType(-1);
         } else if (event.getKey() == MapPlayerInput.Key.RIGHT) {
             this._leftArrow.setPressed(false);
             this._rightArrow.setPressed(true);
+            switchType(1);
         } else {
             super.onKeyPressed(event);
         }
