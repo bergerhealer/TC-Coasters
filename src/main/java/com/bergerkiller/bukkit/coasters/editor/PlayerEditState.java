@@ -1025,7 +1025,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         boolean dragAfterCreate = false;
         Vector pos = null;
         Vector ori = null;
-        if (this.heldDownTicks == 0) {
+        if (this.heldDownTicks == 0 && this.getEditedNodes().size() <= 1) {
             TrackNode lookingAt = findLookingAt();
             if (lookingAt != null) {
                 this.clearEditedNodes();
