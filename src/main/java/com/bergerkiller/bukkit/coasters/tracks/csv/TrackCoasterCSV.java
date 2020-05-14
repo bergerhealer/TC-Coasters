@@ -166,16 +166,31 @@ public class TrackCoasterCSV {
             }
         }
 
-        public void addNode(TrackNodeState nodeState, boolean linkToPrevious) {
+        public Vector transformVector(Vector position) {
             if (this.transform != null) {
-                nodeState = nodeState.transform(this.transform);
+                position = position.clone();
+                this.transform.transformPoint(position);
             }
+            return position;
+        }
 
+        public TrackNodeState transformState(TrackNodeState nodeState) {
+            return (this.transform == null) ? nodeState : nodeState.transform(this.transform);
+        }
+
+        /**
+         * Adds a node using node state information. If a transformation was set,
+         * it is applied to the state prior to creating it.
+         * 
+         * @param nodeState
+         * @param linkToPrevious
+         */
+        public void addNode(TrackNodeState nodeState, boolean linkToPrevious) {
             // Reset all connections being added to the previous node
             this.prevNode_pendingLinks.clear();
 
             // Create the new node
-            TrackNode node = this.coaster.createNewNode(nodeState);
+            TrackNode node = this.coaster.createNewNode(transformState(nodeState));
 
             // Connect node to previous node
             if (linkToPrevious && this.prevNode != null) {
@@ -271,10 +286,6 @@ public class TrackCoasterCSV {
             this.rail = state.railBlock;
         }
 
-        public TrackNodeState createState() {
-            return TrackNodeState.create(this.pos, this.up, this.rail);
-        }
-
         /**
          * Gets the type name of this base node entry
          * 
@@ -285,7 +296,7 @@ public class TrackCoasterCSV {
         /**
          * Converts this entry to a TrackNodeState object
          * 
-         * @return state
+         * @return nodeState
          */
         public TrackNodeState toState() {
             return TrackNodeState.create(this.pos, this.up, this.rail);
@@ -398,7 +409,7 @@ public class TrackCoasterCSV {
                     connections[i] = state.prevNode_pendingLinks.get(i).cloneObjects();
                 }
             }
-            state.prevNode.setAnimationState(this.name, this.createState(), connections);
+            state.prevNode.setAnimationState(this.name, state.transformState(this.toState()), connections);
         }
     }
 
@@ -454,8 +465,9 @@ public class TrackCoasterCSV {
             // Add an extra connection to the last added animation state
             List<TrackNodeAnimationState> states = state.prevNode.getAnimationStates();
             if (!states.isEmpty()) {
+                Vector pos = state.transformVector(this.pos);
                 TrackNodeAnimationState lastAddedState = states.get(states.size()-1);
-                TrackConnectionState new_link = TrackConnectionState.create(state.prevNode, TrackNodeReference.at(this.pos), state.pendingTrackObjects);
+                TrackConnectionState new_link = TrackConnectionState.create(state.prevNode, TrackNodeReference.at(pos), state.pendingTrackObjects);
                 state.prevNode.addAnimationStateConnection(lastAddedState.name, new_link);
                 state.pendingTrackObjects.clear();
             }
@@ -493,12 +505,7 @@ public class TrackCoasterCSV {
 
         @Override
         public void processReader(CSVReaderState state) {
-            Vector pos = this.pos;
-            if (state.transform != null) {
-                pos = pos.clone();
-                state.transform.transformPoint(pos);
-            }
-
+            Vector pos = state.transformVector(this.pos);
             TrackConnectionState link = TrackConnectionState.create(state.prevNode, TrackNodeReference.at(pos), state.pendingTrackObjects);
             state.pendingLinks.add(link);
             state.prevNode_pendingLinks.add(link);
