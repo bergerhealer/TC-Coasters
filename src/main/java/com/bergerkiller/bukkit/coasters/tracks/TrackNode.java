@@ -455,6 +455,24 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         }
     }
 
+    /**
+     * Gets whether this node has no connections to other nodes. Not right now, and
+     * not in saved animation states.
+     * 
+     * @return True if this is an unconnected node
+     */
+    public final boolean isUnconnectedNode() {
+        if (this._connections.length > 0) {
+            return false;
+        }
+        for (TrackNodeAnimationState anim : this._animationStates) {
+            if (anim.connections.length > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public final List<RailJunction> getJunctions() {
         List<TrackConnection> connections = this.getSortedConnections();
         if (connections.isEmpty()) {

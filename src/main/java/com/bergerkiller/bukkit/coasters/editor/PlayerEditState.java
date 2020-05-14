@@ -810,7 +810,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         if (disconnectedNodes) {
             // Clean up empty nodes
             for (TrackNode node : toDelete) {
-                if (node.getConnections().isEmpty()) {
+                if (node.isUnconnectedNode()) {
                     this.setEditing(node, false);
                     changes.addChangeDeleteNode(this.player, node);
                     node.remove();
