@@ -61,6 +61,7 @@ public class TrackCSV {
         registerEntry(AnimationStateLinkNodeEntry::new);
         registerEntry(PlayerOrigin::new);
         registerEntry(LockCoasterEntry::new);
+        registerEntry(AdjustTrackObjectTypeEntry::new);
         registerEntry(ObjectEntry::new);
         registerEntry(NoLimits2Entry::new);
 
@@ -620,11 +621,52 @@ public class TrackCSV {
     }
 
     /**
+     * Adjusts the position / spatial information of a previously read track object type.
+     */
+    public static final class AdjustTrackObjectTypeEntry extends CSVEntry {
+        public String objectName;
+        public String name;
+        public Matrix4x4 transform;
+
+        @Override
+        public boolean detect(StringArrayBuffer buffer) {
+            return buffer.get(0).equals("ADJUST");
+        }
+
+        @Override
+        public void read(StringArrayBuffer buffer) throws SyntaxException {
+            buffer.next();
+            this.objectName = buffer.next();
+            this.name = buffer.next();
+            this.transform = new Matrix4x4();
+            this.transform.translate(buffer.nextDouble(), buffer.nextDouble(), buffer.nextDouble());
+            this.transform.rotateYawPitchRoll(buffer.nextDouble(), buffer.nextDouble(), buffer.nextDouble());
+        }
+
+        @Override
+        public void write(StringArrayBuffer buffer) {
+            buffer.put("ADJUST");
+            buffer.put(this.objectName);
+            buffer.put(this.name);
+            buffer.putVector(this.transform.toVector());
+            buffer.putVector(this.transform.getYawPitchRoll());
+        }
+
+        @Override
+        public void processReader(CSVReaderState state) {
+            TrackObjectType<?> type = state.trackObjectTypesByName.get(this.objectName);
+            if (type != null) {
+                state.trackObjectTypesByName.put(this.name, type.setTransform(this.transform));
+            }
+        }
+    }
+
+    /**
      * Adds an object to a previously created connection
      */
     public static final class ObjectEntry extends CSVEntry {
         public double distance;
-        public String itemName;
+        public String name;
         public boolean flipped;
 
         @Override
@@ -636,7 +678,7 @@ public class TrackCSV {
         public void read(StringArrayBuffer buffer) throws SyntaxException {
             buffer.next();
             this.distance = buffer.nextDouble();
-            this.itemName = buffer.next();
+            this.name = buffer.next();
             this.flipped = buffer.next().equalsIgnoreCase("flipped");
         }
 
@@ -644,7 +686,7 @@ public class TrackCSV {
         public void write(StringArrayBuffer buffer) {
             buffer.put("OBJECT");
             buffer.putDouble(this.distance);
-            buffer.put(this.itemName);
+            buffer.put(this.name);
             if (this.flipped) {
                 buffer.put("FLIPPED");
             }
@@ -652,7 +694,7 @@ public class TrackCSV {
 
         @Override
         public void processReader(CSVReaderState state) {
-            TrackObjectType<?> type = state.trackObjectTypesByName.get(this.itemName);
+            TrackObjectType<?> type = state.trackObjectTypesByName.get(this.name);
             if (type != null) {
                 state.pendingTrackObjects.add(new TrackObject(type, this.distance, this.flipped));
             }

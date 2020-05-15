@@ -15,6 +15,7 @@ import com.bergerkiller.bukkit.coasters.tracks.path.WidthSearcher;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
@@ -636,6 +637,25 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
 
         public CoasterWorld getWorld() {
             return this.connection.getWorld();
+        }
+
+        /**
+         * Transforms the position and orientation of this point using a transformation matrix.
+         * If the input transform is null, this same point is returned (identity).
+         * 
+         * @param transform The transformation matrix, null for identity
+         * @return transformed point
+         */
+        public PointOnPath transform(Matrix4x4 transform) {
+            if (transform == null) {
+                return this;
+            }
+
+            Vector position = this.position.clone();
+            Quaternion orientation = this.orientation.clone();
+            transform.transformPoint(position);
+            orientation.multiply(transform.getRotation());
+            return new PointOnPath(this.connection, this.theta, this.distance, position, orientation);
         }
 
         @Override

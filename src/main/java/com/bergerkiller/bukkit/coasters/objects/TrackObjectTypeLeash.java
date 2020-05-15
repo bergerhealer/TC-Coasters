@@ -14,19 +14,23 @@ import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.map.MapCanvas;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
+import com.bergerkiller.bukkit.common.math.Matrix4x4;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 
 /**
  * Leash displayed as a floating line
  */
 public class TrackObjectTypeLeash implements TrackObjectType<TrackParticleLine> {
     private final double width;
+    private final Matrix4x4 transform;
 
-    private TrackObjectTypeLeash(double width) {
+    private TrackObjectTypeLeash(double width, Matrix4x4 transform) {
         this.width = width;
+        this.transform = transform;
     }
 
     public static TrackObjectTypeLeash create(double width) {
-        return new TrackObjectTypeLeash(width);
+        return new TrackObjectTypeLeash(width, null);
     }
 
     public static TrackObjectTypeLeash createDefault() {
@@ -45,7 +49,17 @@ public class TrackObjectTypeLeash implements TrackObjectType<TrackParticleLine> 
 
     @Override
     public TrackObjectType<TrackParticleLine> setWidth(double width) {
-        return new TrackObjectTypeLeash(width);
+        return new TrackObjectTypeLeash(width, this.transform);
+    }
+
+    @Override
+    public Matrix4x4 getTransform() {
+        return this.transform;
+    }
+
+    @Override
+    public TrackObjectType<TrackParticleLine> setTransform(Matrix4x4 transform) {
+        return new TrackObjectTypeLeash(this.width, transform);
     }
 
     @Override
@@ -88,6 +102,29 @@ public class TrackObjectTypeLeash implements TrackObjectType<TrackParticleLine> 
     @Override
     public TrackObjectType<TrackParticleLine> acceptItem(ItemStack item) {
         return this;
+    }
+
+    @Override
+    public int hashCode() {
+        return Double.hashCode(this.width);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        } else if (o instanceof TrackObjectTypeLeash) {
+            TrackObjectTypeLeash other = (TrackObjectTypeLeash) o;
+            return this.width == other.width &&
+                   LogicUtil.bothNullOrEqual(this.transform, other.transform);
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "{TrackObjectType[Leash]}";
     }
 
     /**

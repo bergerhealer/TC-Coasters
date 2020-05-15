@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectHolder;
@@ -35,8 +36,9 @@ public class TrackCSVWriter implements AutoCloseable {
     private final Set<TrackNode> writtenNodes = new HashSet<TrackNode>();
     private final Set<TrackConnection> writtenConnections = new HashSet<TrackConnection>();
     private final List<TrackConnection> currConnections = new ArrayList<TrackConnection>();
-    private final Map<TrackObjectType<?>, String> writterTrackObjectTypes = new HashMap<TrackObjectType<?>, String>();
+    private final Map<TrackObjectType<?>, String> writtenTrackObjectTypes = new HashMap<TrackObjectType<?>, String>();
     private final UniqueHash writtenItemNameHash = new UniqueHash();
+    private final AtomicInteger adjustCounter = new AtomicInteger(0);
     private boolean writeLinksToForeignNodes = true;
 
     public TrackCSVWriter(OutputStream outputStream) {
@@ -316,7 +318,7 @@ public class TrackCSVWriter implements AutoCloseable {
             TrackCSV.ObjectEntry object_entry = new TrackCSV.ObjectEntry();
             object_entry.distance = object.getDistance();
             object_entry.flipped = object.isFlipped();
-            object_entry.itemName = writeTrackObjectType(object.getType());
+            object_entry.name = writeTrackObjectType(object.getType());
             this.write(object_entry);
         }
     }
@@ -325,17 +327,27 @@ public class TrackCSVWriter implements AutoCloseable {
         if (type == null) {
             return "";
         }
-        String name = this.writterTrackObjectTypes.get(type);
+        String name = this.writtenTrackObjectTypes.get(type);
         if (name == null) {
-            // Generate a name not already used
-            name = this.writtenItemNameHash.nextHex() + "_" + type.generateName();
-            this.writterTrackObjectTypes.put(type, name);
-
-            // Write the type out
-            TrackCSV.TrackObjectTypeEntry<T> entry = TrackCSV.createTrackObjectTypeEntry(name, type);
-            if (entry != null) {
+            if (type.getTransform() != null) {
+                // If a transform was set, make sure to save the transform-less one first
+                // Then write an 'adjust' entry with just the transformation matrix info
+                TrackCSV.AdjustTrackObjectTypeEntry entry = new TrackCSV.AdjustTrackObjectTypeEntry();
+                entry.objectName = writeTrackObjectType(type.setTransform(null));
+                entry.name = name = entry.objectName + "_adj" + adjustCounter.incrementAndGet();
+                entry.transform = type.getTransform();
                 this.write(entry);
+            } else {
+                // Generate a name not already used
+                name = this.writtenItemNameHash.nextHex() + "_" + type.generateName();
+
+                // Write the type out
+                TrackCSV.CSVEntry entry = TrackCSV.createTrackObjectTypeEntry(name, type);
+                if (entry != null) {
+                    this.write(entry);
+                }
             }
+            this.writtenTrackObjectTypes.put(type, name);
         }
         return name;
     }

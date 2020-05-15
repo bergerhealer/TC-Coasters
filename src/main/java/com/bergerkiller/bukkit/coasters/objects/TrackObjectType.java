@@ -10,6 +10,7 @@ import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.common.map.MapCanvas;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
+import com.bergerkiller.bukkit.common.math.Matrix4x4;
 
 /**
  * The appearance and properties of an object. This type is immutable
@@ -40,6 +41,21 @@ public interface TrackObjectType<P extends TrackParticle> {
      * @return clone of this type with width changed
      */
     TrackObjectType<P> setWidth(double width);
+
+    /**
+     * Gets the transformation matrix describing the relative position of the track object
+     * 
+     * @return position transform, null for no transformation (identity)
+     */
+    Matrix4x4 getTransform();
+
+    /**
+     * Creates a copy of this track object type with the position transform updated
+     * 
+     * @param transform The transform, null for no transformation (identity)
+     * @return clone of this type with the position transform changed
+     */
+    TrackObjectType<P> setTransform(Matrix4x4 transform);
 
     /**
      * Generates a name to easily identify this track object type.

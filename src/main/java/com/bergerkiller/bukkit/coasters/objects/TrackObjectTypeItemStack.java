@@ -14,7 +14,9 @@ import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.map.MapCanvas;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
+import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.utils.ItemUtil;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 
 /**
@@ -22,18 +24,20 @@ import com.bergerkiller.bukkit.common.utils.MaterialUtil;
  */
 public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleArmorStandItem> {
     private final double width;
+    private final Matrix4x4 transform;
     private final ItemStack item;
 
-    private TrackObjectTypeItemStack(double width, ItemStack item) {
+    private TrackObjectTypeItemStack(double width, Matrix4x4 transform, ItemStack item) {
         if (item == null) {
             throw new IllegalArgumentException("Item can not be null");
         }
         this.width = width;
+        this.transform = transform;
         this.item = item;
     }
 
     public static TrackObjectTypeItemStack create(double width, ItemStack item) {
-        return new TrackObjectTypeItemStack(width, item);
+        return new TrackObjectTypeItemStack(width, null, item);
     }
 
     public static TrackObjectTypeItemStack createDefault() {
@@ -52,7 +56,17 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
 
     @Override
     public TrackObjectTypeItemStack setWidth(double width) {
-        return new TrackObjectTypeItemStack(width, this.item);
+        return new TrackObjectTypeItemStack(width, this.transform, this.item);
+    }
+
+    @Override
+    public Matrix4x4 getTransform() {
+        return this.transform;
+    }
+
+    @Override
+    public TrackObjectType<TrackParticleArmorStandItem> setTransform(Matrix4x4 transform) {
+        return new TrackObjectTypeItemStack(this.width, transform, this.item);
     }
 
     /**
@@ -71,7 +85,7 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
      * @return copy of this type with item stack changed
      */
     public TrackObjectTypeItemStack setItem(ItemStack item) {
-        return new TrackObjectTypeItemStack(this.width, item);
+        return new TrackObjectTypeItemStack(this.width, this.transform, item);
     }
 
     @Override
@@ -128,7 +142,9 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
             return true;
         } else if (o instanceof TrackObjectTypeItemStack) {
             TrackObjectTypeItemStack other = (TrackObjectTypeItemStack) o;
-            return this.item.equals(other.item) && this.width == other.width;
+            return this.item.equals(other.item) &&
+                   this.width == other.width &&
+                   LogicUtil.bothNullOrEqual(this.transform, other.transform);
         } else {
             return false;
         }

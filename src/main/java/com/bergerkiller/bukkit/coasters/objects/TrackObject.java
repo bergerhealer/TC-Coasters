@@ -66,11 +66,11 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
             if (typeClassChanged) {
                 // Recreate (different type)
                 this.particle.remove();
-                this.particle = this.type.createParticle(point);
+                this.particle = this.type.createParticle(point.transform(this.type.getTransform()));
                 this.particle.setStateSource(this);
             } else {
                 // Same type, different properties, only an update of the particle is needed
-                this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
+                this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point.transform(this.type.getTransform()));
             }
         }
         if (this.particleWidthMarker != null) {
@@ -113,7 +113,7 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
             if (this.flipped) {
                 point.orientation.rotateYFlip();
             }
-            this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
+            this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point.transform(this.type.getTransform()));
         }
         if (this.particleWidthMarker != null) {
             this.particleWidthMarker.setPositionOrientation(point.position, point.orientation);
@@ -143,7 +143,7 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
 
     public void onAdded(TrackConnection connection) {
         TrackConnection.PointOnPath point = findPointOnPath(connection);
-        this.particle = this.type.createParticle(point);
+        this.particle = this.type.createParticle(point.transform(this.type.getTransform()));
         this.particle.setStateSource(this);
     }
 
@@ -175,7 +175,7 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
             this.particleWidthMarker.setPositionOrientation(point.position, point.orientation);
         }
         if (this.particle != null) {
-            this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point);
+            this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point.transform(this.type.getTransform()));
         }
     }
 

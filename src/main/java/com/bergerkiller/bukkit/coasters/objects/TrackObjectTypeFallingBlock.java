@@ -15,7 +15,9 @@ import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.map.MapCanvas;
 import com.bergerkiller.bukkit.common.map.util.Model;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
+import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Vector3;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 
@@ -24,18 +26,20 @@ import com.bergerkiller.bukkit.common.wrappers.BlockData;
  */
 public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticleFallingBlock> {
     private final double width;
+    private final Matrix4x4 transform;
     private final BlockData material;
 
-    private TrackObjectTypeFallingBlock(double width, BlockData material) {
+    private TrackObjectTypeFallingBlock(double width, Matrix4x4 transform, BlockData material) {
         if (material == null) {
             throw new IllegalArgumentException("Material can not be null");
         }
         this.width = width;
+        this.transform = transform;
         this.material = material;
     }
 
     public static TrackObjectTypeFallingBlock create(double width, BlockData material) {
-        return new TrackObjectTypeFallingBlock(width, material);
+        return new TrackObjectTypeFallingBlock(width, null, material);
     }
 
     public static TrackObjectTypeFallingBlock createDefault() {
@@ -54,7 +58,17 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
 
     @Override
     public TrackObjectTypeFallingBlock setWidth(double width) {
-        return new TrackObjectTypeFallingBlock(width, this.material);
+        return new TrackObjectTypeFallingBlock(width, this.transform, this.material);
+    }
+
+    @Override
+    public Matrix4x4 getTransform() {
+        return this.transform;
+    }
+
+    @Override
+    public TrackObjectType<TrackParticleFallingBlock> setTransform(Matrix4x4 transform) {
+        return new TrackObjectTypeFallingBlock(this.width, transform, this.material);
     }
 
     /**
@@ -73,7 +87,7 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
      * @return copy of this type with material changed
      */
     public TrackObjectTypeFallingBlock setMaterial(BlockData material) {
-        return new TrackObjectTypeFallingBlock(this.width, material);
+        return new TrackObjectTypeFallingBlock(this.width, this.transform, material);
     }
 
     @Override
@@ -132,7 +146,9 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
             return true;
         } else if (o instanceof TrackObjectTypeFallingBlock) {
             TrackObjectTypeFallingBlock other = (TrackObjectTypeFallingBlock) o;
-            return this.material == other.material && this.width == other.width;
+            return this.material == other.material &&
+                   this.width == other.width &&
+                   LogicUtil.bothNullOrEqual(this.transform, other.transform);
         } else {
             return false;
         }
