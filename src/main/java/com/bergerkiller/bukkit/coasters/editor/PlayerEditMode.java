@@ -10,6 +10,7 @@ import org.bukkit.block.BlockFace;
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.object.ObjectEditState;
+import com.bergerkiller.bukkit.coasters.editor.object.ui.TypePositionMenu;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.TypeSelectMenu;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -381,7 +382,14 @@ public enum PlayerEditMode {
                     getDisplay().playSound(CommonSounds.EXTINGUISH);
                 }
             }
-        }).setText("Delete").setBounds(10, 55, 60, 13);
+        }).setText("Delete").setBounds(10, 55, 50, 13);
+
+        tab.addWidget(new MapWidgetButton() {
+            @Override
+            public void onActivate() {
+                tab.addWidget(new TypePositionMenu(stateSupplier));
+            }
+        }).setText("Position").setBounds(62, 55, 50, 13);
 
         tab.addWidget(new MapWidgetNumberBox() {
             @Override
@@ -394,10 +402,7 @@ public enum PlayerEditMode {
 
             @Override
             public void onValueChanged() {
-                ObjectEditState state = stateSupplier.get().getObjects();
-                if (this.getValue() != state.getSelectedType().getWidth()) {
-                    state.setSelectedType(state.getSelectedType().setWidth(this.getValue()));
-                }
+                stateSupplier.get().getObjects().transformSelectedType(type -> type.setWidth((this.getValue())));
             }
         }).setBounds(10, 70, 60, 13);
     }

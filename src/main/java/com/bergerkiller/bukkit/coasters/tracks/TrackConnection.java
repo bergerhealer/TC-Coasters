@@ -651,11 +651,11 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
                 return this;
             }
 
-            Vector position = this.position.clone();
-            Quaternion orientation = this.orientation.clone();
-            transform.transformPoint(position);
-            orientation.multiply(transform.getRotation());
-            return new PointOnPath(this.connection, this.theta, this.distance, position, orientation);
+            Matrix4x4 pos = new Matrix4x4();
+            pos.translate(this.position);
+            pos.rotate(this.orientation);
+            pos.multiply(transform);
+            return new PointOnPath(this.connection, this.theta, this.distance, pos.toVector(), pos.getRotation());
         }
 
         @Override

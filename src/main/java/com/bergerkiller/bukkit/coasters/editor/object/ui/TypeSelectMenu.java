@@ -137,7 +137,7 @@ public class TypeSelectMenu extends MapWidget implements ItemDropTarget {
     public boolean acceptItem(ItemStack item) {
         TrackObjectType<?> oldType = this._stateSupplier.get().getObjects().getSelectedType();
         TrackObjectType<?> newType = oldType.acceptItem(item);
-        if (oldType != newType) {
+        if (!oldType.equals(newType)) {
             this._stateSupplier.get().getObjects().setSelectedType(newType);
             this.setDisplayedType(newType);
             this.display.playSound(CommonSounds.CLICK_WOOD);

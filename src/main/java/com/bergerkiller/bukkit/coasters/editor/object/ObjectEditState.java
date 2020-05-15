@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.logging.Level;
 
 import org.bukkit.entity.Player;
@@ -92,6 +93,23 @@ public class ObjectEditState {
                 continue;
             }
             editObject.object.setType(editObject.connection, type);
+        }
+    }
+
+    /**
+     * Alters the currently selected track object type using a manipulator function
+     * 
+     * @param manipulator Manipulator function that will change the selected type as a result
+     * @return transformed type, original type if unchanged
+     */
+    public TrackObjectType<?> transformSelectedType(Function<TrackObjectType<?>, TrackObjectType<?>> manipulator) {
+        TrackObjectType<?> original = this.getSelectedType();
+        TrackObjectType<?> result = manipulator.apply(original);
+        if (!result.equals(original)) {
+            this.setSelectedType(result);
+            return result;
+        } else {
+            return original;
         }
     }
 

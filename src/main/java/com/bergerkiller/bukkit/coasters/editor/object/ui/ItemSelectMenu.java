@@ -38,11 +38,7 @@ public class ItemSelectMenu extends MapWidgetMenu implements ItemDropTarget {
                 if (item == null) {
                     return;
                 }
-                TrackObjectType<?> oldType = stateSupplier.get().getObjects().getSelectedType();
-                TrackObjectType<?> newType = oldType.acceptItem(this.getSelectedItem());
-                if (oldType != newType) {
-                    stateSupplier.get().getObjects().setSelectedType(newType);
-                }
+                stateSupplier.get().getObjects().transformSelectedType(type -> type.acceptItem(this.getSelectedItem()));
             }
         });
         this.itemSelector.setPosition(7, 7);
