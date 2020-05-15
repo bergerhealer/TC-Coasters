@@ -14,9 +14,9 @@ import org.bukkit.util.FileUtil;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVReader;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVWriter;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSVReader;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSVWriter;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
@@ -248,7 +248,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
      * @param origin relative to which to place the coaster
      */
     public void loadFromStream(InputStream inputStream, PlayerOrigin origin) throws CoasterLoadException {
-        try (TrackCoasterCSVReader reader = new TrackCoasterCSVReader(inputStream)) {
+        try (TrackCSVReader reader = new TrackCSVReader(inputStream)) {
             reader.setOrigin(origin);
             reader.create(this);
 
@@ -280,9 +280,9 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
         File folder = this.getWorld().getTracks().getConfigFolder();
         File tmpFile = new File(folder, baseName + ".csv.tmp");
         File realFile = new File(folder, baseName + ".csv");
-        try (TrackCoasterCSVWriter writer = new TrackCoasterCSVWriter(new FileOutputStream(tmpFile, false))) {
+        try (TrackCSVWriter writer = new TrackCSVWriter(new FileOutputStream(tmpFile, false))) {
             if (this.isLocked()) {
-                writer.write(new TrackCoasterCSV.LockCoasterEntry());
+                writer.write(new TrackCSV.LockCoasterEntry());
             }
             writer.writeAll(this.getNodes());
             success = true;

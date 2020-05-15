@@ -28,6 +28,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.csv.TrackCSVWriter;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
@@ -39,7 +40,6 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster.CoasterLoadException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVWriter;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldImpl;
@@ -650,7 +650,7 @@ public class TCCoasters extends PluginBase {
             String content;
             try {
                 ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                try (TrackCoasterCSVWriter writer = new TrackCoasterCSVWriter(stream, nolimits2Format ? '\t' : ',')) {
+                try (TrackCSVWriter writer = new TrackCSVWriter(stream, nolimits2Format ? '\t' : ',')) {
                     if (nolimits2Format) {
                         // NoLimits2 format
                         writer.writeAllNoLimits2(exportedNodes);

@@ -4,8 +4,8 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.CSVReaderState;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV.CSVReaderState;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 
@@ -14,7 +14,7 @@ import com.bergerkiller.bukkit.common.math.Matrix4x4;
  * The position is restricted to full block coordinates, and the orientation
  * is only full 90-degree angles.
  */
-public class PlayerOrigin extends TrackCoasterCSV.CSVEntry implements PlayerOriginHolder {
+public class PlayerOrigin extends TrackCSV.CSVEntry implements PlayerOriginHolder {
     private IntVector3 position;
     private IntVector3 orientation;
 

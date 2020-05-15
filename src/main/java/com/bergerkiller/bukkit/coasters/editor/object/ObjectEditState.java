@@ -17,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
@@ -35,7 +36,6 @@ import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItemStack;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
@@ -101,7 +101,7 @@ public class ObjectEditState {
 
     public void save(ConfigurationNode config) {
         // Make use of the CSV format to save the selected track object type information
-        TrackCoasterCSV.TrackObjectTypeEntry<?> entry = TrackCoasterCSV.createTrackObjectTypeEntry("SELECTED", this.selectedType);
+        TrackCSV.TrackObjectTypeEntry<?> entry = TrackCSV.createTrackObjectTypeEntry("SELECTED", this.selectedType);
         if (entry != null) {
             StringArrayBuffer buffer = new StringArrayBuffer();
             entry.write(buffer);
@@ -897,9 +897,9 @@ public class ObjectEditState {
                 StringArrayBuffer buffer = new StringArrayBuffer();
                 buffer.load(values);
                 try {
-                    TrackCoasterCSV.CSVEntry entry = TrackCoasterCSV.decode(buffer);
-                    if (entry instanceof TrackCoasterCSV.TrackObjectTypeEntry) {
-                        TrackCoasterCSV.TrackObjectTypeEntry<?> typeEntry = (TrackCoasterCSV.TrackObjectTypeEntry<?>) entry;
+                    TrackCSV.CSVEntry entry = TrackCSV.decode(buffer);
+                    if (entry instanceof TrackCSV.TrackObjectTypeEntry) {
+                        TrackCSV.TrackObjectTypeEntry<?> typeEntry = (TrackCSV.TrackObjectTypeEntry<?>) entry;
                         if (typeEntry.objectType != null) {
                             return typeEntry.objectType;
                         }

@@ -5,11 +5,11 @@ import java.util.function.Supplier;
 import org.bukkit.inventory.ItemStack;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV.TrackObjectTypeEntry;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemSelectMenu;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleFallingBlock;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.TrackObjectTypeEntry;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.map.MapCanvas;

@@ -1,4 +1,4 @@
-package com.bergerkiller.bukkit.coasters.tracks.csv;
+package com.bergerkiller.bukkit.coasters.csv;
 
 import java.io.IOException;
 import java.util.AbstractMap;
@@ -38,7 +38,7 @@ import com.opencsv.CSVReader;
 /**
  * Helper class for storing possible data stored on each line of the CSV file
  */
-public class TrackCoasterCSV {
+public class TrackCSV {
     private static final List<Map.Entry<CSVEntry, Supplier<CSVEntry>>> _entryTypes = new ArrayList<>();
     private static final Map<Class<?>, Supplier<TrackObjectTypeEntry<?>>> _trackObjectTypes = new HashMap<>();
     private static final List<TrackObjectType<?>> _trackObjectTypeDefaults = new ArrayList<>();

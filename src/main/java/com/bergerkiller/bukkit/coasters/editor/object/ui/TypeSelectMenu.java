@@ -5,9 +5,9 @@ import java.util.function.Supplier;
 
 import org.bukkit.inventory.ItemStack;
 
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV;
 import com.bergerkiller.bukkit.common.events.map.MapKeyEvent;
 import com.bergerkiller.bukkit.common.map.MapBlendMode;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
@@ -170,7 +170,7 @@ public class TypeSelectMenu extends MapWidget implements ItemDropTarget {
     }
 
     private void switchType(int offset) {
-        List<TrackObjectType<?>> types = TrackCoasterCSV.getDefaultTrackObjectTypes();
+        List<TrackObjectType<?>> types = TrackCSV.getDefaultTrackObjectTypes();
         int currentIndex = (this._displayedType == null) ? 0 : types.indexOf(this._displayedType);
         if (currentIndex == -1) {
             for (int i = 0; i < types.size(); i++) {

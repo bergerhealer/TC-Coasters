@@ -1,4 +1,4 @@
-package com.bergerkiller.bukkit.coasters.tracks.csv;
+package com.bergerkiller.bukkit.coasters.csv;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,12 +21,12 @@ import com.opencsv.CSVReaderBuilder;
 /**
  * Helper class for building a coaster from a csv file
  */
-public class TrackCoasterCSVReader implements AutoCloseable {
+public class TrackCSVReader implements AutoCloseable {
     private final CSVReader reader;
     private final StringArrayBuffer buffer;
     private PlayerOrigin origin = null;
 
-    public TrackCoasterCSVReader(InputStream inputStream) throws IOException {
+    public TrackCSVReader(InputStream inputStream) throws IOException {
         CSVFormatDetectorStream detectorInput = new CSVFormatDetectorStream(inputStream);
         detectorInput.detect();
 
@@ -69,8 +69,8 @@ public class TrackCoasterCSVReader implements AutoCloseable {
      * @throws IOException
      * @throws SyntaxException
      */
-    public TrackCoasterCSV.CSVEntry readNextEntry() throws IOException, SyntaxException {
-        return TrackCoasterCSV.readNext(this.reader, this.buffer);
+    public TrackCSV.CSVEntry readNextEntry() throws IOException, SyntaxException {
+        return TrackCSV.readNext(this.reader, this.buffer);
     }
 
     /**
@@ -81,7 +81,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
      * @throws SyntaxException
      */
     public void create(TrackCoaster coaster) throws IOException, SyntaxException {
-        TrackCoasterCSV.CSVReaderState state = new TrackCoasterCSV.CSVReaderState();
+        TrackCSV.CSVReaderState state = new TrackCSV.CSVReaderState();
         state.coaster = coaster;
         state.world = coaster.getWorld();
 
@@ -89,7 +89,7 @@ public class TrackCoasterCSVReader implements AutoCloseable {
         state.coaster.setLocked(false);
 
         // Read all the entries we can from the CSV reader
-        TrackCoasterCSV.CSVEntry entry;
+        TrackCSV.CSVEntry entry;
         while ((entry = readNextEntry()) != null) {
             // Read the origin of the coaster from the csv
             // The first line that refers to an origin is used

@@ -12,13 +12,13 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Vector;
 import org.junit.Test;
 
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.AnimationStateNodeEntry;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.CSVEntry;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.LinkNodeEntry;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.NoLimits2Entry;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.NodeEntry;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.RootNodeEntry;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSVReader;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSVReader;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV.AnimationStateNodeEntry;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV.CSVEntry;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV.LinkNodeEntry;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV.NoLimits2Entry;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV.NodeEntry;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV.RootNodeEntry;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -30,7 +30,7 @@ public class CoasterCSVReaderTest {
     public void testTCCFormat() throws Throwable {
         // Standards TC-Coasters CSV files
         CSVEntry e;
-        try (TrackCoasterCSVReader reader = openReader(
+        try (TrackCSVReader reader = openReader(
                 "\"ROOT\",\"-77.1\",\"4.8\",\"271.32\",\"0.0\",\"1.0\",\"0.0\",\"-72\",\"4\",\"281\"\r\n" + 
                 "\"ANIM\",\"-77.6\",\"4.8\",\"271.32\",\"0.0\",\"1.0\",\"0.0\",\"-72\",\"4\",\"281\",\"a\"\r\n" +
                 "\"ANIM\",\"-77.2\",\"4.8\",\"271.32\",\"0.0\",\"1.0\",\"0.0\",\"\",\"\",\"\",\"b\"\r\n" + 
@@ -90,7 +90,7 @@ public class CoasterCSVReaderTest {
         // NoLimits CSV Files, with tabs between the fields and each value quoted
         // Includes a header at the top
         CSVEntry e;
-        try (TrackCoasterCSVReader reader = openReader(
+        try (TrackCSVReader reader = openReader(
                 "\"No.\"\t\"PosX\"\t\"PosY\"\t\"PosZ\"\t\"FrontX\"\t\"FrontY\"\t\"FrontZ\"\t\"LeftX\"\t\"LeftY\"\t\"LeftZ\"\t\"UpX\"\t\"UpY\"\t\"UpZ\"\r\n" + 
                 "1\t43.345145\t8.695299\t-33.675375\t0.005115\t0.425082\t-0.905141\t-0.938856\t-0.309581\t-0.150694\t-0.344272\t0.850568\t0.397507\r\n" + 
                 "2\t43.350331\t8.906957\t-34.128325\t0.020909\t0.419768\t-0.907390\t-0.941258\t-0.297695\t-0.159407\t-0.337040\t0.857422\t0.388886\r\n" + 
@@ -134,7 +134,7 @@ public class CoasterCSVReaderTest {
         // No header at the top
         // Adds support for https://github.com/Buam/nolimits2-csv-exporter
         CSVEntry e;
-        try (TrackCoasterCSVReader reader = openReader(
+        try (TrackCSVReader reader = openReader(
                 "\"1\t43.345145\t8.695299\t-33.675375\t0.005115\t0.425082\t-0.905141\t-0.938856\t-0.309581\t-0.150694\t-0.344272\t0.850568\t0.397507\"\r\n" + 
                 "\"2\t43.350331\t8.906957\t-34.128325\t0.020909\t0.419768\t-0.907390\t-0.941258\t-0.297695\t-0.159407\t-0.337040\t0.857422\t0.388886\"\r\n" + 
                 "\"3\t43.942754\t10.606781\t-38.238981\t0.261420\t0.323027\t-0.909568\t-0.943069\t0.286225\t-0.169398\t0.205621\t0.902069\t0.379462\""
@@ -200,7 +200,7 @@ public class CoasterCSVReaderTest {
         }
     }
 
-    private TrackCoasterCSVReader openReader(String text) throws UnsupportedEncodingException, IOException {
-        return new TrackCoasterCSVReader(new ByteArrayInputStream(text.getBytes("UTF-8")));
+    private TrackCSVReader openReader(String text) throws UnsupportedEncodingException, IOException {
+        return new TrackCSVReader(new ByteArrayInputStream(text.getBytes("UTF-8")));
     }
 }

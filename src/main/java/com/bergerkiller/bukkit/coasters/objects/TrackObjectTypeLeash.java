@@ -6,10 +6,10 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV.TrackObjectTypeEntry;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleLine;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection.PointOnPath;
-import com.bergerkiller.bukkit.coasters.tracks.csv.TrackCoasterCSV.TrackObjectTypeEntry;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.map.MapCanvas;
