@@ -9,7 +9,6 @@ import org.bukkit.block.BlockFace;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
-import com.bergerkiller.bukkit.coasters.editor.object.ObjectEditState;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.TypePositionMenu;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.TypeSelectMenu;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
@@ -390,20 +389,5 @@ public enum PlayerEditMode {
                 tab.addWidget(new TypePositionMenu(stateSupplier));
             }
         }).setText("Position").setBounds(62, 55, 50, 13);
-
-        tab.addWidget(new MapWidgetNumberBox() {
-            @Override
-            public void onAttached() {
-                super.onAttached();
-
-                ObjectEditState state = stateSupplier.get().getObjects();
-                this.setValue(state.getSelectedType().getWidth());
-            }
-
-            @Override
-            public void onValueChanged() {
-                stateSupplier.get().getObjects().transformSelectedType(type -> type.setWidth((this.getValue())));
-            }
-        }).setBounds(10, 70, 60, 13);
     }
 }
