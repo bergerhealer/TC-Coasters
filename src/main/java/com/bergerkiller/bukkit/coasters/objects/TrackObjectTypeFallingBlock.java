@@ -7,7 +7,7 @@ import org.bukkit.inventory.ItemStack;
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.csv.TrackCSV.TrackObjectTypeEntry;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
-import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemSelectMenu;
+import com.bergerkiller.bukkit.coasters.editor.object.ui.BlockSelectMenu;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleFallingBlock;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
@@ -43,7 +43,7 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
     }
 
     public static TrackObjectTypeFallingBlock createDefault() {
-        return create(0.0, BlockData.fromMaterial(MaterialUtil.getFirst("RAIL", "LEGACY_RAILS")));
+        return create(0.0, BlockData.fromMaterial(MaterialUtil.getFirst("OAK_PLANKS", "LEGACY_WOOD")));
     }
 
     @Override
@@ -122,7 +122,7 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
 
     @Override
     public void openMenu(MapWidget parent, Supplier<PlayerEditState> stateSupplier) {
-        parent.addWidget(new ItemSelectMenu(stateSupplier));
+        parent.addWidget(new BlockSelectMenu(stateSupplier));
     }
 
     @Override

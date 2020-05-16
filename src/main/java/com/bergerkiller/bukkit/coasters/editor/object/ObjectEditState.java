@@ -113,6 +113,22 @@ public class ObjectEditState {
         }
     }
 
+    /**
+     * Alters the currently selected track object type using a manipulator function, but only
+     * if the track object type is of the type specified.
+     * 
+     * @param type The type to manipulate
+     * @param manipulator Manipulator function that will change the selected type as a result
+     * @return transformed type, original type if unchanged, null if type is incompatible
+     */
+    public <T extends TrackObjectType<?>> T transformSelectedType(Class<T> type, Function<T, T> manipulator) {
+        if (type.isAssignableFrom(this.getSelectedType().getClass())) {
+            return CommonUtil.unsafeCast(transformSelectedType(CommonUtil.unsafeCast(manipulator)));
+        } else {
+            return null;
+        }
+    }
+
     public void load(ConfigurationNode config) {
         this.selectedType = parseType(config);
     }

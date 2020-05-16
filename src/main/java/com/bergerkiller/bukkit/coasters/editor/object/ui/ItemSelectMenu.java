@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.editor.object.ui;
 
 import java.util.function.Supplier;
 
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
@@ -9,11 +10,10 @@ import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeFallingBlock;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItemStack;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
-import com.bergerkiller.bukkit.tc.attachments.ui.ItemDropTarget;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetMenu;
 import com.bergerkiller.bukkit.tc.attachments.ui.item.MapWidgetItemSelector;
 
-public class ItemSelectMenu extends MapWidgetMenu implements ItemDropTarget {
+public class ItemSelectMenu extends MapWidgetMenu {
     private final MapWidgetItemSelector itemSelector;
 
     public ItemSelectMenu(Supplier<PlayerEditState> stateSupplier) {
@@ -45,7 +45,7 @@ public class ItemSelectMenu extends MapWidgetMenu implements ItemDropTarget {
     }
 
     @Override
-    public boolean acceptItem(ItemStack item) {
+    public boolean onItemDrop(Player player, ItemStack item) {
         return this.itemSelector.acceptItem(item);
     }
 }

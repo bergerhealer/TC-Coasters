@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.editor.object.ui;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
@@ -19,13 +20,12 @@ import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetButton;
 import com.bergerkiller.bukkit.common.resources.CommonSounds;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
-import com.bergerkiller.bukkit.tc.attachments.ui.ItemDropTarget;
 
 /**
  * Menu where the Track Object Type can be selected.
  * When pressing on it, the appearance of the type can be changed.
  */
-public class TypeSelectMenu extends MapWidget implements ItemDropTarget {
+public class TypeSelectMenu extends MapWidget {
     private final Supplier<PlayerEditState> _stateSupplier;
     private TrackObjectType<?> _displayedType = null;
     private MapTexture _displayedTypeTexture = null;
@@ -134,7 +134,7 @@ public class TypeSelectMenu extends MapWidget implements ItemDropTarget {
     }
 
     @Override
-    public boolean acceptItem(ItemStack item) {
+    public boolean onItemDrop(Player player, ItemStack item) {
         TrackObjectType<?> oldType = this._stateSupplier.get().getObjects().getSelectedType();
         TrackObjectType<?> newType = oldType.acceptItem(item);
         if (!oldType.equals(newType)) {
