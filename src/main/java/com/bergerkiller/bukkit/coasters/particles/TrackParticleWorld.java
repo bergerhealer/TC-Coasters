@@ -1,9 +1,7 @@
 package com.bergerkiller.bukkit.coasters.particles;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,7 +29,6 @@ public class TrackParticleWorld implements CoasterWorldComponent {
     private final Map<Player, ViewerParticleList> viewers = new ConcurrentHashMap<>(16, 0.75f, 1);
     private int updateCtr = 0;
     private boolean forceViewerUpdate = false;
-    protected final List<TrackParticle> appearanceUpdates = new ArrayList<>();
 
     public TrackParticleWorld(CoasterWorld world) {
         this._world = world;
@@ -97,11 +94,10 @@ public class TrackParticleWorld implements CoasterWorldComponent {
 
     public void removeAll() {
         for (TrackParticle particle : this.particles.values()) {
-            particle.makeHiddenForAll();
+            removeParticle(particle);
         }
         this.particles.clear();
         this.viewers.clear();
-        this.appearanceUpdates.clear();
         this.updateCtr = 0;
         this.forceViewerUpdate = false;
     }
@@ -134,18 +130,6 @@ public class TrackParticleWorld implements CoasterWorldComponent {
                     iter.remove();
                 }
             }
-        }
-
-        // For all particles that need an update, update the appearance now
-        // Note: use a a for i loop because new items may be added to the list while iterating
-        if (!this.appearanceUpdates.isEmpty()) {
-            int size = this.appearanceUpdates.size();
-            for (int i = 0; i < size; i++) {
-                TrackParticle particle = this.appearanceUpdates.get(i);
-                particle.clearFlag(TrackParticle.FLAG_APPEARANCE_DIRTY);
-                particle.updateAppearance();
-            }
-            this.appearanceUpdates.subList(0, size).clear();
         }
     }
 

@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.particles;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.util.QueuedTask;
 import com.bergerkiller.bukkit.common.collections.ImmutablePlayerSet;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
@@ -22,6 +23,11 @@ public abstract class TrackParticle {
     protected static final int FLAG_APPEARANCE_DIRTY = (1<<0);
     protected static final int FLAG_ALWAYS_VISIBLE   = (1<<1);
 
+    private static final QueuedTask<TrackParticle> UPDATE_APPEARANCE_TASK = QueuedTask.create(TrackParticle::isAdded, particle -> {
+        particle.clearFlag(TrackParticle.FLAG_APPEARANCE_DIRTY);
+        particle.updateAppearance();
+    });
+
     public TrackParticleWorld getWorld() {
         return this.world;
     }
@@ -39,6 +45,15 @@ public abstract class TrackParticle {
      * Called right before a particle is removed from a world
      */
     protected abstract void onRemoved();
+
+    /**
+     * Gets whether this particle was added to a world
+     * 
+     * @return True if added
+     */
+    public final boolean isAdded() {
+        return this.world != null;
+    }
 
     /**
      * Updates whether a particle is visible or not to a player, spawning or de-spawning it
@@ -188,7 +203,7 @@ public abstract class TrackParticle {
 
     protected void scheduleUpdateAppearance() {
         if (setFlag(FLAG_APPEARANCE_DIRTY)) {
-            this.world.appearanceUpdates.add(this);
+            UPDATE_APPEARANCE_TASK.schedule(this);
         }
     }
 

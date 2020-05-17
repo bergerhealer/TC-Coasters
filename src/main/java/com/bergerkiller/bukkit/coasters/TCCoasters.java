@@ -41,6 +41,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster.CoasterLoadException
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
+import com.bergerkiller.bukkit.coasters.util.QueuedTask;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldImpl;
 import com.bergerkiller.bukkit.common.Common;
@@ -81,7 +82,7 @@ public class TCCoasters extends PluginBase {
     private final TCCoastersInteractionListener interactionListener = new TCCoastersInteractionListener(this);
     private final Map<Player, PlayerEditState> editStates = new HashMap<Player, PlayerEditState>();
     private final Map<World, CoasterWorldImpl> worlds = new HashMap<World, CoasterWorldImpl>();
-    private final Map<Player, Integer> noPermDebounceMap = new HashMap<Player, Integer>();
+    private final QueuedTask<Player> noPermDebounce = QueuedTask.create(20, QueuedTask.Precondition.none(), player -> {});
     private double smoothness = DEFAULT_SMOOTHNESS;
     private boolean glowingSelections = DEFAULT_GLOWING_SELECTIONS;
     private int particleViewRange = DEFAULT_PARTICLE_VIEW_RANGE;
@@ -254,16 +255,8 @@ public class TCCoasters extends PluginBase {
                     coasterWorld.updateAll();
                 }
 
-                // Clean this up
-                if (!noPermDebounceMap.isEmpty()) {
-                    int time = CommonUtil.getServerTicks();
-                    Iterator<Integer> iter = noPermDebounceMap.values().iterator();
-                    while (iter.hasNext()) {
-                        if (iter.next().intValue() <= time) {
-                            iter.remove();
-                        }
-                    }
-                }
+                // Run scheduled tasks
+                QueuedTask.runAll();
 
                 synchronized (TCCoasters.this) {
                     Iterator<PlayerEditState> iter = editStates.values().iterator();
@@ -1093,8 +1086,9 @@ public class TCCoasters extends PluginBase {
      * @param message
      */
     public void sendNoPermissionMessage(Player player, LocalizationEnum message) {
-        Integer prev = noPermDebounceMap.put(player, Integer.valueOf(CommonUtil.getServerTicks() + 20));
-        if (prev == null) {
+        boolean scheduled = noPermDebounce.isScheduled(player);
+        noPermDebounce.schedule(player);
+        if (!scheduled) {
             message.message(player);
         }
     }
