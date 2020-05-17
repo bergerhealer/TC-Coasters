@@ -41,7 +41,9 @@ import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.config.ConfigurationNode;
+import com.bergerkiller.bukkit.common.resources.CommonSounds;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
+import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 
 public class ObjectEditState {
     private final PlayerEditState editState;
@@ -203,6 +205,9 @@ public class ObjectEditState {
                     // If only one object is selected, duplicate it and resume dragging the original object
                     ObjectEditTrackObject editObject = this.editedTrackObjects.values().iterator().next();
                     editObject.connection.addObject(editObject.object.clone());
+
+                    // Play a sound cue so the player knows an object was placed
+                    PlayerUtil.playSound(getPlayer(), CommonSounds.CLICK_WOOD, 0.5f, 1.0f);
                 } else {
                     // Finish the drag action and switch to duplicate mode
                     try {
@@ -767,6 +772,7 @@ public class ObjectEditState {
         }
 
         // Start from the closest point on the connection
+        boolean objectsWereAdded = false;
         int duplicatedObjectIndex = -1;
         double currentDistance;
         TrackConnection currentConnection;
@@ -899,7 +905,13 @@ public class ObjectEditState {
                 // Create the object
                 dupe.add(this.editState.getSelectedAnimation());
                 this.duplicatedObjects.add(dupe);
+                objectsWereAdded = true;
             }
+        }
+
+        // Play a sound cue so the player knows objects were added
+        if (objectsWereAdded) {
+            PlayerUtil.playSound(getPlayer(), CommonSounds.CLICK_WOOD, 0.5f, 1.0f);
         }
 
         // Remove excess objects
@@ -910,17 +922,27 @@ public class ObjectEditState {
      * Removes all objects that were previously duplicated onto the tracks
      */
     public void undoDuplicatedObjects() {
-        for (DuplicatedObject dupe : this.duplicatedObjects) {
-            dupe.remove();
+        if (!this.duplicatedObjects.isEmpty()) {
+            for (DuplicatedObject dupe : this.duplicatedObjects) {
+                dupe.remove();
+            }
+            this.duplicatedObjects.clear();
+
+            // Play a sound cue so the player knows objects were removed
+            PlayerUtil.playSound(getPlayer(), CommonSounds.ITEM_BREAK, 0.5f, 1.0f);
         }
-        this.duplicatedObjects.clear();
     }
 
     private void undoDuplicatedObjects(int startIndex) {
-        for (int i = startIndex; i < this.duplicatedObjects.size(); i++) {
-            this.duplicatedObjects.get(i).remove();
+        if (startIndex < this.duplicatedObjects.size()) {
+            for (int i = startIndex; i < this.duplicatedObjects.size(); i++) {
+                this.duplicatedObjects.get(i).remove();
+            }
+            this.duplicatedObjects.subList(startIndex, this.duplicatedObjects.size()).clear();
+
+            // Play a sound cue so the player knows objects were removed
+            PlayerUtil.playSound(getPlayer(), CommonSounds.ITEM_BREAK, 0.5f, 1.0f);
         }
-        this.duplicatedObjects.subList(startIndex, this.duplicatedObjects.size()).clear();
     }
 
     /// Makes use of the CSV format to load the selected track object type information
