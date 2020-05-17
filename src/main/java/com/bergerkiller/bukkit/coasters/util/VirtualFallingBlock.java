@@ -95,7 +95,7 @@ public class VirtualFallingBlock {
         return this;
     }
 
-    public VirtualFallingBlock move(Iterable<Player> viewers) {
+    public VirtualFallingBlock updatePosition(Iterable<Player> viewers) {
         if (this.entityId != -1 && this.smooth && this.holderEntityId == -1) {
             for (Player viewer : viewers) {
                 this.spawnHolder(viewer);
@@ -169,7 +169,7 @@ public class VirtualFallingBlock {
         packet.setFallingBlockData(this.material);
         PacketUtil.sendPacket(viewer, packet);
 
-        if (CAN_DISABLE_GRAVITY) {
+        if (CAN_DISABLE_GRAVITY && this.holderEntityId == -1) {
             DataWatcher metadata = new DataWatcher();
             metadata.set(EntityHandle.DATA_NO_GRAVITY, true);
             if (this.glowing && CAN_GLOW) {

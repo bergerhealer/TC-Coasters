@@ -107,7 +107,7 @@ public class TrackParticleFallingBlock extends TrackParticle {
                     .position(this.position)
                     .smoothMovement(true)
                     .respawn(this.clearFlag(FLAG_SMALL_CHANGES))
-                    .move(this.getViewers());
+                    .updatePosition(this.getViewers());
 
             this.holderEntityId = block.holderEntityId();
             this.entityId = block.entityId();

@@ -79,7 +79,7 @@ public class TrackParticleLitBlock extends TrackParticle {
             VirtualFallingBlock.create(this.holderEntityId, this.entityId)
                 .position(this.position)
                 .smoothMovement(false)
-                .move(this.getViewers());
+                .updatePosition(this.getViewers());
         }
     }
 
