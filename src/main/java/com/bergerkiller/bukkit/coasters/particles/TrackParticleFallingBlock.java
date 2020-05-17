@@ -11,6 +11,7 @@ import com.bergerkiller.bukkit.common.wrappers.BlockData;
 public class TrackParticleFallingBlock extends TrackParticle {
     protected static final int FLAG_POSITION_CHANGED = (1<<2);
     protected static final int FLAG_MATERIAL_CHANGED = (1<<3);
+    protected static final int FLAG_SMALL_CHANGES    = (1<<4);
     private DoubleOctree.Entry<TrackParticle> position;
     private Quaternion orientation;
     private BlockData material;
@@ -30,6 +31,12 @@ public class TrackParticleFallingBlock extends TrackParticle {
             this.scheduleUpdateAppearance();
         }
         if (!this.position.equalsCoord(position)) {
+            if (Math.abs(position.getX() - this.position.getX()) < 0.05 &&
+                Math.abs(position.getY() - this.position.getY()) < 0.05 &&
+                Math.abs(position.getZ() - this.position.getZ()) < 0.05)
+            {
+                this.setFlag(FLAG_SMALL_CHANGES);
+            }
             this.position = updatePosition(this.position, position);
             this.setFlag(FLAG_POSITION_CHANGED);
             this.scheduleUpdateAppearance();
@@ -99,6 +106,7 @@ public class TrackParticleFallingBlock extends TrackParticle {
             VirtualFallingBlock block = VirtualFallingBlock.create(this.holderEntityId, this.entityId)
                     .position(this.position)
                     .smoothMovement(true)
+                    .respawn(this.clearFlag(FLAG_SMALL_CHANGES))
                     .move(this.getViewers());
 
             this.holderEntityId = block.holderEntityId();
