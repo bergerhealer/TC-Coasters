@@ -51,6 +51,7 @@ public class TypePositionMenu extends MapWidgetMenu {
                 }
             }
         });
+        num_width.setRange(0.0, Double.MAX_VALUE);
         num_width.setValue(width());
         num_width.setBounds(30, y_offset, slider_width, 11);
         addLabel(5, y_offset + 3, "Width");
