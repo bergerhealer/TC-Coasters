@@ -73,8 +73,7 @@ public class TCCoasters extends PluginBase {
     private static final int DEFAULT_PARTICLE_VIEW_RANGE = 64;
     private static final int DEFAULT_MAXIMUM_PARTICLE_COUNT = 5000;
     private static final boolean DEFAULT_PLOTSQUARED_ENABLED = false;
-    private Task updateTask;
-    private Task autosaveTask;
+    private Task worldUpdateTask, runQueuedTasksTask, updatePlayerEditStatesTask, autosaveTask;
     private final CoasterRailType coasterRailType = new CoasterRailType(this);
     private final SignActionTrackAnimate trackAnimateAction = new SignActionTrackAnimate();
     private final Hastebin hastebin = new Hastebin(this);
@@ -248,29 +247,11 @@ public class TCCoasters extends PluginBase {
     public void enable() {
         this.listener.enable();
         this.interactionListener.enable();
-        this.updateTask = new Task(this) {
-            @Override
-            public void run() {
-                for (CoasterWorldImpl coasterWorld : worlds.values()) {
-                    coasterWorld.updateAll();
-                }
 
-                // Run scheduled tasks
-                QueuedTask.runAll();
-
-                synchronized (TCCoasters.this) {
-                    Iterator<PlayerEditState> iter = editStates.values().iterator();
-                    while (iter.hasNext()) {
-                        PlayerEditState state = iter.next();
-                        if (!state.getPlayer().isOnline()) {
-                            iter.remove();
-                        } else {
-                            state.update();
-                        }
-                    }
-                }
-            }
-        }.start(1, 1);
+        // Schedule some background tasks
+        this.worldUpdateTask = (new WorldUpdateTask()).start(1, 1);
+        this.runQueuedTasksTask = (new RunQueuedTasksTask()).start(1, 1);
+        this.updatePlayerEditStatesTask = (new UpdatePlayerEditStatesTask()).start(1, 1);
 
         // Load configuration
         FileConfiguration config = new FileConfiguration(this);
@@ -312,16 +293,18 @@ public class TCCoasters extends PluginBase {
             this.getCoasterWorld(world).getTracks().load();
         }
 
-        // Update right away
-        this.updateTask.run();
+        // Update worlds right away
+        this.worldUpdateTask.run();
     }
 
     @Override
     public void disable() {
         this.listener.disable();
         this.interactionListener.disable();
-        this.updateTask.stop();
-        this.autosaveTask.stop();
+        Task.stop(this.worldUpdateTask);
+        Task.stop(this.runQueuedTasksTask);
+        Task.stop(this.updatePlayerEditStatesTask);
+        Task.stop(this.autosaveTask);
 
         // Log off all players
         for (Player player : getPlayersWithEditStates()) {
@@ -1185,4 +1168,48 @@ public class TCCoasters extends PluginBase {
         return Common.VERSION;
     }
 
+    private class WorldUpdateTask extends Task {
+        public WorldUpdateTask() {
+            super(TCCoasters.this);
+        }
+
+        @Override
+        public void run() {
+            for (CoasterWorldImpl coasterWorld : worlds.values()) {
+                coasterWorld.updateAll();
+            }
+        }
+    }
+
+    private class RunQueuedTasksTask extends Task {
+        public RunQueuedTasksTask() {
+            super(TCCoasters.this);
+        }
+
+        @Override
+        public void run() {
+            QueuedTask.runAll();
+        }
+    }
+
+    private class UpdatePlayerEditStatesTask extends Task {
+        public UpdatePlayerEditStatesTask() {
+            super(TCCoasters.this);
+        }
+
+        @Override
+        public void run() {
+            synchronized (TCCoasters.this) {
+                Iterator<PlayerEditState> iter = editStates.values().iterator();
+                while (iter.hasNext()) {
+                    PlayerEditState state = iter.next();
+                    if (!state.getPlayer().isOnline()) {
+                        iter.remove();
+                    } else {
+                        state.update();
+                    }
+                }
+            }
+        }
+    }
 }
