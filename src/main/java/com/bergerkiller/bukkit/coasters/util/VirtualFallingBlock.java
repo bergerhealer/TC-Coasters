@@ -8,6 +8,7 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
+import com.bergerkiller.bukkit.common.protocol.CommonPacket;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
@@ -145,6 +146,17 @@ public class VirtualFallingBlock {
             PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.holderEntityId, this.entityId));
         } else if (this.entityId != -1) {
             PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.entityId));
+        }
+        return this;
+    }
+
+    public VirtualFallingBlock destroyHolder(Iterable<Player> viewers) {
+        if (this.holderEntityId != -1 && CAN_DISABLE_GRAVITY) {
+            CommonPacket packet = PacketType.OUT_ENTITY_DESTROY.newInstance(this.holderEntityId);
+            for (Player viewer : viewers) {
+                PacketUtil.sendPacket(viewer, packet);
+            }
+            this.holderEntityId = -1;
         }
         return this;
     }

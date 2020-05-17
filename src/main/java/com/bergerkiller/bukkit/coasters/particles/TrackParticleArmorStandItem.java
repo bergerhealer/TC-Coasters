@@ -4,6 +4,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.util.QueuedTask;
 import com.bergerkiller.bukkit.coasters.util.VirtualArmorStandItem;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.math.Quaternion;
@@ -16,6 +17,10 @@ public class TrackParticleArmorStandItem extends TrackParticle {
     protected static final int FLAG_POSE_CHANGED      = (1<<3);
     protected static final int FLAG_ITEM_CHANGED      = (1<<4);
     protected static final int FLAG_SMALL_CHANGES     = (1<<5);
+
+    private static final QueuedTask<TrackParticleArmorStandItem> DESPAWN_HOLDER_TASK = QueuedTask.create(
+            100, TrackParticle::isAdded, TrackParticleArmorStandItem::destroyHolderEntity);
+
     private DoubleOctree.Entry<TrackParticle> position;
     private Quaternion orientation;
     private ItemStack item;
@@ -37,9 +42,10 @@ public class TrackParticleArmorStandItem extends TrackParticle {
         if (!this.position.equalsCoord(position)) {
             if (Math.abs(position.getX() - this.position.getX()) < 0.05 &&
                 Math.abs(position.getY() - this.position.getY()) < 0.05 &&
-                Math.abs(position.getZ() - this.position.getZ()) < 0.05)
+                Math.abs(position.getZ() - this.position.getZ()) < 0.05 &&
+                setFlag(FLAG_SMALL_CHANGES))
             {
-                this.setFlag(FLAG_SMALL_CHANGES);
+                DESPAWN_HOLDER_TASK.schedule(this);
             }
             this.position = updatePosition(this.position, position);
             this.setFlag(FLAG_POSITION_CHANGED);
@@ -121,6 +127,14 @@ public class TrackParticleArmorStandItem extends TrackParticle {
                 .item(this.item)
                 .updateItem(this.getViewers());
         }
+    }
+
+    private void destroyHolderEntity() {
+        VirtualArmorStandItem entity = VirtualArmorStandItem.create(this.holderEntityId, this.entityId)
+                .position(this.position)
+                .destroyHolder(getViewers());
+        this.holderEntityId = entity.holderEntityId();
+        this.entityId = entity.entityId();
     }
 
     @Override
