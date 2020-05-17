@@ -152,18 +152,32 @@ public class Discrete {
                 m0.computePosition(0.5 * (t0 + ht));
                 m1.computePosition(ht);
                 m2.computePosition(0.5 * (t1 + ht));
+
+                // Check distance difference between sum of segments and total is small enough
                 double summed = current.computeDistanceToNext() +
                                 m0.computeDistanceToNext() +
                                 m1.computeDistanceToNext() +
                                 m2.computeDistanceToNext();
-     
-                // If distance difference is small enough, then this section is complete
-                if ((summed - currentNextDistance) < PRECISION) {
-                    totalDistance += summed;
-                    current = m2.next;
-                    if (current.next == null) {
-                        break;
-                    }
+                if ((summed - currentNextDistance) >= PRECISION) {
+                    continue;
+                }
+
+                // Check that the 4 individual distances are close enough to 1/4th the total distance
+                // That is, each segment has a linear relationship
+                double avg = summed / 4.0;
+                if (Math.abs(avg - current.distanceToNext) >= PRECISION ||
+                    Math.abs(avg - m0.distanceToNext) >= PRECISION ||
+                    Math.abs(avg - m1.distanceToNext) >= PRECISION ||
+                    Math.abs(avg - m2.distanceToNext) >= PRECISION)
+                {
+                    continue;
+                }
+
+                // Good enough precision, complete this section
+                totalDistance += summed;
+                current = m2.next;
+                if (current.next == null) {
+                    break;
                 }
             }
             return totalDistance;
