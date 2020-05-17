@@ -41,7 +41,7 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
     }
 
     public static TrackObjectTypeItemStack createDefault() {
-        return create(0.0, new ItemStack(MaterialUtil.getFirst("RAIL", "LEGACY_RAILS")));
+        return create(0.0, new ItemStack(MaterialUtil.getFirst("OAK_PLANKS", "LEGACY_WOOD")));
     }
 
     @Override
