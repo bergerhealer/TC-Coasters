@@ -215,7 +215,7 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
         MapWidget focused = this.display.getFocusedWidget();
         if (focused instanceof MapWidgetNumberBox) {
             MapWidgetNumberBox num = (MapWidgetNumberBox) focused;
-            num.setValue(num.getValue() + 1.0 * delta);
+            num.setValue(num.getValue() + delta);
         }
     }
 }

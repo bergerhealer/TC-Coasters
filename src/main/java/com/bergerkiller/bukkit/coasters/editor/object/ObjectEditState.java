@@ -562,6 +562,7 @@ public class ObjectEditState {
             Quaternion rotationDiff = this.editState.getInput().delta().getRotation();
             double delta = -rotationDiff.getPitch() / 90.0 + rotationDiff.getYaw() / 90.0;
             delta *= this.dragListenersDistanceToObjects;
+            delta *= 5.0;
             for (DragListener listener : this.dragListeners) {
                 listener.onDrag(delta);
             }
@@ -575,13 +576,13 @@ public class ObjectEditState {
      */
     private double computeDistanceToObjects() {
         Vector loc = getPlayer().getLocation().toVector();
-        double minDistSq = 160.0; // 10 chunks as max
+        double minDistSq = 160.0 * 160.0; // 10 chunks as max
         for (ObjectEditTrackObject object : this.editedTrackObjects.values()) {
             double theta = object.connection.findPointThetaAtDistance(object.object.getDistance());
             Vector pos = object.connection.getPosition(theta);
             minDistSq = Math.min(minDistSq, pos.distanceSquared(loc));
         }
-        return minDistSq;
+        return Math.sqrt(minDistSq);
     }
 
     /**
