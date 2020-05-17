@@ -144,6 +144,6 @@ public class TrackParticleArmorStandItem extends TrackParticle {
 
     @Override
     public boolean usesEntityId(int entityId) {
-        return this.entityId == entityId;
+        return this.holderEntityId == entityId || this.entityId == entityId;
     }
 }
