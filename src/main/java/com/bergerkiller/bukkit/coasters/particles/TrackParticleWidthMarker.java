@@ -83,16 +83,19 @@ public class TrackParticleWidthMarker extends TrackParticle {
             this.markerA_entityId = VirtualArrowItem.create(this.markerA_entityId)
                     .item(MARKER_ITEM)
                     .position(this.position, this.orientation)
+                    .glowing(true)
                     .spawn(viewer);
         } else {
             Vector dir = this.orientation.forwardVector().multiply(0.5 * this.width);
             this.markerA_entityId = VirtualArrowItem.create(this.markerA_entityId)
                     .item(MARKER_ITEM)
                     .position(this.position.toVector().subtract(dir), this.orientation)
+                    .glowing(true)
                     .spawn(viewer);
             this.markerB_entityId = VirtualArrowItem.create(this.markerB_entityId)
                     .item(MARKER_ITEM)
                     .position(this.position.toVector().add(dir), this.orientation)
+                    .glowing(true)
                     .spawn(viewer);
         }
     }
@@ -115,6 +118,7 @@ public class TrackParticleWidthMarker extends TrackParticle {
         if (this.width <= 0.0) {
             // Move first item
             VirtualArrowItem.create(this.markerA_entityId)
+                    .glowing(true)
                     .position(this.position, this.orientation)
                     .move(Collections.singleton(viewer));
 
@@ -127,9 +131,11 @@ public class TrackParticleWidthMarker extends TrackParticle {
             Vector dir = this.orientation.forwardVector().multiply(0.5 * this.width);
             VirtualArrowItem itemA = VirtualArrowItem.create(this.markerA_entityId)
                     .item(MARKER_ITEM)
+                    .glowing(true)
                     .position(this.position.toVector().subtract(dir), this.orientation);
             VirtualArrowItem itemB = VirtualArrowItem.create(this.markerB_entityId)
                     .item(MARKER_ITEM)
+                    .glowing(true)
                     .position(this.position.toVector().add(dir), this.orientation);
 
             if (itemA.hasEntityId()) {

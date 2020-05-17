@@ -52,6 +52,7 @@ public class ObjectEditState {
     private TrackObject lastEditedTrackObject = null;
     private long lastEditTrackObjectTime = System.currentTimeMillis();
     private boolean isDuplicating = false;
+    private boolean blink = false;
     private TrackObjectType<?> selectedType;
 
     public ObjectEditState(PlayerEditState editState) {
@@ -131,6 +132,15 @@ public class ObjectEditState {
         }
     }
 
+    /**
+     * Whether selected track objects are currently glowing (blinking logic)
+     * 
+     * @return True if blinking
+     */
+    public boolean isBlink() {
+        return this.blink;
+    }
+
     public void load(ConfigurationNode config) {
         this.selectedType = parseType(config);
     }
@@ -185,6 +195,18 @@ public class ObjectEditState {
     public void onModeChanged() {
         for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
             editObject.object.onStateUpdated(editObject.connection, this.editState);
+        }
+    }
+
+    public void update() {
+        // Turn objects glowing on and off at an interval of 16 ticks
+        // Blinking turns off while an object is dragged to highlight the width marker
+        boolean new_blink = !this.editState.isHoldingRightClick() && (CommonUtil.getServerTicks() & 15) >= 8;
+        if (this.blink != new_blink) {
+            this.blink = new_blink;
+            for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
+                editObject.object.onStateUpdated(editObject.connection, this.editState);
+            }
         }
     }
 

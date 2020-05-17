@@ -758,6 +758,7 @@ public class PlayerEditState implements CoasterWorldComponent {
             this.editedAnimationNamesChanged = false;
             this.onEditedAnimationNamedChanged();
         }
+        this.getObjects().update();
     }
 
     private void updateEditing() throws ChangeCancelledException {

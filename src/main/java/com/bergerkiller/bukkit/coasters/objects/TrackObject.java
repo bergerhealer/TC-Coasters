@@ -17,13 +17,24 @@ import com.bergerkiller.bukkit.common.utils.LogicUtil;
 /**
  * A single object on a connection
  */
-public class TrackObject implements Cloneable, TrackParticleState.Source {
+public class TrackObject implements Cloneable {
     public static final TrackObject[] EMPTY = new TrackObject[0];
     private TrackObjectType<?> type;
     private TrackParticle particle;
     private TrackParticleWidthMarker particleWidthMarker;
     private double distance;
     private boolean flipped;
+    private final TrackParticleState.Source source_selected = viewer -> {
+        return viewer.getMode() == PlayerEditMode.OBJECT && viewer.getObjects().isEditing(this) ? 
+                TrackParticleState.SELECTED : TrackParticleState.DEFAULT;
+    };
+    private final TrackParticleState.Source source_selected_blink = viewer -> {
+        return (  viewer.getMode() == PlayerEditMode.OBJECT &&
+                  viewer.getObjects().isBlink() &&
+                  viewer.getObjects().isEditing(this)  )
+                ?
+                  TrackParticleState.SELECTED : TrackParticleState.DEFAULT;
+    };
 
     public TrackObject(TrackObjectType<?> type, double distance, boolean flipped) {
         if (type == null) {
@@ -67,7 +78,7 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
                 // Recreate (different type)
                 this.particle.remove();
                 this.particle = this.type.createParticle(point.transform(this.type.getTransform()));
-                this.particle.setStateSource(this);
+                this.particle.setStateSource(this.source_selected_blink);
             } else {
                 // Same type, different properties, only an update of the particle is needed
                 this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point.transform(this.type.getTransform()));
@@ -144,7 +155,7 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
     public void onAdded(TrackConnection connection) {
         TrackConnection.PointOnPath point = findPointOnPath(connection);
         this.particle = this.type.createParticle(point.transform(this.type.getTransform()));
-        this.particle.setStateSource(this);
+        this.particle.setStateSource(this.source_selected_blink);
     }
 
     private TrackConnection.PointOnPath findPointOnPath(TrackConnection connection) {
@@ -184,20 +195,20 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
             this.particle.onStateUpdated(editState.getPlayer());
         }
 
-        boolean isViewerEditing = (this.getState(editState) == TrackParticleState.SELECTED);
+        boolean isViewerEditing = (this.source_selected.getState(editState) == TrackParticleState.SELECTED);
         if (isViewerEditing) {
             // Someone is definitely viewing this marker! Spawn it if we have not.
             if (this.particleWidthMarker == null) {
                 TrackConnection.PointOnPath point = findPointOnPath(connection);
                 this.particleWidthMarker = point.getWorld().getParticles().addParticleWidthMarker(
                         point.position, point.orientation, this.type.getWidth());
-                this.particleWidthMarker.setStateSource(this);
+                this.particleWidthMarker.setStateSource(this.source_selected);
             }
         } else if (this.particleWidthMarker != null) {
             // Check if anybody is still viewing this marker. If not, get rid of it.
             final AtomicBoolean hasOtherEditStateViewing = new AtomicBoolean(false);
             connection.getPlugin().forAllEditStates(otherEditState -> {
-                if (otherEditState != editState && getState(otherEditState) == TrackParticleState.SELECTED) {
+                if (otherEditState != editState && this.source_selected.getState(otherEditState) == TrackParticleState.SELECTED) {
                     hasOtherEditStateViewing.set(true);
                 }
             });
@@ -225,12 +236,6 @@ public class TrackObject implements Cloneable, TrackParticleState.Source {
         } else {
             return false;
         }
-    }
-
-    @Override
-    public TrackParticleState getState(PlayerEditState viewer) {
-        return viewer.getMode() == PlayerEditMode.OBJECT && viewer.getObjects().isEditing(this) ? 
-                TrackParticleState.SELECTED : TrackParticleState.DEFAULT;
     }
 
     /**
