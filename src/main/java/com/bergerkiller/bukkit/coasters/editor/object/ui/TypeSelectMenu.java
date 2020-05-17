@@ -148,6 +148,7 @@ public class TypeSelectMenu extends MapWidget {
 
     @Override
     public void onActivate() {
+        display.playSound(CommonSounds.PISTON_EXTEND);
         this._stateSupplier.get().getObjects().getSelectedType().openMenu(this.getParent(), this._stateSupplier);
     }
 

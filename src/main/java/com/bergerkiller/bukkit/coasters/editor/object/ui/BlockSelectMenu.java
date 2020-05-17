@@ -115,4 +115,9 @@ public class BlockSelectMenu extends MapWidgetMenu {
         }
         return false;
     }
+
+    @Override
+    public void onDetached() {
+        display.playSound(CommonSounds.PISTON_CONTRACT);
+    }
 }
