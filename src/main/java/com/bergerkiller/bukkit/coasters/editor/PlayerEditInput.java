@@ -21,8 +21,10 @@ public final class PlayerEditInput {
     private boolean clicked;
     private boolean hasInput;
     private boolean finishedPlaying;
+    private boolean hasPrevious;
     private Matrix4x4[] playing;
     private Matrix4x4[] buffer;
+    private Matrix4x4 current, previous;
     private int playingIdx;
     private int bufferSize;
     private long lastInputTime;
@@ -44,6 +46,9 @@ public final class PlayerEditInput {
             this.playing[i] = new Matrix4x4();
         }
         this.fill(this.playing[this.playingIdx]);
+        this.current = this.playing[this.playingIdx];
+        this.previous = this.current.clone();
+        this.hasPrevious = false;
     }
 
     /**
@@ -52,7 +57,22 @@ public final class PlayerEditInput {
      * @return transform matrix
      */
     public Matrix4x4 get() {
-        return this.playing[this.playingIdx];
+        return current;
+    }
+
+    /**
+     * Gets the delta player input, comparing the previous input sample to the current
+     * 
+     * @return input delta
+     */
+    public Matrix4x4 delta() {
+        if (!this.hasPrevious) {
+            return new Matrix4x4();
+        }
+        Matrix4x4 delta = previous.clone();
+        delta.invert();
+        delta.multiply(current);
+        return delta;
     }
 
     /**
@@ -81,6 +101,7 @@ public final class PlayerEditInput {
         this.lastInputTime = System.currentTimeMillis();
         if (!this.hasInput) {
             this.hasInput = true;
+            this.hasPrevious = false;
             this.startInputTime = this.lastInputTime;
         }
     }
@@ -89,9 +110,15 @@ public final class PlayerEditInput {
      * Call every tick to update the player input
      */
     public void update() {
+        // Current -> previous
+        if (this.hasPrevious) {
+            this.previous.set(this.current);
+        }
+
         // Next playing sample
         if (this.playingIdx > 0) {
             this.playingIdx--;
+            this.current = this.playing[this.playingIdx];
             this.finishedPlaying = false;
         } else {
             this.finishedPlaying = true;
@@ -109,8 +136,15 @@ public final class PlayerEditInput {
                     this.playing[i].set(this.buffer[this.bufferSize - i - 1]);
                 }
                 this.playingIdx = this.bufferSize - 1;
+                this.current = this.playing[this.playingIdx];
                 this.finishedPlaying = false;
                 this.bufferSize = 0;
+
+                // If first time clicking, initialize previous
+                if (!this.hasPrevious) {
+                    this.hasPrevious = true;
+                    this.previous.set(this.current);
+                }
             } else if (this.finishedPlaying && (System.currentTimeMillis() - this.lastInputTime) > INPUT_TIMEOUT_MS) {
                 this.hasInput = false;
                 this.bufferSize = 0;

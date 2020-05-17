@@ -41,6 +41,7 @@ import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.config.ConfigurationNode;
+import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.resources.CommonSounds;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
@@ -49,8 +50,11 @@ public class ObjectEditState {
     private final PlayerEditState editState;
     private final Map<TrackObject, ObjectEditTrackObject> editedTrackObjects = new LinkedHashMap<TrackObject, ObjectEditTrackObject>();
     private final List<DuplicatedObject> duplicatedObjects = new ArrayList<DuplicatedObject>();
+    private final List<DragListener> dragListeners = new ArrayList<DragListener>();
     private TrackObject lastEditedTrackObject = null;
     private long lastEditTrackObjectTime = System.currentTimeMillis();
+    private double dragListenersDistanceToObjects = 0.0;
+    private boolean isDraggingObjects = false;
     private boolean isDuplicating = false;
     private boolean blink = false;
     private TrackObjectType<?> selectedType;
@@ -192,6 +196,14 @@ public class ObjectEditState {
         }
     }
 
+    public void addDragListener(DragListener listener) {
+        this.dragListeners.add(listener);
+    }
+
+    public void removeDragListener(DragListener listener) {
+        this.dragListeners.remove(listener);
+    }
+
     public void onModeChanged() {
         for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
             editObject.object.onStateUpdated(editObject.connection, this.editState);
@@ -212,7 +224,7 @@ public class ObjectEditState {
 
     public boolean onLeftClick() {
         // Find point on path clicked
-        TrackConnection.PointOnPath point = this.getWorld().getTracks().findPointOnPath(this.getPlayer().getEyeLocation());
+        TrackConnection.PointOnPath point = this.getWorld().getTracks().findPointOnPath(this.getPlayer().getEyeLocation(), 3.0);
 
         // While holding right-click, left-click switches to duplicating mode
         if (this.editState.isHoldingRightClick()) {
@@ -298,6 +310,7 @@ public class ObjectEditState {
     }
 
     public void onEditingFinished() throws ChangeCancelledException {
+        this.isDraggingObjects = false;
         if (this.isDuplicating) {
             // Duplicating finished
             this.isDuplicating = false;
@@ -483,9 +496,13 @@ public class ObjectEditState {
      * @throws ChangeCancelledException
      */
     public void createObject() throws ChangeCancelledException {
-        // Find point looked at
-        TrackConnection.PointOnPath point = this.getWorld().getTracks().findPointOnPath(this.editState.getInput().get());
+        // Find point looked at. More strict rules when a drag listener also wants to be dragged.
+        double fov = this.dragListeners.isEmpty() ? 3.0 : 0.5;
+        TrackConnection.PointOnPath point = this.getWorld().getTracks().findPointOnPath(this.editState.getInput().get(), fov);
         if (point == null) {
+            if (!this.isDraggingObjects) {
+                updateDragListeners();
+            }
             return;
         }
         if (point.connection.isLocked()) {
@@ -514,6 +531,13 @@ public class ObjectEditState {
 
         if (this.editState.getHeldDownTicks() == 0) {
             this.startDrag(point, false);
+            if (!this.isDraggingObjects) {
+                updateDragListeners();
+            }
+        } else if (!this.isDraggingObjects) {
+            // Started right-click somewhere where the selected track objects cannot be reached
+            // We do nothing except update the drag listeners
+            updateDragListeners();
         } else if (this.isDuplicating) {
             // Successive clicks while drag: duplicate the selected track objects
             this.duplicateObjects(point);
@@ -530,6 +554,36 @@ public class ObjectEditState {
         }
     }
 
+    private void updateDragListeners() {
+        if (this.editState.getHeldDownTicks() == 0) {
+            this.dragListenersDistanceToObjects = this.computeDistanceToObjects();
+        }
+        if (!this.dragListeners.isEmpty()) {
+            Quaternion rotationDiff = this.editState.getInput().delta().getRotation();
+            double delta = -rotationDiff.getPitch() / 90.0 + rotationDiff.getYaw() / 90.0;
+            delta *= this.dragListenersDistanceToObjects;
+            for (DragListener listener : this.dragListeners) {
+                listener.onDrag(delta);
+            }
+        }
+    }
+
+    /**
+     * Computes the nearest distance from the player to any of the selected track objects
+     * 
+     * @return minimum distance
+     */
+    private double computeDistanceToObjects() {
+        Vector loc = getPlayer().getLocation().toVector();
+        double minDistSq = 160.0; // 10 chunks as max
+        for (ObjectEditTrackObject object : this.editedTrackObjects.values()) {
+            double theta = object.connection.findPointThetaAtDistance(object.object.getDistance());
+            Vector pos = object.connection.getPosition(theta);
+            minDistSq = Math.min(minDistSq, pos.distanceSquared(loc));
+        }
+        return minDistSq;
+    }
+
     /**
      * Initializes a new drag operation
      * 
@@ -542,6 +596,7 @@ public class ObjectEditState {
 
         // When sneaking during initial right-click, enable duplicating mode
         this.isDuplicating = duplicating;
+        this.isDraggingObjects = false;
 
         // Reset all objects to NaN
         for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
@@ -583,6 +638,7 @@ public class ObjectEditState {
             }
 
             // Save state prior to drag for history and after change event later
+            this.isDraggingObjects = true;
             editObject.beforeDragConnection = editObject.connection;
             editObject.beforeDragDistance = editObject.object.getDistance();
             editObject.beforeDragFlipped = editObject.object.isFlipped();

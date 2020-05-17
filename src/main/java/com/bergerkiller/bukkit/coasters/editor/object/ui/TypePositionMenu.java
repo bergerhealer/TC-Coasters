@@ -5,7 +5,9 @@ import java.util.function.Supplier;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.editor.object.DragListener;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
+import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetMenu;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetNumberBox;
@@ -14,15 +16,15 @@ import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetNumberBox;
  * Shows sliders for adjusting the x/y/z position of the track object,
  * and its orientation.
  */
-public class TypePositionMenu extends MapWidgetMenu {
-    private final Supplier<PlayerEditState> stateSupplier;
+public class TypePositionMenu extends MapWidgetMenu implements DragListener {
+    private final PlayerEditState state;
     private MapWidgetNumberBox num_width;
     private MapWidgetNumberBox num_pos_x, num_pos_y, num_pos_z;
     private MapWidgetNumberBox num_rot_x, num_rot_y, num_rot_z;
     private boolean isLoadingWidgets;
 
     public TypePositionMenu(Supplier<PlayerEditState> stateSupplier) {
-        this.stateSupplier = stateSupplier;
+        this.state = stateSupplier.get();
         this.isLoadingWidgets = false;
         this.setBounds(0, 0, 118, 103);
         this.setBackgroundColor(MapColorPalette.COLOR_GREEN);
@@ -47,7 +49,7 @@ public class TypePositionMenu extends MapWidgetMenu {
             @Override
             public void onValueChanged() {
                 if (!isLoadingWidgets) {
-                    stateSupplier.get().getObjects().transformSelectedType(type -> type.setWidth(getValue()));
+                    state.getObjects().transformSelectedType(type -> type.setWidth(getValue()));
                 }
             }
         });
@@ -157,20 +159,29 @@ public class TypePositionMenu extends MapWidgetMenu {
         y_offset += y_step;
 
         isLoadingWidgets = false;
+
+        state.getObjects().addDragListener(this);
+    }
+
+    @Override
+    public void onDetached() {
+        super.onDetached();
+
+        state.getObjects().removeDragListener(this);
     }
 
     private Vector position() {
-        Matrix4x4 transform = this.stateSupplier.get().getObjects().getSelectedType().getTransform();
+        Matrix4x4 transform = state.getObjects().getSelectedType().getTransform();
         return (transform == null) ? new Vector() : transform.toVector();
     }
 
     private Vector rotation() {
-        Matrix4x4 transform = this.stateSupplier.get().getObjects().getSelectedType().getTransform();
+        Matrix4x4 transform = state.getObjects().getSelectedType().getTransform();
         return (transform == null) ? new Vector() : transform.getYawPitchRoll();
     }
 
     private double width() {
-        return this.stateSupplier.get().getObjects().getSelectedType().getWidth();
+        return state.getObjects().getSelectedType().getWidth();
     }
 
     private void updateTransform() {
@@ -196,6 +207,15 @@ public class TypePositionMenu extends MapWidgetMenu {
                                          this.num_rot_y.getValue(),
                                          this.num_rot_z.getValue());
         }
-        stateSupplier.get().getObjects().transformSelectedType(type -> type.setTransform(transform));
+        state.getObjects().transformSelectedType(type -> type.setTransform(transform));
+    }
+
+    @Override
+    public void onDrag(double delta) {
+        MapWidget focused = this.display.getFocusedWidget();
+        if (focused instanceof MapWidgetNumberBox) {
+            MapWidgetNumberBox num = (MapWidgetNumberBox) focused;
+            num.setValue(num.getValue() + 1.0 * delta);
+        }
     }
 }

@@ -83,13 +83,14 @@ public class TrackWorld implements CoasterWorldComponent {
      * looking at using a given eye Location. If no such point can be found, then null is returned.
      * 
      * @param eyeLocation
+     * @param fov Field of view factor, 1.0 is default
      * @return Point on the path looked at, null if not found
      */
-    public TrackConnection.PointOnPath findPointOnPath(Location eyeLocation) {
+    public TrackConnection.PointOnPath findPointOnPath(Location eyeLocation, double fov) {
         // Create an inverted camera transformation of the player's view direction
         Matrix4x4 cameraTransform = new Matrix4x4();
         cameraTransform.translateRotate(eyeLocation);
-        return findPointOnPath(cameraTransform);
+        return findPointOnPath(cameraTransform, fov);
     }
 
     /**
@@ -97,9 +98,10 @@ public class TrackWorld implements CoasterWorldComponent {
      * looking at using a given eye Location. If no such point can be found, then null is returned.
      * 
      * @param cameraTransform Player eye camera transform
+     * @param fov Field of view factor, 1.0 is default
      * @return Point on the path looked at, null if not found
      */
-    public TrackConnection.PointOnPath findPointOnPath(Matrix4x4 cameraTransform) {
+    public TrackConnection.PointOnPath findPointOnPath(Matrix4x4 cameraTransform, double fov) {
         cameraTransform = cameraTransform.clone();
         cameraTransform.invert();
 
@@ -138,7 +140,7 @@ public class TrackWorld implements CoasterWorldComponent {
 
                     // View function matching
                     Vector positionOnPath = connection.getPosition(theta);
-                    double viewDistance = getViewDistance(cameraTransform, positionOnPath);
+                    double viewDistance = getViewDistance(cameraTransform, positionOnPath, fov);
                     if (viewDistance < bestViewDistance) {
                         bestViewDistance = viewDistance;
                         bestConnection = connection;
@@ -163,7 +165,7 @@ public class TrackWorld implements CoasterWorldComponent {
         return new TrackConnection.PointOnPath(bestConnection, bestTheta, bestDistance, bestPosition, bestOrientation);
     }
 
-    private static double getViewDistance(Matrix4x4 cameraTransform, Vector pos) {
+    private static double getViewDistance(Matrix4x4 cameraTransform, Vector pos, double fov) {
         pos = pos.clone();
         cameraTransform.transformPoint(pos);
 
@@ -173,7 +175,7 @@ public class TrackWorld implements CoasterWorldComponent {
         }
 
         // Calculate limit based on depth (z) and filter based on it
-        double lim = 3.0 * Math.max(1.0, pos.getZ() * Math.pow(4.0, -pos.getZ()));
+        double lim = fov * Math.max(1.0, pos.getZ() * Math.pow(4.0, -pos.getZ()));
         if (Math.abs(pos.getX()) > lim || Math.abs(pos.getY()) > lim) {
             return Double.MAX_VALUE;
         }
