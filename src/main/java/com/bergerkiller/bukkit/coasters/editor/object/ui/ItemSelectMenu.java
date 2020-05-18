@@ -51,6 +51,11 @@ public class ItemSelectMenu extends MapWidgetMenu {
     }
 
     @Override
+    public void onAttached() {
+        display.playSound(CommonSounds.PISTON_EXTEND);
+    }
+
+    @Override
     public void onDetached() {
         display.playSound(CommonSounds.PISTON_CONTRACT);
     }
