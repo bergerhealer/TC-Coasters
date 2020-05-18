@@ -28,6 +28,7 @@ import com.bergerkiller.bukkit.coasters.editor.object.util.ConnectionChain;
 import com.bergerkiller.bukkit.coasters.editor.object.util.DuplicatedObject;
 import com.bergerkiller.bukkit.coasters.editor.object.util.DuplicationSourceList;
 import com.bergerkiller.bukkit.coasters.editor.object.util.TrackObjectDiscoverer;
+import com.bergerkiller.bukkit.coasters.events.CoasterAfterChangeTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterBeforeChangeTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterSelectTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
@@ -549,6 +550,40 @@ public class ObjectEditState {
             success &= moveObjects(point, changes, false, rightDirection);
             success &= moveObjects(point, changes, true, rightDirection);
             if (!success) {
+                throw new ChangeCancelledException();
+            }
+        }
+    }
+
+    /**
+     * Flips the orientation of the selected objects 180 degrees
+     * 
+     * @throws ChangeCancelledException
+     */
+    public void flipObject() throws ChangeCancelledException {
+        List<ObjectEditTrackObject> objects = new ArrayList<ObjectEditTrackObject>(this.editedTrackObjects.values());
+        for (ObjectEditTrackObject editObject : objects) {
+            if (CommonUtil.callEvent(new CoasterBeforeChangeTrackObjectEvent(getPlayer(),
+                                                                             editObject.connection,
+                                                                             editObject.object)).isCancelled())
+            {
+                throw new ChangeCancelledException();
+            }
+
+            TrackObject oldObject = editObject.object.clone();
+            editObject.object.setDistanceFlipped(editObject.connection,
+                                                 editObject.object.getDistance(),
+                                                 !editObject.object.isFlipped());
+
+            if (CommonUtil.callEvent(new CoasterAfterChangeTrackObjectEvent(getPlayer(),
+                                                                            editObject.connection,
+                                                                            editObject.object,
+                                                                            editObject.connection,
+                                                                            oldObject)).isCancelled())
+            {
+                editObject.object.setDistanceFlipped(editObject.connection,
+                                                     editObject.object.getDistance(),
+                                                     !editObject.object.isFlipped());
                 throw new ChangeCancelledException();
             }
         }

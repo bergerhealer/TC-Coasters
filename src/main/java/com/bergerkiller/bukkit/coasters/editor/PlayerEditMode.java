@@ -371,6 +371,28 @@ public enum PlayerEditMode {
         tab.addWidget(new MapWidgetButton() {
             @Override
             public void onActivate() {
+                tab.addWidget(new TypePositionMenu(stateSupplier));
+            }
+        }).setText("Position").setBounds(26, 40, 64, 13);
+
+        tab.addWidget(new MapWidgetButton() {
+            @Override
+            public void onActivate() {
+                try {
+                    PlayerEditState state = stateSupplier.get();
+                    if (state.getObjects().hasEditedObjects()) {
+                        state.getObjects().flipObject();
+                        getDisplay().playSound(CommonSounds.CLICK);
+                    }
+                } catch (ChangeCancelledException e) {
+                    getDisplay().playSound(CommonSounds.EXTINGUISH);
+                }
+            }
+        }).setText("Flip").setBounds(26, 55, 64, 13);
+
+        tab.addWidget(new MapWidgetButton() {
+            @Override
+            public void onActivate() {
                 try {
                     PlayerEditState state = stateSupplier.get();
                     if (state.getObjects().hasEditedObjects()) {
@@ -381,13 +403,6 @@ public enum PlayerEditMode {
                     getDisplay().playSound(CommonSounds.EXTINGUISH);
                 }
             }
-        }).setText("Delete").setBounds(10, 55, 50, 13);
-
-        tab.addWidget(new MapWidgetButton() {
-            @Override
-            public void onActivate() {
-                tab.addWidget(new TypePositionMenu(stateSupplier));
-            }
-        }).setText("Position").setBounds(62, 55, 50, 13);
+        }).setText("Delete").setBounds(26, 70, 64, 13);
     }
 }
