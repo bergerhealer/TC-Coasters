@@ -81,6 +81,26 @@ public final class TrackConnectionState implements TrackObjectHolder {
     }
 
     /**
+     * Gets whether the nodes A and B of this reference are flipped compared to a connection,
+     * that is to say, A equals B and B equals A.
+     * 
+     * @param connection
+     * @return True if the connection is the same, but flipped
+     */
+    public boolean isSameFlipped(TrackConnection connection) {
+        return connection.getNodeA().isReference(this.node_b) && connection.getNodeB().isReference(this.node_a);
+    }
+
+    /**
+     * Gets whether the nodes A and B of this reference equal the nodes of a connection
+     * @param connection
+     * @return True if the connection is the same
+     */
+    public boolean isSame(TrackConnection connection) {
+        return connection.getNodeA().isReference(this.node_a) && connection.getNodeB().isReference(this.node_b);
+    }
+
+    /**
      * Gets the other node referenced by this connection
      * 
      * @param nodeReference
@@ -139,36 +159,6 @@ public final class TrackConnectionState implements TrackObjectHolder {
      */
     public TrackConnectionState cloneObjects() {
         return new TrackConnectionState(this.node_a, this.node_b, TrackObject.listToArray(Arrays.asList(this.objects), true));
-    }
-
-    /**
-     * Adds a track object to this connection state, returning a new copy with the object added
-     * 
-     * @param object The track object to add
-     * @return updated connection state
-     */
-    public TrackConnectionState addObject(TrackObject object) {
-        int new_index = this.objects.length;
-        TrackObject[] new_objects = Arrays.copyOf(this.objects, new_index+1);
-        new_objects[new_index] = object.clone();
-        return new TrackConnectionState(this.node_a, this.node_b, new_objects);
-    }
-
-    /**
-     * Removes a track object from this connection state, returning a new copy with the object removed.
-     * If the object was not found, then this same instance is returned.
-     * 
-     * @param object The track object to remove
-     * @return updated connection state
-     */
-    public TrackConnectionState removeObject(TrackObject object) {
-        for (int i = 0; i < this.objects.length; i++) {
-            if (this.objects[i].equals(object)) {
-                TrackObject[] new_objects = TrackObject.removeArrayElement(this.objects, i);
-                return new TrackConnectionState(this.node_a, this.node_b, new_objects);
-            }
-        }
-        return this;
     }
 
     /**

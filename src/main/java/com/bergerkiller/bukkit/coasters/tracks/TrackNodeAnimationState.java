@@ -2,7 +2,6 @@ package com.bergerkiller.bukkit.coasters.tracks;
 
 import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleArrow;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleText;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
@@ -73,43 +72,19 @@ public class TrackNodeAnimationState {
     }
 
     /**
-     * Looks for a connection matching the track connection, and adds a track object to it
-     * if found. If not found, the same track node animation state is returned.
+     * Updates the track objects of a connection, if the connection matches one stored
+     * in this animation state. If not found, the same track node animation state is returned.
      * 
-     * @param connection The connection to look up in this state
-     * @param object The track object to add
+     * @param connection
      * @return updated track animation state
      */
-    public TrackNodeAnimationState addTrackObject(TrackConnection connection, TrackObject object) {
+    public TrackNodeAnimationState updateTrackObjects(TrackConnection connection) {
         for (int i = 0; i < this.connections.length; i++) {
             TrackConnectionState old_connection = this.connections[i];
-            if (old_connection.isConnected(connection.getNodeA()) && old_connection.isConnected(connection.getNodeB())) {
+            if (old_connection.isSame(connection) || old_connection.isSameFlipped(connection)) {
                 TrackConnectionState[] new_connections = this.connections.clone();
-                new_connections[i] = old_connection.addObject(object);
+                new_connections[i] = TrackConnectionState.create(connection);
                 return new TrackNodeAnimationState(this.name, this.state, new_connections);
-            }
-        }
-        return this;
-    }
-
-    /**
-     * Looks for a connection matching the track connection, and removed a track object
-     * from it if found. If not found, the same track node animation state is returned.
-     * 
-     * @param connection The connection to look up in this state
-     * @param object The track object to remove
-     * @return updated track animation state
-     */
-    public TrackNodeAnimationState removeTrackObject(TrackConnection connection, TrackObject object) {
-        for (int i = 0; i < this.connections.length; i++) {
-            TrackConnectionState old_connection = this.connections[i];
-            if (old_connection.isConnected(connection.getNodeA()) && old_connection.isConnected(connection.getNodeB())) {
-                TrackConnectionState new_connection = old_connection.removeObject(object);
-                if (old_connection != new_connection) {
-                    TrackConnectionState[] new_connections = this.connections.clone();
-                    new_connections[i] = new_connection;
-                    return new TrackNodeAnimationState(this.name, this.state, new_connections);
-                }
             }
         }
         return this;

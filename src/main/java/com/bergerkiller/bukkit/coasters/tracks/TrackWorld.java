@@ -355,7 +355,7 @@ public class TrackWorld implements CoasterWorldComponent {
 
         for (TrackConnectionState connection : connections) {
             if (connection.isConnected(node)) {
-                this.connect(connection);
+                this.connect(connection, true);
             }
         }
     }
@@ -367,14 +367,16 @@ public class TrackWorld implements CoasterWorldComponent {
      * @param state
      * @return created connection, null on failure
      */
-    public TrackConnection connect(TrackConnectionState state) {
+    public TrackConnection connect(TrackConnectionState state, boolean addObjects) {
         TrackNode nodeA = state.node_a.findOnWorld(this);
         TrackNode nodeB = state.node_b.findOnWorld(this);
         if (nodeA == null || nodeB == null || nodeA == nodeB) {
             return null;
         } else {
             TrackConnection connection = this.connect(nodeA, nodeB);
-            connection.addAllObjects(state.getObjects());
+            if (addObjects) {
+                connection.addAllObjects(state);
+            }
             return connection;
         }
     }
@@ -433,7 +435,7 @@ public class TrackWorld implements CoasterWorldComponent {
                 removeConnectionFromNode(nodeB, connection);
                 scheduleNodeRefresh(nodeA);
                 scheduleNodeRefresh(nodeB);
-                connection.destroyParticles();
+                connection.onRemoved();
                 connection.markChanged();
                 return; // Done
             }
@@ -485,7 +487,7 @@ public class TrackWorld implements CoasterWorldComponent {
             scheduleNodeRefresh(other);
 
             // Destroy connection
-            conn.destroyParticles();
+            conn.onRemoved();
             conn.markChanged();
         }
     }

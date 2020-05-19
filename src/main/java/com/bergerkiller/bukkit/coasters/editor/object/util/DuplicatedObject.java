@@ -25,7 +25,6 @@ public class DuplicatedObject {
 
     public void add(String selectedAnimation) {
         this.connection.addObject(this.object);
-        this.connection.addObjectToAnimationStates(selectedAnimation, this.object);
     }
 
     public boolean testCanCreate(Player who) {

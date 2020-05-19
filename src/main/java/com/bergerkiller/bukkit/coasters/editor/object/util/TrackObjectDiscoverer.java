@@ -53,7 +53,7 @@ public class TrackObjectDiscoverer {
                 }
                 editObject.dragDirection = this.initialDirection;
                 editObject.dragDistance = this.distance + objectDistance;
-                editObject.alignmentFlipped = (object.isFlipped() != this.connection.direction) != this.initialDirection;
+                editObject.alignmentFlipped = object.isFlipped() != this.initialDirection;
             }
         }
         this.distance += this.connection.getFullDistance();

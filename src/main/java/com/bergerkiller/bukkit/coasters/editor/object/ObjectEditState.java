@@ -189,7 +189,9 @@ public class ObjectEditState {
 
             this.editState.markChanged();
             for (ObjectEditTrackObject oldObject : oldObjects) {
-                oldObject.object.onStateUpdated(oldObject.connection, this.editState);
+                if (!oldObject.isRemoved()) {
+                    oldObject.object.onStateUpdated(oldObject.connection, this.editState);
+                }
             }
 
             // May have caused a particle visibility change
@@ -321,6 +323,7 @@ public class ObjectEditState {
                 HistoryChange changes = this.editState.getHistory().addChangeGroup();
                 for (DuplicatedObject dupe : this.duplicatedObjects) {
                     changes.addChange(new HistoryChangeCreateTrackObject(dupe.connection, dupe.object));
+                    dupe.connection.saveObjectsToAnimationStates(this.editState.getSelectedAnimation());
                 }
                 this.duplicatedObjects.clear();
             }
@@ -341,8 +344,15 @@ public class ObjectEditState {
                     changes = new HistoryChangeGroup();
                 }
                 try {
+                    // Make and verify the changes
                     changes.addChangeAfterMovingTrackObject(this.getPlayer(), editObject.connection, editObject.object,
-                            editObject.beforeDragConnection, editObject.beforeDragDistance, editObject.beforeDragFlipped);
+                            editObject.beforeDragConnection, editObject.beforeDragObject);
+
+                    // Refresh animation states too!
+                    editObject.connection.saveObjectsToAnimationStates(this.editState.getSelectedAnimation());
+                    if (editObject.beforeDragConnection != editObject.connection) {
+                        editObject.beforeDragConnection.saveObjectsToAnimationStates(this.editState.getSelectedAnimation());
+                    }
                 } catch (ChangeCancelledException ex) {
                     wasCancelled = true;
                 }
@@ -398,23 +408,16 @@ public class ObjectEditState {
             changed = (this.editedTrackObjects.remove(object) != null);
         }
         if (changed) {
-            // Can be caused by the node being removed, handle that here
-            object.onStateUpdated(connection, this.editState);
+            // Can be caused by the object being removed, handle that here
+            if (object.isAdded()) {
+                object.onStateUpdated(connection, this.editState);
 
-            /*
-            for (TrackNodeAnimationState state : node.getAnimationStates()) {
-                Set<TrackNode> values = this.editedNodesByAnimationName.get(state.name);
-                if (editing && values.add(node)) {
-                    this.editedAnimationNamesChanged |= (values.size() == 1);
-                } else if (!editing && values.remove(node)) {
-                    this.editedAnimationNamesChanged |= values.isEmpty();
-                }
+                this.lastEditedTrackObject = object;
+                this.lastEditTrackObjectTime = System.currentTimeMillis();
+                this.editState.markChanged();
+            } else if (this.lastEditedTrackObject == object) {
+                this.lastEditedTrackObject = null;
             }
-            */
-
-            this.lastEditedTrackObject = object;
-            this.lastEditTrackObjectTime = System.currentTimeMillis();
-            this.editState.markChanged();
 
             // May have caused a particle visibility change
             getWorld().getParticles().scheduleViewerUpdate(this.getPlayer());
@@ -474,16 +477,23 @@ public class ObjectEditState {
 
         List<ObjectEditTrackObject> objects = new ArrayList<ObjectEditTrackObject>(this.editedTrackObjects.values());
         this.editedTrackObjects.clear();
-        
+
         boolean wereChangesCancelled = false;
         for (ObjectEditTrackObject object : objects) {
+            if (object.isRemoved()) {
+                continue;
+            }
             try {
                 this.editState.getHistory().addChangeBeforeDeleteTrackObject(this.getPlayer(), object.connection, object.object);
                 object.connection.removeObject(object.object);
-                object.connection.removeObjectFromAnimationStates(this.editState.getSelectedAnimation(), object.object);
+                object.connection.saveObjectsToAnimationStates(this.editState.getSelectedAnimation());
             } catch (ChangeCancelledException ex) {
                 wereChangesCancelled = true;
-                object.object.onStateUpdated(object.connection, this.editState);
+
+                // Refresh, but the event could've removed the object anyway, so check!
+                if (!object.isRemoved()) {
+                    object.object.onStateUpdated(object.connection, this.editState);
+                }
             }
         }
         if (wereChangesCancelled) {
@@ -523,7 +533,7 @@ public class ObjectEditState {
             this.editState.getHistory().addChangeBeforeCreateTrackObject(this.getPlayer(), point.connection, object);
 
             point.connection.addObject(object);
-            point.connection.addObjectToAnimationStates(this.editState.getSelectedAnimation(), object);
+            point.connection.saveObjectsToAnimationStates(this.editState.getSelectedAnimation());
             return;
         }
 
@@ -563,6 +573,12 @@ public class ObjectEditState {
     public void flipObject() throws ChangeCancelledException {
         List<ObjectEditTrackObject> objects = new ArrayList<ObjectEditTrackObject>(this.editedTrackObjects.values());
         for (ObjectEditTrackObject editObject : objects) {
+            // Object may have been removed from the connection by now
+            if (editObject.isRemoved()) {
+                this.editedTrackObjects.remove(editObject.object);
+                continue;
+            }
+
             if (CommonUtil.callEvent(new CoasterBeforeChangeTrackObjectEvent(getPlayer(),
                                                                              editObject.connection,
                                                                              editObject.object)).isCancelled())
@@ -570,7 +586,13 @@ public class ObjectEditState {
                 throw new ChangeCancelledException();
             }
 
-            TrackObject oldObject = editObject.object.clone();
+            // Object may have been removed during the CoasterBeforeChangeTrackObjectEvent
+            if (editObject.isRemoved()) {
+                this.editedTrackObjects.remove(editObject.object);
+                continue;
+            }
+
+            TrackObject old_object = editObject.object.clone();
             editObject.object.setDistanceFlipped(editObject.connection,
                                                  editObject.object.getDistance(),
                                                  !editObject.object.isFlipped());
@@ -579,13 +601,18 @@ public class ObjectEditState {
                                                                             editObject.connection,
                                                                             editObject.object,
                                                                             editObject.connection,
-                                                                            oldObject)).isCancelled())
+                                                                            old_object)).isCancelled())
             {
-                editObject.object.setDistanceFlipped(editObject.connection,
-                                                     editObject.object.getDistance(),
-                                                     !editObject.object.isFlipped());
+                // Object may have been removed during the CoasterBeforeChangeTrackObjectEvent
+                if (!editObject.isRemoved()) {
+                    editObject.object.setDistanceFlipped(editObject.connection,
+                                                         old_object.getDistance(),
+                                                         old_object.isFlipped());
+                }
                 throw new ChangeCancelledException();
             }
+
+            editObject.connection.saveObjectsToAnimationStates(this.editState.getSelectedAnimation());
         }
     }
 
@@ -676,16 +703,15 @@ public class ObjectEditState {
             // Save state prior to drag for history and after change event later
             this.isDraggingObjects = true;
             editObject.beforeDragConnection = editObject.connection;
-            editObject.beforeDragDistance = editObject.object.getDistance();
-            editObject.beforeDragFlipped = editObject.object.isFlipped();
+            editObject.beforeDragObject = editObject.object.clone();
 
             // Player looks into a certain direction, which changes the orientation of the objects
             Vector rightDirection = this.editState.getInput().get().getRotation().forwardVector();
 
             // Looking at the object from left-to-right or right-to-left?
             // This is important when moving the object later
-            TrackConnection.PointOnPath beforePoint = editObject.connection.findPointAtDistance(editObject.beforeDragDistance);
-            editObject.beforeDragLookingAtFlipped = (beforePoint.orientation.rightVector().dot(rightDirection) < 0.0);
+            TrackConnection.PointOnPath beforePoint = editObject.connection.findPointAtDistance(editObject.beforeDragObject.getDistance());
+            editObject.beforeDragLookingAtFlipped = editObject.object.isFlipped() != (beforePoint.orientation.rightVector().dot(rightDirection) < 0.0);
         }
     }
 

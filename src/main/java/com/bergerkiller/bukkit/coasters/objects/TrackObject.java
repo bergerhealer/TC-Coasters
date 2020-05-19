@@ -72,7 +72,7 @@ public class TrackObject implements Cloneable {
         connection.markChanged();
 
         // Update particle (if already spawned)
-        if (this.particle != null) {
+        if (isAdded()) {
             TrackConnection.PointOnPath point = findPointOnPath(connection);
             if (typeClassChanged) {
                 // Recreate (different type)
@@ -120,7 +120,7 @@ public class TrackObject implements Cloneable {
         this.flipped = (point.orientation.rightVector().dot(rightDirection) < 0.0);
         connection.markChanged();
 
-        if (this.particle != null) {
+        if (isAdded()) {
             if (this.flipped) {
                 point.orientation.rotateYFlip();
             }
@@ -152,12 +152,6 @@ public class TrackObject implements Cloneable {
         this.flipped = flipped;
     }
 
-    public void onAdded(TrackConnection connection) {
-        TrackConnection.PointOnPath point = findPointOnPath(connection);
-        this.particle = this.type.createParticle(point.transform(this.type.getTransform()));
-        this.particle.setStateSource(this.source_selected_blink);
-    }
-
     private TrackConnection.PointOnPath findPointOnPath(TrackConnection connection) {
         TrackConnection.PointOnPath point = connection.findPointAtDistance(this.distance, this.type.getWidth());
         if (this.flipped) {
@@ -166,34 +160,62 @@ public class TrackObject implements Cloneable {
         return point;
     }
 
+    public boolean isAdded() {
+        return this.particle != null;
+    }
+
+    public void onAdded(TrackConnection connection) {
+        if (isAdded()) {
+            throw new IllegalStateException("Object was already added to a connection");
+        }
+
+        TrackConnection.PointOnPath point = findPointOnPath(connection);
+        this.particle = this.type.createParticle(point.transform(this.type.getTransform()));
+        this.particle.setStateSource(this.source_selected_blink);
+    }
+
     public void onRemoved(TrackConnection connection) {
-        if (this.particle != null) {
-            this.particle.remove();
-            this.particle = null;
+        if (!isAdded()) {
+            throw new IllegalStateException("Object was never added to a connection");
         }
         if (this.particleWidthMarker != null) {
             this.particleWidthMarker.remove();
             this.particleWidthMarker = null;
         }
+        this.particle.remove();
+        this.particle = null; // isAdded() -> false
+
+        // Remove from player edit states to prevent trouble
+        connection.getPlugin().forAllEditStates(state -> state.getObjects().setEditingTrackObject(connection, TrackObject.this, false));
     }
 
     public void onShapeUpdated(TrackConnection connection) {
-        if (this.particle == null && this.particleWidthMarker == null) {
-            return;
+        if (!isAdded()) {
+            throw new IllegalStateException("Updating shape of a removed track object");
         }
+
         TrackConnection.PointOnPath point = findPointOnPath(connection);
         if (this.particleWidthMarker != null) {
             this.particleWidthMarker.setPositionOrientation(point.position, point.orientation);
         }
-        if (this.particle != null) {
-            this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point.transform(this.type.getTransform()));
-        }
+        this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point.transform(this.type.getTransform()));
     }
 
+    /**
+     * Updates the visual appearance of the track object. For example, the object was selected
+     * or deselected by a player.<br>
+     * <br>
+     * Throws an {@link IllegalStateException} if this object was removed from the world
+     * 
+     * @param connection
+     * @param editState
+     */
     public void onStateUpdated(TrackConnection connection, PlayerEditState editState) {
-        if (this.particle != null) {
-            this.particle.onStateUpdated(editState.getPlayer());
+        if (!isAdded()) {
+            throw new IllegalStateException("Updating state of a removed track object");
         }
+
+        this.particle.onStateUpdated(editState.getPlayer());
 
         boolean isViewerEditing = (this.source_selected.getState(editState) == TrackParticleState.SELECTED);
         if (isViewerEditing) {
@@ -224,18 +246,33 @@ public class TrackObject implements Cloneable {
         return new TrackObject(this.type, this.distance, this.flipped);
     }
 
+    /**
+     * Clones this track object, but with the A/B node ends of a connection flipped.
+     * 
+     * @param connection
+     * @return flipped track object
+     */
+    public TrackObject cloneFlipEnds(TrackConnection connection) {
+        return new TrackObject(this.type, connection.getFullDistance() - this.distance, !this.flipped);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == this) {
             return true;
         } else if (o instanceof TrackObject) {
             TrackObject other = (TrackObject) o;
-            return this.distance == other.distance &&
+            return Math.abs(this.distance - other.distance) <= 1e-20 &&
                    this.type.equals(other.type) &&
                    this.flipped == other.flipped;
         } else {
             return false;
         }
+    }
+
+    @Override
+    public String toString() {
+        return "{distance=" + this.distance + ", flipped=" + this.flipped + ", type=" + this.type + "}";
     }
 
     /**

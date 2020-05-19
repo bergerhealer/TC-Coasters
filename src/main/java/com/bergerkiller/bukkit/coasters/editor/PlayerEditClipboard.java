@@ -132,7 +132,7 @@ public class PlayerEditClipboard {
 
             // Create connections
             for (TrackConnectionState connectionState : this._connections) {
-                TrackConnection connection = tracks.connect(connectionState.transform(transform));
+                TrackConnection connection = tracks.connect(connectionState.transform(transform), true);
                 if (connection != null) {
                     history.addChangeConnect(getPlayer(), connection);
                 }

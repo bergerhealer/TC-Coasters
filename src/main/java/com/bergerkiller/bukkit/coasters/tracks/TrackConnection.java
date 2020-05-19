@@ -222,6 +222,26 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
     }
 
     /**
+     * Adds all the objects stored in a connection state. A clone of the objects is
+     * created to guarantee the immutability of the track connection state.
+     * 
+     * @param connectionObjects
+     */
+    public void addAllObjects(TrackConnectionState connectionObjects) {
+        if (connectionObjects.hasObjects()) {
+            if (connectionObjects.isSameFlipped(this)) {
+                for (TrackObject object : connectionObjects.getObjects()) {
+                    this.addObject(object.cloneFlipEnds(this));
+                }
+            } else {
+                for (TrackObject object : connectionObjects.getObjects()) {
+                    this.addObject(object.clone());
+                }
+            }
+        }
+    }
+
+    /**
      * Removes an object from this connecion, if it was added
      * 
      * @param object
@@ -241,25 +261,14 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
     }
 
     /**
-     * Adds a track object to the animation states of the endpoint nodes of this connection
+     * Saves all the track objects stored on this connection, to a matching
+     * connection saved as an animation state of the given name.
      * 
-     * @param name Name of the animation state, null to update all of them
-     * @param object Track object to add
+     * @param name Name of the animation state to update, null to update all of them
      */
-    public void addObjectToAnimationStates(String name, TrackObject object) {
-        this.getNodeA().updateAnimationStates(name, state -> state.addTrackObject(TrackConnection.this, object));
-        this.getNodeB().updateAnimationStates(name, state -> state.addTrackObject(TrackConnection.this, object));
-    }
-
-    /**
-     * Removes a track object from the animation states of the endpoint nodes of this connection
-     * 
-     * @param name Name of the animation state, null to update all of them
-     * @param object Track object to remove
-     */
-    public void removeObjectFromAnimationStates(String name, TrackObject object) {
-        this.getNodeA().updateAnimationStates(name, state -> state.removeTrackObject(TrackConnection.this, object));
-        this.getNodeB().updateAnimationStates(name, state -> state.removeTrackObject(TrackConnection.this, object));
+    public void saveObjectsToAnimationStates(String name) {
+        this.getNodeA().updateAnimationStates(name, state -> state.updateTrackObjects(TrackConnection.this));
+        this.getNodeB().updateAnimationStates(name, state -> state.updateTrackObjects(TrackConnection.this));
     }
 
     /**
@@ -571,7 +580,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
         return new PointOnPath(this, 0.5, distance, mid_position, mid_orientation);
     }
 
-    public void destroyParticles() {
+    public void onRemoved() {
         for (int i = 0; i < this.lines.size(); i++) {
             this.lines.get(i).remove();
         }

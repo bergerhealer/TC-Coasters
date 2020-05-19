@@ -20,7 +20,6 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.entity.CommonEntity;
 import com.bergerkiller.bukkit.common.math.Quaternion;
-import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.cache.RailMemberCache;
 import com.bergerkiller.bukkit.tc.controller.MinecartMember;
@@ -32,6 +31,7 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 public class TrackAnimationWorld implements CoasterWorldComponent {
     private final CoasterWorld _world;
     private final Map<TrackNode, TrackAnimation> _animations = new IdentityHashMap<>();
+    private final Map<TrackConnection, TrackConnectionState> _finishedConnections = new IdentityHashMap<>();
     private final List<RailPath.Point> _pointsCache = new ArrayList<RailPath.Point>();
 
     public TrackAnimationWorld(CoasterWorld world) {
@@ -69,30 +69,21 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
         }
 
         // Run the animations
-        Iterator<TrackAnimation> anim_iter = _animations.values().iterator();
-        while (anim_iter.hasNext()) {
-            TrackAnimation anim = anim_iter.next();
+        for (TrackAnimation anim : _animations.values()) {
+            // Delete connections not part of the target animation state at the start of the animation
+            if (anim.connections != null && anim.isAtStart()) {
+                for (TrackConnection conn : anim.node.getConnections()) {
+                    TrackNode conn_node = conn.getOtherNode(anim.node);
 
-            // Refresh connections at the start and end of the animation
-            if (anim.connections != null) {
-                if (anim.isAtEnd()) {
-                    // Set all connections to the one specified in the animation
-                    getWorld().getTracks().resetConnections(anim.node, LogicUtil.asImmutableList(anim.connections));
-                } else if (anim.isAtStart()) {
-                    // Remove all connections not part of the target animation state
-                    for (TrackConnection conn : anim.node.getConnections()) {
-                        TrackNode conn_node = conn.getOtherNode(anim.node);
-
-                        boolean exists = false;
-                        for (TrackConnectionState target_connection : anim.connections) {
-                            if (target_connection.getOtherNode(anim.node).isReference(conn_node)) {
-                                exists = true;
-                                break;
-                            }
+                    boolean exists = false;
+                    for (TrackConnectionState target_connection : anim.connections) {
+                        if (target_connection.getOtherNode(anim.node).isReference(conn_node)) {
+                            exists = true;
+                            break;
                         }
-                        if (!exists) {
-                            conn.remove();
-                        }
+                    }
+                    if (!exists) {
+                        conn.remove();
                     }
                 }
             }
@@ -101,7 +92,9 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
             if (anim.isAtEnd()) {
                 // Set to target
                 anim.node.setState(anim.target);
-                anim_iter.remove();
+
+                // Delete all connections that have existed for this node
+                getWorld().getTracks().disconnectAll(anim.node, false);
             } else {
                 // Update using lerp
                 double theta = (double) anim.ticks / (double) anim.ticks_total;
@@ -114,7 +107,38 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
                 anim.node.setPosition(pos);
                 anim.node.setOrientation(up);
             }
-            anim.ticks++;
+        }
+
+        // Create connections at the end of the animations
+        Iterator<TrackAnimation> anim_iter;
+        anim_iter = _animations.values().iterator();
+        while (anim_iter.hasNext()) {
+            TrackAnimation anim = anim_iter.next();
+            if (anim.isAtEnd()) {
+                if (anim.connections != null) {
+                    for (TrackConnectionState connection : anim.connections) {
+                        if (connection.isConnected(anim.node)) {
+                            TrackConnection tc = getWorld().getTracks().connect(connection, false);
+                            if (tc != null) {
+                                _finishedConnections.put(tc, connection);
+                            }
+                        }
+                    }
+                }
+                anim_iter.remove();
+            } else {
+                anim.ticks++;
+            }
+        }
+
+        // Now that all track connections are made, add the objects
+        try {
+            for (Map.Entry<TrackConnection, TrackConnectionState> addedConnection : _finishedConnections.entrySet()) {
+                addedConnection.getKey().onShapeUpdated();
+                addedConnection.getKey().addAllObjects(addedConnection.getValue());
+            }
+        } finally {
+            _finishedConnections.clear();
         }
 
         // Compute new position on the new, adjusted tracks

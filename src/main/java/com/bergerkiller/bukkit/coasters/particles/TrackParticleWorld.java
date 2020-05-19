@@ -87,9 +87,12 @@ public class TrackParticleWorld implements CoasterWorldComponent {
     }
 
     public void removeParticle(TrackParticle particle) {
-        particle.makeHiddenForAll();
-        particle.onRemoved();
-        particle.world = null;
+        if (particle.world == this) {
+            particle.makeHiddenForAll();
+            particle.onRemoved();
+            particle.world = null;
+            this.forceViewerUpdate = true;
+        }
     }
 
     public void removeAll() {
@@ -139,11 +142,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
             boolean isInEditMode = this.getPlugin().getEditState(viewer).getMode() != PlayerEditMode.DISABLED;
 
             // Get state
-            ViewerParticleList viewed = this.viewers.get(viewer);
-            if (viewed == null) {
-                viewed = new ViewerParticleList();
-                this.viewers.put(viewer, viewed);
-            }
+            ViewerParticleList viewed = this.viewers.computeIfAbsent(viewer, ViewerParticleList::new);
 
             // Check player changed block (input to cuboid function)
             IntVector3 viewerBlock = new IntVector3(viewer.getEyeLocation());
@@ -274,5 +273,8 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         public final Map<TrackParticle, Integer> particles = new ConcurrentHashMap<>(16, 0.75f, 1);
         public boolean reachedLimit = false;
         public long reachedLimitAt = 0;
+
+        public ViewerParticleList(Player viewer) {
+        }
     }
 }

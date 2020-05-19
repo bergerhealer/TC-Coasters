@@ -656,6 +656,9 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
      * @param state The animation state to update
      */
     public void updateAnimationState(TrackNodeAnimationState state) {
+        // Important for saving!
+        this.markChanged();
+
         // Overwrite existing
         for (int i = 0; i < this._animationStates.length; i++) {
             TrackNodeAnimationState old_state = this._animationStates[i];
@@ -695,6 +698,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                     old_state.destroyParticles();
                     this._animationStates[i] = new_state;
                     new_state.spawnParticles(this, i);
+                    this.markChanged();
                 }
             }
         }

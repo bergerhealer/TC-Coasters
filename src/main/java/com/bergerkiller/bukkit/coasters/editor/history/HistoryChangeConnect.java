@@ -27,7 +27,7 @@ public class HistoryChangeConnect extends HistoryChange {
                 this.world.getTracks().disconnect(nodeA, nodeB);
             }
         } else {
-            this.world.getTracks().connect(this.state);
+            this.world.getTracks().connect(this.state, true);
         }
     }
 }

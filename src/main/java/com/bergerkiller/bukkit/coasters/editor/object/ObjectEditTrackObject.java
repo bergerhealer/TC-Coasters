@@ -29,8 +29,7 @@ public class ObjectEditTrackObject {
      * State of the TrackObject prior to moving/duplicating it
      */
     public TrackConnection beforeDragConnection;
-    public double beforeDragDistance;
-    public boolean beforeDragFlipped;
+    public TrackObject beforeDragObject;
 
     /**
      * Based on comparing with the orientation to the player,
@@ -48,11 +47,15 @@ public class ObjectEditTrackObject {
 
     public void moveEnd() {
         this.beforeDragConnection = null;
-        this.beforeDragDistance = 0.0;
+        this.beforeDragObject = null;
         this.dragDistance = Double.NaN;
     }
 
     public double getDistancePosition() {
         return this.dragDirection ? this.dragDistance : -this.dragDistance;
+    }
+
+    public boolean isRemoved() {
+        return !this.object.isAdded();
     }
 }
