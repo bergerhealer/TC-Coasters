@@ -55,6 +55,7 @@ public class ObjectEditState {
     private TrackObject lastEditedTrackObject = null;
     private long lastEditTrackObjectTime = System.currentTimeMillis();
     private double dragListenersDistanceToObjects = 0.0;
+    private boolean isDragControlEnabled = true;
     private boolean isDraggingObjects = false;
     private boolean isDuplicating = false;
     private boolean blink = false;
@@ -148,6 +149,7 @@ public class ObjectEditState {
 
     public void load(ConfigurationNode config) {
         this.selectedType = parseType(config);
+        this.isDragControlEnabled = config.get("dragControl", true);
     }
 
     public void save(ConfigurationNode config) {
@@ -160,6 +162,26 @@ public class ObjectEditState {
         } else {
             config.remove("selectedTrackObject");
         }
+        config.set("dragControl", this.isDragControlEnabled);
+    }
+
+    /**
+     * Sets whether right-click drag map menu input control is enabled
+     * 
+     * @param enabled
+     */
+    public void setDragControlEnabled(boolean enabled) {
+        this.isDragControlEnabled = enabled;
+        this.editState.markChanged();
+    }
+
+    /**
+     * Gets whether right-click drag map menu input control is enabled
+     * 
+     * @return True if enabled
+     */
+    public boolean isDragControlEnabled() {
+        return this.isDragControlEnabled;
     }
 
     public CoasterWorld getWorld() {
@@ -617,6 +639,9 @@ public class ObjectEditState {
     }
 
     private void updateDragListeners() {
+        if (!this.isDragControlEnabled()) {
+            return;
+        }
         if (this.editState.getHeldDownTicks() == 0) {
             this.dragListenersDistanceToObjects = this.computeDistanceToObjects();
         }

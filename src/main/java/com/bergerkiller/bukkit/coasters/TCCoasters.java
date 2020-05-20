@@ -1050,6 +1050,18 @@ public class TCCoasters extends PluginBase {
             } else {
                 sender.sendMessage(ChatColor.GREEN + "Current track rail block is " + rail_str);
             }
+        } else if (args.length > 0 && LogicUtil.contains(args[0], "dragcontrol")) {
+            if (args.length == 1) {
+                sender.sendMessage(ChatColor.YELLOW + "Turn right-click drag map menu control on or off");
+                sender.sendMessage(ChatColor.RED + "/tcc dragcontrol [true/false]");
+            } else {
+                state.getObjects().setDragControlEnabled(ParseUtil.parseBool(args[1]));
+                if (state.getObjects().isDragControlEnabled()) {
+                    sender.sendMessage(ChatColor.YELLOW + "Right-click drag menu control is now " + ChatColor.GREEN + "ENABLED");
+                } else {
+                    sender.sendMessage(ChatColor.YELLOW + "Right-click drag menu control is now " + ChatColor.RED + "DISABLED");
+                }
+            }
         } else {
             sender.sendMessage(ChatColor.RED + "What did you want? Try /tcc give");
         }
