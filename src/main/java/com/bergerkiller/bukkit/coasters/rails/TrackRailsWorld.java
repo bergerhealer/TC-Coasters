@@ -18,11 +18,11 @@ import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
-import com.bergerkiller.bukkit.coasters.util.HashSetCache;
 import com.bergerkiller.bukkit.coasters.util.RailSectionBlockIterator;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.collections.ObjectCache;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.google.common.collect.HashMultimap;
@@ -38,8 +38,7 @@ public class TrackRailsWorld implements CoasterWorldComponent {
     private final ListMultimap<IntVector3, TrackRailsSection> sectionsByRails = LinkedListMultimap.create(10000);
     private final SetMultimap<IntVector3, TrackRailsSection> sectionsByBlock = HashMultimap.create(10000, 2);
     private final Map<TrackNode, TrackNodeMeta> trackNodeMeta = new IdentityHashMap<>();
-    private final Map<TrackNode, Set<IntVector3>> tmpNodeBlocks = new IdentityHashMap<>();
-    private final HashSetCache hashSetCache = HashSetCache.create();
+    private final Map<TrackNode, ObjectCache.Entry<Set<IntVector3>>> tmpNodeBlocks = new IdentityHashMap<>();
 
     public TrackRailsWorld(CoasterWorld world) {
         this._world = world;
@@ -95,34 +94,32 @@ public class TrackRailsWorld implements CoasterWorldComponent {
      * @param nodes
      */
     public void purge(Collection<TrackNode> nodes) {
-        try {
-            Set<TrackRailsSection> sectionsToReAdd = hashSetCache.createNew();
-            Set<IntVector3> addedTrackRails = hashSetCache.createNew();
-            Set<IntVector3> addedTrackBlocks = hashSetCache.createNew();
-
+        try (ObjectCache.Entry<Set<TrackRailsSection>> sectionsToReAdd = ObjectCache.newHashSet();
+             ObjectCache.Entry<Set<IntVector3>> addedTrackRails = ObjectCache.newHashSet();
+             ObjectCache.Entry<Set<IntVector3>> addedTrackBlocks = ObjectCache.newHashSet())
+        {
             // Collect all block and rail coordinates affected
             for (TrackNode node : nodes) {
                 TrackNodeMeta meta = trackNodeMeta.remove(node);
                 if (meta != null) {
-                    addedTrackRails.add(meta.rails);
-                    addedTrackBlocks.addAll(Arrays.asList(meta.blocks));
+                    addedTrackRails.get().add(meta.rails);
+                    addedTrackBlocks.get().addAll(Arrays.asList(meta.blocks));
                 }
             }
 
             // Remove from the found coordinates
-            for (IntVector3 railBlock : addedTrackRails) {
-                removeFromMap(sectionsByRails.get(railBlock), nodes, sectionsToReAdd);
+            for (IntVector3 railBlock : addedTrackRails.get()) {
+                removeFromMap(sectionsByRails.get(railBlock), nodes, sectionsToReAdd.get());
             }
-            for (IntVector3 posBlock : addedTrackBlocks) {
-                removeFromMap(sectionsByBlock.get(posBlock), nodes, sectionsToReAdd);
+            for (IntVector3 posBlock : addedTrackBlocks.get()) {
+                removeFromMap(sectionsByBlock.get(posBlock), nodes, sectionsToReAdd.get());
             }
 
             // Re-add sections that were merged
-            for (TrackRailsSection reAdd : sectionsToReAdd) {
+            for (TrackRailsSection reAdd : sectionsToReAdd.get()) {
                 addSectionToMap(reAdd);
             }
         } finally {
-            // Invalidates all sets created up above
             finishAddingSectionsToMap();
         }
     }
@@ -278,19 +275,21 @@ public class TrackRailsWorld implements CoasterWorldComponent {
     private void finishAddingSectionsToMap() {
         // Map all added nodes to the track node
         // We may be adding more than one node, because of merging tracks at the same rails
-        for (Map.Entry<TrackNode, Set<IntVector3>> entry : tmpNodeBlocks.entrySet()) {
-            trackNodeMeta.put(entry.getKey(), new TrackNodeMeta(entry.getKey().getRailBlock(true), entry.getValue()));
+        for (Map.Entry<TrackNode, ObjectCache.Entry<Set<IntVector3>>> entry : tmpNodeBlocks.entrySet()) {
+            trackNodeMeta.put(entry.getKey(), new TrackNodeMeta(entry.getKey().getRailBlock(true), entry.getValue().get()));
+            entry.getValue().close();
         }
-
-        // Wipe caches
         tmpNodeBlocks.clear();
-        hashSetCache.reset();
     }
 
     private void mapSectionToBlock(IntVector3 key, Collection<IntVector3> suppressed, TrackRailsSection section) {
         if (!suppressed.contains(key) && sectionsByBlock.get(key).add(section)) {
             section.getNodes().forEach(node -> {
-                tmpNodeBlocks.computeIfAbsent(node, unused -> hashSetCache.createNew()).add(key);
+                tmpNodeBlocks.computeIfAbsent(node, unused -> {
+                    ObjectCache.Entry<Set<IntVector3>> e = ObjectCache.newHashSet();
+                    e.get().add(key);
+                    return e;
+                });
             });
         }
     }
