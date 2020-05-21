@@ -100,6 +100,11 @@ public class BlockSelectMenu extends MapWidgetMenu {
         }
 
         this.initializing = false;
+    }
+
+    @Override
+    public void onAttached() {
+        super.onAttached();
         display.playSound(CommonSounds.PISTON_EXTEND);
     }
 
