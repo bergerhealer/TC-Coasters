@@ -2,6 +2,9 @@ package com.bergerkiller.bukkit.coasters;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.ArrayList;
@@ -12,6 +15,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 
@@ -44,6 +48,7 @@ import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.QueuedTask;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldImpl;
+import com.bergerkiller.bukkit.common.AsyncTask;
 import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.Hastebin;
 import com.bergerkiller.bukkit.common.Hastebin.UploadResult;
@@ -51,6 +56,8 @@ import com.bergerkiller.bukkit.common.PluginBase;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
+import com.bergerkiller.bukkit.common.io.AsyncTextWriter;
+import com.bergerkiller.bukkit.common.io.ByteArrayIOStream;
 import com.bergerkiller.bukkit.common.localization.LocalizationEnum;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.map.MapResourcePack;
@@ -88,6 +95,7 @@ public class TCCoasters extends PluginBase {
     private int maximumParticleCount = DEFAULT_MAXIMUM_PARTICLE_COUNT;
     private boolean plotSquaredEnabled = DEFAULT_PLOTSQUARED_ENABLED;
     private Listener plotSquaredHandler = null;
+    private File importFolder, exportFolder;
 
     public void unloadWorld(World world) {
         CoasterWorldImpl coasterWorld = worlds.get(world);
@@ -252,6 +260,12 @@ public class TCCoasters extends PluginBase {
         this.worldUpdateTask = (new WorldUpdateTask()).start(1, 1);
         this.runQueuedTasksTask = (new RunQueuedTasksTask()).start(1, 1);
         this.updatePlayerEditStatesTask = (new UpdatePlayerEditStatesTask()).start(1, 1);
+
+        // Import/export folders
+        this.importFolder = this.getDataFile("import");
+        this.exportFolder = this.getDataFile("export");
+        this.importFolder.mkdirs();
+        this.exportFolder.mkdirs();
 
         // Load configuration
         FileConfiguration config = new FileConfiguration(this);
@@ -568,7 +582,7 @@ public class TCCoasters extends PluginBase {
                 return true;
             }
             final Player player = (Player) sender;
-            this.hastebin.download(args[1]).thenAccept(download -> {
+            importFileOrURL(args[1]).thenAccept(download -> {
                 if (!download.success()) {
                     sender.sendMessage(ChatColor.RED + "Failed to import coaster: " + download.error());
                     return;
@@ -622,7 +636,14 @@ public class TCCoasters extends PluginBase {
                 sender.sendMessage(ChatColor.RED + "These nodes could not be exported!");
             }
 
-            boolean nolimits2Format = (args.length > 1 && LogicUtil.containsIgnoreCase(args[1], "nl2", "nolimits", "nolimits2"));
+            boolean nolimits2Format = false;
+            boolean exportToFile = false;
+            for (int i = 1; i < args.length; i++) {
+                String extraArg = args[i];
+                nolimits2Format |= LogicUtil.containsIgnoreCase(extraArg, "nl2", "nolimits", "nolimits2");
+                exportToFile |= extraArg.equalsIgnoreCase("file");
+            }
+
             String content;
             try {
                 ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -643,16 +664,34 @@ public class TCCoasters extends PluginBase {
                 sender.sendMessage(ChatColor.RED + "Failed to export: " + t.getMessage());
                 return true;
             }
-            this.hastebin.upload(content).thenAccept(new Consumer<Hastebin.UploadResult>() {
-                @Override
-                public void accept(UploadResult t) {
-                    if (t.success()) {
-                        sender.sendMessage(ChatColor.GREEN + "Tracks exported: " + ChatColor.WHITE + ChatColor.UNDERLINE + t.url());
+
+            if (exportToFile) {
+                // Asynchronously write text content to file
+                final File resultFile = new File(this.exportFolder, "coaster_" + System.currentTimeMillis() + ".csv");
+                AsyncTextWriter.write(resultFile, content).handleAsync((result, t) -> {
+                    if (t != null) {
+                        resultFile.delete();
+                        sender.sendMessage(ChatColor.RED + "Failed to export to file: " + t.getMessage());
                     } else {
-                        sender.sendMessage(ChatColor.RED + "Failed to export: " + t.error());
+                        String relPath = this.getDataFolder().getParentFile().toPath().relativize(resultFile.toPath()).toString();
+                        sender.sendMessage(ChatColor.GREEN + "Tracks exported to file:");
+                        sender.sendMessage(ChatColor.WHITE + relPath);
                     }
-                }
-            });
+                    return result;
+                }, CommonUtil.getPluginExecutor(this));
+            } else {
+                // Asynchronously upload to a hastebin server
+                this.hastebin.upload(content).thenAccept(new Consumer<Hastebin.UploadResult>() {
+                    @Override
+                    public void accept(UploadResult t) {
+                        if (t.success()) {
+                            sender.sendMessage(ChatColor.GREEN + "Tracks exported: " + ChatColor.WHITE + ChatColor.UNDERLINE + t.url());
+                        } else {
+                            sender.sendMessage(ChatColor.RED + "Failed to export: " + t.error());
+                        }
+                    }
+                });
+            }
             return true;
         } else if (args.length > 0 && LogicUtil.contains(args[0], "posx", "posy", "posz", "setx", "sety", "setz")) {
             boolean modify_x = LogicUtil.contains(args[0], "posx", "setx");
@@ -1111,6 +1150,54 @@ public class TCCoasters extends PluginBase {
 
         ItemStack offItem = HumanHand.getItemInOffHand(player);
         return MapDisplay.getViewedDisplay(player, offItem) instanceof TCCoastersDisplay;
+    }
+
+    private CompletableFuture<Hastebin.DownloadResult> importFileOrURL(final String fileOrURL) {
+        final File importFile;
+        if (fileOrURL.startsWith("import/") || fileOrURL.startsWith("import\\")) {
+            importFile = (new File(this.getDataFolder(), fileOrURL)).getAbsoluteFile();
+        } else if (fileOrURL.startsWith("export/") || fileOrURL.startsWith("export\\")) {
+            importFile = (new File(this.getDataFolder(), fileOrURL)).getAbsoluteFile();
+        } else {
+            importFile = (new File(this.importFolder, fileOrURL)).getAbsoluteFile();
+        }
+        if (importFile.exists()) {
+            // Only allow files below the TC-Coasters folder (security)
+            boolean validLocation;
+            try {
+                File a = importFile.getCanonicalFile();
+                File b = this.getDataFolder().getAbsoluteFile().getCanonicalFile();
+                validLocation = a.toPath().startsWith(b.toPath());
+            } catch (IOException ex) {
+                validLocation = false;
+            }
+            if (!validLocation) {
+                return CompletableFuture.completedFuture(Hastebin.DownloadResult.error(fileOrURL,
+                        "File is not within the TC-Coasters plugin directory, access disallowed"));
+            }
+
+            // File exists inside the import folder, load it asynchronously
+            // Ideally I'd use some async I/O api for this, but meh
+            final CompletableFuture<Hastebin.DownloadResult> future = new CompletableFuture<Hastebin.DownloadResult>();
+            new AsyncTask() {
+                @Override
+                public void run() {
+                    try (FileInputStream fs = new FileInputStream(importFile)) {
+                        ByteArrayIOStream contentBuffer = new ByteArrayIOStream(fs.available());
+                        contentBuffer.readFrom(fs);
+                        future.complete(Hastebin.DownloadResult.content(fileOrURL, contentBuffer));
+                    } catch (FileNotFoundException ex) {
+                        future.complete(Hastebin.DownloadResult.error(fileOrURL, "File not found"));
+                    } catch (IOException ex) {
+                        future.complete(Hastebin.DownloadResult.error(fileOrURL, "File I/O error: " + ex.getMessage()));
+                    }
+                }
+            }.start();
+            return future.thenApplyAsync(result -> result, CommonUtil.getPluginExecutor(this));
+        }
+
+        // Treat as Hastebin URL
+        return this.hastebin.download(fileOrURL);
     }
 
     private static class AutosaveTask extends Task {
