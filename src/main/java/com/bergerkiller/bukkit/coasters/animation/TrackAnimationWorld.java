@@ -94,7 +94,9 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
                 anim.node.setState(anim.target);
 
                 // Delete all connections that have existed for this node
-                getWorld().getTracks().disconnectAll(anim.node, false);
+                if (anim.connections != null) {
+                    getWorld().getTracks().disconnectAll(anim.node, false);
+                }
             } else {
                 // Update using lerp
                 double theta = (double) anim.ticks / (double) anim.ticks_total;
