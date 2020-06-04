@@ -564,7 +564,7 @@ public class PlayerEditState implements CoasterWorldComponent {
                 for (TrackNode node : coaster.getNodes()) {
                     if (node.getRailBlock(false) != null) {
                         double distance = node.getRailBlockViewDistance(cameraTransform);
-                        if (distance <= bestDistance) {
+                        if (distance <= bestDistance && distance != Double.MAX_VALUE) {
                             // Multi-select the nodes when they match the same rail block
                             if (distance < bestDistance) {
                                 bestNodes.clear();
