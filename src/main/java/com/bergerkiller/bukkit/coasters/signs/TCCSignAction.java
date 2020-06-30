@@ -8,7 +8,7 @@ import org.bukkit.Location;
 
 import com.bergerkiller.bukkit.coasters.CoasterRailType;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
-import com.bergerkiller.bukkit.common.resources.CommonSounds;
+import com.bergerkiller.bukkit.common.resources.SoundEffect;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import com.bergerkiller.bukkit.tc.events.SignActionEvent;
@@ -95,6 +95,6 @@ public abstract class TCCSignAction extends SignAction {
     private void failNoTrack(SignActionEvent event) {
         Location loc = event.getBlock().getLocation().add(0.5, 0.5, 0.5);
         loc.getWorld().playEffect(loc, Effect.SMOKE, 0);
-        WorldUtil.playSound(loc, CommonSounds.EXTINGUISH, 1.0f, 2.0f);
+        WorldUtil.playSound(loc, SoundEffect.EXTINGUISH, 1.0f, 2.0f);
     }
 }

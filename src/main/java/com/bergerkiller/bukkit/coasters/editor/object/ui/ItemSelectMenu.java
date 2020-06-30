@@ -10,7 +10,7 @@ import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeFallingBlock;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItemStack;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
-import com.bergerkiller.bukkit.common.resources.CommonSounds;
+import com.bergerkiller.bukkit.common.resources.SoundEffect;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetMenu;
 import com.bergerkiller.bukkit.tc.attachments.ui.item.MapWidgetItemSelector;
 
@@ -53,11 +53,11 @@ public class ItemSelectMenu extends MapWidgetMenu {
     @Override
     public void onAttached() {
         super.onAttached();
-        display.playSound(CommonSounds.PISTON_EXTEND);
+        display.playSound(SoundEffect.PISTON_EXTEND);
     }
 
     @Override
     public void onDetached() {
-        display.playSound(CommonSounds.PISTON_CONTRACT);
+        display.playSound(SoundEffect.PISTON_CONTRACT);
     }
 }

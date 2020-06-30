@@ -19,7 +19,7 @@ import com.bergerkiller.bukkit.common.map.widgets.MapWidgetButton;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetSubmitText;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetTabView;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetText;
-import com.bergerkiller.bukkit.common.resources.CommonSounds;
+import com.bergerkiller.bukkit.common.resources.SoundEffect;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetNumberBox;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetSelectionBox;
@@ -264,7 +264,7 @@ public enum PlayerEditMode {
                 }
                 state.setSelectedAnimation(text);
                 TCCoastersLocalization.ANIMATION_ADD.message(state.getPlayer(), text, Integer.toString(state.getEditedNodes().size()));
-                getDisplay().playSound(CommonSounds.CLICK);
+                getDisplay().playSound(SoundEffect.CLICK);
             }
         });
 
@@ -299,7 +299,7 @@ public enum PlayerEditMode {
                     }
                     state.setSelectedAnimation(null);
                     TCCoastersLocalization.ANIMATION_REMOVE.message(state.getPlayer(), name, Integer.toString(nodes.size()));
-                    getDisplay().playSound(CommonSounds.EXTINGUISH);
+                    getDisplay().playSound(SoundEffect.EXTINGUISH);
 
                     // Focus animation selection menu. Kinda hard to do as we don't have a final field for it :(
                     tab.getWidget(4).focus();
@@ -345,7 +345,7 @@ public enum PlayerEditMode {
             @Override
             public void onActivate() {
                 stateSupplier.get().setSelectedAnimation(null);
-                getDisplay().playSound(CommonSounds.EXTINGUISH);
+                getDisplay().playSound(SoundEffect.EXTINGUISH);
             }
 
             private void loadItems() {
@@ -382,10 +382,10 @@ public enum PlayerEditMode {
                     PlayerEditState state = stateSupplier.get();
                     if (state.getObjects().hasEditedObjects()) {
                         state.getObjects().flipObject();
-                        getDisplay().playSound(CommonSounds.CLICK);
+                        getDisplay().playSound(SoundEffect.CLICK);
                     }
                 } catch (ChangeCancelledException e) {
-                    getDisplay().playSound(CommonSounds.EXTINGUISH);
+                    getDisplay().playSound(SoundEffect.EXTINGUISH);
                 }
             }
         }).setText("Flip").setBounds(26, 55, 64, 13);
@@ -397,10 +397,10 @@ public enum PlayerEditMode {
                     PlayerEditState state = stateSupplier.get();
                     if (state.getObjects().hasEditedObjects()) {
                         state.getObjects().deleteObjects();
-                        getDisplay().playSound(CommonSounds.ITEM_BREAK);
+                        getDisplay().playSound(SoundEffect.ITEM_BREAK);
                     }
                 } catch (ChangeCancelledException e) {
-                    getDisplay().playSound(CommonSounds.EXTINGUISH);
+                    getDisplay().playSound(SoundEffect.EXTINGUISH);
                 }
             }
         }).setText("Delete").setBounds(26, 70, 64, 13);

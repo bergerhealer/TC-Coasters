@@ -22,6 +22,8 @@ import com.bergerkiller.bukkit.common.events.PacketReceiveEvent;
 import com.bergerkiller.bukkit.common.events.PacketSendEvent;
 import com.bergerkiller.bukkit.common.protocol.PacketListener;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
+import com.bergerkiller.bukkit.common.resources.ResourceKey;
+import com.bergerkiller.bukkit.common.resources.SoundEffect;
 import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
@@ -29,7 +31,6 @@ import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
-import com.bergerkiller.bukkit.common.wrappers.ResourceKey;
 import com.bergerkiller.bukkit.common.wrappers.UseAction;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayInArmAnimationHandle;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayInBlockDigHandle;
@@ -87,7 +88,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
         meta.blockBreakTime = null;
 
         // Play sound SFX for the client, because normally nothing plays
-        ResourceKey breakSound = WorldUtil.getBlockData(event.getBlock()).getPlaceSound();
+        ResourceKey<SoundEffect> breakSound = WorldUtil.getBlockData(event.getBlock()).getPlaceSound();
         Location loc = event.getBlock().getLocation().add(new Vector(0.5, 0.5, 0.5));
         PlayerUtil.playSound(event.getPlayer(), loc, breakSound, 1.0f, 1.0f);
     }
@@ -105,7 +106,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
         // A bit iffy how this should be done, as this depends largely on the type of item held by the player
         BlockData placedData = BlockData.fromItemStack(event.getItemInHand());
         if (placedData != BlockData.AIR) {
-            ResourceKey breakSound = placedData.getPlaceSound();
+            ResourceKey<SoundEffect> breakSound = placedData.getPlaceSound();
             Location loc = event.getBlock().getLocation().add(new Vector(0.5, 0.5, 0.5));
             PlayerUtil.playSound(event.getPlayer(), loc, breakSound, 1.0f, 1.0f);
         }

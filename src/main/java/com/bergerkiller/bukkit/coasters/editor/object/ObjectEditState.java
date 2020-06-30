@@ -43,7 +43,7 @@ import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.config.ConfigurationNode;
 import com.bergerkiller.bukkit.common.math.Quaternion;
-import com.bergerkiller.bukkit.common.resources.CommonSounds;
+import com.bergerkiller.bukkit.common.resources.SoundEffect;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 
@@ -266,7 +266,7 @@ public class ObjectEditState {
                     editObject.connection.addObject(editObject.object.clone());
 
                     // Play a sound cue so the player knows an object was placed
-                    PlayerUtil.playSound(getPlayer(), CommonSounds.CLICK_WOOD, 0.5f, 1.0f);
+                    PlayerUtil.playSound(getPlayer(), SoundEffect.CLICK_WOOD, 0.5f, 1.0f);
                 } else {
                     // Finish the drag action and switch to duplicate mode
                     try {
@@ -1076,7 +1076,7 @@ public class ObjectEditState {
 
         // Play a sound cue so the player knows objects were added
         if (objectsWereAdded) {
-            PlayerUtil.playSound(getPlayer(), CommonSounds.CLICK_WOOD, 0.5f, 1.0f);
+            PlayerUtil.playSound(getPlayer(), SoundEffect.CLICK_WOOD, 0.5f, 1.0f);
         }
 
         // Remove excess objects
@@ -1094,7 +1094,7 @@ public class ObjectEditState {
             this.duplicatedObjects.clear();
 
             // Play a sound cue so the player knows objects were removed
-            PlayerUtil.playSound(getPlayer(), CommonSounds.ITEM_BREAK, 0.5f, 1.0f);
+            PlayerUtil.playSound(getPlayer(), SoundEffect.ITEM_BREAK, 0.5f, 1.0f);
         }
     }
 
@@ -1106,7 +1106,7 @@ public class ObjectEditState {
             this.duplicatedObjects.subList(startIndex, this.duplicatedObjects.size()).clear();
 
             // Play a sound cue so the player knows objects were removed
-            PlayerUtil.playSound(getPlayer(), CommonSounds.ITEM_BREAK, 0.5f, 1.0f);
+            PlayerUtil.playSound(getPlayer(), SoundEffect.ITEM_BREAK, 0.5f, 1.0f);
         }
     }
 

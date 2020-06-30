@@ -13,7 +13,7 @@ import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeFallingBlock;
 import com.bergerkiller.bukkit.common.events.map.MapKeyEvent;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.MapPlayerInput;
-import com.bergerkiller.bukkit.common.resources.CommonSounds;
+import com.bergerkiller.bukkit.common.resources.SoundEffect;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetMenu;
 
@@ -105,12 +105,12 @@ public class BlockSelectMenu extends MapWidgetMenu {
     @Override
     public void onAttached() {
         super.onAttached();
-        display.playSound(CommonSounds.PISTON_EXTEND);
+        display.playSound(SoundEffect.PISTON_EXTEND);
     }
 
     @Override
     public void onDetached() {
-        display.playSound(CommonSounds.PISTON_CONTRACT);
+        display.playSound(SoundEffect.PISTON_CONTRACT);
     }
 
     @Override
@@ -121,7 +121,7 @@ public class BlockSelectMenu extends MapWidgetMenu {
             this.blockSelector.setSelectedBlock(data.getType());
             this.initializing = false;
             this.variantList.setBlock(data);
-            display.playSound(CommonSounds.CLICK_WOOD);
+            display.playSound(SoundEffect.CLICK_WOOD);
             return true;
         }
         return false;

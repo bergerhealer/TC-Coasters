@@ -13,7 +13,7 @@ import com.bergerkiller.bukkit.common.map.MapPlayerInput;
 import com.bergerkiller.bukkit.common.map.MapTexture;
 import com.bergerkiller.bukkit.common.map.MapPlayerInput.Key;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
-import com.bergerkiller.bukkit.common.resources.CommonSounds;
+import com.bergerkiller.bukkit.common.resources.SoundEffect;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.common.wrappers.BlockState;
@@ -201,7 +201,7 @@ public abstract class MapWidgetBlockVariantList extends MapWidget implements Set
         this.variantIndex = newVariantIndex;
         this.invalidate();
         this.fireItemChangeEvent();
-        this.display.playSound(CommonSounds.CLICK);
+        this.display.playSound(SoundEffect.CLICK);
     }
 
     @Override

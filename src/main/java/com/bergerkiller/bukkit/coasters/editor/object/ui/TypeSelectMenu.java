@@ -18,7 +18,7 @@ import com.bergerkiller.bukkit.common.map.MapPlayerInput;
 import com.bergerkiller.bukkit.common.map.MapTexture;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetButton;
-import com.bergerkiller.bukkit.common.resources.CommonSounds;
+import com.bergerkiller.bukkit.common.resources.SoundEffect;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 
 /**
@@ -140,7 +140,7 @@ public class TypeSelectMenu extends MapWidget {
         if (!oldType.equals(newType)) {
             this._stateSupplier.get().getObjects().setSelectedType(newType);
             this.setDisplayedType(newType);
-            this.display.playSound(CommonSounds.CLICK_WOOD);
+            this.display.playSound(SoundEffect.CLICK_WOOD);
             return true;
         }
         return false;
@@ -148,7 +148,7 @@ public class TypeSelectMenu extends MapWidget {
 
     @Override
     public void onActivate() {
-        display.playSound(CommonSounds.PISTON_EXTEND);
+        display.playSound(SoundEffect.PISTON_EXTEND);
         this._stateSupplier.get().getObjects().getSelectedType().openMenu(this.getParent(), this._stateSupplier);
     }
 
@@ -186,7 +186,7 @@ public class TypeSelectMenu extends MapWidget {
             TrackObjectType<?> type = types.get(currentIndex);
             this._stateSupplier.get().getObjects().setSelectedType(type);
             this.setDisplayedType(type);
-            display.playSound(CommonSounds.CLICK);
+            display.playSound(SoundEffect.CLICK);
         }
     }
 }

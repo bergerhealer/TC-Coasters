@@ -9,7 +9,7 @@ import com.bergerkiller.bukkit.coasters.editor.object.DragListener;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
-import com.bergerkiller.bukkit.common.resources.CommonSounds;
+import com.bergerkiller.bukkit.common.resources.SoundEffect;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetMenu;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetNumberBox;
 
@@ -162,7 +162,7 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
         isLoadingWidgets = false;
 
         state.getObjects().addDragListener(this);
-        display.playSound(CommonSounds.PISTON_EXTEND);
+        display.playSound(SoundEffect.PISTON_EXTEND);
     }
 
     @Override
@@ -170,7 +170,7 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
         super.onDetached();
 
         state.getObjects().removeDragListener(this);
-        display.playSound(CommonSounds.PISTON_CONTRACT);
+        display.playSound(SoundEffect.PISTON_CONTRACT);
     }
 
     private Vector position() {
