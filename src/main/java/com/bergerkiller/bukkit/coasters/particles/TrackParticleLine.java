@@ -6,6 +6,7 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
@@ -25,8 +26,18 @@ import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityL
 public class TrackParticleLine extends TrackParticle {
     protected static final int FLAG_POSITION_CHANGED  = (1<<2);
     protected static final int FLAG_NEEDS_RESPAWN     = (1<<3);
-    private static final Vector OFFSET1 = new Vector(0.7, 0.16, -0.5);
-    private static final Vector OFFSET2 = new Vector(0.0, -1.1, -0.2);
+
+    private static final Vector OFFSET1, OFFSET2;
+    static {
+        if (Common.evaluateMCVersion(">=", "1.16")) {
+            OFFSET1 = new Vector(0.7, -0.065, -0.5);
+            OFFSET2 = new Vector(0.0, -0.45, -0.2);
+        } else {
+            OFFSET1 = new Vector(0.7, 0.16, -0.5);
+            OFFSET2 = new Vector(0.0, -1.1, -0.2);
+        }
+    }
+
     private DoubleOctree.Entry<TrackParticle> p1, p2;
     private int e1 = -1, e2 = -1;
 
