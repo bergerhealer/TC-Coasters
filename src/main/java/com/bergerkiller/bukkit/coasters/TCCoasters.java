@@ -341,7 +341,21 @@ public class TCCoasters extends PluginBase {
             boolean available = enabled && this.plotSquaredEnabled;
             if (available != (this.plotSquaredHandler != null)) {
                 if (available) {
-                    this.plotSquaredHandler = new PlotSquaredHandler(this);
+                    // Version 4 or version 5?
+                    // Could inspect plugin description, but this is more reliable
+                    boolean is_version_5;
+                    try {
+                        Class.forName("com.plotsquared.core.location.Location");
+                        is_version_5 = true;
+                    } catch (Throwable t) {
+                        is_version_5 = false;
+                    }
+
+                    if (is_version_5) {
+                        this.plotSquaredHandler = new PlotSquaredHandler_v5(this);
+                    } else {
+                        this.plotSquaredHandler = new PlotSquaredHandler_v4(this);
+                    }
                     this.register(this.plotSquaredHandler);
                     this.log(Level.INFO, "PlotSquared support enabled!");
                 } else {

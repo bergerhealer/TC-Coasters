@@ -8,17 +8,19 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.events.CoasterConnectionEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterNodeEvent;
-import com.github.intellectualsites.plotsquared.plot.object.Location;
-import com.github.intellectualsites.plotsquared.plot.object.Plot;
+import com.plotsquared.core.location.Location;
+import com.plotsquared.core.plot.Plot;
 
 /**
- * Handles node editing events using PlotSquared permissions
+ * Handles node editing events using PlotSquared version 5 permissions.<br>
+ * <br>
+ * https://www.spigotmc.org/resources/plotsquared-v5.77506/
  */
-public class PlotSquaredHandler implements Listener {
+public class PlotSquaredHandler_v5 implements Listener {
     private final TCCoasters plugin;
     private final Location location = new Location(null, 0, 0, 0);
 
-    public PlotSquaredHandler(TCCoasters plugin) {
+    public PlotSquaredHandler_v5(TCCoasters plugin) {
         this.plugin = plugin;
     }
 
