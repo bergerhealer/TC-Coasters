@@ -8,8 +8,8 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.events.CoasterConnectionEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterNodeEvent;
-import com.github.intellectualsites.plotsquared.plot.object.Location;
-import com.github.intellectualsites.plotsquared.plot.object.Plot;
+import com.plotsquared.core.location.Location;
+import com.plotsquared.core.plot.Plot;
 
 /**
  * Handles node editing events using PlotSquared permissions

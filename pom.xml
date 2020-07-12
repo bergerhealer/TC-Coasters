@@ -32,11 +32,6 @@
             <url>https://ci.mg-dev.eu/plugin/repository/everything</url>
         </repository>
 
-        <!-- PlotSquared repository -->
-        <repository>
-            <id>p2-repo</id>
-            <url>http://ci.athion.net/job/PlotSquared-Releases/ws/mvn/</url>
-        </repository>
         <!-- Jenkins4J -->
         <repository>
             <id>jitpack.io</id>
@@ -44,8 +39,13 @@
         </repository>
         <!-- WorldEdit -->
         <repository>
-            <id>sk89q</id>
-            <url>http://maven.sk89q.com/repo/</url>
+            <id>enginehub</id>
+            <url>https://maven.enginehub.org/repo/</url>
+        </repository>
+        <!-- PlotSquared -->
+        <repository>
+            <id>IntellectualSites</id>
+            <url>https://mvn.intellectualsites.com/content/groups/public/</url>
         </repository>
     </repositories>
 
@@ -83,9 +83,9 @@
 
         <!-- PlotSquared API -->
         <dependency>
-            <groupId>com.github.intellectualsites.plotsquared</groupId>
-            <artifactId>PlotSquared-API</artifactId>
-            <version>4.400</version>
+            <groupId>com.plotsquared</groupId>
+            <artifactId>PlotSquared-Core</artifactId>
+            <version>5.12.0</version>
             <optional>true</optional>
         </dependency>
 
