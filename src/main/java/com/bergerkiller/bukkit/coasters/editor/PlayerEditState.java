@@ -621,13 +621,11 @@ public class PlayerEditState implements CoasterWorldComponent {
             return true;
         }
 
-        // Check whether the current selection matches a previous selection
-        // If so, a toggle is requested
-        boolean isSameSelection = this.getEditedNodes().equals(bestNodes);
-
-        long lastEditTime = bestNodes.contains(this.lastEdited) ?
-                (System.currentTimeMillis() - this.lastEditTime) : Long.MAX_VALUE;
-        if (lastEditTime > 300) {
+        long currentTime = System.currentTimeMillis();
+        long timeSinceLastEdit = bestNodes.contains(this.lastEdited) ?
+                (currentTime - this.lastEditTime) : Long.MAX_VALUE;
+        this.lastEditTime = currentTime;
+        if (timeSinceLastEdit > 300) {
             // Single node selection mode
             if (!this.isSneaking()) {
                 clearEditedNodes();
@@ -635,24 +633,23 @@ public class PlayerEditState implements CoasterWorldComponent {
 
             // Toggle edit state
             for (TrackNode bestNode : bestNodes) {
-                if (isSameSelection) {
+                if (this.getEditedNodes().containsAll(bestNodes)) {
                     setEditing(bestNode, false);
                 } else {
                     selectNode(bestNode);
                 }
             }
 
-        } else if (isSameSelection) {
-            // Mass-selection mode
-            if (this.isSneaking()) {
-                // Select all nodes between the clicked node and the nearest other selected node
-                for (TrackNode bestNode : bestNodes) {
-                    this.floodSelectNearest(bestNode);
-                }
-            } else {
-                // Flood-fill select all nodes connected from bestNode
-                this.floodSelect(bestNodes);
+        } else if (this.getEditedNodes().size() > 1 && this.isSneaking()) {
+            // Select all nodes between the clicked node and the nearest other selected node
+            for (TrackNode bestNode : bestNodes) {
+                this.floodSelectNearest(bestNode);
             }
+
+        } else if (this.getEditedNodes().equals(bestNodes)) {
+            // Flood-fill select all nodes connected from bestNode
+            this.floodSelect(bestNodes);
+
         }
 
         return true;
@@ -702,7 +699,9 @@ public class PlayerEditState implements CoasterWorldComponent {
      */
     public void floodSelectNearest(TrackNode startNode) {
         // Find shortest path from startNode to any other nodes being edited
-        TrackNodeSearchPath bestPath = TrackNodeSearchPath.findShortest(startNode, this.getEditedNodes());
+        HashSet<TrackNode> selected = new HashSet<TrackNode>(this.getEditedNodes());
+        selected.remove(startNode);
+        TrackNodeSearchPath bestPath = TrackNodeSearchPath.findShortest(startNode, selected);
 
         // Now do stuff with the found path, if found
         if (bestPath != null) {

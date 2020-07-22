@@ -48,6 +48,8 @@ public class TrackNodeSearchPath {
         // Shortcut
         if (selected.contains(startNode)) {
             return new TrackNodeSearchPath(startNode);
+        } else if (selected.isEmpty()) {
+            return null;
         }
 
         // Recursion using a list of paths (to avoid stack overflow)
