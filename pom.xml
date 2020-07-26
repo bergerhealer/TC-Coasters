@@ -4,7 +4,7 @@
 
     <groupId>com.bergerkiller.bukkit</groupId>
     <artifactId>TCCoasters</artifactId>
-    <version>1.16.1-v1-SNAPSHOT</version>
+    <version>1.16.1-v1</version>
     <packaging>jar</packaging>
 
     <name>TCCoasters</name>
@@ -14,8 +14,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.mcversion>v1_11_R1</project.mcversion>
         <project.serverversion>1.15.2-R0.1-SNAPSHOT</project.serverversion>
-        <project.bkcversion>1.16.1-v1-SNAPSHOT</project.bkcversion>
-        <project.tcversion>1.15.2-v1</project.tcversion>
+        <project.bkcversion>1.16.1-v1</project.bkcversion>
+        <project.tcversion>1.16.1-v1</project.tcversion>
         <junit.version>4.12</junit.version>
     </properties>
 

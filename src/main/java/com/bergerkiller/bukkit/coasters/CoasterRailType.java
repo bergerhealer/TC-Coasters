@@ -211,7 +211,7 @@ public class CoasterRailType extends RailType {
     public Location getSpawnLocation(Block railsBlock, BlockFace orientation) {
         List<TrackRailsSection> rails = getRails(railsBlock.getWorld()).findAtRails(railsBlock);
         if (rails.isEmpty()) {
-            return super.getSpawnLocation(railsBlock, orientation);
+            return railsBlock.getLocation().add(0.5, 0.5, 0.5);
         } else {
             // Compute the spawn location when a single rails section exists
             Vector orientationVec = FaceUtil.faceToVector(orientation);
