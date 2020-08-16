@@ -288,6 +288,7 @@ public class TCCoasters extends PluginBase {
         this.maximumParticleCount = config.get("maximumParticleCount", DEFAULT_MAXIMUM_PARTICLE_COUNT);
         config.setHeader("plotSquaredEnabled", "\nWhether track editing permission integration with PlotSquared is enabled");
         config.addHeader("plotSquaredEnabled", "Players will be unable to edit coasters outside of their personal plot");
+        config.addHeader("plotSquaredEnabled", "Give players the 'train.coasters.plotsquared.use' permission to use TCC in their plots");
         this.plotSquaredEnabled = config.get("plotSquaredEnabled", DEFAULT_PLOTSQUARED_ENABLED);
         config.setHeader("priority", "\nWhether TC-Coasters track have priority over other rail types, like vanilla track");
         boolean priority = config.get("priority", false);
