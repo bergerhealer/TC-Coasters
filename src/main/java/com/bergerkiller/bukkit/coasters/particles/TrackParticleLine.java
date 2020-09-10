@@ -6,9 +6,10 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
+import com.bergerkiller.bukkit.common.internal.CommonBootstrap;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
+import com.bergerkiller.bukkit.common.utils.DebugUtil;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
@@ -27,16 +28,12 @@ public class TrackParticleLine extends TrackParticle {
     protected static final int FLAG_POSITION_CHANGED  = (1<<2);
     protected static final int FLAG_NEEDS_RESPAWN     = (1<<3);
 
-    private static final Vector OFFSET1, OFFSET2;
-    static {
-        if (Common.evaluateMCVersion(">=", "1.16")) {
-            OFFSET1 = new Vector(0.7, -0.065, -0.5);
-            OFFSET2 = new Vector(0.0, -0.45, -0.2);
-        } else {
-            OFFSET1 = new Vector(0.7, 0.16, -0.5);
-            OFFSET2 = new Vector(0.0, -1.1, -0.2);
-        }
-    }
+    private static final LineOffsets OFFSETS_1_8_TO_1_15_2 = new LineOffsets(0.7, 0.16, -0.5,
+                                                                             0.0, -1.1, -0.2);
+    private static final LineOffsets OFFSETS_1_16_TO_1_16_1 = new LineOffsets(0.7, -0.065, -0.5,
+                                                                              0.0, -0.45, -0.2);
+    private static final LineOffsets OFFSETS_1_16_2 = new LineOffsets(0.0, -0.31, 0.0,
+                                                                      0.0, -0.45, -0.2);
 
     private DoubleOctree.Entry<TrackParticle> p1, p2;
     private int e1 = -1, e2 = -1;
@@ -55,6 +52,22 @@ public class TrackParticleLine extends TrackParticle {
     protected void onRemoved() {
         removePosition(this.p1);
         removePosition(this.p2);
+    }
+
+    //TODO: Replace with active viaversion checks of the player itself
+    private static final boolean SERVER_IS_1_16_2 = CommonBootstrap.evaluateMCVersion(">=", "1.16.2");
+    private static final boolean SERVER_IS_1_16_TO_1_16_1 = CommonBootstrap.evaluateMCVersion("<=", "1.16.1") && CommonBootstrap.evaluateMCVersion(">=", "1.16");
+    //private static final boolean SERVER_IS_1_8_TO_1_15_2 = CommonBootstrap.evaluateMCVersion("<=", "1.15.2");
+
+    private LineOffsets getOffsets(Player player) {
+        //TODO: Handle ViaVersion and retrieve the right offsets to use
+        if (SERVER_IS_1_16_2) {
+            return OFFSETS_1_16_2;
+        } else if (SERVER_IS_1_16_TO_1_16_1) {
+            return OFFSETS_1_16_TO_1_16_1;
+        } else {
+            return OFFSETS_1_8_TO_1_15_2;
+        }
     }
 
     public void setPositions(Vector p1, Vector p2) {
@@ -99,23 +112,26 @@ public class TrackParticleLine extends TrackParticle {
             }
         }
         if (this.clearFlag(FLAG_POSITION_CHANGED)) {
-            if (this.e1 != -1) {
-                PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
-                        this.e1,
-                        this.p1.getX() + OFFSET1.getX(),
-                        this.p1.getY() + OFFSET1.getY(),
-                        this.p1.getZ() + OFFSET1.getZ(),
-                        0.0f, 0.0f, false);
-                broadcastPacket(tpPacket);
-            }
-            if (this.e2 != -1) {
-                PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
-                        this.e2,
-                        this.p2.getX() + OFFSET2.getX(),
-                        this.p2.getY() + OFFSET2.getY(),
-                        this.p2.getZ() + OFFSET2.getZ(),
-                        0.0f, 0.0f, false);
-                broadcastPacket(tpPacket);
+            for (Player viewer : this.getViewers()) {
+                LineOffsets offsets = getOffsets(viewer);
+                if (this.e1 != -1) {
+                    PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+                            this.e1,
+                            this.p1.getX() + offsets.p1x,
+                            this.p1.getY() + offsets.p1y,
+                            this.p1.getZ() + offsets.p1z,
+                            0.0f, 0.0f, false);
+                    PacketUtil.sendPacket(viewer, tpPacket);
+                }
+                if (this.e2 != -1) {
+                    PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+                            this.e2,
+                            this.p2.getX() + offsets.p2x,
+                            this.p2.getY() + offsets.p2y,
+                            this.p2.getZ() + offsets.p2z,
+                            0.0f, 0.0f, false);
+                    PacketUtil.sendPacket(viewer, tpPacket);
+                }
             }
         }
     }
@@ -134,13 +150,15 @@ public class TrackParticleLine extends TrackParticle {
             this.e2 = EntityUtil.getUniqueEntityId();
         }
 
+        LineOffsets offsets = getOffsets(viewer);
+
         PacketPlayOutSpawnEntityLivingHandle p1 = PacketPlayOutSpawnEntityLivingHandle.createNew();
         DataWatcher p1_meta = new DataWatcher();
         p1.setEntityId(this.e1);
         p1.setEntityUUID(UUID.randomUUID());
-        p1.setPosX(this.p1.getX() + OFFSET1.getX());
-        p1.setPosY(this.p1.getY() + OFFSET1.getY());
-        p1.setPosZ(this.p1.getZ() + OFFSET1.getZ());
+        p1.setPosX(this.p1.getX() + offsets.p1x);
+        p1.setPosY(this.p1.getY() + offsets.p1y);
+        p1.setPosZ(this.p1.getZ() + offsets.p1z);
         p1.setEntityType(EntityType.BAT);
         p1_meta.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
         p1_meta.set(EntityHandle.DATA_SILENT, true);
@@ -152,9 +170,9 @@ public class TrackParticleLine extends TrackParticle {
         DataWatcher p2_meta = new DataWatcher();
         p2.setEntityId(this.e2);
         p2.setEntityUUID(UUID.randomUUID());
-        p2.setPosX(this.p2.getX() + OFFSET2.getX());
-        p2.setPosY(this.p2.getY() + OFFSET2.getY());
-        p2.setPosZ(this.p2.getZ() + OFFSET2.getZ());
+        p2.setPosX(this.p2.getX() + offsets.p2x);
+        p2.setPosY(this.p2.getY() + offsets.p2y);
+        p2.setPosZ(this.p2.getZ() + offsets.p2z);
         p2.setEntityType(EntityType.BAT);
         p2_meta.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
         p2_meta.set(EntityHandle.DATA_SILENT, true);
@@ -180,5 +198,29 @@ public class TrackParticleLine extends TrackParticle {
     @Override
     public boolean usesEntityId(int entityId) {
         return this.e1 == entityId || this.e2 == entityId;
+    }
+
+    private static final class LineOffsets {
+        public final double p1x, p1y, p1z;
+        public final double p2x, p2y, p2z;
+
+        public LineOffsets(double p1x, double p1y, double p1z, double p2x, double p2y, double p2z) {
+            this.p1x = p1x;
+            this.p1y = p1y;
+            this.p1z = p1z;
+            this.p2x = p2x;
+            this.p2y = p2y;
+            this.p2z = p2z;
+        }
+
+        @SuppressWarnings("unused")
+        public LineOffsets debug() {
+            return new LineOffsets(DebugUtil.getDoubleValue("p1x", this.p1x),
+                                   DebugUtil.getDoubleValue("p1y", this.p1y),
+                                   DebugUtil.getDoubleValue("p1z", this.p1z),
+                                   DebugUtil.getDoubleValue("p2x", this.p2x),
+                                   DebugUtil.getDoubleValue("p2y", this.p2y),
+                                   DebugUtil.getDoubleValue("p2z", this.p2z));
+        }
     }
 }
