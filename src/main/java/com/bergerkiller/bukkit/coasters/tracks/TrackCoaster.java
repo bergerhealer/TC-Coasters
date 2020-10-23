@@ -222,7 +222,19 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
         try {
             this.loadFromStream(new FileInputStream(realFile));
         } catch (CoasterLoadException e) {
+            // Log the message
             this.getPlugin().getLogger().log(Level.SEVERE, e.getMessage());
+
+            // Move the file to a backup place
+            File backupFile = new File(folder, baseName + ".csv.corrupt." + System.currentTimeMillis());
+            if (realFile.renameTo(backupFile)) {
+                // Log it so people know
+                this.getPlugin().getLogger().log(Level.WARNING,
+                        "A backup of this corrupted coaster file can be found at " + backupFile.toString());
+
+                // Re-save the coaster right away, to make sure details are still there
+                this.save(false);
+            }
         } catch (FileNotFoundException e) {
             this.getPlugin().getLogger().log(Level.SEVERE,
                     "Failed to find file trying to load coaster " + this.getName());
