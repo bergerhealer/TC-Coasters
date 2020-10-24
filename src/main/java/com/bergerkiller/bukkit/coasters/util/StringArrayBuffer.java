@@ -262,6 +262,16 @@ public class StringArrayBuffer implements Iterator<String> {
     }
 
     /**
+     * Creates a syntax exception for the last column read out
+     * 
+     * @param message Message for the exception
+     * @return syntax exception
+     */
+    public SyntaxException createSyntaxException(String message) {
+        return new SyntaxException(-1, this.index+1, message);
+    }
+
+    /**
      * Gets the next String value
      * 
      * @return next String value

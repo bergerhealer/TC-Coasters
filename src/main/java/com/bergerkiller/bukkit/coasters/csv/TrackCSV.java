@@ -5,6 +5,7 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -50,6 +51,23 @@ public class TrackCSV {
             TrackObjectType<?> type = ((TrackObjectTypeEntry<?>) entry).getDefaultType();
             _trackObjectTypes.put(type.getClass(), CommonUtil.unsafeCast(entrySupplier));
             _trackObjectTypeDefaults.add(type);
+        }
+    }
+
+    public static void unregisterEntry(Supplier<CSVEntry> entrySupplier) {
+        CSVEntry entry = entrySupplier.get();
+        {
+            Iterator<Map.Entry<CSVEntry, Supplier<CSVEntry>>> iter = _entryTypes.iterator();
+            while (iter.hasNext()) {
+                if (iter.next().getKey().getClass() == entry.getClass()) {
+                    iter.remove();
+                }
+            }
+        }
+        if (entry instanceof TrackObjectTypeEntry) {
+            TrackObjectType<?> type = ((TrackObjectTypeEntry<?>) entry).getDefaultType();
+            _trackObjectTypes.remove(type.getClass());
+            _trackObjectTypeDefaults.remove(type);
         }
     }
 
@@ -109,7 +127,7 @@ public class TrackCSV {
      * @param reader to read from
      * @param buffer to fill with data
      * @return decoded entry, null if the end of the CSV was reached
-     * @throws EntrySyntaxException if there is a syntax error in the CSV
+     * @throws SyntaxException if there is a syntax error in the CSV
      * @throws IOException if reading fails due to an I/O error
      */
     public static CSVEntry readNext(CSVReader reader, StringArrayBuffer buffer) throws SyntaxException, IOException {

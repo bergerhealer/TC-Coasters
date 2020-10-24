@@ -9,6 +9,7 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.block.MapWidgetBlockGrid;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.block.MapWidgetBlockStateList;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.block.MapWidgetBlockVariantList;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeFallingBlock;
 import com.bergerkiller.bukkit.common.events.map.MapKeyEvent;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
@@ -93,8 +94,9 @@ public class BlockSelectMenu extends MapWidgetMenu {
         this.blockSelector.addAllBlocks();
         this.blockSelector.setPosition(7, 30);
 
-        if (stateSupplier.get().getObjects().getSelectedType() instanceof TrackObjectTypeFallingBlock) {
-            BlockData current = ((TrackObjectTypeFallingBlock) stateSupplier.get().getObjects().getSelectedType()).getMaterial();
+        TrackObjectType<?> type = stateSupplier.get().getObjects().getSelectedType();
+        if (type instanceof TrackObjectTypeFallingBlock) {
+            BlockData current = ((TrackObjectTypeFallingBlock) type).getMaterial();
             this.variantList.setBlock(current);
             this.blockSelector.setSelectedBlock(current.getType());
         }

@@ -106,6 +106,25 @@ public class ObjectEditState {
     }
 
     /**
+     * Reads a property of the selected track object type, if the track object type is of the given
+     * type specified. Also works if the type specified here is a subclass.
+     * 
+     * @param <T> Type of track object
+     * @param <V> Value type to return
+     * @param type Type Class of the track object
+     * @param property The property of the track object to read
+     * @param defaultValue Default value to return if the selected type is not this type
+     * @return property value
+     */
+    public <T, V> V getSelectedTypeProperty(Class<T> type, Function<T, V> property, V defaultValue) {
+        if (type.isAssignableFrom(this.getSelectedType().getClass())) {
+            return property.apply(CommonUtil.unsafeCast(this.getSelectedType()));
+        } else {
+            return defaultValue;
+        }
+    }
+
+    /**
      * Alters the currently selected track object type using a manipulator function
      * 
      * @param manipulator Manipulator function that will change the selected type as a result

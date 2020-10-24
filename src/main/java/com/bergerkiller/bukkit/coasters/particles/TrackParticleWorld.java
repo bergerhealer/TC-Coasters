@@ -1,7 +1,9 @@
 package com.bergerkiller.bukkit.coasters.particles;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,6 +28,7 @@ import com.bergerkiller.bukkit.common.wrappers.BlockData;
 public class TrackParticleWorld implements CoasterWorldComponent {
     private final CoasterWorld _world;
     public DoubleOctree<TrackParticle> particles = new DoubleOctree<TrackParticle>();
+    public List<TrackParticle> particlesWithoutViewers = new ArrayList<TrackParticle>();
     private final Map<Player, ViewerParticleList> viewers = new ConcurrentHashMap<>(16, 0.75f, 1);
     private int updateCtr = 0;
     private boolean forceViewerUpdate = false;
@@ -37,6 +40,10 @@ public class TrackParticleWorld implements CoasterWorldComponent {
     @Override
     public final CoasterWorld getWorld() {
         return this._world;
+    }
+
+    public TrackParticleLight addParticleLight(Vector position, TrackParticleLight.LightType type, int level) {
+        return addParticle(new TrackParticleLight(position, type, level));
     }
 
     public TrackParticleWidthMarker addParticleWidthMarker(Vector position, Quaternion orientation, double width) {
@@ -82,24 +89,41 @@ public class TrackParticleWorld implements CoasterWorldComponent {
     protected <T extends TrackParticle> T addParticle(T particle) {
         particle.world = this;
         particle.onAdded();
-        this.forceViewerUpdate = true;
+        if (particle.isUsingViewers()) {
+            this.forceViewerUpdate = true;
+        }
         return particle;
     }
 
     public void removeParticle(TrackParticle particle) {
         if (particle.world == this) {
-            particle.makeHiddenForAll();
-            particle.onRemoved();
-            particle.world = null;
-            this.forceViewerUpdate = true;
+            if (particle.isUsingViewers()) {
+                particle.makeHiddenForAll();
+                particle.onRemoved();
+                particle.world = null;
+                this.forceViewerUpdate = true;
+            } else {
+                particle.onRemoved();
+                particle.world = null;
+            }
         }
     }
 
     public void removeAll() {
-        for (TrackParticle particle : this.particles.values()) {
-            removeParticle(particle);
+        {
+            for (TrackParticle particle : this.particles.values()) {
+                removeParticle(particle);
+            }
+            this.particles.clear();
         }
-        this.particles.clear();
+        {
+            List<TrackParticle> withoutViewers = new ArrayList<TrackParticle>(this.particlesWithoutViewers);
+            this.particlesWithoutViewers.clear();
+            for (TrackParticle particle : withoutViewers) {
+                removeParticle(particle);
+            }
+        }
+        this.particlesWithoutViewers.clear();
         this.viewers.clear();
         this.updateCtr = 0;
         this.forceViewerUpdate = false;

@@ -161,6 +161,18 @@ public abstract class TrackParticle {
     }
 
     /**
+     * Whether this type of particle tracks viewers in range of the particle
+     * when updating appearance. If the particle alters state, such as a physical
+     * block, light or spawns particles continuously, then knowing what viewers
+     * exist nearby isn't important anymore.
+     * 
+     * @return True if this particle tracks viewers
+     */
+    public boolean isUsingViewers() {
+        return true;
+    }
+
+    /**
      * Gets whether this particle is always visible, even when the viewer is not in the
      * TC-Coasters edit mode.
      * 
@@ -216,6 +228,18 @@ public abstract class TrackParticle {
     protected void removePosition(DoubleOctree.Entry<TrackParticle> pos) {
         if (this.world != null) {
             this.world.particles.removeEntry(pos);
+        }
+    }
+
+    protected void addWithoutViewers() {
+        if (this.world != null) {
+            this.world.particlesWithoutViewers.add(this);
+        }
+    }
+
+    protected void removeWithoutViewers() {
+        if (this.world != null) {
+            this.world.particlesWithoutViewers.remove(this);
         }
     }
 

@@ -32,6 +32,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
 import com.bergerkiller.bukkit.coasters.csv.TrackCSVWriter;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
@@ -39,6 +40,7 @@ import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.events.CoasterCopyEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterImportEvent;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeLight;
 import com.bergerkiller.bukkit.coasters.signs.SignActionTrackAnimate;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster.CoasterLoadException;
@@ -80,6 +82,7 @@ public class TCCoasters extends PluginBase {
     private static final int DEFAULT_PARTICLE_VIEW_RANGE = 64;
     private static final int DEFAULT_MAXIMUM_PARTICLE_COUNT = 5000;
     private static final boolean DEFAULT_PLOTSQUARED_ENABLED = false;
+    private static final boolean DEFAULT_LIGHTAPI_ENABLED = true;
     private Task worldUpdateTask, runQueuedTasksTask, updatePlayerEditStatesTask, autosaveTask;
     private final CoasterRailType coasterRailType = new CoasterRailType(this);
     private final SignActionTrackAnimate trackAnimateAction = new SignActionTrackAnimate();
@@ -94,6 +97,8 @@ public class TCCoasters extends PluginBase {
     private int particleViewRange = DEFAULT_PARTICLE_VIEW_RANGE;
     private int maximumParticleCount = DEFAULT_MAXIMUM_PARTICLE_COUNT;
     private boolean plotSquaredEnabled = DEFAULT_PLOTSQUARED_ENABLED;
+    private boolean lightAPIEnabled = DEFAULT_LIGHTAPI_ENABLED;
+    private boolean lightAPIFound = false;
     private Listener plotSquaredHandler = null;
     private File importFolder, exportFolder;
 
@@ -290,6 +295,8 @@ public class TCCoasters extends PluginBase {
         config.addHeader("plotSquaredEnabled", "Players will be unable to edit coasters outside of their personal plot");
         config.addHeader("plotSquaredEnabled", "Give players the 'train.coasters.plotsquared.use' permission to use TCC in their plots");
         this.plotSquaredEnabled = config.get("plotSquaredEnabled", DEFAULT_PLOTSQUARED_ENABLED);
+        config.setHeader("lightAPIEnabled", "\nWhether the light track object is made available when LightAPI is detected");
+        this.lightAPIEnabled = config.get("lightAPIEnabled", DEFAULT_LIGHTAPI_ENABLED);
         config.setHeader("priority", "\nWhether TC-Coasters track have priority over other rail types, like vanilla track");
         boolean priority = config.get("priority", false);
         config.save();
@@ -302,6 +309,14 @@ public class TCCoasters extends PluginBase {
 
         // More magic!
         SignAction.register(this.trackAnimateAction);
+
+        // Before loading coasters, detect LightAPI
+        {
+            Plugin plugin = Bukkit.getPluginManager().getPlugin("LightAPI");
+            if (plugin != null && plugin.isEnabled()) {
+                this.updateDependency(plugin, plugin.getName(), true);
+            }
+        }
 
         // Load all coasters from csv
         for (World world : Bukkit.getWorlds()) {
@@ -364,6 +379,15 @@ public class TCCoasters extends PluginBase {
                     this.plotSquaredHandler = null;
                     this.log(Level.INFO, "PlotSquared support disabled!");
                 }
+            }
+        } else if (pluginName.equals("LightAPI") && ((enabled && lightAPIEnabled) != lightAPIFound)) {
+            lightAPIFound = (enabled && lightAPIEnabled);
+            if (lightAPIFound) {
+                log(Level.INFO, "LightAPI detected, the Light track object is now available");
+                TrackCSV.registerEntry(TrackObjectTypeLight.CSVEntry::new);
+            } else {
+                log(Level.INFO, "LightAPI disabled, the Light track object is no longer available");
+                TrackCSV.unregisterEntry(TrackObjectTypeLight.CSVEntry::new);
             }
         }
     }

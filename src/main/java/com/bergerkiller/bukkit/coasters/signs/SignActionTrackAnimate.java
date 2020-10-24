@@ -7,6 +7,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.tc.events.SignActionEvent;
 import com.bergerkiller.bukkit.tc.events.SignChangeActionEvent;
+import com.bergerkiller.bukkit.tc.utils.SignBuildOptions;
 
 public class SignActionTrackAnimate extends TCCSignAction {
 
@@ -26,6 +27,10 @@ public class SignActionTrackAnimate extends TCCSignAction {
 
     @Override
     public boolean build(SignChangeActionEvent event) {
-        return handleBuild(event, TCCoastersPermissions.BUILD_ANIMATOR, "track animator", "start coaster track animations");
+        return SignBuildOptions.create()
+                .setPermission(TCCoastersPermissions.BUILD_ANIMATOR)
+                .setName("track animator")
+                .setDescription("start coaster track animations")
+                .handle(event.getPlayer());
     }
 }
