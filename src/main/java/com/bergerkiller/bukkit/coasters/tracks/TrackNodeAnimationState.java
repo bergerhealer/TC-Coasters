@@ -33,7 +33,7 @@ public class TrackNodeAnimationState {
     public TrackNodeAnimationState dereference() {
         TrackConnectionState[] dereferenced_connections = new TrackConnectionState[connections.length];
         for (int i = 0; i < dereferenced_connections.length; i++) {
-            dereferenced_connections[i] = dereferenced_connections[i].dereference();
+            dereferenced_connections[i] = connections[i].dereference();
         }
         return new TrackNodeAnimationState(this.name, this.state, dereferenced_connections);
     }
