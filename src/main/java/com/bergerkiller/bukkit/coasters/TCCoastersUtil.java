@@ -1,6 +1,8 @@
 package com.bergerkiller.bukkit.coasters;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -17,6 +19,7 @@ import com.bergerkiller.bukkit.tc.Util;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
+import com.bergerkiller.bukkit.tc.rails.logic.RailLogic;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogicHorizontal;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
 import com.bergerkiller.generated.net.minecraft.server.AxisAlignedBBHandle;
@@ -175,6 +178,67 @@ public class TCCoastersUtil {
         return false;
     }
 
+    /**
+     * Based upon {@link RailType#loadRailInformation(RailState)}. Does not use
+     * a cache, and excludes coaster rail types from the query.
+     * 
+     * @param state to load with rail information
+     * @return True if rails were found (railtype != NONE), False otherwise
+     */
+    public static boolean loadNonCoasterRailInformation(RailState state) {
+        state.initEnterDirection();
+        state.position().assertAbsolute();
+
+        // Standard lookup
+        RailPiece[] railPieces = new RailPiece[0];
+        Block positionBlock = state.positionBlock();
+        for (RailType type : RailType.values()) {
+            if (type instanceof CoasterRailType) {
+                continue;
+            }
+
+            try {
+                List<Block> rails = type.findRails(positionBlock);
+                if (!rails.isEmpty()) {
+                    int index = railPieces.length;
+                    railPieces = Arrays.copyOf(railPieces, railPieces.length + rails.size());
+                    for (Block railsBlock : rails) {
+                        railPieces[index++] = RailPiece.create(type, railsBlock);
+                    }
+                    break;
+                }
+            } catch (Throwable t) {
+                RailType.handleCriticalError(type, t);
+            }
+        }
+
+        // Check no results
+        if (railPieces.length == 0) {
+            state.setRailPiece(RailPiece.create(RailType.NONE, positionBlock));
+            return false;
+        }
+
+        // If more than one rail piece exists here, pick the most appropriate one for this position
+        // This is a little bit slower, but required for rare instances of multiple rails per block
+        RailPiece resultPiece = railPieces[0];
+        if (railPieces.length >= 2) {
+            RailPath.ProximityInfo nearest = null;
+            for (RailPiece piece : railPieces) {
+                state.setRailPiece(piece);
+                RailLogic logic = state.loadRailLogic();
+                RailPath path = logic.getPath();
+                RailPath.ProximityInfo near = path.getProximityInfo(state.railPosition(), state.motionVector());
+                if (nearest == null || near.compareTo(nearest) < 0) {
+                    nearest = near;
+                    resultPiece = piece;
+                }
+            }
+        }
+
+        state.setRailPiece(resultPiece);
+        return true;
+    }
+
     public static boolean snapToRails(World world, IntVector3 ignoreNodeBlock, Vector position, Vector direction, Vector orientation) {
         // Snap to normal/other types of rails
         Block positionBlock = world.getBlockAt(position.getBlockX(), position.getBlockY(), position.getBlockZ());
@@ -184,11 +248,7 @@ public class TCCoastersUtil {
         state.position().posZ = position.getZ();
         state.position().setMotion(direction);
         state.setRailPiece(RailPiece.create(RailType.NONE, positionBlock));
-        if (RailType.loadRailInformation(state)) {
-            if (state.railType() instanceof CoasterRailType) {
-                return false;
-            }
-
+        if (loadNonCoasterRailInformation(state)) {
             RailPath path = state.loadRailLogic().getPath();
             RailPath.Position p1 = path.getStartPosition();
             RailPath.Position p2 = path.getEndPosition();
