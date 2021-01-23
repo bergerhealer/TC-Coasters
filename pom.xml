@@ -4,7 +4,7 @@
 
     <groupId>com.bergerkiller.bukkit</groupId>
     <artifactId>TCCoasters</artifactId>
-    <version>1.16.4-v1-SNAPSHOT</version>
+    <version>1.16.5-v1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>TCCoasters</name>
@@ -78,12 +78,6 @@
             <artifactId>TrainCarts</artifactId>
             <version>${project.tcversion}</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>3.8.1</version>
-            <scope>test</scope>
         </dependency>
 
         <!-- PlotSquared v4 API (DEPRECATED) -->
