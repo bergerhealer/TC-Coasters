@@ -3,8 +3,11 @@ package com.bergerkiller.bukkit.coasters;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.bukkit.Location;
@@ -173,37 +176,76 @@ public class CoasterRailType extends RailType {
 
     @Override
     public RailLogic getLogic(RailState state) {
-        List<TrackRailsSection> rails = getRailSections(state.railBlock());
-        if (rails.isEmpty()) {
+        final List<TrackRailsSection> rails = getRailSections(state.railBlock());
+        final int numRails = rails.size();
+        if (numRails == 0) {
             return RailLogicAir.INSTANCE;
         }
 
-        int serverTicks = CommonUtil.getServerTicks();
-        TrackRailsSection section = rails.get(0);
-        if (rails.size() >= 2) {
-            final double distSqResolution = (0.4*0.4);
-            Vector railPosition = state.railPosition();
-            double sectionDistSq = section.distanceSq(railPosition);
-            for (int i = 1; i < rails.size(); i++) {
-                TrackRailsSection other = rails.get(i);
-                double otherDistSq = other.distanceSq(railPosition);
+        TrackRailsSection section;
+        if (numRails == 1) {
+            // Only one to pick from, so pick it
+            section = rails.get(0);
+        } else {
+            // Turn all rails into TrackRailsSectionPick
+            // This adds information about the distance (squared) to the
+            // position on the rails.
+            final List<TrackRailsSectionPick> picks;
+            {
+                final Vector railPosition = state.railPosition();
+                picks = rails.stream()
+                        .map(s -> new TrackRailsSectionPick(s, railPosition))
+                        .collect(Collectors.toList());
+            }
 
-                // When below a movement resolution, check which section we picked previously by tracking server ticks
-                // This makes sure a train continues using a junction it was already using
-                // If this is above the threshold, instead check which section is closer to the train
-                boolean isBelowResolution = (state.member() != null && sectionDistSq < distSqResolution && otherDistSq < distSqResolution);
-                if (isBelowResolution ?
-                        (other.tickLastPicked > section.tickLastPicked && other.tickLastPicked >= (serverTicks-1)) :
-                        (otherDistSq < sectionDistSq))
-                {
-                    section = other;
-                    sectionDistSq = otherDistSq;
+            // If any of the rails in this list were picked last time as well,
+            // we ignore all other rails sections bound to the same node.
+            // This prevents trains teleporting between paths while traveling
+            // over a junction.
+            final int serverTickThreshold = (CommonUtil.getServerTicks() - 1);
+            Optional<TrackRailsSectionPick> opt_preferred = picks.stream()
+                    .filter(pick -> pick.isPickedBefore(serverTickThreshold))
+                    .min(TrackRailsSectionPick.COMPARATOR);
+
+            // Junction logic: eliminate all non-preferred rails sections that
+            // are part of the same junction. This is detected by checking whether
+            // the section has a node in common.
+            if (opt_preferred.isPresent()) {
+                final TrackRailsSectionPick preferred = opt_preferred.get();
+                final Set<TrackNode> junctionNodes = preferred.section.getNodes()
+                        .filter(n -> n.getConnections().size() > 2)
+                        .collect(Collectors.toSet());
+                if (junctionNodes.isEmpty()) {
+                    // None of these are actual junctions, don't do anything special
+                    opt_preferred = Optional.empty();
+                } else {
+                    // Check if any of the alternatives are a better fit
+                    // Only allow those not part of the junction
+                    Optional<TrackRailsSectionPick> opt_alternative = picks.stream()
+                            .filter(pick -> {
+                                // Check if picked before, if so, we already filtered this earlier
+                                // Check if below distance threshold of the preferred one
+                                if (pick.isPickedBefore(serverTickThreshold) || pick.dist_sq > preferred.dist_sq) {
+                                    return false;
+                                }
+
+                                // Check no nodes in common with the preferred section
+                                return !pick.section.getNodes().anyMatch(junctionNodes::contains);
+                            })
+                            .min(TrackRailsSectionPick.COMPARATOR);
+
+                    if (opt_alternative.isPresent()) {
+                        opt_preferred = opt_alternative;
+                    }
                 }
             }
+
+            // If none is preferred, simply pick whichever has lowest distance
+            section = opt_preferred.orElseGet(() -> {
+                return picks.stream().min(TrackRailsSectionPick.COMPARATOR).get();
+            }).section;
         }
-        if (state.member() != null) {
-            section.tickLastPicked = serverTicks;
-        }
+
         return new CoasterRailLogic(section);
     }
 
@@ -239,5 +281,27 @@ public class CoasterRailType extends RailType {
 
     private final TrackRailsWorld getRails(World world) {
         return this.plugin.getCoasterWorld(world).getRails();
+    }
+
+    private static class TrackRailsSectionPick {
+        private static final double PICK_MIN_DIST_SQ = (0.4 * 0.4);
+        public final TrackRailsSection section;
+        public final double dist_sq;
+
+        /**
+         * Used to find the pick with the lowest dist_sq
+         */
+        public static final Comparator<TrackRailsSectionPick> COMPARATOR = (a, b) -> {
+            return Double.compare(a.dist_sq, b.dist_sq);
+        };
+
+        public TrackRailsSectionPick(TrackRailsSection section, Vector railPosition) {
+            this.section = section;
+            this.dist_sq = section.distanceSq(railPosition);
+        }
+
+        public boolean isPickedBefore(int serverTickThreshold) {
+            return this.dist_sq < PICK_MIN_DIST_SQ && this.section.tickLastPicked >= serverTickThreshold;
+        }
     }
 }

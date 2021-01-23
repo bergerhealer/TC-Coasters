@@ -91,6 +91,7 @@ public class TrackRailsSection {
 
     public double distanceSq(Vector railPosition) {
         RailPath.Position pos = new RailPath.Position();
+        pos.relative = true;
         pos.posX = railPosition.getX();
         pos.posY = railPosition.getY();
         pos.posZ = railPosition.getZ();
