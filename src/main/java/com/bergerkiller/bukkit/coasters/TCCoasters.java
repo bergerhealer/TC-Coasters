@@ -565,6 +565,13 @@ public class TCCoasters extends PluginBase {
             } else {
                 sender.sendMessage("No more changes to redo");
             }
+        } else if (args.length > 0 && args[0].equals("deselect")) {
+            if (state.hasEditedNodes()) {
+                state.clearEditedNodes();
+                sender.sendMessage("Deselected all previously selected nodes");
+            } else {
+                sender.sendMessage("No nodes were selected");
+            }
         } else if (args.length > 0 && args[0].equals("copy")) {
             state.getClipboard().copy();
             if (state.getClipboard().isFilled()) {
