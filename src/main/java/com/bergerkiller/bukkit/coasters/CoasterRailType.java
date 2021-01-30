@@ -292,6 +292,12 @@ public class CoasterRailType extends RailType {
          * Used to find the pick with the lowest dist_sq
          */
         public static final Comparator<TrackRailsSectionPick> COMPARATOR = (a, b) -> {
+            // When similar enough, but one is primary (junction selected), prefer primary
+            // This makes sure junction switching works correctly
+            if (a.section.primary != b.section.primary && Math.abs(a.dist_sq - b.dist_sq) < 1e-3) {
+                return a.section.primary ? -1 : 1;
+            }
+
             return Double.compare(a.dist_sq, b.dist_sq);
         };
 
