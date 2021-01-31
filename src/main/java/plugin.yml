@@ -1,6 +1,7 @@
 name: TCCoasters
 main: com.bergerkiller.bukkit.coasters.TCCoasters
 version: ${project.version}
+build: ${project.build.number}
 authors: [bergerkiller]
 description: Add-on for TrainCarts that adds free-form rollercoaster track
 depend: [Train_Carts]
