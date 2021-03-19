@@ -17,6 +17,7 @@
         <project.serverversion>1.15.2-R0.1-SNAPSHOT</project.serverversion>
         <project.bkcversion>1.16.1-v1</project.bkcversion>
         <project.tcversion>1.16.1-v1</project.tcversion>
+        <project.viaversion>3.2.1</project.viaversion>
         <junit.version>4.12</junit.version>
     </properties>
 
@@ -67,6 +68,12 @@
             <id>sk89q</id>
             <url>http://maven.sk89q.com/repo/</url>
         </repository>
+        <!-- Viaversion -->
+        <repository>
+            <id>viaversion-repo</id>
+            <url>https://repo.viaversion.com</url>
+        </repository>
+
     </repositories>
 
     <dependencies>
@@ -108,6 +115,14 @@
             <groupId>com.plotsquared</groupId>
             <artifactId>PlotSquared-Core</artifactId>
             <version>5.12.0</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ViaVersion API -->
+        <dependency>
+            <groupId>us.myles</groupId>
+            <artifactId>viaversion</artifactId>
+            <version>${project.viaversion}</version>
             <optional>true</optional>
         </dependency>
 

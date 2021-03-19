@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.particles;
 
 import java.util.UUID;
 
+import com.bergerkiller.bukkit.coasters.TCCoasters;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -55,15 +56,13 @@ public class TrackParticleLine extends TrackParticle {
     }
 
     //TODO: Replace with active viaversion checks of the player itself
-    private static final boolean SERVER_IS_1_16_2 = CommonBootstrap.evaluateMCVersion(">=", "1.16.2");
-    private static final boolean SERVER_IS_1_16_TO_1_16_1 = CommonBootstrap.evaluateMCVersion("<=", "1.16.1") && CommonBootstrap.evaluateMCVersion(">=", "1.16");
-    //private static final boolean SERVER_IS_1_8_TO_1_15_2 = CommonBootstrap.evaluateMCVersion("<=", "1.15.2");
+
 
     private LineOffsets getOffsets(Player player) {
         //TODO: Handle ViaVersion and retrieve the right offsets to use
-        if (SERVER_IS_1_16_2) {
+        if (TCCoasters.getVersioning().SERVER_IS_1_16_2(player)) {
             return OFFSETS_1_16_2;
-        } else if (SERVER_IS_1_16_TO_1_16_1) {
+        } else if (TCCoasters.getVersioning().SERVER_1_16_TO_1_16_1(player)) {
             return OFFSETS_1_16_TO_1_16_1;
         } else {
             return OFFSETS_1_8_TO_1_15_2;
