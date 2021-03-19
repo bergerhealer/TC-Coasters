@@ -55,11 +55,9 @@ public class TrackParticleLine extends TrackParticle {
         removePosition(this.p2);
     }
 
-    //TODO: Replace with active viaversion checks of the player itself
 
 
     private LineOffsets getOffsets(Player player) {
-        //TODO: Handle ViaVersion and retrieve the right offsets to use
         if (TCCoasters.getVersioning().SERVER_IS_1_16_2(player)) {
             return OFFSETS_1_16_2;
         } else if (TCCoasters.getVersioning().SERVER_1_16_TO_1_16_1(player)) {
