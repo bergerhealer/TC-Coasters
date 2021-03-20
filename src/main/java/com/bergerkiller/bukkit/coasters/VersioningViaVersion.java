@@ -14,11 +14,13 @@ public class VersioningViaVersion implements Versioning {
 
     @Override
     public boolean SERVER_1_16_TO_1_16_1(Player player) {
-        return (api.getPlayerVersion(player) >= 735 && api.getPlayerVersion(player) <= 736);
+        int version = api.getPlayerVersion(player);
+        return (version >= 735 && version <= 736);
     }
 
     @Override
     public boolean SERVER_IS_1_8_TO_1_15_2(Player player) {
-        return (api.getPlayerVersion(player) >= 47 && api.getPlayerVersion(player) <= 578);
+        int version = api.getPlayerVersion(player);
+        return (version >= 47 && version <= 578);
     }
 }

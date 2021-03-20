@@ -101,7 +101,7 @@ public class TCCoasters extends PluginBase {
     private boolean lightAPIFound = false;
     private boolean viaVersionEnabled = false;
     private Listener plotSquaredHandler = null;
-    private static Versioning versioning = new VersioningVanilla();
+    private Versioning versioning = new VersioningVanilla();
     private File importFolder, exportFolder;
 
     public void unloadWorld(World world) {
@@ -244,7 +244,7 @@ public class TCCoasters extends PluginBase {
      *
      * @return Versioning variable, VersioningViaVersion if enabled
      */
-    public static Versioning getVersioning() {return versioning;}
+    public Versioning getVersioning() {return versioning;}
     /**
      * Gets the particle view range. Players can see particles when
      * below this distance away from a particle.

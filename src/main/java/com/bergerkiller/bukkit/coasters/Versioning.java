@@ -1,6 +1,6 @@
 package com.bergerkiller.bukkit.coasters;
-        import com.bergerkiller.bukkit.common.internal.CommonBootstrap;
-        import org.bukkit.entity.Player;
+
+import org.bukkit.entity.Player;
 
 public interface Versioning {
 

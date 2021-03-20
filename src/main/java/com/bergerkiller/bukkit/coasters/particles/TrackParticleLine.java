@@ -58,9 +58,9 @@ public class TrackParticleLine extends TrackParticle {
 
 
     private LineOffsets getOffsets(Player player) {
-        if (TCCoasters.getVersioning().SERVER_IS_1_16_2(player)) {
+        if (getWorld().getPlugin().getVersioning().SERVER_IS_1_16_2(player)) {
             return OFFSETS_1_16_2;
-        } else if (TCCoasters.getVersioning().SERVER_1_16_TO_1_16_1(player)) {
+        } else if (getWorld().getPlugin().getVersioning().SERVER_1_16_TO_1_16_1(player)) {
             return OFFSETS_1_16_TO_1_16_1;
         } else {
             return OFFSETS_1_8_TO_1_15_2;
