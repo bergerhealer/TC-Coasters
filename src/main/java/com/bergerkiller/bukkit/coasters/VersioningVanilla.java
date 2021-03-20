@@ -4,7 +4,7 @@ import org.bukkit.entity.Player;
 
 public class VersioningVanilla implements Versioning {
 
-    boolean is1_16_2, is_1_16_to_1_16_1, is1_8_to_1_15_2;
+    private boolean is1_16_2, is_1_16_to_1_16_1, is1_8_to_1_15_2;
 
     public VersioningVanilla() {
         is1_16_2 = CommonBootstrap.evaluateMCVersion(">=", "1.16.2");
