@@ -99,7 +99,9 @@ public class TCCoasters extends PluginBase {
     private boolean plotSquaredEnabled = DEFAULT_PLOTSQUARED_ENABLED;
     private boolean lightAPIEnabled = DEFAULT_LIGHTAPI_ENABLED;
     private boolean lightAPIFound = false;
+    private boolean viaVersionEnabled = false;
     private Listener plotSquaredHandler = null;
+    private Versioning versioning = new VersioningVanilla();
     private File importFolder, exportFolder;
 
     public void unloadWorld(World world) {
@@ -238,6 +240,12 @@ public class TCCoasters extends PluginBase {
     }
 
     /**
+     * Gets versioning class for correct
+     *
+     * @return Versioning variable, VersioningViaVersion if enabled
+     */
+    public Versioning getVersioning() {return versioning;}
+    /**
      * Gets the particle view range. Players can see particles when
      * below this distance away from a particle.
      * 
@@ -318,6 +326,14 @@ public class TCCoasters extends PluginBase {
             }
         }
 
+        // Before loading, detect ViaVersion
+        {
+            Plugin plugin = Bukkit.getPluginManager().getPlugin("ViaVersion");
+            if (plugin != null && plugin.isEnabled()) {
+                this.updateDependency(plugin, plugin.getName(), true);
+            }
+        }
+
         // Load all coasters from csv
         for (World world : Bukkit.getWorlds()) {
             this.getCoasterWorld(world).getTracks().load();
@@ -389,6 +405,11 @@ public class TCCoasters extends PluginBase {
                 log(Level.INFO, "LightAPI disabled, the Light track object is no longer available");
                 TrackCSV.unregisterEntry(TrackObjectTypeLight.CSVEntry::new);
             }
+        } else if (pluginName.equals("ViaVersion") && enabled) {
+            log(Level.INFO, "ViaVersion detected, Will use player version info.");
+            this.viaVersionEnabled = true;
+            versioning = new VersioningViaVersion();
+
         }
     }
 
