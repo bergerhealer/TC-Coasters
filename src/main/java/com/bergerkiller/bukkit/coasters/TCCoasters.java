@@ -99,7 +99,6 @@ public class TCCoasters extends PluginBase {
     private boolean plotSquaredEnabled = DEFAULT_PLOTSQUARED_ENABLED;
     private boolean lightAPIEnabled = DEFAULT_LIGHTAPI_ENABLED;
     private boolean lightAPIFound = false;
-    private boolean viaVersionEnabled = false;
     private Listener plotSquaredHandler = null;
     private Versioning versioning = new VersioningVanilla();
     private File importFolder, exportFolder;
@@ -405,11 +404,14 @@ public class TCCoasters extends PluginBase {
                 log(Level.INFO, "LightAPI disabled, the Light track object is no longer available");
                 TrackCSV.unregisterEntry(TrackObjectTypeLight.CSVEntry::new);
             }
-        } else if (pluginName.equals("ViaVersion") && enabled) {
-            log(Level.INFO, "ViaVersion detected, Will use player version info.");
-            this.viaVersionEnabled = true;
-            versioning = new VersioningViaVersion();
-
+        } else if (pluginName.equals("ViaVersion")) {
+            if (enabled) {
+                log(Level.INFO, "ViaVersion detected, Will use player version info.");
+                versioning = new VersioningViaVersion();
+            } else {
+                log(Level.INFO, "ViaVersion was disabled, will no longer use player version info.");
+                versioning = new VersioningVanilla();
+            }
         }
     }
 

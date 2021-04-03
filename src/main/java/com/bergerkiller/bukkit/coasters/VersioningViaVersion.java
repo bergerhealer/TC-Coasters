@@ -5,7 +5,8 @@ import us.myles.ViaVersion.api.ViaAPI;
 
 public class VersioningViaVersion implements Versioning {
 
-    ViaAPI api = Via.getAPI();
+    @SuppressWarnings("unchecked")
+    ViaAPI<Player> api = (ViaAPI<Player>) Via.getAPI();
 
     @Override
     public boolean SERVER_IS_1_16_2(Player player) {

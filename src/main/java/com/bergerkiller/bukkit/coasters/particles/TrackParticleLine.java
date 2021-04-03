@@ -2,13 +2,11 @@ package com.bergerkiller.bukkit.coasters.particles;
 
 import java.util.UUID;
 
-import com.bergerkiller.bukkit.coasters.TCCoasters;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
-import com.bergerkiller.bukkit.common.internal.CommonBootstrap;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.DebugUtil;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
