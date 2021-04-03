@@ -473,6 +473,25 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         return true;
     }
 
+    /**
+     * Gets the zero-distance neighbour node that is connected to this node,
+     * if one exists. This generally only occurs when a node has been 'straightened'
+     * and has two connections with other nodes.
+     *
+     * @return zero-distance neighbour, null if no such neighbour exists
+     */
+    public TrackNode getZeroDistanceNeighbour() {
+        List<TrackNode> result = Collections.emptyList();
+        for (TrackConnection connection : this._connections) {
+            if (connection.isZeroLength()) {
+                if (result.isEmpty()) {
+                    return connection.getOtherNode(this);
+                }
+            }
+        }
+        return null;
+    }
+
     public final List<RailJunction> getJunctions() {
         List<TrackConnection> connections = this.getSortedConnections();
         if (connections.isEmpty()) {
@@ -940,6 +959,12 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             } else {
                 connection_b.buildPath(points, railsPos, getPlugin().getSmoothness(), 1.0, 0.5);
             }
+        }
+
+        // This happens when this node has two zero-length connections,
+        // or a single connection with zero length. Properly resolve that.
+        if (points.size() <= 1) {
+            return RailPath.EMPTY;
         }
 
         RailPath.Builder builder = new RailPath.Builder();

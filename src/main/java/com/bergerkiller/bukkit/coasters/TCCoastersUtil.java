@@ -160,8 +160,9 @@ public class TCCoastersUtil {
     }
 
     public static boolean snapToCoasterRails(TrackNode selfNode, Vector position, Vector orientation) {
+        TrackNode zeroNode = selfNode.getZeroDistanceNeighbour();
         for (TrackNode nearby : selfNode.getWorld().getTracks().findNodesNear(new ArrayList<TrackNode>(0), position, 0.25)) {
-            if (nearby == selfNode) {
+            if (nearby == selfNode || nearby == zeroNode) {
                 continue;
             }
 

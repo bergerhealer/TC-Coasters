@@ -75,16 +75,27 @@ public abstract class HistoryChangeCollection {
         return event;
     }
 
-    public final HistoryChange addChangeConnect(Player who, TrackNode nodeA, TrackNode nodeB) throws ChangeCancelledException {
+    public final HistoryChange addChangeAfterConnect(Player who, TrackNode nodeA, TrackNode nodeB) throws ChangeCancelledException {
         for (TrackConnection connection : nodeA.getConnections()) {
             if (connection.getOtherNode(nodeA) == nodeB) {
-                return addChangeConnect(who, connection);
+                return addChangeAfterConnect(who, connection);
             }
         }
         throw new IllegalStateException("Trying to handle a connect change for a connection that does not exist");
     }
 
-    public final HistoryChange addChangeConnect(Player who, TrackConnection connection) throws ChangeCancelledException {
+    /**
+     * Adds a change to history right after a connection between two nodes was created.
+     * Fires an event for this connection, which can be cancelled by other plugins,
+     * or by permission-related checks. If cancelled, the connection is deleted and the
+     * exception is thrown.
+     *
+     * @param who Player that initiated the connection
+     * @param connection The connection that was created
+     * @return created change
+     * @throws ChangeCancelledException
+     */
+    public final HistoryChange addChangeAfterConnect(Player who, TrackConnection connection) throws ChangeCancelledException {
         try {
             handleEvent(new CoasterCreateConnectionEvent(who, connection));
         } catch (ChangeCancelledException ex) {
@@ -92,11 +103,25 @@ public abstract class HistoryChangeCollection {
             connection.remove();
             throw ex;
         }
+
+        // Pack the creation of the connection, and the track objects, into a history change
         return addChange(new HistoryChangeConnect(connection.getNodeA(), connection.getNodeB(), connection.getObjects()));
     }
 
-    public final HistoryChange addChangeDisconnect(Player who, TrackConnection connection) throws ChangeCancelledException {
+    /**
+     * Adds a change to history right before a connection between two nodes is deleted.
+     * Fires an event for this disconnection, which can be cancelled by other plugins,
+     * or by permission-related checks.
+     *
+     * @param who Player that initiated the disconnection
+     * @param connection The connection that got disconnected
+     * @return created change
+     * @throws ChangeCancelledException
+     */
+    public final HistoryChange addChangeBeforeDisconnect(Player who, TrackConnection connection) throws ChangeCancelledException {
         handleEvent(new CoasterDeleteConnectionEvent(who, connection));
+
+        // Pack the deletion of track objects, and the disconnection, into a history change
         return addChange(new HistoryChangeDisconnect(connection.getNodeA(), connection.getNodeB(), connection.getObjects()));
     }
 
@@ -205,7 +230,7 @@ public abstract class HistoryChangeCollection {
      * @param node  The node being deleted
      * @return change
      */
-    public final HistoryChange addChangeDeleteNode(Player who, TrackNode node) throws ChangeCancelledException {
+    public final HistoryChange addChangeBeforeDeleteNode(Player who, TrackNode node) throws ChangeCancelledException {
         handleEvent(new CoasterDeleteNodeEvent(who, node));
 
         List<TrackConnection> connections = node.getConnections();
@@ -214,7 +239,7 @@ public abstract class HistoryChangeCollection {
         } else {
             HistoryChange changes = this.addChangeGroup();
             for (TrackConnection connection : connections) {
-                changes.addChangeDisconnect(who, connection);
+                changes.addChangeBeforeDisconnect(who, connection);
             }
             changes.addChange(new HistoryChangeDeleteNode(node));
             return changes;

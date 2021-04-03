@@ -1170,6 +1170,28 @@ public class TCCoasters extends PluginBase {
                     sender.sendMessage(ChatColor.YELLOW + "Right-click drag menu control is now " + ChatColor.RED + "DISABLED");
                 }
             }
+        } else if (args.length > 0 && LogicUtil.contains(args[0], "straight", "straighten")) {
+            try {
+                if (state.hasCurvedConnectionTrackNodes()) {
+                    state.makeConnectionsStraight();
+                    sender.sendMessage(ChatColor.GREEN + "Connections of the selected nodes are now straight");
+                } else {
+                    sender.sendMessage(ChatColor.YELLOW + "No nodes are selected, or all nodes already use straight connections!");
+                }
+            } catch (ChangeCancelledException ex) {
+                sender.sendMessage(ChatColor.RED + "Failed to make the connections straight");
+            }
+        } else if (args.length > 0 && LogicUtil.contains(args[0], "curved")) {
+            try {
+                if (state.hasStraightConnectionTrackNodes()) {
+                    state.makeConnectionsCurved();
+                    sender.sendMessage(ChatColor.GREEN + "Connections of the selected nodes are now curved");
+                } else {
+                    sender.sendMessage(ChatColor.YELLOW + "No nodes are selected, or all nodes already use curved connections!");
+                }
+            } catch (ChangeCancelledException ex) {
+                sender.sendMessage(ChatColor.RED + "Failed to make the connections curved");
+            }
         } else {
             sender.sendMessage(ChatColor.RED + "What did you want? Try /tcc give");
         }

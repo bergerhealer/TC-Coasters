@@ -114,6 +114,59 @@ public enum PlayerEditMode {
 
             y += 16;
         }
+
+        // Make the line straight or curved with simple buttons
+        // Also done using /tcc straighten and /tcc curved
+        {
+            tab.addWidget(new MapWidgetText())
+                .setText("Line")
+                .setColor(MapColorPalette.COLOR_WHITE)
+                .setBounds(0, y + 1, 34, ADJ_BTN_HEIGHT);
+
+            tab.addWidget(new MapWidgetButton() {
+                boolean hasCurvedNodeConnections = false;
+
+                @Override
+                public void onAttached() {
+                    super.onAttached();
+                    hasCurvedNodeConnections = stateSupplier.get().hasCurvedConnectionTrackNodes();
+                    updateText();
+                }
+
+                @Override
+                public void onStatusChanged(MapStatusEvent event) {
+                    super.onStatusChanged(event);
+
+                    if (event.getName().equals("Editor::EditedNodes::Changed")) {
+                        hasCurvedNodeConnections = stateSupplier.get().hasCurvedConnectionTrackNodes();
+                        updateText();
+                    }
+                }
+
+                @Override
+                public void onActivate() {
+                    try {
+                        boolean newState = !hasCurvedNodeConnections;
+                        if (hasCurvedNodeConnections) {
+                            stateSupplier.get().makeConnectionsStraight();
+                        } else {
+                            stateSupplier.get().makeConnectionsCurved();
+                        }
+                        getDisplay().playSound(SoundEffect.CLICK);
+                        hasCurvedNodeConnections = newState;
+                        updateText();
+                    } catch (ChangeCancelledException ex) {
+                        getDisplay().playSound(SoundEffect.EXTINGUISH);
+                    }
+                }
+
+                private void updateText() {
+                    this.setText(hasCurvedNodeConnections ? "Straighten" : "Curved");
+                }
+            }).setBounds(36, y, 70, ADJ_BTN_HEIGHT);
+
+            y += 16;
+        }
     }
 
     private static void alignPosition(Supplier<PlayerEditState> stateSupplier, char axis, double value) {

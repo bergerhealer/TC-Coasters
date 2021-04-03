@@ -136,6 +136,10 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
         return this._endA.node.getCoaster() != this._endB.node.getCoaster();
     }
 
+    public boolean isZeroLength() {
+        return this._endA.isZeroLength();
+    }
+
     @Override
     public boolean isLocked() {
         return this._endA.node.isLocked() || this._endB.node.isLocked();
@@ -358,7 +362,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
      */
     public void buildPath(List<RailPath.Point> points, IntVector3 railsPos, double smoothness, double t0, double t1) {
         // If this is a zero-length connection, only add a point at t1
-        if (this._endA.isZeroLength()) {
+        if (isZeroLength()) {
             points.add(getPathPoint(railsPos,  t1));
             return;
         }
