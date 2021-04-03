@@ -10,6 +10,7 @@ import com.bergerkiller.bukkit.coasters.tracks.path.EndPoint;
 import com.bergerkiller.bukkit.coasters.tracks.path.TrackConnectionPathImpl;
 import com.bergerkiller.bukkit.coasters.tracks.path.ViewPointOption;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
+import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 
 /**
@@ -345,6 +346,11 @@ public interface TrackConnectionPath {
         double motion_NZ = MathUtil.getNormalizationFactor(motion);
         if (Double.isFinite(motion_NZ)) {
             motion.multiply(motion_NZ);
+        } else {
+            return Quaternion.slerp(
+                    Quaternion.fromLookDirection(this.getEndA().getDirection()),
+                    Quaternion.fromLookDirection(this.getEndB().getDirection()),
+                    t).forwardVector();
         }
         return motion;
     }

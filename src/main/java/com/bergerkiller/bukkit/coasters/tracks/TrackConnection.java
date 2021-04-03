@@ -357,6 +357,12 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
      * @param t1
      */
     public void buildPath(List<RailPath.Point> points, IntVector3 railsPos, double smoothness, double t0, double t1) {
+        // If this is a zero-length connection, only add a point at t1
+        if (this._endA.isZeroLength()) {
+            points.add(getPathPoint(railsPos,  t1));
+            return;
+        }
+
         // Initial point
         points.add(getPathPoint(railsPos,  t0));
 

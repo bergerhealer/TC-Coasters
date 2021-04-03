@@ -2,6 +2,8 @@ package com.bergerkiller.bukkit.coasters.tracks.path;
 
 import org.bukkit.util.Vector;
 
+import com.bergerkiller.bukkit.common.math.Quaternion;
+
 /**
  * An endpoint of a bezier curve, which computes and stores the
  * direction of the curve and the distance (weight) of the end.
@@ -18,25 +20,32 @@ public abstract class EndPoint {
     public abstract Vector getOtherNodeDirection();
 
     public void initAuto() {
-        this.direction = getOtherNodePosition().clone().subtract(getNodePosition()).normalize();
-        this.updateDistance();
+        this.direction = getOtherNodePosition().clone().subtract(getNodePosition());
+        double distance = this.direction.length();
+        if (distance > 1e-20) {
+            // Non-zero distance
+            this.direction.multiply(1.0 / distance);
+        } else {
+            // Zero distance, take average of both node directions
+            this.direction = Quaternion.slerp(Quaternion.fromLookDirection(getNodeDirection()),
+                                              Quaternion.fromLookDirection(getOtherNodeDirection()),
+                                              0.5).forwardVector();
+        }
+        computeStrength(distance);
     }
 
     public void initNormal() {
         this.direction = getNodeDirection();
-        this.updateDistance();
+        computeStrength(getNodePosition().distance(getOtherNodePosition()));
     }
 
     public void initInverted() {
         this.direction = getNodeDirection().clone().multiply(-1.0);
-        this.updateDistance();
+        computeStrength(getNodePosition().distance(getOtherNodePosition()));
     }
 
-    private final void updateDistance() {
-        this.strength = 0.5 * getNodePosition().distance(getOtherNodePosition());
-        if (Double.isNaN(this.direction.getX())) {
-            this.direction = new Vector(1.0, 0.0, 0.0);
-        }
+    private final void computeStrength(double distance) {
+        this.strength = 0.5 * distance;
     }
 
     public final Vector getPosition() {
@@ -63,6 +72,15 @@ public abstract class EndPoint {
      */
     public final double getStrength() {
         return this.strength;
+    }
+
+    /**
+     * Gets whether the connection between this end-point and the other one is zero-length.
+     *
+     * @return True if zero length
+     */
+    public final boolean isZeroLength() {
+        return this.strength < 1e-20;
     }
 
     public static EndPoint create(Vector nodePosition, Vector nodeDirection, Vector otherPosition, Vector otherDirection) {
