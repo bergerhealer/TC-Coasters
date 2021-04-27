@@ -48,13 +48,13 @@ public class TrackRailsSection {
     public int tickLastPicked = 0;
 
     public TrackRailsSection(TrackRailsSection original, RailPath path) {
-        this.node = original.node;
-        this.rails = original.rails;
-        this.path = path;
-        this.primary = original.primary;
+        this(original.node, original.rails, path, original.primary);
     }
 
     public TrackRailsSection(TrackNode node, IntVector3 rails, RailPath path, boolean primary) {
+        if (path.isEmpty()) {
+            throw new IllegalArgumentException("Path is empty");
+        }
         this.node = node;
         this.rails = rails;
         this.path = path;
