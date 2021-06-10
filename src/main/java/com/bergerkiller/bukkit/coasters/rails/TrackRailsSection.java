@@ -24,6 +24,12 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
  */
 public class TrackRailsSection {
     /**
+     * When below this distance, use tickLastPicked to decide whether to select
+     * this section over another
+     */
+    private static final double PICK_MIN_DIST_SQ = (0.4 * 0.4);
+
+    /**
      * Node owner of this rails section
      */
     public final TrackNode node;
@@ -46,6 +52,11 @@ public class TrackRailsSection {
      * and don't cause trains to snap to the other junction when crossing it.
      */
     public int tickLastPicked = 0;
+    /**
+     * Last-calculated distance between this section and a given point position,
+     * during lookup. Has no meaningful use outside of CoasterRailType.getLogic.
+     */
+    public double lastDistanceSquared = 0.0;
 
     public TrackRailsSection(TrackRailsSection original, RailPath path) {
         this(original.node, original.rails, path, original.primary);
@@ -159,5 +170,9 @@ public class TrackRailsSection {
     public Location getSpawnLocation(Block railBlock, Vector orientation) {
         // Single node, pick node position
         return this.node.getSpawnLocation(orientation);
+    }
+
+    public boolean isPickedBefore(int serverTickThreshold) {
+        return this.lastDistanceSquared < PICK_MIN_DIST_SQ && this.tickLastPicked >= serverTickThreshold;
     }
 }

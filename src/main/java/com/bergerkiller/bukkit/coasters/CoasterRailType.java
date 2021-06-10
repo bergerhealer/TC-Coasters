@@ -3,10 +3,8 @@ package com.bergerkiller.bukkit.coasters;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -187,63 +185,77 @@ public class CoasterRailType extends RailType {
             // Only one to pick from, so pick it
             section = rails.get(0);
         } else {
-            // Turn all rails into TrackRailsSectionPick
-            // This adds information about the distance (squared) to the
-            // position on the rails.
-            final List<TrackRailsSectionPick> picks;
-            {
-                final Vector railPosition = state.railPosition();
-                picks = rails.stream()
-                        .map(s -> new TrackRailsSectionPick(s, railPosition))
-                        .collect(Collectors.toList());
-            }
+            final int serverTickThreshold = (CommonUtil.getServerTicks() - 1);
 
             // If any of the rails in this list were picked last time as well,
             // we ignore all other rails sections bound to the same node.
             // This prevents trains teleporting between paths while traveling
             // over a junction.
-            final int serverTickThreshold = (CommonUtil.getServerTicks() - 1);
-            Optional<TrackRailsSectionPick> opt_preferred = picks.stream()
-                    .filter(pick -> pick.isPickedBefore(serverTickThreshold))
-                    .min(TrackRailsSectionPick.COMPARATOR);
+            TrackRailsSection preferredLast = null;
+            TrackRailsSection preferredNew = null;
+            {
+                final Vector railPosition = state.railPosition();
+                for (TrackRailsSection pick : rails) {
+                    // Adds information about the distance (squared) to the
+                    // position on the rails.
+                    pick.lastDistanceSquared = pick.distanceSq(railPosition);
 
-            // Junction logic: eliminate all non-preferred rails sections that
-            // are part of the same junction. This is detected by checking whether
-            // the section has a node in common.
-            if (opt_preferred.isPresent()) {
-                final TrackRailsSectionPick preferred = opt_preferred.get();
-                final Set<TrackNode> junctionNodes = preferred.section.getNodes()
-                        .filter(n -> n.getConnections().size() > 2)
-                        .collect(Collectors.toSet());
-                if (junctionNodes.isEmpty()) {
-                    // None of these are actual junctions, don't do anything special
-                    opt_preferred = Optional.empty();
-                } else {
-                    // Check if any of the alternatives are a better fit
-                    // Only allow those not part of the junction
-                    Optional<TrackRailsSectionPick> opt_alternative = picks.stream()
-                            .filter(pick -> {
-                                // Check if picked before, if so, we already filtered this earlier
-                                // Check if below distance threshold of the preferred one
-                                if (pick.isPickedBefore(serverTickThreshold) || pick.dist_sq > preferred.dist_sq) {
-                                    return false;
-                                }
-
-                                // Check no nodes in common with the preferred section
-                                return !pick.section.getNodes().anyMatch(junctionNodes::contains);
-                            })
-                            .min(TrackRailsSectionPick.COMPARATOR);
-
-                    if (opt_alternative.isPresent()) {
-                        opt_preferred = opt_alternative;
+                    // Check picked once before, and if so, consider it for picking
+                    // Then, use comparator to decide whether it is a better pick than
+                    // our previous pick, if we had one.
+                    if (pick.isPickedBefore(serverTickThreshold)) {
+                        if (preferredLast == null || isBetterSection(pick, preferredLast)) {
+                            preferredLast = pick;
+                        }
+                    } else {
+                        if (preferredNew == null || isBetterSection(pick, preferredNew)) {
+                            preferredNew = pick;
+                        }
                     }
                 }
             }
 
-            // If none is preferred, simply pick whichever has lowest distance
-            section = opt_preferred.orElseGet(() -> {
-                return picks.stream().min(TrackRailsSectionPick.COMPARATOR).get();
-            }).section;
+            if (preferredLast == null) {
+                // No previous preferred section, pick whatever is closest
+                section = preferredNew;
+            } else {
+                // Junction logic: eliminate all non-preferred rails sections that
+                // are part of the same junction. This is detected by checking whether
+                // the section has a node in common.
+                final Set<TrackNode> junctionNodes = preferredLast.getNodes()
+                        .filter(n -> n.getConnections().size() > 2)
+                        .collect(Collectors.toSet());
+                if (junctionNodes.isEmpty()) {
+                    // None of these are actual junctions, don't do anything special
+                    // Compare the last pick with possible new picks
+                    section = isBetterSection(preferredNew, preferredLast)
+                            ? preferredNew : preferredLast;
+                } else {
+                    // Check if any of the alternatives are a better fit
+                    // Only allow those not part of the original junction
+                    // This is for if two separate tracks are close together
+                    final double preferredDistSq = preferredLast.lastDistanceSquared;
+                    TrackRailsSection altSectionPick = null;
+                    for (TrackRailsSection pick : rails) {
+                        // Check if picked before, if so, we already filtered this earlier
+                        // Check if below distance threshold of the preferred one
+                        if (pick.isPickedBefore(serverTickThreshold) || pick.lastDistanceSquared > preferredDistSq) {
+                            continue;
+                        }
+
+                        // Check no nodes in common with the preferred section
+                        if (pick.getNodes().anyMatch(junctionNodes::contains)) {
+                            continue;
+                        }
+
+                        // Sort
+                        if (altSectionPick == null || isBetterSection(pick, altSectionPick)) {
+                            altSectionPick = pick;
+                        }
+                    }
+                    section = (altSectionPick != null) ? altSectionPick : preferredLast;
+                }
+            }
         }
 
         return new CoasterRailLogic(section);
@@ -283,31 +295,16 @@ public class CoasterRailType extends RailType {
         return this.plugin.getCoasterWorld(world).getRails();
     }
 
-    private static class TrackRailsSectionPick {
-        private static final double PICK_MIN_DIST_SQ = (0.4 * 0.4);
-        public final TrackRailsSection section;
-        public final double dist_sq;
-
-        /**
-         * Used to find the pick with the lowest dist_sq
-         */
-        public static final Comparator<TrackRailsSectionPick> COMPARATOR = (a, b) -> {
-            // When similar enough, but one is primary (junction selected), prefer primary
-            // This makes sure junction switching works correctly
-            if (a.section.primary != b.section.primary && Math.abs(a.dist_sq - b.dist_sq) < 1e-3) {
-                return a.section.primary ? -1 : 1;
-            }
-
-            return Double.compare(a.dist_sq, b.dist_sq);
-        };
-
-        public TrackRailsSectionPick(TrackRailsSection section, Vector railPosition) {
-            this.section = section;
-            this.dist_sq = section.distanceSq(railPosition);
+    /**
+     * Used to find the pick with the lowest distance squared
+     */
+    public static final boolean isBetterSection(TrackRailsSection a, TrackRailsSection b) {
+        // When similar enough, but one is primary (junction selected), prefer primary
+        // This makes sure junction switching works correctly
+        if (a.primary != b.primary && Math.abs(a.lastDistanceSquared - b.lastDistanceSquared) < 1e-3) {
+            return a.primary;
         }
 
-        public boolean isPickedBefore(int serverTickThreshold) {
-            return this.dist_sq < PICK_MIN_DIST_SQ && this.section.tickLastPicked >= serverTickThreshold;
-        }
+        return a.lastDistanceSquared < b.lastDistanceSquared;
     }
 }
