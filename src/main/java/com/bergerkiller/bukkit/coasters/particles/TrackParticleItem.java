@@ -7,15 +7,15 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
-import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
-import com.bergerkiller.generated.net.minecraft.server.EntityHandle;
-import com.bergerkiller.generated.net.minecraft.server.EntityItemHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityMetadataHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityTeleportHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityDestroyHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityMetadataHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityTeleportHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.EntityHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.item.EntityItemHandle;
 
 /**
  * A particle consisting of a floating item
@@ -127,7 +127,7 @@ public class TrackParticleItem extends TrackParticle {
     @Override
     public void makeHiddenFor(Player viewer) {
         if (this.entityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.entityId));
+            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.entityId));
         }
     }
 

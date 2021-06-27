@@ -22,9 +22,9 @@ import com.bergerkiller.bukkit.tc.controller.components.RailState;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogic;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogicHorizontal;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
-import com.bergerkiller.generated.net.minecraft.server.AxisAlignedBBHandle;
-import com.bergerkiller.generated.net.minecraft.server.MovingObjectPositionHandle;
-import com.bergerkiller.generated.net.minecraft.server.WorldHandle;
+import com.bergerkiller.generated.net.minecraft.world.level.WorldHandle;
+import com.bergerkiller.generated.net.minecraft.world.phys.AxisAlignedBBHandle;
+import com.bergerkiller.generated.net.minecraft.world.phys.MovingObjectPositionHandle;
 
 /**
  * Random stuff used internally that just needs a place

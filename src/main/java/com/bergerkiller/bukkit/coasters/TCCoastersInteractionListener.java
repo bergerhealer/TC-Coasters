@@ -31,12 +31,12 @@ import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
-import com.bergerkiller.bukkit.common.wrappers.UseAction;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayInArmAnimationHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayInBlockDigHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayInBlockDigHandle.EnumPlayerDigTypeHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayInBlockPlaceHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayInUseItemHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayInArmAnimationHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayInBlockDigHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayInBlockPlaceHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayInUseEntityHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayInUseItemHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayInBlockDigHandle.EnumPlayerDigTypeHandle;
 
 /**
  * This packet listener detects when players click on the invisible entities for virtual rails,
@@ -213,7 +213,9 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
         }
 
         if (event.getType() == PacketType.IN_USE_ENTITY) {
-            int entityId = event.getPacket().read(PacketType.IN_USE_ENTITY.clickedEntityId);
+            PacketPlayInUseEntityHandle packet = PacketPlayInUseEntityHandle.createHandle(event.getPacket().getHandle());
+
+            int entityId = packet.getUsedEntityId();
             if (!state.getWorld().getParticles().isParticle(event.getPlayer(), entityId)) {
                 return; // Not one of our own entities
             }
@@ -222,10 +224,10 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
             event.setCancelled(true);
 
             // Hand (handle, raw)
-            HumanHand hand = PacketType.IN_USE_ENTITY.getHand(event.getPacket(), event.getPlayer());
+            HumanHand hand = packet.getInteractHand(event.getPlayer());
 
             // Turn the event into a block interaction event
-            boolean isInteractEvent = event.getPacket().read(PacketType.IN_USE_ENTITY.useAction) != UseAction.ATTACK;
+            boolean isInteractEvent = packet.isInteract() || packet.isInteractAt();
 
             // Find the block interacted with
             // When the player is in edit mode, skip this expensive lookup and always fire an interaction with block air

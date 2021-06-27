@@ -8,22 +8,21 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
-import com.bergerkiller.bukkit.common.protocol.CommonPacket;
-import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
-import com.bergerkiller.generated.net.minecraft.server.EntityBatHandle;
-import com.bergerkiller.generated.net.minecraft.server.EntityHandle;
-import com.bergerkiller.generated.net.minecraft.server.EntityInsentientHandle;
-import com.bergerkiller.generated.net.minecraft.server.EntityLivingHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutAttachEntityHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityMetadataHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityTeleportHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutMountHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityLivingHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutAttachEntityHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityDestroyHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityMetadataHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityTeleportHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutMountHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityLivingHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.EntityHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.EntityInsentientHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.EntityLivingHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.ambient.EntityBatHandle;
 
 /**
  * Helper class for spawning and updating a virtual falling block.
@@ -104,7 +103,7 @@ public class VirtualFallingBlock {
         } else if (this.holderEntityId != -1) {
             if (this.respawn) {
                 for (Player viewer : viewers) {
-                    PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.holderEntityId));
+                    PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId));
                     this.spawnHolder(viewer);
                 }
             } else {
@@ -142,17 +141,18 @@ public class VirtualFallingBlock {
     }
 
     public VirtualFallingBlock destroy(Player viewer) {
-        if (this.holderEntityId != -1 && this.entityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.holderEntityId, this.entityId));
-        } else if (this.entityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.entityId));
+        if (this.holderEntityId != -1) {
+            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId));
+        }
+        if (this.entityId != -1) {
+            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.entityId));
         }
         return this;
     }
 
     public VirtualFallingBlock destroyHolder(Iterable<Player> viewers) {
         if (this.holderEntityId != -1 && CAN_DISABLE_GRAVITY) {
-            CommonPacket packet = PacketType.OUT_ENTITY_DESTROY.newInstance(this.holderEntityId);
+            PacketPlayOutEntityDestroyHandle packet = PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId);
             for (Player viewer : viewers) {
                 PacketUtil.sendPacket(viewer, packet);
             }

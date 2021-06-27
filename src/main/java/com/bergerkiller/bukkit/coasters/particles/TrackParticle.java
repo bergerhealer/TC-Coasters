@@ -7,7 +7,7 @@ import com.bergerkiller.bukkit.coasters.util.QueuedTask;
 import com.bergerkiller.bukkit.common.collections.ImmutablePlayerSet;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
-import com.bergerkiller.generated.net.minecraft.server.PacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.PacketHandle;
 
 /**
  * A single particle of a track that is rendered (or not) for a player.

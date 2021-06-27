@@ -11,23 +11,22 @@ import org.bukkit.util.Vector;
 import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.math.Quaternion;
-import com.bergerkiller.bukkit.common.protocol.CommonPacket;
-import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
 import com.bergerkiller.bukkit.tc.Util;
-import com.bergerkiller.generated.net.minecraft.server.EntityArmorStandHandle;
-import com.bergerkiller.generated.net.minecraft.server.EntityBatHandle;
-import com.bergerkiller.generated.net.minecraft.server.EntityHandle;
-import com.bergerkiller.generated.net.minecraft.server.EntityInsentientHandle;
-import com.bergerkiller.generated.net.minecraft.server.EntityLivingHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutAttachEntityHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityEquipmentHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityMetadataHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutEntityTeleportHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutMountHandle;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutSpawnEntityLivingHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutAttachEntityHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityDestroyHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityEquipmentHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityMetadataHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityTeleportHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutMountHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityLivingHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.EntityHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.EntityInsentientHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.EntityLivingHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.ambient.EntityBatHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.decoration.EntityArmorStandHandle;
 
 /**
  * Helper class for spawning and updating a virtual armor stand head item.
@@ -101,7 +100,7 @@ public class VirtualArmorStandItem {
 
     public VirtualArmorStandItem updateMetadata(Player viewer) {
         if (this.holderEntityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.holderEntityId));
+            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId));
         }
         if (this.entityId != -1 && CAN_GLOW) {
             DataWatcher metadata = new DataWatcher();
@@ -153,7 +152,7 @@ public class VirtualArmorStandItem {
                 this.spawnHolder(viewer);
             } else {
                 // Respawn the armorstand holder
-                PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.holderEntityId));
+                PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId));
                 this.spawnHolder(viewer);
             }
         } else {
@@ -182,17 +181,18 @@ public class VirtualArmorStandItem {
     }
 
     public VirtualArmorStandItem destroy(Player viewer) {
-        if (this.holderEntityId != -1 && this.entityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.holderEntityId, this.entityId));
-        } else if (this.entityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketType.OUT_ENTITY_DESTROY.newInstance(this.entityId));
+        if (this.holderEntityId != -1) {
+            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId));
+        }
+        if (this.entityId != -1) {
+            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.entityId));
         }
         return this;
     }
 
     public VirtualArmorStandItem destroyHolder(Iterable<Player> viewers) {
         if (this.holderEntityId != -1) {
-            CommonPacket packet = PacketType.OUT_ENTITY_DESTROY.newInstance(this.holderEntityId);
+            PacketPlayOutEntityDestroyHandle packet = PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId);
             for (Player viewer : viewers) {
                 PacketUtil.sendPacket(viewer, packet);
             }
