@@ -100,7 +100,6 @@ public class TCCoasters extends PluginBase {
     private boolean lightAPIEnabled = DEFAULT_LIGHTAPI_ENABLED;
     private boolean lightAPIFound = false;
     private Listener plotSquaredHandler = null;
-    private Versioning versioning = new VersioningVanilla();
     private File importFolder, exportFolder;
 
     public void unloadWorld(World world) {
@@ -238,12 +237,6 @@ public class TCCoasters extends PluginBase {
         return this.plotSquaredEnabled && this.plotSquaredHandler != null;
     }
 
-    /**
-     * Gets versioning class for correct
-     *
-     * @return Versioning variable, VersioningViaVersion if enabled
-     */
-    public Versioning getVersioning() {return versioning;}
     /**
      * Gets the particle view range. Players can see particles when
      * below this distance away from a particle.
@@ -403,14 +396,6 @@ public class TCCoasters extends PluginBase {
             } else {
                 log(Level.INFO, "LightAPI disabled, the Light track object is no longer available");
                 TrackCSV.unregisterEntry(TrackObjectTypeLight.CSVEntry::new);
-            }
-        } else if (pluginName.equals("ViaVersion")) {
-            if (enabled) {
-                log(Level.INFO, "ViaVersion detected, Will use player version info.");
-                versioning = new VersioningViaVersion();
-            } else {
-                log(Level.INFO, "ViaVersion was disabled, will no longer use player version info.");
-                versioning = new VersioningVanilla();
             }
         }
     }

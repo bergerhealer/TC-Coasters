@@ -10,6 +10,7 @@ import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.utils.DebugUtil;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
+import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutAttachEntityHandle;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityDestroyHandle;
@@ -53,12 +54,10 @@ public class TrackParticleLine extends TrackParticle {
         removePosition(this.p2);
     }
 
-
-
     private LineOffsets getOffsets(Player player) {
-        if (getWorld().getPlugin().getVersioning().SERVER_IS_1_16_2(player)) {
+        if (PlayerUtil.evaluateGameVersion(player, ">=", "1.16.2")) {
             return OFFSETS_1_16_2;
-        } else if (getWorld().getPlugin().getVersioning().SERVER_1_16_TO_1_16_1(player)) {
+        } else if (PlayerUtil.evaluateGameVersion(player, ">=", "1.16")) {
             return OFFSETS_1_16_TO_1_16_1;
         } else {
             return OFFSETS_1_8_TO_1_15_2;
