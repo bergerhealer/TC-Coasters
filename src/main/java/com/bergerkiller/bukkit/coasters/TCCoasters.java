@@ -257,21 +257,7 @@ public class TCCoasters extends PluginBase {
     }
 
     @Override
-    public void enable() {
-        this.listener.enable();
-        this.interactionListener.enable();
-
-        // Schedule some background tasks
-        this.worldUpdateTask = (new WorldUpdateTask()).start(1, 1);
-        this.runQueuedTasksTask = (new RunQueuedTasksTask()).start(1, 1);
-        this.updatePlayerEditStatesTask = (new UpdatePlayerEditStatesTask()).start(1, 1);
-
-        // Import/export folders
-        this.importFolder = this.getDataFile("import");
-        this.exportFolder = this.getDataFile("export");
-        this.importFolder.mkdirs();
-        this.exportFolder.mkdirs();
-
+    public void onLoad() {
         // Load configuration
         FileConfiguration config = new FileConfiguration(this);
         config.load();
@@ -301,27 +287,17 @@ public class TCCoasters extends PluginBase {
         boolean priority = config.get("priority", false);
         config.save();
 
-        // Autosave every 30 seconds approximately
-        this.autosaveTask = new AutosaveTask(this).start(30*20, 30*20);
-
-        // Magic!
+        // Magic! Done early before trains are initialized that need this rails.
         RailType.register(this.coasterRailType, priority);
 
-        // More magic!
+        // More magic! Done early so signs are activated on spawn.
         SignAction.register(this.trackAnimateAction);
 
         // Before loading coasters, detect LightAPI
+        // We don't know yet it has enabled, but we'll assume that it will.
         {
             Plugin plugin = Bukkit.getPluginManager().getPlugin("LightAPI");
-            if (plugin != null && plugin.isEnabled()) {
-                this.updateDependency(plugin, plugin.getName(), true);
-            }
-        }
-
-        // Before loading, detect ViaVersion
-        {
-            Plugin plugin = Bukkit.getPluginManager().getPlugin("ViaVersion");
-            if (plugin != null && plugin.isEnabled()) {
+            if (plugin != null) {
                 this.updateDependency(plugin, plugin.getName(), true);
             }
         }
@@ -329,6 +305,34 @@ public class TCCoasters extends PluginBase {
         // Load all coasters from csv
         for (World world : Bukkit.getWorlds()) {
             this.getCoasterWorld(world).getTracks().load();
+        }
+    }
+
+    @Override
+    public void enable() {
+        this.listener.enable();
+        this.interactionListener.enable();
+
+        // Schedule some background tasks
+        this.worldUpdateTask = (new WorldUpdateTask()).start(1, 1);
+        this.runQueuedTasksTask = (new RunQueuedTasksTask()).start(1, 1);
+        this.updatePlayerEditStatesTask = (new UpdatePlayerEditStatesTask()).start(1, 1);
+
+        // Import/export folders
+        this.importFolder = this.getDataFile("import");
+        this.exportFolder = this.getDataFile("export");
+        this.importFolder.mkdirs();
+        this.exportFolder.mkdirs();
+
+        // Autosave every 30 seconds approximately
+        this.autosaveTask = new AutosaveTask(this).start(30*20, 30*20);
+
+        // LightAPI may not have enabled right, correct for this
+        {
+            Plugin plugin = Bukkit.getPluginManager().getPlugin("LightAPI");
+            if (plugin != null) {
+                this.updateDependency(plugin, plugin.getName(), plugin.isEnabled());
+            }
         }
 
         // Update worlds right away
