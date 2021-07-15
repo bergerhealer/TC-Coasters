@@ -77,7 +77,7 @@ public class CoasterWorldImpl implements CoasterWorld {
      * Performs all the logic required to load a World into memory
      */
     public void load() {
-        
+        getTracks().load();
     }
 
     /**

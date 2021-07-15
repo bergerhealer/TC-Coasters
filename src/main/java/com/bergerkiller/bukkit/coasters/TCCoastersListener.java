@@ -9,7 +9,7 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
-import org.bukkit.event.world.WorldLoadEvent;
+import org.bukkit.event.world.WorldInitEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
@@ -70,7 +70,7 @@ public class TCCoastersListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
-    public void onWorldLoad(WorldLoadEvent event) {
+    public void onWorldInit(WorldInitEvent event) {
         // This implicitly loads it, if it wasn't already
         this.plugin.getCoasterWorld(event.getWorld());
     }

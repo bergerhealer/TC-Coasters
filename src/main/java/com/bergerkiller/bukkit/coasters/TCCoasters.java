@@ -301,17 +301,20 @@ public class TCCoasters extends PluginBase {
                 this.updateDependency(plugin, plugin.getName(), true);
             }
         }
-
-        // Load all coasters from csv
-        for (World world : Bukkit.getWorlds()) {
-            this.getCoasterWorld(world).getTracks().load();
-        }
     }
 
     @Override
     public void enable() {
         this.listener.enable();
         this.interactionListener.enable();
+
+        // Load all coasters from csv
+        // Note that if between onLoad and enable rails are queried, these worlds
+        // may have been loaded earlier. These implicit loads only have an effect
+        // when there's no trains on the worlds.
+        for (World world : Bukkit.getWorlds()) {
+            this.getCoasterWorld(world);
+        }
 
         // Schedule some background tasks
         this.worldUpdateTask = (new WorldUpdateTask()).start(1, 1);
