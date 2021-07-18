@@ -1,13 +1,19 @@
 name: TCCoasters
-main: com.bergerkiller.bukkit.coasters.TCCoasters
 version: ${project.version}
 build: ${project.build.number}
-authors: [bergerkiller]
-description: Add-on for TrainCarts that adds free-form rollercoaster track
-depend: [Train_Carts]
-softdepend: [PlotSquared, LightAPI, ViaVersion]
 dev-url: ${project.url}
+description: Add-on for TrainCarts that adds free-form rollercoaster track
+authors: [bergerkiller]
 api-version: 1.13
+softdepend: [BKCommonLib, Train_Carts, PlotSquared, LightAPI, ViaVersion]
+
+main: com.bergerkiller.bukkit.coasters.Preloader
+preloader:
+    main: com.bergerkiller.bukkit.coasters.TCCoasters
+    depend:
+        BKCommonLib: https://www.spigotmc.org/resources/bkcommonlib.39590/
+        Train_Carts: https://www.spigotmc.org/resources/traincarts.39592/
+
 commands:
     tccoasters:
         aliases: [coaster, tcc]
