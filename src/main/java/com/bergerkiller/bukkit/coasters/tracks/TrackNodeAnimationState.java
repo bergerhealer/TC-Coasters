@@ -39,6 +39,18 @@ public class TrackNodeAnimationState {
     }
 
     /**
+     * Creates a copy of this track node animation state with the same details.
+     * Particles are not copied over old ones should be destroyed with new ones
+     * spawned in.
+     *
+     * @param newName New name to set to
+     * @return state clone with updated name, particle state is not transferred
+     */
+    public TrackNodeAnimationState rename(String newName) {
+        return new TrackNodeAnimationState(newName, this.state, this.connections);
+    }
+
+    /**
      * Creates a new track connection state with a connection added or updated, if it already existed.
      * 
      * @param connection

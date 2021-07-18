@@ -642,6 +642,48 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     /**
+     * Checks whether this node stores an animation state by the given name
+     *
+     * @param name Name to check
+     * @return True if an animation state is stored by this name, False if not
+     */
+    public boolean hasAnimationState(String name) {
+        for (int i = 0; i < this._animationStates.length; i++) {
+            if (this._animationStates[i].name.equals(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Renames a stored animation state to a new name. Before calling this, make sure
+     * the new name isn't already used!
+     *
+     * @param name Name of the state to rename
+     * @param newName New name for the state
+     * @return True if an animation state by this name was found, and thus, renamed
+     */
+    public boolean renameAnimationState(String name, String newName) {
+        for (int i = 0; i < this._animationStates.length; i++) {
+            if (this._animationStates[i].name.equals(name)) {
+                this._animationStates[i].destroyParticles();
+                this._animationStates[i] = this._animationStates[i].rename(newName);
+                this._animationStates[i].spawnParticles(this, i);
+
+                // Refresh any player edit states so they become aware of this rename
+                this.getPlugin().forAllEditStates(editState -> {
+                    editState.notifyNodeAnimationRemoved(this, name);
+                    editState.notifyNodeAnimationAdded(this, newName);
+                });
+
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Saves the current position, orientation, rail block and connections as an animation state.
      * Any previous animation state of the same name is overwritten.
      * 

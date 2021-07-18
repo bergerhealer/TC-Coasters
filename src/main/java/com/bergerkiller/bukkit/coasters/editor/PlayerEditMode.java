@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
+import org.bukkit.ChatColor;
 import org.bukkit.block.BlockFace;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
@@ -359,7 +360,64 @@ public enum PlayerEditMode {
                 }
             }
         });
-        removeButton.setBounds(62, 34, 43, 12);
+        removeButton.setBounds(62, 36, 43, 12);
+
+        final MapWidgetSubmitText renameNodeAskText = tab.addWidget(new MapWidgetSubmitText() {
+            @Override
+            public void onAttached() {
+                this.setDescription("Enter new animation name");
+            }
+
+            @Override
+            public void onAccept(String newName) {
+                PlayerEditState state = stateSupplier.get();
+                String name = state.getSelectedAnimation();
+                if (name != null) {
+                    ArrayList<TrackNode> nodes = new ArrayList<TrackNode>(state.getSelectedAnimationNodes());
+                    if (nodes.isEmpty()) {
+                        return; // Wut?
+                    }
+
+                    // First check that the name isn't already used
+                    boolean newNameUsed = false;
+                    for (TrackNode node : nodes) {
+                        if (node.hasAnimationState(newName)) {
+                            newNameUsed = true;
+                            break;
+                        }
+                    }
+                    if (newNameUsed) {
+                        display.playSound(SoundEffect.EXTINGUISH);
+                        state.getPlayer().sendMessage(ChatColor.RED + "Track animation name '" + newName + "' is already used!");
+                        return;
+                    }
+
+                    int numChanged = 0;
+                    for (TrackNode node : nodes) {
+                        if (node.renameAnimationState(name, newName)) {
+                            numChanged++;
+                        }
+                    }
+                    state.setSelectedAnimation(newName);
+                    TCCoastersLocalization.ANIMATION_RENAME.message(state.getPlayer(), name, newName, Integer.toString(numChanged));
+                    getDisplay().playSound(SoundEffect.CLICK);
+                }
+            }
+        });
+
+        final MapWidgetButton renameButton = tab.addWidget(new MapWidgetButton() {
+            @Override
+            public void onAttached() {
+                this.setText("Rename");
+                super.onAttached();
+            }
+
+            @Override
+            public void onActivate() {
+                renameNodeAskText.activate();
+            }
+        });
+        renameButton.setBounds(11, 48, 43, 12);
 
         tab.addWidget(new MapWidgetText() {
             @Override
@@ -393,6 +451,7 @@ public enum PlayerEditMode {
                     stateSupplier.get().setSelectedAnimation(isAnimationSelected ? this.getSelectedItem() : null);
                 }
                 removeButton.setEnabled(isAnimationSelected);
+                renameButton.setEnabled(isAnimationSelected);
             }
 
             @Override
