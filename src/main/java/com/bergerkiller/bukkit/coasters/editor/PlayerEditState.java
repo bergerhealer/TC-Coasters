@@ -629,14 +629,16 @@ public class PlayerEditState implements CoasterWorldComponent {
                 // Node itself
                 {
                     double distance = node.getViewDistance(cameraTransform);
-                    double diff = (bestDistance - distance);
-                    if (diff > 0.0 || (diff >= -1e-10 && !bestNodes.contains(node.getZeroDistanceNeighbour()))) {
-                        bestNodes.clear();
-                    }
-                    if (diff >= -1e-10) {
-                        bestNodes.add(node);
-                        bestDistance = distance;
-                        bestJunction = null;
+                    if (distance != Double.MAX_VALUE) {
+                        double diff = (bestDistance - distance);
+                        if (diff > 0.0 || (diff >= -1e-10 && !bestNodes.contains(node.getZeroDistanceNeighbour()))) {
+                            bestNodes.clear();
+                        }
+                        if (diff >= -1e-10) {
+                            bestNodes.add(node);
+                            bestDistance = distance;
+                            bestJunction = null;
+                        }
                     }
                 }
 
