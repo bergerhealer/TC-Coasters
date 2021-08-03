@@ -228,7 +228,7 @@ public class CoasterRailType extends RailType {
                 if (junctionNodes.isEmpty()) {
                     // None of these are actual junctions, don't do anything special
                     // Compare the last pick with possible new picks
-                    section = isBetterSection(preferredNew, preferredLast)
+                    section = (preferredNew != null && isBetterSection(preferredNew, preferredLast))
                             ? preferredNew : preferredLast;
                 } else {
                     // Check if any of the alternatives are a better fit
