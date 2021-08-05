@@ -374,15 +374,22 @@ public class TCCoasters extends PluginBase {
                 if (available) {
                     // Version 4 or version 5?
                     // Could inspect plugin description, but this is more reliable
-                    boolean is_version_5;
+                    int plotsquared_version;
                     try {
-                        Class.forName("com.plotsquared.core.location.Location");
-                        is_version_5 = true;
+                        Class<?> locationClass = Class.forName("com.plotsquared.core.location.Location");
+                        try {
+                            locationClass.getDeclaredMethod("at", String.class, int.class, int.class, int.class);
+                            plotsquared_version = 6; // Immutable Location with static at method since v6
+                        } catch (Throwable t) {
+                            plotsquared_version = 5; // Mutable Location with constructor
+                        }
                     } catch (Throwable t) {
-                        is_version_5 = false;
+                        plotsquared_version = 4;
                     }
 
-                    if (is_version_5) {
+                    if (plotsquared_version == 6) {
+                        this.plotSquaredHandler = new PlotSquaredHandler_v6(this);
+                    } else if (plotsquared_version == 5) {
                         this.plotSquaredHandler = new PlotSquaredHandler_v5(this);
                     } else {
                         this.plotSquaredHandler = new PlotSquaredHandler_v4(this);
