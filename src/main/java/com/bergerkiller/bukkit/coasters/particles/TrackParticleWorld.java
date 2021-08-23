@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -86,9 +87,25 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         return addParticle(new TrackParticleLitBlock(block));
     }
 
-    protected <T extends TrackParticle> T addParticle(T particle) {
+    /**
+     * Adds a new particle to this world, firing the required callbacks and refreshing
+     * viewers to make the particle visible to them.
+     *
+     * @param <T> Type of particle
+     * @param particle The particle to add
+     * @return the input particle
+     */
+    public <T extends TrackParticle> T addParticle(T particle) {
         particle.world = this;
-        particle.onAdded();
+        try {
+            particle.onAdded();
+        } catch (Error | RuntimeException ex) {
+            try {
+                particle.onRemoved();
+            } catch (Throwable ignore) {}
+            particle.world = null;
+            throw ex;
+        }
         if (particle.isUsingViewers()) {
             this.forceViewerUpdate = true;
         }
@@ -98,12 +115,27 @@ public class TrackParticleWorld implements CoasterWorldComponent {
     public void removeParticle(TrackParticle particle) {
         if (particle.world == this) {
             if (particle.isUsingViewers()) {
-                particle.makeHiddenForAll();
-                particle.onRemoved();
+                try {
+                    particle.makeHiddenForAll();
+                } catch (Throwable t) {
+                    getPlugin().getLogger().log(Level.SEVERE, "TrackParticle.makeHiddenForAll() failed for "
+                            + particle.getClass().getName(), t);
+                }
+                try {
+                    particle.onRemoved();
+                } catch (Throwable t) {
+                    getPlugin().getLogger().log(Level.SEVERE, "TrackParticle.onRemoved() failed for "
+                            + particle.getClass().getName(), t);
+                }
                 particle.world = null;
                 this.forceViewerUpdate = true;
             } else {
-                particle.onRemoved();
+                try {
+                    particle.onRemoved();
+                } catch (Throwable t) {
+                    getPlugin().getLogger().log(Level.SEVERE, "TrackParticle.onRemoved() failed for "
+                            + particle.getClass().getName(), t);
+                }
                 particle.world = null;
             }
         }

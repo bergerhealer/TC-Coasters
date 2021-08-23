@@ -33,7 +33,11 @@ public abstract class TrackParticle {
     }
 
     public void remove() {
-        this.world.removeParticle(this);
+        if (this.world != null) {
+            this.world.removeParticle(this);
+        } else {
+            throw new IllegalStateException("Particle was already removed");
+        }
     }
 
     /**

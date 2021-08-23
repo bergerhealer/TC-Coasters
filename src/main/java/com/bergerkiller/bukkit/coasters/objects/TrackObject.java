@@ -2,12 +2,14 @@ package com.bergerkiller.bukkit.coasters.objects;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
 
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
+import com.bergerkiller.bukkit.coasters.particles.TrackParticleMissingPlaceHolder;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWidthMarker;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
@@ -77,11 +79,10 @@ public class TrackObject implements Cloneable {
             if (typeClassChanged) {
                 // Recreate (different type)
                 this.particle.remove();
-                this.particle = this.type.createParticle(point.transform(this.type.getTransform()));
-                this.particle.setStateSource(this.source_selected_blink);
+                initParticle(point);
             } else {
                 // Same type, different properties, only an update of the particle is needed
-                this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point.transform(this.type.getTransform()));
+                updateParticle(point);
             }
         }
         if (this.particleWidthMarker != null) {
@@ -124,7 +125,7 @@ public class TrackObject implements Cloneable {
             if (this.flipped) {
                 point.orientation.rotateYFlip();
             }
-            this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point.transform(this.type.getTransform()));
+            updateParticle(point);
         }
         if (this.particleWidthMarker != null) {
             this.particleWidthMarker.setPositionOrientation(point.position, point.orientation);
@@ -167,11 +168,9 @@ public class TrackObject implements Cloneable {
     public void onAdded(TrackConnection connection) {
         if (isAdded()) {
             throw new IllegalStateException("Object was already added to a connection");
+        } else {
+            initParticle(findPointOnPath(connection));
         }
-
-        TrackConnection.PointOnPath point = findPointOnPath(connection);
-        this.particle = this.type.createParticle(point.transform(this.type.getTransform()));
-        this.particle.setStateSource(this.source_selected_blink);
     }
 
     public void onRemoved(TrackConnection connection) {
@@ -198,7 +197,7 @@ public class TrackObject implements Cloneable {
         if (this.particleWidthMarker != null) {
             this.particleWidthMarker.setPositionOrientation(point.position, point.orientation);
         }
-        this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point.transform(this.type.getTransform()));
+        updateParticle(point);
     }
 
     /**
@@ -238,6 +237,23 @@ public class TrackObject implements Cloneable {
                 this.particleWidthMarker.remove();
                 this.particleWidthMarker = null;
             }
+        }
+    }
+
+    private void initParticle(TrackConnection.PointOnPath point) {
+        try {
+            this.particle = this.type.createParticle(point.transform(this.type.getTransform()));
+            this.particle.setStateSource(this.source_selected_blink);
+        } catch (Throwable t) {
+            point.connection.getPlugin().getLogger().log(Level.SEVERE, "Failed to create particle for track object "
+                    + this.type.getTitle(), t);
+            this.particle = point.connection.getWorld().getParticles().addParticle(new TrackParticleMissingPlaceHolder());
+        }
+    }
+
+    private void updateParticle(TrackConnection.PointOnPath point) {
+        if (!(this.particle instanceof TrackParticleMissingPlaceHolder)) {
+            this.type.updateParticle(CommonUtil.unsafeCast(this.particle), point.transform(this.type.getTransform()));
         }
     }
 

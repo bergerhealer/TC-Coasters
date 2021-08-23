@@ -295,9 +295,10 @@ public class TCCoasters extends PluginBase {
 
         // Before loading coasters, detect LightAPI
         // We don't know yet it has enabled, but we'll assume that it will.
+        // Check this isnt the legacy LightAPI as it does not work at all
         {
             Plugin plugin = Bukkit.getPluginManager().getPlugin("LightAPI");
-            if (plugin != null) {
+            if (plugin != null && !plugin.getDescription().getMain().equals("ru.beykerykt.minecraft.lightapi.bukkit.impl.BukkitPlugin")) {
                 this.updateDependency(plugin, plugin.getName(), true);
             }
         }
