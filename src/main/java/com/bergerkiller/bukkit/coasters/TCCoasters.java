@@ -46,6 +46,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster.CoasterLoadException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
+import com.bergerkiller.bukkit.coasters.util.FastIdentityHashMap;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.QueuedTask;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
@@ -90,7 +91,7 @@ public class TCCoasters extends PluginBase {
     private final TCCoastersListener listener = new TCCoastersListener(this);
     private final TCCoastersInteractionListener interactionListener = new TCCoastersInteractionListener(this);
     private final Map<Player, PlayerEditState> editStates = new HashMap<Player, PlayerEditState>();
-    private final Map<World, CoasterWorldImpl> worlds = new HashMap<World, CoasterWorldImpl>();
+    private final FastIdentityHashMap<World, CoasterWorldImpl> worlds = new FastIdentityHashMap<World, CoasterWorldImpl>();
     private final QueuedTask<Player> noPermDebounce = QueuedTask.create(20, QueuedTask.Precondition.none(), player -> {});
     private double smoothness = DEFAULT_SMOOTHNESS;
     private boolean glowingSelections = DEFAULT_GLOWING_SELECTIONS;
