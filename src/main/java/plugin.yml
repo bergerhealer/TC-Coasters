@@ -10,6 +10,7 @@ softdepend: [BKCommonLib, Train_Carts, PlotSquared, LightAPI, ViaVersion]
 main: com.bergerkiller.bukkit.coasters.Preloader
 preloader:
     main: com.bergerkiller.bukkit.coasters.TCCoasters
+    hastebinServer: https://paste.traincarts.net
     depend:
         BKCommonLib: https://www.spigotmc.org/resources/bkcommonlib.39590/
         Train_Carts: https://www.spigotmc.org/resources/traincarts.39592/
