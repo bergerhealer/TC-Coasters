@@ -64,6 +64,21 @@ public class TrackWorld implements CoasterWorldComponent {
     }
 
     /**
+     * Gets a track coaster by name
+     *
+     * @param name
+     * @return coaster
+     */
+    public TrackCoaster getCoasterByName(String name) {
+        for (TrackCoaster coaster : this._coasters) {
+            if (coaster.getName().equals(name)) {
+                return coaster;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Attempts to find the coaster by a given name
      * 
      * @param name

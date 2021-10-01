@@ -276,6 +276,19 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
     }
 
     /**
+     * Renames this coaster, renaming the save file and changing {@link #getname()}
+     *
+     * @param newName New name
+     */
+    public void renameTo(String newName) {
+        File folder = this.getWorld().getTracks().getConfigFolder();
+        File oldRealFile = new File(folder, TCCoasters.escapeName(this.getName()) + ".csv");
+        File newRealFile = new File(folder, TCCoasters.escapeName(newName) + ".csv");
+        oldRealFile.renameTo(newRealFile);
+        this._name = newName;
+    }
+
+    /**
      * Saves the contents of this coaster to .csv file
      * 
      * @param autosave whether to save only when changes occurred (true), or all the time (false)

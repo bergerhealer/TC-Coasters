@@ -15,9 +15,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
 import org.bukkit.Bukkit;
@@ -44,6 +46,7 @@ import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeLight;
 import com.bergerkiller.bukkit.coasters.signs.SignActionTrackAnimate;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster.CoasterLoadException;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.util.FastIdentityHashMap;
@@ -71,6 +74,7 @@ import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
+import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
 import com.bergerkiller.bukkit.tc.TCConfig;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
@@ -1193,6 +1197,72 @@ public class TCCoasters extends PluginBase {
             } catch (ChangeCancelledException ex) {
                 sender.sendMessage(ChatColor.RED + "Failed to make the connections curved");
             }
+        } else if (args.length > 0 && LogicUtil.contains(args[0], "info")) {
+            List<String> coasterNames = state.getEditedNodes().stream()
+                    .map(TrackNode::getCoaster)
+                    .distinct()
+                    .map(TrackCoaster::getName)
+                    .collect(Collectors.toList());
+            double totalDistance = state.getEditedNodes().stream()
+                    .flatMap(c -> c.getConnections().stream())
+                    .filter(c -> state.isEditing(c.getNodeA()) && state.isEditing(c.getNodeB()))
+                    .distinct()
+                    .mapToDouble(TrackConnection::getFullDistance) 
+                    .sum();
+            sender.sendMessage(ChatColor.YELLOW + "Total nodes: " + ChatColor.WHITE + state.getEditedNodes().size());
+            sender.sendMessage(ChatColor.YELLOW + "Total track distance: " + ChatColor.WHITE + totalDistance);
+            sender.sendMessage(ChatColor.YELLOW + "Coaster names: " + ChatColor.WHITE + StringUtil.combineNames(coasterNames));
+        } else if (args.length > 0 && LogicUtil.contains(args[0], "rename")) {
+            if (args.length == 1) {
+                List<String> coasterNames = state.getEditedNodes().stream()
+                        .map(TrackNode::getCoaster)
+                        .distinct()
+                        .map(TrackCoaster::getName)
+                        .collect(Collectors.toList());
+                sender.sendMessage(ChatColor.YELLOW + "Selected coaster names: " + ChatColor.WHITE +
+                        StringUtil.combineNames(coasterNames));
+                sender.sendMessage(ChatColor.RED + "Usage: /tcc rename <coaster_name> <new_coaster_name>");
+                sender.sendMessage(ChatColor.RED + "Usage for one: /tcc rename <new_coaster_name>");
+                return true;
+            }
+
+            String oldCoasterName, newCoasterName;
+            if (args.length == 2) {
+                List<String> coasterNames = state.getEditedNodes().stream()
+                        .map(TrackNode::getCoaster)
+                        .distinct()
+                        .map(TrackCoaster::getName)
+                        .collect(Collectors.toList());
+                if (coasterNames.isEmpty()) {
+                    sender.sendMessage(ChatColor.RED + "You have no coaster selected!");
+                    return true;
+                } else if (coasterNames.size() > 1) {
+                    sender.sendMessage(ChatColor.RED + "You have more than one coaster selected!");
+                    return true;
+                }
+                oldCoasterName = coasterNames.get(0);
+                newCoasterName = args[1];
+            } else {
+                oldCoasterName = args[1];
+                newCoasterName = args[2];
+            }
+            if (oldCoasterName.equalsIgnoreCase(newCoasterName)) {
+                sender.sendMessage(ChatColor.RED + "Old and new coaster name is the same!");
+                return true;
+            }
+            if (state.getWorld().getTracks().getCoasterByName(newCoasterName) != null) {
+                sender.sendMessage(ChatColor.RED + "Coaster with name " + newCoasterName + " already exists!");
+                return true;
+            }
+            TrackCoaster coaster = state.getWorld().getTracks().getCoasterByName(oldCoasterName);
+            if (coaster == null) {
+                sender.sendMessage(ChatColor.RED + "Coaster with name " + oldCoasterName + " does not exist!");
+                return true;
+            }
+            coaster.renameTo(newCoasterName);
+            sender.sendMessage(ChatColor.GREEN + "Coaster '"  + ChatColor.YELLOW + oldCoasterName +
+                    ChatColor.GREEN + "' renamed to '" + ChatColor.YELLOW + newCoasterName +
+                    ChatColor.GREEN + "'!");
         } else {
             sender.sendMessage(ChatColor.RED + "What did you want? Try /tcc give");
         }
