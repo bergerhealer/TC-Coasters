@@ -175,15 +175,18 @@ public class CoasterRailType extends RailType {
     @Override
     public RailLogic getLogic(RailState state) {
         final List<TrackRailsSection> rails = getRailSections(state.railBlock());
-        final int numRails = rails.size();
-        if (numRails == 0) {
+
+        // This iterator is only used once, eliminating need to use size()
+        final Iterator<TrackRailsSection> railsIter = rails.iterator();
+        if (!railsIter.hasNext()) {
             return RailLogicAir.INSTANCE;
         }
 
         TrackRailsSection section;
-        if (numRails == 1) {
+        TrackRailsSection firstSection = railsIter.next();
+        if (!railsIter.hasNext()) {
             // Only one to pick from, so pick it
-            section = rails.get(0);
+            section = firstSection;
         } else {
             final int serverTickThreshold = (CommonUtil.getServerTicks() - 1);
 
@@ -195,7 +198,8 @@ public class CoasterRailType extends RailType {
             TrackRailsSection preferredNew = null;
             {
                 final Vector railPosition = state.railPosition();
-                for (TrackRailsSection pick : rails) {
+                TrackRailsSection pick = firstSection;
+                while (true) {
                     // Adds information about the distance (squared) to the
                     // position on the rails.
                     pick.lastDistanceSquared = pick.distanceSq(railPosition);
@@ -212,6 +216,14 @@ public class CoasterRailType extends RailType {
                             preferredNew = pick;
                         }
                     }
+
+                    // Check for next element. This might be expensive, so
+                    // do not do this for the first pick.
+                    if (pick != firstSection && !railsIter.hasNext()) {
+                        break;
+                    }
+
+                    pick = railsIter.next();
                 }
             }
 
