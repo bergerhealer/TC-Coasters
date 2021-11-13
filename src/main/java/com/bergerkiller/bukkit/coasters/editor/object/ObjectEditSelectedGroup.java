@@ -48,16 +48,6 @@ public class ObjectEditSelectedGroup {
     }
 
     /**
-     * Gets the first track object in this selection. Only useful for
-     * mass-selecting.
-     *
-     * @return First object
-     */
-    public TrackObject getFirstObject() {
-        return selection.get(0).object;
-    }
-
-    /**
      * Gets a mapping of all the track objects that should or should
      * not be selected
      *

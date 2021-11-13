@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.editor.object;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -364,10 +365,10 @@ public class ObjectEditState {
             // Double-click mass-selection mode
             if (this.editState.isSneaking()) {
                 // Select all objects between the clicked object and the nearest other selected track object
-                this.floodSelectNearest(group.getConnection(), group.getFirstObject());
+                this.floodSelectNearest(group.getConnection(), group.getSelection().keySet());
             } else {
                 // Flood-fill select all nodes connected from bestObject
-                this.floodSelectObjects(group.getConnection(), group.getFirstObject());
+                this.floodSelectObjects(group.getConnection(), group.getSelection().keySet().iterator().next());
             }
         }
 
@@ -862,33 +863,42 @@ public class ObjectEditState {
 
     /**
      * Selects all the track objects of all connections accessible from the start connection,
-     * that are between the startObject and the closest other selected track object.
+     * that are between any of the startObjects cluster and the closest other selected track object.
      * The selected track objects are added and the previous selection is kept.
      * 
      * @param startConnection
-     * @param startObject
+     * @param startObjects
      */
-    public void floodSelectNearest(TrackConnection startConnection, TrackObject startObject) {
+    public void floodSelectNearest(TrackConnection startConnection, Collection<TrackObject> startObjects) {
+        // Protect me!
+        if (startObjects.isEmpty()) {
+            return;
+        }
+
         // If there is a selected track object with the same connection, then we can optimize this
         // This is technically incorrect, because we could be at the end/start of the connection, with
         // another selected object on a connection next to it. For now, this is good enough, really.
         // Normally people only select a single object prior to flood-selecting anyway.
         {
             TrackObject closestObjectOnSameConnection = null;
+            TrackObject closestObjectOnSameConnectionStart = null;
             double closestDistance = Double.MAX_VALUE;
             for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
-                if (editObject.connection == startConnection && editObject.object != startObject) {
-                    double distance = Math.abs(startObject.getDistance() - editObject.object.getDistance());
-                    if (distance < closestDistance) {
-                        closestDistance = distance;
-                        closestObjectOnSameConnection = editObject.object;
+                if (editObject.connection == startConnection && !startObjects.contains(editObject.object)) {
+                    for (TrackObject startObject : startObjects) {
+                        double distance = Math.abs(startObject.getDistance() - editObject.object.getDistance());
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestObjectOnSameConnection = editObject.object;
+                            closestObjectOnSameConnectionStart = startObject;
+                        }
                     }
                 }
             }
             if (closestObjectOnSameConnection != null) {
                 // Add all objects in between the distance range
-                double d_from = Math.min(startObject.getDistance(), closestObjectOnSameConnection.getDistance());
-                double d_to   = Math.max(startObject.getDistance(), closestObjectOnSameConnection.getDistance());
+                double d_from = Math.min(closestObjectOnSameConnectionStart.getDistance(), closestObjectOnSameConnection.getDistance());
+                double d_to   = Math.max(closestObjectOnSameConnectionStart.getDistance(), closestObjectOnSameConnection.getDistance());
                 for (TrackObject object : startConnection.getObjects()) {
                     if (object.getDistance() >= d_from && object.getDistance() <= d_to) {
                         this.selectTrackObject(startConnection, object);
@@ -899,16 +909,17 @@ public class ObjectEditState {
         }
 
         // Make use of the node flood selecting, using the nodes from the objects we have selected
-        // For start node, we pick the node closest to the start object
+        // For start node, we pick the node closest to the starting objects
         List<ObjectEditTrackObject> editedTrackObjects = new ArrayList<ObjectEditTrackObject>(this.editedTrackObjects.values());
         HashSet<TrackNode> nodesOfTrackObjects = new HashSet<TrackNode>();
         for (ObjectEditTrackObject editObject : editedTrackObjects) {
-            if (editObject.object != startObject) {
+            if (!startObjects.contains(editObject.object)) {
                 nodesOfTrackObjects.add(editObject.connection.getNodeA());
                 nodesOfTrackObjects.add(editObject.connection.getNodeB());
             }
         }
-        boolean searchRight = (startObject.getDistance() >= 0.5 * startConnection.getFullDistance());
+        double searchStartDistance = startObjects.iterator().next().getDistance(); //TODO: Is this OK?
+        boolean searchRight = (searchStartDistance >= 0.5 * startConnection.getFullDistance());
         TrackNode searchStart = searchRight ? startConnection.getNodeB() : startConnection.getNodeA();
         TrackNodeSearchPath bestPath = TrackNodeSearchPath.findShortest(searchStart, nodesOfTrackObjects);
 
@@ -917,7 +928,7 @@ public class ObjectEditState {
             // If best path contains the other node of the start connection, then fill select to the right
             // Otherwise, select all objects to the left of the start object
             boolean searchWentRight = searchRight == (bestPath.path.contains(startConnection.getOtherNode(searchStart)));
-            this.selectObjectsBeyondDistance(startConnection, searchWentRight, startObject.getDistance());
+            this.selectObjectsBeyondDistance(startConnection, searchWentRight, searchStartDistance);
             bestPath.pathConnections.remove(startConnection);
 
             // The current node is one that has a connection with one of the track objects we had selected
@@ -927,7 +938,7 @@ public class ObjectEditState {
             boolean bestObjectDirection = false;
             double bestObjectDistanceToEnd = Double.MAX_VALUE;
             for (ObjectEditTrackObject editObject : editedTrackObjects) {
-                if (editObject.object == startObject) {
+                if (startObjects.contains(editObject.object)) {
                     continue;
                 }
 
