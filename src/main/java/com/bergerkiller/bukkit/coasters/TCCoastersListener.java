@@ -9,6 +9,7 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.event.world.WorldInitEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 
@@ -51,6 +52,16 @@ public class TCCoastersListener implements Listener {
             state.setTargetedBlock(event.getClickedBlock(), event.getBlockFace());
             event.setCancelled(state.onRightClick());
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerSneakChange(PlayerToggleSneakEvent event) {
+        if (!this.plugin.isHoldingEditTool(event.getPlayer())) {
+            return;
+        }
+
+        PlayerEditState state = this.plugin.getEditState(event.getPlayer());
+        state.onSneakingChanged(event.isSneaking());
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)

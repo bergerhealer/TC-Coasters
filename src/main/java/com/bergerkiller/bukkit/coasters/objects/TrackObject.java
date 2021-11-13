@@ -185,7 +185,7 @@ public class TrackObject implements Cloneable {
         this.particle = null; // isAdded() -> false
 
         // Remove from player edit states to prevent trouble
-        connection.getPlugin().forAllEditStates(state -> state.getObjects().setEditingTrackObject(connection, TrackObject.this, false));
+        connection.getPlugin().forAllEditStates(state -> state.getObjects().deselectTrackObject(connection, TrackObject.this));
     }
 
     public void onShapeUpdated(TrackConnection connection) {

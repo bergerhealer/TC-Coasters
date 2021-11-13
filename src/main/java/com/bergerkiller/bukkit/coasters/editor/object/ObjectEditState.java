@@ -13,6 +13,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -52,8 +53,7 @@ public class ObjectEditState {
     private final Map<TrackObject, ObjectEditTrackObject> editedTrackObjects = new LinkedHashMap<TrackObject, ObjectEditTrackObject>();
     private final List<DuplicatedObject> duplicatedObjects = new ArrayList<DuplicatedObject>();
     private final List<DragListener> dragListeners = new ArrayList<DragListener>();
-    private TrackObject lastEditedTrackObject = null;
-    private long lastEditTrackObjectTime = System.currentTimeMillis();
+    private ObjectEditSelectedGroup lastEditedGroup = null;
     private double dragListenersDistanceToObjects = 0.0;
     private boolean isDragControlEnabled = true;
     private boolean isDraggingObjects = false;
@@ -220,6 +220,7 @@ public class ObjectEditState {
     }
 
     public void clearEditedTrackObjects() {
+        this.lastEditedGroup = null;
         if (!this.editedTrackObjects.isEmpty()) {
             ArrayList<ObjectEditTrackObject> oldObjects = new ArrayList<ObjectEditTrackObject>(this.editedTrackObjects.values());
             this.editedTrackObjects.clear();
@@ -251,6 +252,16 @@ public class ObjectEditState {
     public void onModeChanged() {
         for (ObjectEditTrackObject editObject : this.editedTrackObjects.values()) {
             editObject.object.onStateUpdated(editObject.connection, this.editState);
+        }
+    }
+
+    public void onSneakingChanged(boolean sneaking) {
+        if (this.lastEditedGroup != null) {
+            if (sneaking) {
+                this.lastEditedGroup.remember();
+            } else {
+                this.lastEditedGroup.forget();
+            }
         }
     }
 
@@ -310,46 +321,59 @@ public class ObjectEditState {
         }
 
         // Check for objects on this connection that are very close to the point clicked
-        TrackObject bestObject = null;
-        double bestDistance = 4.0; // within 4.0 distance to select it (TODO: larger wiggle room when further away?)
-        for (TrackObject object : point.connection.getObjects()) {
-            double distance = Math.abs(object.getDistance() - point.distance);
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                bestObject = object;
-            }
-        }
-        if (bestObject == null) {
+        ObjectEditSelectedGroup group = ObjectEditSelectedGroup.findNear(point);
+        if (group.isEmpty()) {
             if (!isMultiSelect) {
                 clearEditedTrackObjects();
             }
             return true;
         }
 
-        long lastEditTime = getLastEditTime(bestObject);
-        if (lastEditTime > 300) {
-            // Toggle edit state
-            if (isEditing(bestObject) && (isMultiSelect || this.editedTrackObjects.size() == 1)) {
-                // Disable just this object when it's our only selection,
-                // or when multi-select is active
-                setEditingTrackObject(point.connection, bestObject, false);
-            } else {
-                // Deselect all previous objects when multiselect is off, and select the object
-                if (!isMultiSelect) {
-                    clearEditedTrackObjects();
-                }
-                selectTrackObject(point.connection, bestObject);
+        if (!group.isSameGroup(this.lastEditedGroup)) {
+            // New group selected, if not multi-selecting clear the previous selection
+            if (!isMultiSelect) {
+                clearEditedTrackObjects();
             }
+
+            // Initially none are selected, so we just state that we're in 'remember mode'
+            // This is important so that when cycling through it goes through the no-selection phase
+            if (isMultiSelect) {
+                group.remember();
+            }
+
+            // Assign and update
+            this.lastEditedGroup = group;
+            this.lastEditedGroup.nextSelection(); // Selects all
+            this.setEditingUsingGroup(group);
+        } else if (this.lastEditedGroup.getSelectDuration() > 300) {
+            // Not double-clicking, update the selection
+            if (!isMultiSelect) {
+                // In case we desync-d, make sure to forget when not sneaking
+                this.lastEditedGroup.forget();
+
+                // De-select all track objects not part of this group
+                List<ObjectEditTrackObject> objectsToDeselect = this.editedTrackObjects.values().stream()
+                        .filter(o -> o.connection != group.getConnection() || !group.containsObject(o.object))
+                        .collect(Collectors.toList());
+                for (ObjectEditTrackObject selectedObject : objectsToDeselect) {
+                    this.deselectTrackObject(selectedObject.connection, selectedObject.object);
+                }
+            }
+
+            // Cycle
+            this.lastEditedGroup.nextSelection();
+            this.setEditingUsingGroup(this.lastEditedGroup);
         } else {
-            // Mass-selection mode
+            // Double-click mass-selection mode
             if (this.editState.isSneaking()) {
                 // Select all objects between the clicked object and the nearest other selected track object
-                this.floodSelectNearest(point.connection, bestObject);
+                this.floodSelectNearest(group.getConnection(), group.getFirstObject());
             } else {
                 // Flood-fill select all nodes connected from bestObject
-                this.floodSelectObjects(point.connection, bestObject);
+                this.floodSelectObjects(group.getConnection(), group.getFirstObject());
             }
         }
+
         return true;
     }
 
@@ -418,7 +442,7 @@ public class ObjectEditState {
      */
     public boolean selectTrackObject(TrackConnection connection, TrackObject object) {
         if (object == null) {
-            throw new IllegalArgumentException("Track object can not be null");
+            throw new IllegalArgumentException("Track object cannot be null");
         }
         if (this.editedTrackObjects.containsKey(object)) {
             return true;
@@ -428,48 +452,98 @@ public class ObjectEditState {
             return false;
         }
 
-        this.setEditingTrackObject(connection, object, true);
+        // Select it
+        this.editedTrackObjects.put(object, new ObjectEditTrackObject(connection, object));
+        this.selectedType = object.getType();
+
+        // Can be caused by the object being removed, handle that here
+        if (object.isAdded()) {
+            object.onStateUpdated(connection, this.editState);
+            this.editState.markChanged();
+        }
+
+        // May have caused a particle visibility change
+        getWorld().getParticles().scheduleViewerUpdate(this.getPlayer());
+
         return true;
     }
 
-    public void setEditingTrackObject(TrackConnection connection, TrackObject object, boolean editing) {
+    /**
+     * Deselects a track object for editing, if it was previously selected.
+     * Invalidates the current selection.
+     *
+     * @param connection
+     * @param object
+     * @return True if the object was indeed selected, and is now deselected
+     */
+    public boolean deselectTrackObject(TrackConnection connection, TrackObject object) {
         if (object == null) {
-            throw new IllegalArgumentException("Track Object can not be null");
+            throw new IllegalArgumentException("Track object cannot be null");
         }
-        boolean changed;
-        if (editing) {
-            if (this.editedTrackObjects.containsKey(object)) {
-                changed = false;
-            } else {
-                changed = true;
-                this.editedTrackObjects.put(object, new ObjectEditTrackObject(connection, object));
-                this.selectedType = object.getType();
-            }
-        } else {
-            changed = (this.editedTrackObjects.remove(object) != null);
-        }
-        if (changed) {
-            // Can be caused by the object being removed, handle that here
-            if (object.isAdded()) {
-                object.onStateUpdated(connection, this.editState);
 
-                this.lastEditedTrackObject = object;
-                this.lastEditTrackObjectTime = System.currentTimeMillis();
+        // Invalidate group as it now contains an object that no longer exists
+        if (this.lastEditedGroup != null && this.lastEditedGroup.containsObject(object)) {
+            this.lastEditedGroup = null;
+        }
+
+        // Remove selection
+        if (this.editedTrackObjects.remove(object) == null) {
+            return false;
+        }
+
+        // May have caused a particle visibility change
+        getWorld().getParticles().scheduleViewerUpdate(this.getPlayer());
+        return true;
+    }
+
+    /**
+     * Selects and de-selects track objects based on a track object selected group.
+     *
+     * @param group
+     */
+    public void setEditingUsingGroup(ObjectEditSelectedGroup group) {
+        // Validation
+        if (group == null) {
+            throw new IllegalArgumentException("Track Object Group cannot be null");
+        } else if (group.isEmpty()) {
+            return;
+        }
+
+        // Update selected objects state
+        boolean changed = false;
+        Map<TrackObject, Boolean> selection = group.getSelection();
+        for (Map.Entry<TrackObject, Boolean> entry : selection.entrySet()) {
+            TrackObject object = entry.getKey();
+            if (!entry.getValue()) {
+                // Deselect
+                changed |= (this.editedTrackObjects.remove(object) != null);
+            } else if (!this.editedTrackObjects.containsKey(object)) {
+                // Select
+                // Fire select event to see if the player can actually select this one
+                CoasterSelectTrackObjectEvent event = new CoasterSelectTrackObjectEvent(
+                        this.getPlayer(), group.getConnection(), object);
+                if (!CommonUtil.callEvent(event).isCancelled()) {
+                    changed = true;
+                    this.editedTrackObjects.put(object, new ObjectEditTrackObject(group.getConnection(), object));
+                    this.selectedType = object.getType();
+                }
+            }
+        }
+
+        // If changed, do a bunch of stuff
+        if (changed) {
+            for (TrackObject object : selection.keySet()) {
+                // Can be caused by the object being removed, handle that here
+                if (!object.isAdded()) {
+                    continue;
+                }
+
+                object.onStateUpdated(group.getConnection(), this.editState);
                 this.editState.markChanged();
-            } else if (this.lastEditedTrackObject == object) {
-                this.lastEditedTrackObject = null;
             }
 
             // May have caused a particle visibility change
             getWorld().getParticles().scheduleViewerUpdate(this.getPlayer());
-        }
-    }
-
-    public long getLastEditTime(TrackObject object) {
-        if (this.lastEditedTrackObject != object) {
-            return Long.MAX_VALUE;
-        } else {
-            return System.currentTimeMillis() - this.lastEditTrackObjectTime;
         }
     }
 
@@ -492,11 +566,10 @@ public class ObjectEditState {
                 iter.remove();
                 hadLockedTrackObjects = true;
                 editObject.object.onStateUpdated(editObject.connection, this.editState);
-                this.lastEditedTrackObject = editObject.object;
             }
         }
         if (hadLockedTrackObjects) {
-            this.lastEditTrackObjectTime = System.currentTimeMillis();
+            this.lastEditedGroup = null;
             this.editState.markChanged();
             TCCoastersLocalization.LOCKED.message(this.getPlayer());
 

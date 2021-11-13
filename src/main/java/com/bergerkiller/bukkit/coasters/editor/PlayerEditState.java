@@ -533,6 +533,10 @@ public class PlayerEditState implements CoasterWorldComponent {
         return false;
     }
 
+    public void onSneakingChanged(boolean sneaking) {
+        this.objectState.onSneakingChanged(sneaking);
+    }
+
     public boolean onLeftClick() {
         if (this.getMode() == PlayerEditMode.OBJECT) {
             return this.objectState.onLeftClick();
