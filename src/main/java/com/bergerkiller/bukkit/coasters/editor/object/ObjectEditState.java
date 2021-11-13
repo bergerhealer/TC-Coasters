@@ -57,7 +57,8 @@ public class ObjectEditState {
     private double dragListenersDistanceToObjects = 0.0;
     private boolean isDragControlEnabled = true;
     private boolean isDraggingObjects = false;
-    private boolean isDuplicating = false;
+    private boolean isPreDuplicating = false; // If true, player just left-clicked, and single or mass duplicating needs to be decided
+    private boolean isDuplicating = false; // If true, creates a trail of duplicates where the player looks
     private boolean blink = false;
     private TrackObjectType<?> selectedType;
 
@@ -285,26 +286,22 @@ public class ObjectEditState {
         if (this.editState.isHoldingRightClick()) {
             // Switch to duplicate mode
             if (point != null) {
-                if (this.isDuplicating) {
+                if (this.isPreDuplicating) {
+                    // Player left-clicked once before, didn't move cursor, then clicked again
+                    // We assume the player wanted to cancel duplicating altogether, so switch back
+                    this.isPreDuplicating = false;
+                } else if (this.isDuplicating) {
                     // Cancel duplicating and switch back to dragging mode
                     this.undoDuplicatedObjects();
-                    this.isDuplicating = false;
                     this.startDrag(point, false);
                 } else if (this.editedTrackObjects.size() == 1) {
                     // If only one object is selected, duplicate it and resume dragging the original object
-                    ObjectEditTrackObject editObject = this.editedTrackObjects.values().iterator().next();
-                    editObject.connection.addObject(editObject.object.clone());
-
-                    // Play a sound cue so the player knows an object was placed
-                    PlayerUtil.playSound(getPlayer(), SoundEffect.CLICK_WOOD, 0.1f, 1.0f);
+                    // No need for the isPreDuplicating stage in that case
+                    duplicateObjectsOnce();
                 } else {
-                    // Finish the drag action and switch to duplicate mode
-                    try {
-                        this.onEditingFinished();
-                        this.startDrag(point, true);
-                    } catch (ChangeCancelledException e) {
-                        this.clearEditedTrackObjects();
-                    }
+                    // Set a flag that we are about to start duplicating mode
+                    // Once the player moves the cursor away, actual duplicating starts
+                    this.isPreDuplicating = true;
                 }
             }
             return true;
@@ -377,8 +374,14 @@ public class ObjectEditState {
         return true;
     }
 
+    /**
+     * Called when the Player released the right-click button while the Track Object menu is active
+     *
+     * @throws ChangeCancelledException
+     */
     public void onEditingFinished() throws ChangeCancelledException {
         this.isDraggingObjects = false;
+
         if (this.isDuplicating) {
             // Duplicating finished
             this.isDuplicating = false;
@@ -429,6 +432,14 @@ public class ObjectEditState {
             if (wasCancelled) {
                 throw new ChangeCancelledException();
             }
+        }
+
+        // Player pressed left-click once while holding right click in the past
+        // Player then released right-click again. This is single-duplicating mode,
+        // so duplicate the selected track objects and done.
+        if (this.isPreDuplicating) {
+            this.isPreDuplicating = false;
+            this.duplicateObjectsOnce();
         }
     }
 
@@ -666,6 +677,22 @@ public class ObjectEditState {
         } else if (this.isDuplicating) {
             // Successive clicks while drag: duplicate the selected track objects
             this.duplicateObjects(point);
+        } else if (this.isPreDuplicating) {
+            // Player held right-click and left-clicked once. We are now testing to see
+            // if the player is starting to drag the cursor around, indicating the player wants
+            // to start duplicating. If not, we do nothing, and on release the selected objects
+            // are duplicated only once.
+            this.undoDuplicatedObjects();
+            if (isMovingObjects(point, false) || isMovingObjects(point, true)) {
+                // Finish the drag action and switch to duplicate mode
+                this.isPreDuplicating = false; // Cancel
+                try {
+                    this.onEditingFinished();
+                    this.startDrag(point, true);
+                } catch (ChangeCancelledException e) {
+                    this.clearEditedTrackObjects();
+                }
+            }
         } else {
             // Successive clicks: move the objects to the point, making use of the relative dragDistance to do so
             this.undoDuplicatedObjects();
@@ -776,6 +803,7 @@ public class ObjectEditState {
 
         // When sneaking during initial right-click, enable duplicating mode
         this.isDuplicating = duplicating;
+        this.isPreDuplicating = false;
         this.isDraggingObjects = false;
 
         // Reset all objects to NaN
@@ -977,6 +1005,21 @@ public class ObjectEditState {
             }
             pending.subList(0, size).clear();
         }
+    }
+
+    /**
+     * Creates a duplicate of all track objects currently selected.
+     * Leaves the original track objects selected, so they can be moved into position.
+     */
+    public void duplicateObjectsOnce() {
+        // Duplicate all edited objects
+        ArrayList<ObjectEditTrackObject> objectsToDupe = new ArrayList<>(this.editedTrackObjects.values());
+        for (ObjectEditTrackObject editObject : objectsToDupe) {
+            editObject.connection.addObject(editObject.object.clone());
+        }
+
+        // Play a sound cue so the player knows an object was placed
+        PlayerUtil.playSound(getPlayer(), SoundEffect.CLICK_WOOD, 0.1f, 1.0f);
     }
 
     /**
@@ -1226,8 +1269,7 @@ public class ObjectEditState {
         return TrackObjectTypeItemStack.createDefault();
     }
 
-    /// Moves selected track objects. Direction defines whether to walk to nodeA (false) or nodeB (true).
-    private boolean moveObjects(TrackConnection.PointOnPath point, HistoryChange changes, boolean initialDirection, Vector rightDirection) {
+    private SortedSet<ObjectEditTrackObject> computeDraggedObjects(boolean initialDirection) {
         // Create a sorted list of objects to move, with drag distance increasing
         // Only add objects with the same direction
         SortedSet<ObjectEditTrackObject> objects = new TreeSet<ObjectEditTrackObject>(
@@ -1238,6 +1280,53 @@ public class ObjectEditState {
                 objects.add(editObject);
             }
         }
+        return objects;
+    }
+
+    /// Tests to see if the player changes the cursor enough to indicate the player is moving the objects around
+    /// Used to decide whether or not to switch to duplicating mode
+    private boolean isMovingObjects(TrackConnection.PointOnPath point, boolean initialDirection) {
+        SortedSet<ObjectEditTrackObject> objects = computeDraggedObjects(initialDirection);
+        if (objects.isEmpty()) {
+            return false; // none in this category
+        }
+
+        // Distance offset based on the point position on the clicked connection
+        // This makes the maths easier, as we can just look from the start of the connection
+        // This value is initially always a negative number (or 0)
+        double distanceOffset = -(initialDirection ? point.distance : (point.connection.getFullDistance() - point.distance));
+
+        // Proceed to walk down the connections relative to the point
+        ConnectionChain connection = new ConnectionChain(point.connection, initialDirection);
+        for (ObjectEditTrackObject object : objects) {
+            while (true) {
+                // Check if the object can fit within the remaining distance on the current connection
+                double objectDistance = object.dragDistance - distanceOffset;
+                if (objectDistance < connection.getFullDistance()) {
+                    if (!connection.direction) {
+                        objectDistance = connection.getFullDistance() - objectDistance;
+                    }
+                    if (object.connection != connection.connection) {
+                        return true; // Different connection, so yeah, we're moving it
+                    }
+                    if (Math.abs(object.object.getDistance() - objectDistance) > 0.1) {
+                        return true; // Moved significantly enough to matter
+                    }
+                    break; // done!
+                }
+
+                distanceOffset += connection.getFullDistance();
+                if (!connection.next()) {
+                    return false; // end reached
+                }
+            }
+        }
+        return false;
+    }
+
+    /// Moves selected track objects. Direction defines whether to walk to nodeA (false) or nodeB (true).
+    private boolean moveObjects(TrackConnection.PointOnPath point, HistoryChange changes, boolean initialDirection, Vector rightDirection) {
+        SortedSet<ObjectEditTrackObject> objects = computeDraggedObjects(initialDirection);
         if (objects.isEmpty()) {
             return true; // none in this category
         }
