@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
 
 import org.bukkit.block.Block;
 import org.bukkit.util.Vector;
@@ -175,6 +176,14 @@ public class TrackRailsWorld implements CoasterWorldComponent {
                 // No sections here, store it and nothing special
                 sectionsAtRails.add(section);
             } else {
+                //TODO: Debug validation, can be removed when no longer an issue
+                if (sectionsAtRails.contains(section)) {
+                    throw new IllegalArgumentException("Rails section is already contained");
+                }
+                if (section instanceof TrackRailsSectionLinked) {
+                    throw new IllegalArgumentException("Linked rails sections cannot be added this way");
+                }
+
                 // Try to merge it with existing track sections at these rails
                 if (section.primary) {
                     List<TrackRailsSection> sectionsToMerge = new ArrayList<TrackRailsSection>(2);
@@ -282,7 +291,20 @@ public class TrackRailsWorld implements CoasterWorldComponent {
         // Map all added nodes to the track node
         // We may be adding more than one node, because of merging tracks at the same rails
         for (Map.Entry<TrackNode, ObjectCache.Entry<Set<IntVector3>>> entry : tmpNodeBlocks.entrySet()) {
-            trackNodeMeta.put(entry.getKey(), new TrackNodeMeta(entry.getKey().getRailBlock(true), entry.getValue().get()));
+            final Set<IntVector3> blocks = entry.getValue().get();
+            trackNodeMeta.compute(entry.getKey(), (node, prevValue) -> {
+                if (prevValue == null) {
+                    return new TrackNodeMeta(node.getRailBlock(true), blocks);
+                } else {
+                    // Merge old and new sets
+                    // The set is writable because it is not used elsewhere, and will be closed
+                    blocks.addAll(Arrays.asList(prevValue.blocks));
+                    // Preserve original rail coordinates
+                    return new TrackNodeMeta(prevValue.rails, blocks);
+                }
+            });
+
+            // Done using this set, close it so its put back in cache
             entry.getValue().close();
         }
         tmpNodeBlocks.clear();
