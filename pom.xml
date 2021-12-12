@@ -4,7 +4,7 @@
 
     <groupId>com.bergerkiller.bukkit</groupId>
     <artifactId>TCCoasters</artifactId>
-    <version>1.18.1-v1</version>
+    <version>1.18.1-v2-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>TCCoasters</name>
@@ -14,7 +14,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.build.number>NO-CI</project.build.number>
         <project.serverversion>1.15.2-R0.1-SNAPSHOT</project.serverversion>
-        <project.bkcversion>1.17.1-v5</project.bkcversion>
+        <project.bkcversion>1.18.1-v1</project.bkcversion>
         <project.tcversion>1.16.1-v1</project.tcversion>
         <junit.version>4.12</junit.version>
         <project.preloaderversion>1.5</project.preloaderversion>
@@ -194,6 +194,24 @@
                         <relocation>
                             <pattern>org.apache.commons</pattern>
                             <shadedPattern>com.bergerkiller.bukkit.coasters.dep.org.apache.commons</shadedPattern>
+                        </relocation>
+
+                        <!-- BKCommonLib relocations of Cloud command framework -->
+                        <relocation>
+                            <pattern>cloud.commandframework</pattern>
+                            <shadedPattern>com.bergerkiller.bukkit.common.dep.cloud</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>io.leangen.geantyref</pattern>
+                            <shadedPattern>com.bergerkiller.bukkit.common.dep.typetoken</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>me.lucko.commodore</pattern>
+                            <shadedPattern>com.bergerkiller.bukkit.common.dep.me.lucko.commodore</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>net.kyori</pattern>
+                            <shadedPattern>com.bergerkiller.bukkit.common.dep.net.kyori</shadedPattern>
                         </relocation>
                     </relocations>
                     <artifactSet>

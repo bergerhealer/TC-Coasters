@@ -11,12 +11,7 @@ main: com.bergerkiller.bukkit.coasters.Preloader
 preloader:
     main: com.bergerkiller.bukkit.coasters.TCCoasters
     hastebinServer: https://paste.traincarts.net
+    commands: [tcc, tccoasters]
     depend:
         BKCommonLib: https://www.spigotmc.org/resources/bkcommonlib.39590/
         Train_Carts: https://www.spigotmc.org/resources/traincarts.39592/
-
-commands:
-    tccoasters:
-        aliases: [coaster, tcc]
-        description: Main command for using the plugin
-        usage: Use /tcc give to start
