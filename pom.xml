@@ -106,7 +106,13 @@
             <groupId>com.github.intellectualsites.plotsquared</groupId>
             <artifactId>PlotSquared-API</artifactId>
             <version>4.400</version>
-            <optional>true</optional>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.projectlombok</groupId>
+                    <artifactId>lombok</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- PlotSquared v5 API -->
@@ -114,7 +120,13 @@
             <groupId>com.plotsquared</groupId>
             <artifactId>PlotSquared-Core</artifactId>
             <version>5.12.0</version>
-            <optional>true</optional>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.projectlombok</groupId>
+                    <artifactId>lombok</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.opencsv/opencsv -->
@@ -286,7 +298,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.4</version>
+                <version>3.6.1</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
