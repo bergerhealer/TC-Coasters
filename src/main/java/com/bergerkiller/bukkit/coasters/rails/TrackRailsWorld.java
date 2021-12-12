@@ -289,24 +289,27 @@ public class TrackRailsWorld implements CoasterWorldComponent {
     private void finishAddingSectionsToMap() {
         // Map all added nodes to the track node
         // We may be adding more than one node, because of merging tracks at the same rails
-        for (Map.Entry<TrackNode, ObjectCache.Entry<Set<IntVector3>>> entry : tmpNodeBlocks.entrySet()) {
-            final Set<IntVector3> blocks = entry.getValue().get();
-            trackNodeMeta.compute(entry.getKey(), (node, prevValue) -> {
-                if (prevValue == null) {
-                    return new TrackNodeMeta(node.getRailBlock(true), blocks);
-                } else {
-                    // Merge old and new sets
-                    // The set is writable because it is not used elsewhere, and will be closed
-                    blocks.addAll(Arrays.asList(prevValue.blocks));
-                    // Preserve original rail coordinates
-                    return new TrackNodeMeta(prevValue.rails, blocks);
-                }
-            });
+        try {
+            for (Map.Entry<TrackNode, ObjectCache.Entry<Set<IntVector3>>> entry : tmpNodeBlocks.entrySet()) {
+                final Set<IntVector3> blocks = entry.getValue().get();
+                trackNodeMeta.compute(entry.getKey(), (node, prevValue) -> {
+                    if (prevValue == null) {
+                        return new TrackNodeMeta(node.getRailBlock(true), blocks);
+                    } else {
+                        // Merge old and new sets
+                        // The set is writable because it is not used elsewhere, and will be closed
+                        blocks.addAll(Arrays.asList(prevValue.blocks));
+                        // Preserve original rail coordinates
+                        return new TrackNodeMeta(prevValue.rails, blocks);
+                    }
+                });
 
-            // Done using this set, close it so its put back in cache
-            entry.getValue().close();
+                // Done using this set, close it so its put back in cache
+                entry.getValue().close();
+            }
+        } finally {
+            tmpNodeBlocks.clear();
         }
-        tmpNodeBlocks.clear();
     }
 
     private void mapSectionToBlock(IntVector3 key, Collection<IntVector3> suppressed, TrackRailsSection section) {
