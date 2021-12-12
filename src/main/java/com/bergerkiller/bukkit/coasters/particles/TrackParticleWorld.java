@@ -158,7 +158,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         this.particlesWithoutViewers.clear();
         this.viewers.clear();
         this.updateCtr = 0;
-        this.forceViewerUpdate = false;
+        this.forceViewerUpdate = true;
     }
 
     /**

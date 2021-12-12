@@ -60,7 +60,7 @@ class GlobalCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("load|reload")
+    @CommandMethod("reload|load")
     @CommandDescription("Reloads all (new) coasters from the csv files on disk")
     public void commandReload(
             final CommandSender sender,
@@ -79,9 +79,9 @@ class GlobalCommands {
             plugin.unloadWorld(world);
         }
 
-        // Reload all coasters
+        // Reload all coasters, getCoasterWorld() will automatically load them
         for (World world : Bukkit.getWorlds()) {
-            plugin.getCoasterWorld(world).getTracks().load();
+            plugin.getCoasterWorld(world);
         }
 
         // For all players holding the editor map, reload it

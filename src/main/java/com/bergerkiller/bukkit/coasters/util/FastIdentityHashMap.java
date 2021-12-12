@@ -111,6 +111,10 @@ public class FastIdentityHashMap<K, V> {
                 }
             }
 
+            // Reset these to avoid getting a removed value
+            getLastKey = null;
+            getLastValue = null;
+
             return removedValue;
         }
 
