@@ -227,7 +227,7 @@ public class TrackRailsWorld implements CoasterWorldComponent {
 
                         // Remove sections we are replacing from the by-block-position mapping
                         for (TrackRailsSection mergedSection : sectionsToMerge) {
-                            TrackNodeMeta meta = trackNodeMeta.remove(mergedSection.node);
+                            TrackNodeMeta meta = trackNodeMeta.get(mergedSection.node);
                             if (meta != null) {
                                 for (IntVector3 posBlock : meta.blocks) {
                                     sectionsByBlock.get(posBlock).remove(mergedSection);
@@ -315,11 +315,8 @@ public class TrackRailsWorld implements CoasterWorldComponent {
     private void mapSectionToBlock(IntVector3 key, Collection<IntVector3> suppressed, TrackRailsSection section) {
         if (!suppressed.contains(key) && sectionsByBlock.get(key).add(section)) {
             section.getNodes().forEach(node -> {
-                tmpNodeBlocks.computeIfAbsent(node, unused -> {
-                    ObjectCache.Entry<Set<IntVector3>> e = ObjectCache.newHashSet();
-                    e.get().add(key);
-                    return e;
-                });
+                tmpNodeBlocks.computeIfAbsent(node, unused -> ObjectCache.newHashSet())
+                        .get().add(key);
             });
         }
     }
