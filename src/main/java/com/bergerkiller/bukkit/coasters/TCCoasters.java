@@ -344,6 +344,14 @@ public class TCCoasters extends PluginBase {
         this.listener.enable();
         this.interactionListener.enable();
 
+        // LightAPI may not have enabled right, correct for this
+        {
+            Plugin plugin = Bukkit.getPluginManager().getPlugin("LightAPI");
+            if (plugin != null) {
+                this.updateDependency(plugin, plugin.getName(), plugin.isEnabled());
+            }
+        }
+
         // Load all coasters from csv
         // Note that if between onLoad and enable rails are queried, these worlds
         // may have been loaded earlier. These implicit loads only have an effect
@@ -365,14 +373,6 @@ public class TCCoasters extends PluginBase {
 
         // Autosave every 30 seconds approximately
         this.autosaveTask = new AutosaveTask(this).start(30*20, 30*20);
-
-        // LightAPI may not have enabled right, correct for this
-        {
-            Plugin plugin = Bukkit.getPluginManager().getPlugin("LightAPI");
-            if (plugin != null) {
-                this.updateDependency(plugin, plugin.getName(), plugin.isEnabled());
-            }
-        }
 
         // Update worlds right away
         this.worldUpdateTask.run();
