@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
@@ -27,14 +28,15 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.common.io.AsyncTextWriter;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
+import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
+import com.bergerkiller.bukkit.common.wrappers.ChatText;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 
 import cloud.commandframework.annotations.Argument;
 import cloud.commandframework.annotations.CommandDescription;
 import cloud.commandframework.annotations.CommandMethod;
 import cloud.commandframework.annotations.Flag;
-import cloud.commandframework.annotations.specifier.Greedy;
 
 @CommandMethod("tccoasters|tcc")
 class EditStateCommands {
@@ -352,7 +354,8 @@ class EditStateCommands {
     public void commandImport(
             final Player player,
             final TCCoasters plugin,
-            final @Argument("url_or_file") @Greedy String urlOrFile
+            final @Argument("url_or_file") String urlOrFile,
+            final @Flag("absolute") boolean absolute
     ) {
         TCCoastersPermissions.IMPORT.handle(player);
         plugin.importFileOrURL(urlOrFile).thenAccept(download -> {
@@ -364,7 +367,7 @@ class EditStateCommands {
             PlayerEditState dlEditState = plugin.getEditState(player);
             TrackCoaster coaster = dlEditState.getWorld().getTracks().createNewEmpty(plugin.generateNewCoasterName());
             try {
-                coaster.loadFromStream(download.contentInputStream(), PlayerOrigin.getForPlayer(player));
+                coaster.loadFromStream(download.contentInputStream(), absolute ? null : PlayerOrigin.getForPlayer(player));
                 if (coaster.getNodes().isEmpty()) {
                     player.sendMessage(ChatColor.RED + "Failed to decode any coaster nodes!");
                     coaster.remove();
@@ -395,6 +398,20 @@ class EditStateCommands {
             dlEditState.getHistory().addChangeAfterCreatingCoaster(coaster);
 
             player.sendMessage(ChatColor.GREEN + "Coaster with " + coaster.getNodes().size() + " nodes imported!");
+
+            // Show where this coaster is located
+            Vector centerPos = coaster.getNodes().stream()
+                .map(TrackNode::getPosition)
+                .reduce((a,b) -> a.clone().add(b))
+                .get().multiply(1.0 / coaster.getNodes().size());
+            player.sendMessage(ChatColor.GREEN + "Position is roughly:" +
+                " x=" + Double.toString(MathUtil.round(centerPos.getX(), 4)) +
+                " y=" + Double.toString(MathUtil.round(centerPos.getY(), 4)) +
+                " z=" + Double.toString(MathUtil.round(centerPos.getZ(), 4)));
+            ChatText text = ChatText.fromClickableRunCommand(ChatColor.UNDERLINE + "> Take me there! <",
+                    "/tp " + player.getName() + " " + centerPos.getX() + " " +
+                    centerPos.getY() + " " + centerPos.getZ());
+            text.sendTo(player);
         });
     }
 
