@@ -439,6 +439,7 @@ public class TrackCSV {
      */
     public static final class AnimationStateLinkNodeEntry extends CSVEntry implements PlayerOriginHolder {
         public Vector pos;
+        public boolean objectsFlipped; // whether start/end positions are flipped, important for track object positions
 
         @Override
         public PlayerOrigin getOrigin() {
@@ -454,12 +455,18 @@ public class TrackCSV {
         public void read(StringArrayBuffer buffer) throws SyntaxException {
             buffer.skipNext(1); // Type
             this.pos = buffer.nextVector();
+            if (buffer.hasNext()) {
+                objectsFlipped = buffer.next().equals("FLIPPED");
+            }
         }
 
         @Override
         public void write(StringArrayBuffer buffer) {
             buffer.put("ANIMLINK");
             buffer.putVector(this.pos);
+            if (objectsFlipped) {
+                buffer.put("FLIPPED");
+            }
         }
 
         @Override
@@ -485,8 +492,15 @@ public class TrackCSV {
             List<TrackNodeAnimationState> states = state.prevNode.getAnimationStates();
             if (!states.isEmpty()) {
                 Vector pos = state.transformVector(this.pos);
+                TrackNodeReference linkNodeA = state.prevNode;
+                TrackNodeReference linkNodeB = TrackNodeReference.at(pos);
+                if (this.objectsFlipped) {
+                    TrackNodeReference tmp = linkNodeA;
+                    linkNodeA = linkNodeB;
+                    linkNodeB = tmp;
+                }
                 TrackNodeAnimationState lastAddedState = states.get(states.size()-1);
-                TrackConnectionState new_link = TrackConnectionState.create(state.prevNode, TrackNodeReference.at(pos), state.pendingTrackObjects);
+                TrackConnectionState new_link = TrackConnectionState.create(linkNodeA, linkNodeB, state.pendingTrackObjects);
                 state.prevNode.addAnimationStateConnection(lastAddedState.name, new_link);
                 state.pendingTrackObjects.clear();
             }

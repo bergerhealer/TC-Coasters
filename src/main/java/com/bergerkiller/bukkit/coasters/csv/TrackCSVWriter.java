@@ -235,7 +235,13 @@ public class TrackCSVWriter implements AutoCloseable {
                         this.writeAllObjects(ref);
 
                         TrackCSV.AnimationStateLinkNodeEntry anim_link_entry = new TrackCSV.AnimationStateLinkNodeEntry();
-                        anim_link_entry.pos = ref.getOtherNode(startNode).getPosition();
+                        if (ref.node_a.isReference(startNode)) {
+                            anim_link_entry.pos = ref.node_b.getPosition();
+                            anim_link_entry.objectsFlipped = false;
+                        } else {
+                            anim_link_entry.pos = ref.node_a.getPosition();
+                            anim_link_entry.objectsFlipped = true;
+                        }
                         this.write(anim_link_entry);
                     }
                 }
