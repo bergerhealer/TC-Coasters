@@ -20,7 +20,6 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
-import com.bergerkiller.bukkit.coasters.tracks.path.EndPoint;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.mountiplex.reflection.util.UniqueHash;
 import com.opencsv.CSVWriter;
@@ -80,6 +79,10 @@ public class TrackCSVWriter implements AutoCloseable {
         // Write header
         this.writer.writeNextThrow(new String[] {"No.","PosX","PosY","PosZ","FrontX","FrontY","FrontZ","LeftX","LeftY","LeftZ","UpX","UpY","UpZ"}, true);
 
+        // Set number format to use for all numbers written out
+        // NoLimits2 uses 6-decimal precision, which are always printed out (even if .000000)
+        this.buffer.setNumberFormat("0.000000");
+
         // Find the longest chain of nodes we can write out
         // This 'cuts off' junctions that lead to short ends
         // We cannot represent such junctions in this format anyway
@@ -91,25 +94,37 @@ public class TrackCSVWriter implements AutoCloseable {
 
         // Write the first node
         TrackCSV.NoLimits2Entry entry = new TrackCSV.NoLimits2Entry();
-        entry.no = 1;
-        {
-            entry.pos = node.getPosition();
-            if (chain.links.isEmpty()) {
-                entry.setOrientation(node.getDirection(), node.getOrientation());
-            } else {
-                EndPoint firstStartPoint = chain.links.get(0).getEndPoint(node);
-                entry.setOrientation(firstStartPoint.getDirection(), node.getOrientation());
-            }
-            this.write(entry);
-        }
 
-        // Write following links of the chain
-        for (TrackConnection connection : chain.links) {
-            node = connection.getOtherNode(node);
+        // If there are no links we write only one node, and there's no real way to figure out the orientation
+        if (chain.links.isEmpty()) {
+            entry.no = 1;
             entry.pos = node.getPosition();
-            entry.setOrientation(connection.getEndPoint(node).getDirection(), node.getOrientation());
-            entry.no++;
+            entry.setOrientation(node.getDirection(), node.getOrientation());
             this.write(entry);
+        } else {
+            // Go from node to node using the chain links until we reach the end
+            entry.no = 0;
+            TrackNode current = node;
+            for (TrackConnection link : chain.links) {
+                TrackNode next = link.getOtherNode(current);
+
+                entry.no++;
+                entry.pos = current.getPosition();
+                entry.setOrientation(current.getDirectionTo(next), current.getOrientation());
+                this.write(entry);
+
+                current = next;
+            }
+
+            // The last node's direction must be done using getDirectionFrom() instead
+            {
+                TrackNode previous = chain.links.get(chain.links.size() - 1).getOtherNode(current);
+
+                entry.no++;
+                entry.pos = current.getPosition();
+                entry.setOrientation(current.getDirectionFrom(previous), current.getOrientation());
+                this.write(entry);
+            }
         }
     }
 
@@ -428,6 +443,7 @@ public class TrackCSVWriter implements AutoCloseable {
             this.startNode = startNode;
             this.lastNode = startNode;
             this.remaining = new HashSet<TrackNode>(nodes);
+            this.remaining.remove(startNode);
             this.links = new ArrayList<TrackConnection>();
         }
 

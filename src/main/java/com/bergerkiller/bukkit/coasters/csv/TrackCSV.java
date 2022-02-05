@@ -765,7 +765,7 @@ public class TrackCSV {
          */
         public void setOrientation(Quaternion orientation) {
             this.front = orientation.forwardVector();
-            this.left = orientation.rightVector().multiply(-1.0);
+            this.left = orientation.rightVector();
             this.up = orientation.upVector();
         }
 

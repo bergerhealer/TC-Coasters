@@ -168,6 +168,66 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     /**
+     * Gets the exact direction along which trains move over this node towards
+     * a given neighbouring node of this track node. This takes into account special
+     * junction logic where the directions are 'hard', as well as makes
+     * {@link #getDirection()} flip 180 as needed based on which connection it is.
+     *
+     * @param neighbour Node towards which to move
+     * @return Direction moved from this node to the node specified
+     */
+    public Vector getDirectionTo(TrackNode neighbour) {
+        // Straight paths assumed for junction nodes and nodes with only one connection
+        // TODO: Technically there's a little bend there because of the next node's own direction
+        if (this._connections.length != 2) {
+            Vector v = neighbour.getPosition().clone().subtract(this.getPosition());
+            double ls = v.lengthSquared();
+            if (ls <= 1e-20) {
+                return this.getDirection(); // Fallback eh.
+            } else {
+                return v.multiply(MathUtil.getNormalizationFactorLS(ls));
+            }
+        }
+
+        // Use this node's getDirection(), flip as needed
+        if (this._connections[1].isConnected(neighbour)) {
+            return this.getDirection().clone().multiply(-1.0);
+        } else {
+            return this.getDirection();
+        }
+    }
+
+    /**
+     * Gets the exact direction along which trains move over this node away from
+     * a given neighbouring node of this track node. This takes into account special
+     * junction logic where the directions are 'hard', as well as makes
+     * {@link #getDirection()} flip 180 as needed based on which connection it is.
+     *
+     * @param neighbour Node away from which to move
+     * @return Direction moved from this node away from node specified
+     */
+    public Vector getDirectionFrom(TrackNode neighbour) {
+        // Straight paths assumed for junction nodes and nodes with only one connection
+        // TODO: Technically there's a little bend there because of the next node's own direction
+        if (this._connections.length != 2) {
+            Vector v = this.getPosition().clone().subtract(neighbour.getPosition());
+            double ls = v.lengthSquared();
+            if (ls <= 1e-20) {
+                return this.getDirection(); // Fallback eh.
+            } else {
+                return v.multiply(MathUtil.getNormalizationFactorLS(ls));
+            }
+        }
+
+        // Use this node's getDirection(), flip as needed
+        if (this._connections[0].isConnected(neighbour)) {
+            return this.getDirection().clone().multiply(-1.0);
+        } else {
+            return this.getDirection();
+        }
+    }
+
+    /**
      * Gets the exact coordinates of this node
      * 
      * @return position

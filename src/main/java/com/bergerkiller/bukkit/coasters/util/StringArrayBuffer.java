@@ -1,8 +1,12 @@
 package com.bergerkiller.bukkit.coasters.util;
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
@@ -26,6 +30,7 @@ public class StringArrayBuffer implements Iterator<String> {
     private String[] buffer = new String[10];
     private int size = 0;
     private int index = 0;
+    private NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.ENGLISH);
 
     /**
      * Loads this buffer with the data specified.
@@ -79,6 +84,25 @@ public class StringArrayBuffer implements Iterator<String> {
      */
     public void reset() {
         this.index = 0;
+    }
+
+    /**
+     * Sets the number format to use when writing out decimal numbers.
+     * A dot is used for decimal delimiter. (English Locale)
+     *
+     * @param formatPattern
+     */
+    public void setNumberFormat(String formatPattern) {
+        setNumberFormat(new DecimalFormat(formatPattern, DecimalFormatSymbols.getInstance(Locale.ENGLISH)));
+    }
+
+    /**
+     * Sets the number format to use when writing out decimal numbers
+     *
+     * @param format
+     */
+    public void setNumberFormat(NumberFormat format) {
+        this.numberFormat = format;
     }
 
     /**
@@ -146,7 +170,7 @@ public class StringArrayBuffer implements Iterator<String> {
      * @param value to set
      */
     public void putDouble(double value) {
-        put(Double.toString(value));
+        put(this.numberFormat.format(value));
     }
 
     /**
