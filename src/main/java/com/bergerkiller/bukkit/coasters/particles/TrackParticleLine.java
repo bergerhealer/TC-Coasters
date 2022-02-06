@@ -251,7 +251,7 @@ public class TrackParticleLine extends TrackParticle {
 
     @Override
     public boolean usesEntityId(int entityId) {
-        return this.e1 == entityId || this.e2 == entityId;
+        return this.e1 == entityId || this.e2 == entityId || this.e3 == entityId;
     }
 
     private static final class LineOffsets {
