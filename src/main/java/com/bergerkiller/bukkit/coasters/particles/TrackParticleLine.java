@@ -150,7 +150,7 @@ public class TrackParticleLine extends TrackParticle {
                 boolean fixLeashGlitch = offsets.fixLeashGlitch(this.world);
                 if (fixLeashGlitch && this.e3 != -1) {
                     PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
-                            this.e2,
+                            this.e3,
                             this.p2.getX() + UNGLITCH_AS_OFFSETS.getX(),
                             this.p2.getY() + UNGLITCH_AS_OFFSETS.getY(),
                             this.p2.getZ() + UNGLITCH_AS_OFFSETS.getZ(),
