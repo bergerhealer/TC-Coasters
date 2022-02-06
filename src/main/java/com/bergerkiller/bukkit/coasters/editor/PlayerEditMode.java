@@ -82,10 +82,10 @@ public enum PlayerEditMode {
     }
 
     private static void createPositionView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
-        final int ADJ_BTN_WIDTH = 22;
+        final int ADJ_BTN_WIDTH = 24;
         final int ADJ_BTN_HEIGHT = 12;
-        final int ADJ_BTN_OFFSET = ADJ_BTN_WIDTH + 2;
-        int y = 0;
+        final int ADJ_BTN_OFFSET = ADJ_BTN_WIDTH + 3;
+        int y = 5;
         for (final char axis : new char[] { 'x', 'y', 'z'} ) {
             tab.addWidget(new MapWidgetText())
                 .setText("Align " + axis)
@@ -97,21 +97,21 @@ public enum PlayerEditMode {
                 public void onActivate() {
                     alignPosition(stateSupplier, axis, 0.0625);
                 }
-            }).setText("Min").setBounds(36 + 0*ADJ_BTN_OFFSET, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
+            }).setText("Min").setBounds(38 + 0*ADJ_BTN_OFFSET, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
 
             tab.addWidget(new MapWidgetButton() {
                 @Override
                 public void onActivate() {
                     alignPosition(stateSupplier, axis, 0.5);
                 }
-            }).setText("Mid").setBounds(36 + 1*ADJ_BTN_OFFSET, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
+            }).setText("Mid").setBounds(38 + 1*ADJ_BTN_OFFSET, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
 
             tab.addWidget(new MapWidgetButton() {
                 @Override
                 public void onActivate() {
                     alignPosition(stateSupplier, axis, 1.0 - 0.0625);
                 }
-            }).setText("Max").setBounds(36 + 2*ADJ_BTN_OFFSET, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
+            }).setText("Max").setBounds(38 + 2*ADJ_BTN_OFFSET, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
 
             y += 16;
         }
@@ -119,10 +119,13 @@ public enum PlayerEditMode {
         // Make the line straight or curved with simple buttons
         // Also done using /tcc straighten and /tcc curved
         {
+            y += 3; // Space between
+
             tab.addWidget(new MapWidgetText())
-                .setText("Line")
+                .setText("Connection Style")
                 .setColor(MapColorPalette.COLOR_WHITE)
-                .setBounds(0, y + 1, 34, ADJ_BTN_HEIGHT);
+                .setBounds(16, y + 1, 74, ADJ_BTN_HEIGHT);
+            y += ADJ_BTN_HEIGHT;
 
             tab.addWidget(new MapWidgetButton() {
                 boolean hasCurvedNodeConnections = false;
@@ -162,9 +165,9 @@ public enum PlayerEditMode {
                 }
 
                 private void updateText() {
-                    this.setText(hasCurvedNodeConnections ? "Straighten" : "Curved");
+                    this.setText(hasCurvedNodeConnections ? "Make Straight" : "Make Curved");
                 }
-            }).setBounds(36, y, 70, ADJ_BTN_HEIGHT);
+            }).setBounds(10, y, 96, ADJ_BTN_HEIGHT);
 
             y += 16;
         }
