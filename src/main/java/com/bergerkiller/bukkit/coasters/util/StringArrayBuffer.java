@@ -265,7 +265,15 @@ public class StringArrayBuffer implements Iterator<String> {
         try {
             return Double.parseDouble(value);
         } catch (NumberFormatException ex) {
-            throw new SyntaxException(-1, this.index+1, "Value is not a number");
+            // TCC Bug - wrote out 1,555.23 as a number sometimes
+            // Fixed by trimming out the ,. Gets fixed as it re-saves.
+            if (value.contains(".") && value.contains(",")) {
+                try {
+                    return Double.parseDouble(value.replace(",", ""));
+                } catch (NumberFormatException ex2) { /* ignore */ }
+            }
+
+            throw new SyntaxException(-1, this.index+1, "Value is not a number: " + value);
         }
     }
 
@@ -283,7 +291,7 @@ public class StringArrayBuffer implements Iterator<String> {
         try {
             return Integer.parseInt(value);
         } catch (NumberFormatException ex) {
-            throw new SyntaxException(-1, this.index+1, "Value is not a number");
+            throw new SyntaxException(-1, this.index+1, "Value is not a number: " + value);
         }
     }
 
@@ -304,7 +312,9 @@ public class StringArrayBuffer implements Iterator<String> {
      */
     @Override
     public String next() {
-        return get(this.index++);
+        String result = get(this.index);
+        this.index++;
+        return result;
     }
 
     /**
