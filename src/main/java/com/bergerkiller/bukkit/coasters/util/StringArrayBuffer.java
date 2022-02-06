@@ -26,7 +26,7 @@ import com.bergerkiller.bukkit.common.wrappers.BlockData;
  * automatically increment the current position.
  */
 public class StringArrayBuffer implements Iterator<String> {
-    private static final NumberFormat DEFAULT_NUMBER_FORMAT = new DecimalFormat("0.0#", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+    private static final NumberFormat DEFAULT_NUMBER_FORMAT = new DecimalFormat("0.0#####", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
 
     private final JsonSerializer jsonSerializer = new JsonSerializer();
     private String[] buffer = new String[10];
