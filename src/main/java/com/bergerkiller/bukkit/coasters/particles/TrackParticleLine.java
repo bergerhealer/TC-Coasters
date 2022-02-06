@@ -4,22 +4,28 @@ import java.util.UUID;
 
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.utils.DebugUtil;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
+import com.bergerkiller.bukkit.common.utils.ItemUtil;
+import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutAttachEntityHandle;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityDestroyHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityEquipmentHandle;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityTeleportHandle;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityLivingHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.EntityHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.EntityInsentientHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.EntityLivingHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.ambient.EntityBatHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.decoration.EntityArmorStandHandle;
 
 /**
  * A particle consisting of a line created using a leash between two invisible entities
@@ -29,14 +35,26 @@ public class TrackParticleLine extends TrackParticle {
     protected static final int FLAG_NEEDS_RESPAWN     = (1<<3);
 
     private static final LineOffsets OFFSETS_1_8_TO_1_15_2 = new LineOffsets(0.7, 0.16, -0.5,
-                                                                             0.0, -1.1, -0.2);
+                                                                             0.0, -1.1, -0.2,
+                                                                             false);
     private static final LineOffsets OFFSETS_1_16_TO_1_16_1 = new LineOffsets(0.7, -0.065, -0.5,
-                                                                              0.0, -0.45, -0.2);
+                                                                              0.0, -0.45, -0.2,
+                                                                              false);
     private static final LineOffsets OFFSETS_1_16_2 = new LineOffsets(0.0, -0.31, 0.0,
-                                                                      0.0, -0.45, -0.2);
+                                                                      0.0, -0.45, -0.2,
+                                                                      false);
+    private static final LineOffsets OFFSETS_1_17 = new LineOffsets(0.0, -0.31, 0.0,
+                                                                    0.0, -0.45, -0.2,
+                                                                    true);
+
+    // Configuration of the ArmorStand spawned on 1.17 and later to fix the leash glitch
+    private static final Vector UNGLITCH_AS_OFFSETS = new Vector(0.0, -1.0, -0.2);
+    private static final Vector UNGLITCH_AS_POSE = new Vector(-22.0, -55.0, -5.0);
+    private static final float UNGITCH_AS_YAW = 20.0f;
+    private static final ItemStack UNGLITCH_AS_ITEM = ItemUtil.createItem(new ItemStack(MaterialUtil.getFirst("OAK_BUTTON", "LEGACY_WOOD_BUTTON")));
 
     private DoubleOctree.Entry<TrackParticle> p1, p2;
-    private int e1 = -1, e2 = -1;
+    private int e1 = -1, e2 = -1, e3 = -1;
 
     public TrackParticleLine(Vector p1, Vector p2) {
         this.setPositions(p1, p2);
@@ -55,7 +73,9 @@ public class TrackParticleLine extends TrackParticle {
     }
 
     private LineOffsets getOffsets(Player player) {
-        if (PlayerUtil.evaluateGameVersion(player, ">=", "1.16.2")) {
+        if (PlayerUtil.evaluateGameVersion(player, ">=", "1.17")) {
+            return OFFSETS_1_17;
+        } else if (PlayerUtil.evaluateGameVersion(player, ">=", "1.16.2")) {
             return OFFSETS_1_16_2;
         } else if (PlayerUtil.evaluateGameVersion(player, ">=", "1.16")) {
             return OFFSETS_1_16_TO_1_16_1;
@@ -126,6 +146,17 @@ public class TrackParticleLine extends TrackParticle {
                             0.0f, 0.0f, false);
                     PacketUtil.sendPacket(viewer, tpPacket);
                 }
+
+                boolean fixLeashGlitch = offsets.fixLeashGlitch(this.world);
+                if (fixLeashGlitch && this.e3 != -1) {
+                    PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+                            this.e2,
+                            this.p2.getX() + UNGLITCH_AS_OFFSETS.getX(),
+                            this.p2.getY() + UNGLITCH_AS_OFFSETS.getY(),
+                            this.p2.getZ() + UNGLITCH_AS_OFFSETS.getZ(),
+                            UNGITCH_AS_YAW, 0.0f, false);
+                    PacketUtil.sendPacket(viewer, tpPacket);
+                }
             }
         }
     }
@@ -138,16 +169,23 @@ public class TrackParticleLine extends TrackParticle {
         if (this.e2 != -1) {
             PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.e2));
         }
+        if (this.e3 != -1) {
+            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.e3));
+        }
     }
 
     @Override
     public void makeVisibleFor(Player viewer) {
+        LineOffsets offsets = getOffsets(viewer);
+        boolean fixLeashGlitch = offsets.fixLeashGlitch(this.world);
+
         if (this.e1 == -1 || this.e2 == -1) {
             this.e1 = EntityUtil.getUniqueEntityId();
             this.e2 = EntityUtil.getUniqueEntityId();
         }
-
-        LineOffsets offsets = getOffsets(viewer);
+        if (fixLeashGlitch && this.e3 == -1) {
+            this.e3 = EntityUtil.getUniqueEntityId();
+        }
 
         PacketPlayOutSpawnEntityLivingHandle p1 = PacketPlayOutSpawnEntityLivingHandle.createNew();
         DataWatcher p1_meta = new DataWatcher();
@@ -177,6 +215,25 @@ public class TrackParticleLine extends TrackParticle {
         p2_meta.set(EntityLivingHandle.DATA_NO_GRAVITY, true);
         p2_meta.set(EntityBatHandle.DATA_BAT_FLAGS, (byte) 0);
 
+        if (fixLeashGlitch) {
+            PacketPlayOutSpawnEntityLivingHandle p3 = PacketPlayOutSpawnEntityLivingHandle.createNew();
+            DataWatcher p3_meta = new DataWatcher();
+            p3.setEntityId(this.e3);
+            p3.setEntityUUID(UUID.randomUUID());
+            p3.setPosX(this.p2.getX() + UNGLITCH_AS_OFFSETS.getX());
+            p3.setPosY(this.p2.getY() + UNGLITCH_AS_OFFSETS.getY());
+            p3.setPosZ(this.p2.getZ() + UNGLITCH_AS_OFFSETS.getZ());
+            p3.setYaw(UNGITCH_AS_YAW);
+            p3.setEntityType(EntityType.ARMOR_STAND);
+            p3_meta.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
+            p3_meta.set(EntityHandle.DATA_SILENT, true);
+            p3_meta.set(EntityLivingHandle.DATA_NO_GRAVITY, true);
+            p3_meta.set(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, (byte) (EntityArmorStandHandle.DATA_FLAG_NO_BASEPLATE));
+            p3_meta.set(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, UNGLITCH_AS_POSE);
+            PacketUtil.sendEntityLivingSpawnPacket(viewer, p3, p3_meta);
+            PacketUtil.sendPacket(viewer, PacketPlayOutEntityEquipmentHandle.createNew(this.e3, EquipmentSlot.HAND, UNGLITCH_AS_ITEM));
+        }
+
         PacketUtil.sendEntityLivingSpawnPacket(viewer, p1, p1_meta);
         PacketUtil.sendEntityLivingSpawnPacket(viewer, p2, p2_meta);
 
@@ -200,14 +257,20 @@ public class TrackParticleLine extends TrackParticle {
     private static final class LineOffsets {
         public final double p1x, p1y, p1z;
         public final double p2x, p2y, p2z;
+        private final boolean hasLeashGlitch;
 
-        public LineOffsets(double p1x, double p1y, double p1z, double p2x, double p2y, double p2z) {
+        public LineOffsets(double p1x, double p1y, double p1z, double p2x, double p2y, double p2z, boolean hasLeashGlitch) {
             this.p1x = p1x;
             this.p1y = p1y;
             this.p1z = p1z;
             this.p2x = p2x;
             this.p2y = p2y;
             this.p2z = p2z;
+            this.hasLeashGlitch = hasLeashGlitch;
+        }
+
+        public boolean fixLeashGlitch(TrackParticleWorld world) {
+            return this.hasLeashGlitch && world.getPlugin().isLeashGlitchFixEnabled();
         }
 
         @SuppressWarnings("unused")
@@ -217,7 +280,8 @@ public class TrackParticleLine extends TrackParticle {
                                    DebugUtil.getDoubleValue("p1z", this.p1z),
                                    DebugUtil.getDoubleValue("p2x", this.p2x),
                                    DebugUtil.getDoubleValue("p2y", this.p2y),
-                                   DebugUtil.getDoubleValue("p2z", this.p2z));
+                                   DebugUtil.getDoubleValue("p2z", this.p2z),
+                                   true);
         }
     }
 }

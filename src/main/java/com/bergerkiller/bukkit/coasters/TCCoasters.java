@@ -60,6 +60,7 @@ public class TCCoasters extends PluginBase {
     private static final int DEFAULT_MAXIMUM_PARTICLE_COUNT = 5000;
     private static final boolean DEFAULT_PLOTSQUARED_ENABLED = false;
     private static final boolean DEFAULT_LIGHTAPI_ENABLED = true;
+    private static final boolean DEFAULT_LEASH_GLITCH_FIX = true;
     private Task worldUpdateTask, runQueuedTasksTask, updatePlayerEditStatesTask, autosaveTask;
     private TCCoastersCommands commands;
     private final CoasterRailType coasterRailType = new CoasterRailType(this);
@@ -76,6 +77,7 @@ public class TCCoasters extends PluginBase {
     private int maximumParticleCount = DEFAULT_MAXIMUM_PARTICLE_COUNT;
     private boolean plotSquaredEnabled = DEFAULT_PLOTSQUARED_ENABLED;
     private boolean lightAPIEnabled = DEFAULT_LIGHTAPI_ENABLED;
+    private boolean fixLeashGlitch = DEFAULT_LEASH_GLITCH_FIX;
     private boolean lightAPIFound = false;
     private Listener plotSquaredHandler = null;
     private File importFolder, exportFolder;
@@ -129,6 +131,15 @@ public class TCCoasters extends PluginBase {
      */
     public Hastebin getHastebin() {
         return this.hastebin;
+    }
+
+    /**
+     * Gets whether the leash glitching fix for MC 1.17 and later is enabled in the configuration
+     *
+     * @return True if enabled
+     */
+    public boolean isLeashGlitchFixEnabled() {
+        return this.fixLeashGlitch;
     }
 
     public synchronized void forAllEditStates(Consumer<PlayerEditState> function) {
@@ -302,6 +313,12 @@ public class TCCoasters extends PluginBase {
         config.setHeader("glowing-selections", "\nSpecifies if selected nodes should be glowing.");
         config.addHeader("glowing-selections", "Glowing nodes are visible through walls.");
         this.glowingSelections = config.get("glowing-selections", DEFAULT_GLOWING_SELECTIONS);
+        config.setHeader("fixLeashGlitch", "\nSince Minecraft 1.17 this bug exists: https://bugs.mojang.com/browse/MC-212629");
+        config.addHeader("fixLeashGlitch", "This 'fix' fixes this bug by spawning an armorstand with wooden button that 'attracts' the glitched leash");
+        config.addHeader("fixLeashGlitch", "If enables, this fix will be applied for clients on MC 1.17 and later. 1.16 and before are unaffected.");
+        config.addHeader("fixLeashGlitch", "If you incorporate a resource pack with a texture fix for this, this can be turned off");
+        config.addHeader("fixLeashGlitch", "Be aware that this fix can cause a whole lot more client lag!");
+        this.fixLeashGlitch = config.get("fixLeashGlitch", DEFAULT_LEASH_GLITCH_FIX);
         config.setHeader("hastebinServer", "\nThe hastebin server which is used to upload coaster tracks");
         config.addHeader("hastebinServer", "This will be used when using the /tcc export command");
         this.hastebin.setServer(config.get("hastebinServer", "https://paste.traincarts.net"));
