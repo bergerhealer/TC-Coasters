@@ -151,7 +151,14 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
                 clickInfo = TCCoastersUtil.rayTrace(event.getPlayer());
 
                 suggestedHand = PacketType.IN_BLOCK_PLACE.getHand(event.getPacket(), event.getPlayer());
-                suggestedHand = fixHand(event.getPlayer(), suggestedHand);
+                if (!ItemUtil.isEmpty(HumanHand.getHeldItem(event.getPlayer(), suggestedHand))) {
+                    return; // Player holds an item, ignore
+                }
+
+                HumanHand otherHand = suggestedHand.opposite();
+                if (!ItemUtil.isEmpty(HumanHand.getHeldItem(event.getPlayer(), otherHand))) {
+                    suggestedHand = otherHand;
+                }
             } else {
                 PacketPlayInUseItemHandle packet = PacketPlayInUseItemHandle.createHandle(event.getPacket().getHandle());
 
