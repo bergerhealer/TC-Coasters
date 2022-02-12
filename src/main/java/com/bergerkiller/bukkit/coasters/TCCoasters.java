@@ -60,7 +60,7 @@ public class TCCoasters extends PluginBase {
     private static final int DEFAULT_MAXIMUM_PARTICLE_COUNT = 5000;
     private static final boolean DEFAULT_PLOTSQUARED_ENABLED = false;
     private static final boolean DEFAULT_LIGHTAPI_ENABLED = true;
-    private static final boolean DEFAULT_LEASH_GLITCH_FIX = true;
+    private static final boolean DEFAULT_LEASH_GLITCH_FIX = false;
     private Task worldUpdateTask, runQueuedTasksTask, updatePlayerEditStatesTask, autosaveTask;
     private TCCoastersCommands commands;
     private final CoasterRailType coasterRailType = new CoasterRailType(this);
@@ -318,6 +318,7 @@ public class TCCoasters extends PluginBase {
         config.addHeader("fixLeashGlitch", "If enables, this fix will be applied for clients on MC 1.17 and later. 1.16 and before are unaffected.");
         config.addHeader("fixLeashGlitch", "If you incorporate a resource pack with a texture fix for this, this can be turned off");
         config.addHeader("fixLeashGlitch", "Be aware that this fix can cause a whole lot more client lag!");
+        config.addHeader("fixLeashGlitch", "This fix will not fix it for Optifine clients.");
         this.fixLeashGlitch = config.get("fixLeashGlitch", DEFAULT_LEASH_GLITCH_FIX);
         config.setHeader("hastebinServer", "\nThe hastebin server which is used to upload coaster tracks");
         config.addHeader("hastebinServer", "This will be used when using the /tcc export command");
