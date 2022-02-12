@@ -5,4 +5,4 @@ Track the Mojang issue ticket: [Issue ticket](https://bugs.mojang.com/browse/MC-
 
 Fix original created by Vlad (DartCat25)
 
-Use the following resource pack URL: [https://github.com/bergerhealer/TC-Coasters/blob/master/misc/leashFix.zip](https://github.com/bergerhealer/TC-Coasters/blob/master/misc/leashFix.zip)
+Use the following resource pack URL: [https://github.com/bergerhealer/TC-Coasters/raw/master/misc/leashFix.zip](https://github.com/bergerhealer/TC-Coasters/raw/master/misc/leashFix.zip)
