@@ -211,9 +211,9 @@ class EditStateCommands {
             sender.sendMessage(ChatColor.RED + "You do not have permission to unlock coasters");
         } else {
             for (TrackCoaster coaster : state.getEditedCoasters()) {
-                coaster.setLocked(false);
+                coaster.setLocked(true);
             }
-            sender.sendMessage(ChatColor.YELLOW + "Selected coasters have been " + ChatColor.GREEN + "UNLOCKED");
+            sender.sendMessage(ChatColor.YELLOW + "Selected coasters have been " + ChatColor.RED + "LOCKED");
         }
     }
 
