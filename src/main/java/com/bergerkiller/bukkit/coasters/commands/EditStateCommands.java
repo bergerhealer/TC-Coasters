@@ -208,12 +208,12 @@ class EditStateCommands {
             final TCCoasters plugin
     ) {
         if (!TCCoastersPermissions.LOCK.has(sender)) {
-            sender.sendMessage(ChatColor.RED + "You do not have permission to unlock coasters");
+            sender.sendMessage(ChatColor.RED + "You do not have permission to lock coasters");
         } else {
             for (TrackCoaster coaster : state.getEditedCoasters()) {
-                coaster.setLocked(false);
+                coaster.setLocked(true);
             }
-            sender.sendMessage(ChatColor.YELLOW + "Selected coasters have been " + ChatColor.GREEN + "UNLOCKED");
+            sender.sendMessage(ChatColor.YELLOW + "Selected coasters have been " + ChatColor.RED + "LOCKED");
         }
     }
 
