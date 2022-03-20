@@ -69,14 +69,14 @@ class EditStatePositionCommands {
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
     @CommandMethod("<axis> set <value>")
-    @CommandDescription("Adds a value to an axis of the position of all selected nodes")
+    @CommandDescription("Sets an axis of the position of the selected nodes to a specified value")
     public void commandSetPositionAlias(
             final PlayerEditState state,
             final CommandSender sender,
             final @Argument("axis") TrackPositionAxis axis,
             final @Argument("value") double value
     ) {
-        commandSetPositionAlias(state, sender, axis, value);
+        commandSetPosition(state, sender, axis, value);
     }
 
     @CommandRequiresTCCPermission
