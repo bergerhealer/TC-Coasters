@@ -106,7 +106,14 @@ public class TrackCSVReader implements AutoCloseable {
 
         // Create all pending connections
         for (TrackConnectionState link : state.pendingLinks) {
-            TrackConnection connection = state.coaster.getWorld().getTracks().connect(link, true);
+            TrackConnection connection = state.coaster.getWorld().getTracks().connect(link, false);
+
+            // Only add objects if the connection didn't already exist with other objects
+            // This prevents duplicate objects when a link between coasters is created
+            if (connection != null && !connection.hasObjects()) {
+                connection.addAllObjects(link);
+            }
+
             if (connection != null) {
                 // Ensure junction switching order is preserved
                 connection.getNodeA().pushBackJunction(connection);
