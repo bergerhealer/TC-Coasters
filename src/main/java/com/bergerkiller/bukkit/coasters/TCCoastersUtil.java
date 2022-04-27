@@ -13,6 +13,7 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.Util;
@@ -25,6 +26,10 @@ import com.bergerkiller.bukkit.tc.rails.type.RailType;
 import com.bergerkiller.generated.net.minecraft.world.level.WorldHandle;
 import com.bergerkiller.generated.net.minecraft.world.phys.AxisAlignedBBHandle;
 import com.bergerkiller.generated.net.minecraft.world.phys.MovingObjectPositionHandle;
+import com.bergerkiller.mountiplex.reflection.SafeMethod;
+import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
+import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
+import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 
 /**
  * Random stuff used internally that just needs a place
@@ -267,11 +272,29 @@ public class TCCoastersUtil {
                 position.setX(p1.posX);
                 position.setY(p1.posY);
                 position.setZ(p1.posZ);
-                Util.setVector(orientation, p1.orientation.upVector());
+                Util.setVector(orientation, readWheelOrientation(p1).upVector());
                 return true;
             }
         }
         return false;
+    }
+
+    private static final FastMethod<Quaternion> readWheelOrientationMethod = new FastMethod<>();
+    static {
+        try {
+            readWheelOrientationMethod.init(RailPath.Position.class.getMethod("getWheelOrientation"));
+        } catch (NoSuchMethodException | SecurityException e) {
+            // Older TrainCarts version. Probably is never used but just in case.
+            ClassResolver resolver = new ClassResolver();
+            resolver.setDeclaredClass(RailPath.Position.class);
+            readWheelOrientationMethod.init(new MethodDeclaration(resolver,
+                    "public com.bergerkiller.bukkit.common.math.Quaternion getWheelOrientation() {\n" +
+                    "    return instance.orientation;\n" +
+                    "}"));
+        }
+    }
+    private static Quaternion readWheelOrientation(RailPath.Position position) {
+        return readWheelOrientationMethod.invoke(position);
     }
 
     /**
