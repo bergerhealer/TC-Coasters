@@ -37,6 +37,7 @@ import cloud.commandframework.annotations.Argument;
 import cloud.commandframework.annotations.CommandDescription;
 import cloud.commandframework.annotations.CommandMethod;
 import cloud.commandframework.annotations.Flag;
+import cloud.commandframework.annotations.specifier.Quoted;
 
 @CommandMethod("tccoasters|tcc")
 class EditStateCommands {
@@ -261,7 +262,7 @@ class EditStateCommands {
             final PlayerEditState state,
             final CommandSender sender,
             final TCCoasters plugin,
-            final @Argument("new_coaster_name") String newCoasterName
+            final @Quoted @Argument("new_coaster_name") String newCoasterName
     ) {
         List<String> coasterNames = state.getEditedNodes().stream()
                 .map(TrackNode::getCoaster)
@@ -286,8 +287,8 @@ class EditStateCommands {
             final PlayerEditState state,
             final CommandSender sender,
             final TCCoasters plugin,
-            final @Argument("new_coaster_name") String newCoasterName,
-            final @Argument("old_coaster_name") String oldCoasterName
+            final @Quoted @Argument("new_coaster_name") String newCoasterName,
+            final @Quoted @Argument("old_coaster_name") String oldCoasterName
     ) {
         if (oldCoasterName.equalsIgnoreCase(newCoasterName)) {
             sender.sendMessage(ChatColor.RED + "Old and new coaster name is the same!");
@@ -354,7 +355,7 @@ class EditStateCommands {
     public void commandImport(
             final Player player,
             final TCCoasters plugin,
-            final @Argument("url_or_file") String urlOrFile,
+            final @Quoted @Argument("url_or_file") String urlOrFile,
             final @Flag("absolute") boolean absolute
     ) {
         TCCoastersPermissions.IMPORT.handle(player);

@@ -14,6 +14,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import cloud.commandframework.annotations.Argument;
 import cloud.commandframework.annotations.CommandDescription;
 import cloud.commandframework.annotations.CommandMethod;
+import cloud.commandframework.annotations.specifier.Quoted;
 
 /**
  * Commands that alter or play track animations
@@ -60,7 +61,7 @@ class EditStateAnimationCommands {
     public void commandAddAnimation(
             final PlayerEditState state,
             final CommandSender sender,
-            final @Argument(value="name", suggestions="animation_names") String animName
+            final @Quoted @Argument(value="name", suggestions="animation_names") String animName
     ) {
         for (TrackNode node : state.getEditedNodes()) {
             node.saveAnimationState(animName);
@@ -75,7 +76,7 @@ class EditStateAnimationCommands {
     public void commandRemoveAnimation(
             final PlayerEditState state,
             final CommandSender sender,
-            final @Argument(value="name", suggestions="animation_names") String animName
+            final @Quoted @Argument(value="name", suggestions="animation_names") String animName
     ) {
         int removedCount = 0;
         for (TrackNode node : state.getEditedNodes()) {
@@ -113,7 +114,7 @@ class EditStateAnimationCommands {
     public void commandSelectAnimation(
             final PlayerEditState state,
             final CommandSender sender,
-            final @Argument(value="name", suggestions="animation_names") String animName
+            final @Quoted @Argument(value="name", suggestions="animation_names") String animName
     ) {
         state.setSelectedAnimation(animName);
         sender.sendMessage(ChatColor.GREEN + "Selected track animation '" + animName + "'!");
@@ -129,7 +130,7 @@ class EditStateAnimationCommands {
     public void commandPlayAnimation(
             final PlayerEditState state,
             final CommandSender sender,
-            final @Argument(value="name", suggestions="animation_names") String animName
+            final @Quoted @Argument(value="name", suggestions="animation_names") String animName
     ) {
         commandPlayAnimation(state, sender, animName, 0.0);
     }
@@ -141,7 +142,7 @@ class EditStateAnimationCommands {
     public void commandPlayAnimation(
             final PlayerEditState state,
             final CommandSender sender,
-            final @Argument(value="name", suggestions="animation_names") String animName,
+            final @Quoted @Argument(value="name", suggestions="animation_names") String animName,
             final @Argument("duration") double duration
     ) {
         int playingCount = 0;
