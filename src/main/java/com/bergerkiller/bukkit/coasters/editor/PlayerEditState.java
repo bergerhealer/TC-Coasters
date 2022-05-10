@@ -733,11 +733,14 @@ public class PlayerEditState implements CoasterWorldComponent {
         List<TrackNode> pending = new ArrayList<TrackNode>(2);
         pending.addAll(startNodes);
 
+        // Avoid infinite loops by never handling a node more than once
+        Set<TrackNode> handled = new HashSet<TrackNode>(pending);
+
         while (!pending.isEmpty()) {
             TrackNode node = pending.remove(0);
             selectNode(node);
             for (TrackNode neighbour : node.getNeighbours()) {
-                if (!isEditing(neighbour)) {
+                if (handled.add(neighbour) && !isEditing(neighbour)) {
                     pending.add(neighbour);
                 }
             }
