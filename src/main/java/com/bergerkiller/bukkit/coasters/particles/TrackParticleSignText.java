@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.IntSupplier;
 
+import org.bukkit.ChatColor;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -19,8 +20,6 @@ import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlay
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityLivingHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.EntityHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.decoration.EntityArmorStandHandle;
-
-import net.md_5.bungee.api.ChatColor;
 
 /**
  * A particle consisting of a text balloon that always faces the viewer,

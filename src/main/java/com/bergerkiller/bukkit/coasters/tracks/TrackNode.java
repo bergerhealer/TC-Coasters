@@ -29,8 +29,6 @@ import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailJunction;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 
-import net.md_5.bungee.api.ChatColor;
-
 /**
  * A single node of track of a rollercoaster. Stores the 3D position
  * and the 'up' vector.
