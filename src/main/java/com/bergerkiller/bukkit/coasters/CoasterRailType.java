@@ -18,6 +18,7 @@ import com.bergerkiller.bukkit.coasters.rails.TrackRailsSection;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
@@ -26,8 +27,11 @@ import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.tc.controller.MinecartMember;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
+import com.bergerkiller.bukkit.tc.controller.global.SignControllerWorld;
 import com.bergerkiller.bukkit.tc.controller.components.RailJunction;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
+import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
+import com.bergerkiller.bukkit.tc.rails.RailLookup.TrackedSign;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogic;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogicAir;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
@@ -159,6 +163,19 @@ public class CoasterRailType extends RailType {
             return Collections.emptyList();
         } else {
             return sections.stream().flatMap(section -> section.getNodes()).collect(Collectors.toList());
+        }
+    }
+
+    @Override
+    public void discoverSigns(RailPiece railPiece, SignControllerWorld signController, List<TrackedSign> result) {
+        // Vanilla signs at the node's rail block
+        super.discoverSigns(railPiece, signController, result);
+
+        // Find all nodes at this rail piece and add all the signs contained in them
+        for (TrackNode node : getNodes(railPiece.block())) {
+            for (TrackNodeSign sign : node.getSigns()) {
+                result.add(sign.getTrackedSign(railPiece, node));
+            }
         }
     }
 

@@ -79,6 +79,7 @@ public class TCCoastersCommands {
         cloud.annotations(new EditStateOrientationCommands());
         cloud.annotations(new EditStateRailCommands());
         cloud.annotations(new EditStateAnimationCommands());
+        cloud.annotations(new EditStateSignCommands());
 
         // Help menu
         cloud.helpCommand(Collections.singletonList("tccoasters"), "Shows information about all of TC-Coasters commands");

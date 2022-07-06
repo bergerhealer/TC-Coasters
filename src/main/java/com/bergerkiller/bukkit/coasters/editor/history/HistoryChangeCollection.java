@@ -20,6 +20,7 @@ import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
@@ -151,6 +152,22 @@ public abstract class HistoryChangeCollection {
         handleEvent(new CoasterBeforeChangeNodeEvent(who, node));
         TrackNodeState old_state = node.getState();
         TrackNodeState new_state = old_state.changeRail(new_rail);
+        return addChange(new HistoryChangeNode(node.getWorld(), old_state, new_state));
+    }
+
+    public final HistoryChange addChangeBeforeAddSign(Player who, TrackNode node, TrackNodeSign new_sign) throws ChangeCancelledException {
+        return addChangeBeforeSetSigns(who, node, TrackNodeSign.appendToArray(node.getSigns(), new_sign));
+    }
+
+    public void handleChangeAfterSetSigns(Player who, TrackNode node, TrackNodeSign[] old_signs) throws ChangeCancelledException {
+        TrackNodeState old_state = node.getState().changeSigns(old_signs);
+        handleEvent(new CoasterAfterChangeNodeEvent(who, node, old_state));
+    }
+
+    public final HistoryChange addChangeBeforeSetSigns(Player who, TrackNode node, TrackNodeSign[] new_signs) throws ChangeCancelledException {
+        handleEvent(new CoasterBeforeChangeNodeEvent(who, node));
+        TrackNodeState old_state = node.getState();
+        TrackNodeState new_state = old_state.changeSigns(new_signs);
         return addChange(new HistoryChangeNode(node.getWorld(), old_state, new_state));
     }
 

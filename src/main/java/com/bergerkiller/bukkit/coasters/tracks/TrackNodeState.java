@@ -1,5 +1,7 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
+import java.util.Arrays;
+
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -14,8 +16,9 @@ public final class TrackNodeState {
     public final Vector position;
     public final Vector orientation;
     public final IntVector3 railBlock;
+    public final TrackNodeSign[] signs;
 
-    private TrackNodeState(Vector position, Vector orientation, IntVector3 railBlock) {
+    private TrackNodeState(Vector position, Vector orientation, IntVector3 railBlock, TrackNodeSign[] signs) {
         if (position == null) {
             throw new IllegalArgumentException("position vector is null");
         }
@@ -25,6 +28,7 @@ public final class TrackNodeState {
         this.position = position;
         this.orientation = orientation;
         this.railBlock = railBlock;
+        this.signs = signs;
     }
 
     @Override
@@ -78,26 +82,43 @@ public final class TrackNodeState {
             transform.transformPoint(tmp);
             railBlock = new IntVector3(tmp.getBlockX(), tmp.getBlockY(), tmp.getBlockZ());
         }
-        return new TrackNodeState(position, orientation, railBlock);
+        return new TrackNodeState(position, orientation, railBlock, this.signs);
     }
 
     public TrackNodeState changePosition(Vector new_position) {
-        return new TrackNodeState(new_position, this.orientation, this.railBlock);
+        return new TrackNodeState(new_position, this.orientation, this.railBlock, this.signs);
     }
 
     public TrackNodeState changeOrientation(Vector new_orientation) {
-        return new TrackNodeState(this.position, new_orientation, this.railBlock);
+        return new TrackNodeState(this.position, new_orientation, this.railBlock, this.signs);
     }
 
     public TrackNodeState changeRail(IntVector3 new_rail) {
-        return new TrackNodeState(this.position, this.orientation, new_rail);
+        return new TrackNodeState(this.position, this.orientation, new_rail, this.signs);
+    }
+
+    public TrackNodeState changeAddSign(TrackNodeSign sign) {
+        return changeSigns(TrackNodeSign.appendToArray(this.signs, sign));
+    }
+
+    public TrackNodeState changeRemoveSign(TrackNodeSign sign) {
+        for (int i = 0; i < this.signs.length; i++) {
+            if (Arrays.equals(this.signs[i].getLines(), sign.getLines())) {
+                return changeSigns(LogicUtil.removeArrayElement(this.signs, i));
+            }
+        }
+        return this;
+    }
+
+    public TrackNodeState changeSigns(TrackNodeSign[] new_signs) {
+        return new TrackNodeState(this.position, this.orientation, this.railBlock, new_signs);
     }
 
     public static TrackNodeState create(Vector position, Vector orientation, IntVector3 railBlock) {
-        return new TrackNodeState(position, orientation, railBlock);
+        return new TrackNodeState(position, orientation, railBlock, TrackNodeSign.EMPTY_ARR);
     }
 
     public static TrackNodeState create(TrackNode node) {
-        return new TrackNodeState(node.getPosition(), node.getOrientation(), node.getRailBlock(false));
+        return new TrackNodeState(node.getPosition(), node.getOrientation(), node.getRailBlock(false), node.getSigns());
     }
 }

@@ -39,6 +39,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
@@ -1004,6 +1005,91 @@ public class PlayerEditState implements CoasterWorldComponent {
             HistoryChange changes = this.getHistory().addChangeGroup();
             for (TrackNode node : this.getEditedNodes()) {
                 setRailForNode(changes, node, manipulator.apply(node.getRailBlock(true)));
+            }
+        }
+    }
+
+    public void clearSigns() throws ChangeCancelledException {
+        // Deselect nodes we cannot edit
+        this.deselectLockedNodes();
+
+        HistoryChange changes = this.getHistory().addChangeGroup();
+        for (TrackNode node : this.editedNodes.keySet()) {
+            TrackNodeSign[] old_signs = node.getSigns();
+            if (old_signs.length > 0) {
+                setSignsForNode(changes, node, TrackNodeSign.EMPTY_ARR);
+                for (TrackNodeSign sign : old_signs) {
+                    removeSignFromSelectedAnimationStates(node, sign);
+                }
+            }
+        }
+    }
+
+    public void addSign(TrackNodeSign sign) throws ChangeCancelledException {
+        // Deselect nodes we cannot edit
+        this.deselectLockedNodes();
+
+        // Failure if no nodes are selected
+        if (this.editedNodes.isEmpty()) {
+            return;
+        }
+
+        boolean firedEvent = false;
+        HistoryChange changes = this.getHistory().addChangeGroup();
+        for (TrackNode node : this.editedNodes.keySet()) {
+            TrackNodeSign[] old_signs = node.getSigns();
+            setSignsForNode(changes, node, TrackNodeSign.appendToArray(node.getSigns(), sign.clone()));
+            if (!firedEvent) {
+                firedEvent = true;
+
+                // Fire a sign build event with the sign's custom sign
+                if (!sign.fireBuildEvent(this.getPlayer(), node)) {
+                    node.setSigns(old_signs);
+                    throw new ChangeCancelledException();
+                }
+            }
+
+            // All successful, now add this sign to an animation state if one was set to be edited
+            addSignToSelectedAnimationStates(node, sign);
+        }
+    }
+
+    private void setSignsForNode(HistoryChangeCollection changes, TrackNode node, TrackNodeSign[] new_signs) throws ChangeCancelledException {
+        TrackNodeSign[] old_signs = node.getSigns();
+        changes.addChangeBeforeSetSigns(this.player, node, new_signs);
+        node.setSigns(new_signs);
+        try {
+            changes.handleChangeAfterSetSigns(this.player, node, old_signs);
+        } catch (ChangeCancelledException ex) {
+            node.setSigns(old_signs);
+            throw ex;
+        }
+    }
+
+    private void addSignToSelectedAnimationStates(TrackNode node, TrackNodeSign sign) {
+        TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
+        if (animState != null) {
+            // Refresh selected animation state of node too, if one is selected for this node
+            // Leave other animation states alone
+            node.setAnimationState(animState.name, animState.state.changeAddSign(sign.clone()), animState.connections);
+        } else {
+            // No animation is selected for this node, presume the sign should be added to all animation states
+            for (TrackNodeAnimationState state : node.getAnimationStates()) {
+                node.setAnimationState(state.name, state.state.changeAddSign(sign.clone()), state.connections);
+            }
+        }
+    }
+
+    private void removeSignFromSelectedAnimationStates(TrackNode node, TrackNodeSign sign) {
+        TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
+        if (animState != null) {
+            // Refresh selected animation state of node too, if one is selected for this node
+            // Leave other animation states alone
+            node.setAnimationState(animState.name, animState.state.changeRemoveSign(sign), animState.connections);
+        } else {
+            // No animation is selected for this node, presume the sign should be added to all animation states
+            for (TrackNodeAnimationState state : node.getAnimationStates()) {
+                node.setAnimationState(state.name, state.state.changeRemoveSign(sign), state.connections);
             }
         }
     }

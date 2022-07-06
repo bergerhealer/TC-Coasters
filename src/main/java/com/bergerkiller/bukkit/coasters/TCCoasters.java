@@ -90,6 +90,10 @@ public class TCCoasters extends PluginBase {
         }
     }
 
+    public CoasterRailType getRailType() {
+        return this.coasterRailType;
+    }
+
     /**
      * Gets all the coaster information stored for a particular World
      * 

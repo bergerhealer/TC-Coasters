@@ -17,6 +17,7 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleArrow;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleLitBlock;
+import com.bergerkiller.bukkit.coasters.particles.TrackParticleSignText;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleText;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
@@ -28,6 +29,8 @@ import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailJunction;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 
+import net.md_5.bungee.api.ChatColor;
+
 /**
  * A single node of track of a rollercoaster. Stores the 3D position
  * and the 'up' vector.
@@ -36,12 +39,15 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     private TrackCoaster _coaster;
     private Vector _pos, _up, _up_visual, _dir;
     private IntVector3 _railBlock;
+    // Signs tied to this node
+    private TrackNodeSign[] _signs = TrackNodeSign.EMPTY_ARR;
     // Named target states of this track node, which can be used for animations
     private TrackNodeAnimationState[] _animationStates;
     //private TrackParticleItem _particle;
     private TrackParticleArrow _upParticleArrow;
     private List<TrackParticleText> _junctionParticles;
     private TrackParticleLitBlock _blockParticle;
+    private TrackParticleSignText _signTextParticle;
     // Connections are automatically updated when connecting/disconnecting
     protected TrackConnection[] _connections;
 
@@ -98,6 +104,8 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                 }
             }
         });
+
+        this._signTextParticle = null;
     }
 
     @Override
@@ -126,6 +134,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         this.setPosition(state.position);
         this.setOrientation(state.orientation);
         this.setRailBlock(state.railBlock);
+        this.setSigns(state.signs);
     }
 
     public void markChanged() {
@@ -152,6 +161,9 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             this._upParticleArrow.setPosition(this._pos);
             if (this._railBlock == null) {
                 this._blockParticle.setBlock(this.getRailBlock(true));
+            }
+            if (this._signTextParticle != null) {
+                this._signTextParticle.setPosition(this._pos);
             }
             this.scheduleRefresh();
             this.markChanged();
@@ -980,6 +992,10 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         for (TrackNodeAnimationState animState : this._animationStates) {
             animState.destroyParticles();
         }
+        if (this._signTextParticle != null) {
+            this._signTextParticle.remove();
+            this._signTextParticle = null;
+        }
     }
 
     /**
@@ -1008,6 +1024,75 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             this._blockParticle.setBlock(this.getRailBlock(true));
             this.markChanged();
             this.scheduleRefresh();
+        }
+    }
+
+    /**
+     * Gets an array of all the fake signs tied to this track node
+     *
+     * @return signs
+     */
+    public TrackNodeSign[] getSigns() {
+        return this._signs;
+    }
+
+    /**
+     * Sets a new array of fake signs tied to this track node. Properly cleans up
+     * any old state.
+     *
+     * @param new_signs
+     */
+    public void setSigns(TrackNodeSign[] new_signs) {
+        for (TrackNodeSign prev : this._signs) {
+            prev.onRemoved();
+        }
+        this._signs = new_signs;
+        for (TrackNodeSign added : new_signs) {
+            added.onAdded();
+        }
+        updateSignParticle();
+        this.markChanged();
+    }
+
+    /**
+     * Adds a single fake sign
+     *
+     * @param sign
+     */
+    public void addSign(TrackNodeSign sign) {
+        this._signs = TrackNodeSign.appendToArray(this._signs, sign);
+        sign.onAdded();
+        updateSignParticle();
+        this.markChanged();
+    }
+
+    private void updateSignParticle() {
+        TrackNodeSign[] signs = this._signs;
+        if (signs.length == 0) {
+            if (this._signTextParticle != null) {
+                this._signTextParticle.remove();
+                this._signTextParticle = null;
+            }
+        } else {
+            String[][] lines = new String[signs.length][];
+            for (int s = 0; s < signs.length; s++) {
+                // Remove lines from the end which are all empty (saves space)
+                String[] sign_lines = signs[s].getLines();
+                int line_count = sign_lines.length;
+                while (line_count > 0 && sign_lines[line_count-1].isEmpty()) {
+                    line_count--;
+                }
+                if (line_count != sign_lines.length) {
+                    lines[s] = Arrays.copyOf(signs[s].getLines(), line_count);
+                } else {
+                    lines[s] = signs[s].getLines();
+                }
+            }
+            if (this._signTextParticle == null) {
+                this._signTextParticle = this.getWorld().getParticles().addParticleSignText(this.getPosition(), lines);
+            } else {
+                this._signTextParticle.setSignLines(lines);
+            }
         }
     }
 

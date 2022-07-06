@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
@@ -23,6 +24,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
@@ -34,6 +36,7 @@ import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
+import com.bergerkiller.bukkit.tc.PowerState;
 import com.opencsv.CSVReader;
 
 /**
@@ -81,6 +84,7 @@ public class TrackCSV {
         registerEntry(LockCoasterEntry::new);
         registerEntry(AdjustTrackObjectTypeEntry::new);
         registerEntry(ObjectEntry::new);
+        registerEntry(SignEntry::new);
         registerEntry(NoLimits2Entry::new);
 
         // Object types
@@ -175,6 +179,7 @@ public class TrackCSV {
         public List<TrackObject> pendingTrackObjects = new ArrayList<TrackObject>();
         public boolean prevNode_hasDefaultAnimationLinks = true;
         public TrackNode prevNode = null;
+        public String prevNodeAnimName = null;
         public Matrix4x4 transform = null;
         public CoasterWorld world;
         public TrackCoaster coaster;
@@ -228,6 +233,7 @@ public class TrackCSV {
 
             // Refresh prevNode
             this.prevNode = node;
+            this.prevNodeAnimName = null;
             this.prevNode_hasDefaultAnimationLinks = true;
             this.pendingTrackObjects.clear();
         }
@@ -428,6 +434,7 @@ public class TrackCSV {
                     connections[i] = state.prevNode_pendingLinks.get(i).cloneObjects();
                 }
             }
+            state.prevNodeAnimName = this.name;
             state.prevNode.setAnimationState(this.name, state.transformState(this.toState()), connections);
         }
     }
@@ -729,6 +736,84 @@ public class TrackCSV {
             TrackObjectType<?> type = state.trackObjectTypesByName.get(this.name);
             if (type != null) {
                 state.pendingTrackObjects.add(new TrackObject(type, this.distance, this.flipped));
+            }
+        }
+    }
+
+    /**
+     * Adds a fake sign to a previously created node or node animation state
+     */
+    public static final class SignEntry extends CSVEntry {
+        public TrackNodeSign sign;
+
+        @Override
+        public boolean detect(StringArrayBuffer buffer) {
+            return buffer.get(0).equals("SIGN");
+        }
+
+        @Override
+        public void read(StringArrayBuffer buffer) throws SyntaxException {
+            buffer.next();
+
+            sign = new TrackNodeSign();
+
+            // Options might be expanded in the future
+            while (buffer.hasNext()) {
+                String option = buffer.next();
+                if (option.equals("LINES")) {
+                    break;
+                } else if (option.startsWith("POWER_ON_")) {
+                    sign.setPowerState(parseFace(buffer, option.substring(9)), PowerState.ON);
+                } else if (option.startsWith("POWER_OFF_")) {
+                    sign.setPowerState(parseFace(buffer, option.substring(10)), PowerState.ON);
+                } else {
+                    throw buffer.createSyntaxException("Unknown sign option: " + option);
+                }
+            }
+
+            // Process all lines
+            List<String> lines = new ArrayList<>(8);
+            while (buffer.hasNext()) {
+                lines.add(buffer.next());
+            }
+            sign.setLines(lines.toArray(new String[lines.size()]));
+        }
+
+        private BlockFace parseFace(StringArrayBuffer buffer, String text) throws SyntaxException {
+            for (BlockFace face : BlockFace.values()) {
+                if (face.name().equals(text)) {
+                    return face;
+                }
+            }
+            throw buffer.createSyntaxException("Not a valid BlockFace: " + text);
+        }
+
+        @Override
+        public void write(StringArrayBuffer buffer) {
+            buffer.put("SIGN");
+            for (TrackNodeSign.SignPowerState state : sign.getPowerStates()) {
+                if (state.power == PowerState.ON) {
+                    buffer.put("POWER_ON_" + state.face.name());
+                } else if (state.power == PowerState.OFF) {
+                    buffer.put("POWER_OFF_" + state.face.name());
+                }
+            }
+            buffer.put("LINES");
+            for (String line : sign.getLines()) {
+                buffer.put(line);
+            }
+        }
+
+        @Override
+        public void processReader(CSVReaderState state) {
+            if (state.prevNodeAnimName != null) {
+                // Add to this specific animation state
+                state.prevNode.updateAnimationStates(state.prevNodeAnimName, anim_state -> {
+                    return anim_state.updateSigns(TrackNodeSign.appendToArray(anim_state.state.signs, sign));
+                });
+            } else {
+                // Add to the node itself
+                state.prevNode.addSign(sign);
             }
         }
     }

@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV.SignEntry;
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectHolder;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
@@ -20,6 +21,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.mountiplex.reflection.util.UniqueHash;
 import com.opencsv.CSVWriter;
@@ -237,6 +239,7 @@ public class TrackCSVWriter implements AutoCloseable {
             }
             node_entry.setFromNode(startNode);
             this.write(node_entry);
+            this.writeAllSigns(startNode.getSigns());
 
             // If any exist, add animation node state entries
             boolean saveConnections = startNode.doAnimationStatesChangeConnections();
@@ -245,6 +248,7 @@ public class TrackCSVWriter implements AutoCloseable {
                 anim_entry.name = animState.name;
                 anim_entry.setFromState(animState.state);
                 this.write(anim_entry);
+                this.writeAllSigns(animState.state.signs);
                 if (saveConnections) {
                     for (TrackConnectionState ref : animState.connections) {
                         this.writeAllObjects(ref);
@@ -341,6 +345,14 @@ public class TrackCSVWriter implements AutoCloseable {
             object_entry.flipped = object.isFlipped();
             object_entry.name = writeTrackObjectType(object.getType());
             this.write(object_entry);
+        }
+    }
+
+    private void writeAllSigns(TrackNodeSign[] signs) throws IOException {
+        for (TrackNodeSign sign : signs) {
+            SignEntry entry = new SignEntry();
+            entry.sign = sign;
+            this.write(entry);
         }
     }
 

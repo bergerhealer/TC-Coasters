@@ -212,7 +212,7 @@ public class StringArrayBuffer implements Iterator<String> {
         try {
             return this.jsonSerializer.fromJsonToItemStack(next());
         } catch (JsonSyntaxException e) {
-            throw new SyntaxException(-1, this.index+1, "Invalid ItemStack Json(" + e.getMessage() + ")");
+            throw createSyntaxException("Invalid ItemStack Json(" + e.getMessage() + ")");
         }
     }
 
@@ -226,7 +226,7 @@ public class StringArrayBuffer implements Iterator<String> {
         String serialized = next();
         BlockData blockData = BlockData.fromString(serialized);
         if (blockData == null) {
-            throw new SyntaxException(-1, this.index+1, "Unknown block data: " + serialized);
+            throw createSyntaxException("Unknown block data: " + serialized);
         }
         return blockData;
     }
@@ -260,7 +260,7 @@ public class StringArrayBuffer implements Iterator<String> {
     public double nextDouble() throws SyntaxException {
         String value = next();
         if (value.isEmpty()) {
-            throw new SyntaxException(-1, this.index+1, "Empty value, number expected");
+            throw createSyntaxException("Empty value, number expected");
         }
         try {
             return Double.parseDouble(value);
@@ -273,7 +273,7 @@ public class StringArrayBuffer implements Iterator<String> {
                 } catch (NumberFormatException ex2) { /* ignore */ }
             }
 
-            throw new SyntaxException(-1, this.index+1, "Value is not a number: " + value);
+            throw createSyntaxException("Value is not a number: " + value);
         }
     }
 
@@ -286,12 +286,12 @@ public class StringArrayBuffer implements Iterator<String> {
     public int nextInt() throws SyntaxException {
         String value = next();
         if (value.isEmpty()) {
-            throw new SyntaxException(-1, this.index+1, "Empty value, number expected");
+            throw createSyntaxException("Empty value, number expected");
         }
         try {
             return Integer.parseInt(value);
         } catch (NumberFormatException ex) {
-            throw new SyntaxException(-1, this.index+1, "Value is not a number: " + value);
+            throw createSyntaxException("Value is not a number: " + value);
         }
     }
 

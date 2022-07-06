@@ -67,6 +67,10 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         return addParticle(new TrackParticleText(position, text, true));
     }
 
+    public TrackParticleSignText addParticleSignText(Vector position, String[][] signLines) {
+        return addParticle(new TrackParticleSignText(position, signLines));
+    }
+
     public TrackParticleLine addParticleLine(Vector p1, Vector p2) {
         return addParticle(new TrackParticleLine(p1, p2));
     }

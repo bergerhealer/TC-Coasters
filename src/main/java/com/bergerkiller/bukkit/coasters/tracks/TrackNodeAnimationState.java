@@ -138,6 +138,16 @@ public class TrackNodeAnimationState {
     }
 
     /**
+     * Adds a new sign to this animation state
+     *
+     * @param new_signs
+     * @return Updated track node animation state
+     */
+    public TrackNodeAnimationState updateSigns(TrackNodeSign[] new_signs) {
+        return new TrackNodeAnimationState(this.name, this.state.changeSigns(new_signs), this.connections);
+    }
+
+    /**
      * Spawns the particles displayed for this animation state, for a node owner
      * 
      * @param owner
