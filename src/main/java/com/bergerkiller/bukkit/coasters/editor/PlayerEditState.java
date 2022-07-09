@@ -52,11 +52,14 @@ import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.map.MapPlayerInput;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
+import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
+import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
+import com.bergerkiller.bukkit.common.wrappers.ChatText;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
@@ -1076,8 +1079,32 @@ public class PlayerEditState implements CoasterWorldComponent {
                     TCCoastersLocalization.SIGN_ADD_FAILED.message(player);
                 }
             }
-        }.open(player);
+        }.open(player, findInitialLines(signItem));
         return true;
+    }
+
+    private static String[] findInitialLines(ItemStack signItem) {
+        if (signItem != null) {
+            try {
+                CommonTagCompound nbt = ItemUtil.getMetaTag(signItem, false);
+                if (nbt != null && nbt.containsKey("BlockEntityTag")) {
+                    CommonTagCompound blockTag = nbt.createCompound("BlockEntityTag");
+                    if (blockTag != null && "minecraft:sign".equals(blockTag.getValue("id", String.class))) {
+                        return new String[] {
+                                ChatText.fromJson(blockTag.getValue("Text1", "")).getMessage(),
+                                ChatText.fromJson(blockTag.getValue("Text2", "")).getMessage(),
+                                ChatText.fromJson(blockTag.getValue("Text3", "")).getMessage(),
+                                ChatText.fromJson(blockTag.getValue("Text4", "")).getMessage()
+                        };
+                    }
+                }
+            } catch (Throwable t) {
+                // Probably failed to decode something
+                // Ignore. Corrupt item?
+            }
+        }
+
+        return new String[] { "", "", "", "" };
     }
 
     public void clearSigns() throws ChangeCancelledException {
