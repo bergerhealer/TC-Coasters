@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.editor;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -20,6 +21,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
@@ -45,6 +47,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.block.SignEditDialog;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.map.MapPlayerInput;
@@ -1009,6 +1012,74 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
     }
 
+    public boolean onSignLeftClick(TrackNode node) {
+        // If there are no signs, act as if the node wasn't clicked
+        // This allows a player to still break the blocks behind a node
+        TrackNodeSign[] signs = node.getSigns();
+        if (signs.length == 0) {
+            return false;
+        }
+
+        // Deny if blocked
+        if (node.isLocked()) {
+            TCCoastersLocalization.LOCKED.message(this.player);
+            return false;
+        }
+
+        // Try to remove the last sign
+        try {
+            setSignsForNode(this.getHistory(), node, Arrays.copyOf(signs, signs.length - 1));
+            updateSignInSelectedAnimationStates(node, signs[signs.length - 1], null);
+        } catch (ChangeCancelledException e) {
+            TCCoastersLocalization.SIGN_REMOVE_FAILED.message(player);
+            return false;
+        }
+
+        TCCoastersLocalization.SIGN_REMOVE_SUCCESS.message(player);
+        return true;
+    }
+
+    public boolean onSignRightClick(TrackNode node, ItemStack signItem) {
+        // Deny if blocked
+        if (node.isLocked()) {
+            TCCoastersLocalization.LOCKED.message(this.player);
+            return false;
+        }
+
+        final boolean appendToSign = player.isSneaking();
+        new SignEditDialog() {
+            @Override
+            public void onClosed(Player player, String[] lines) {
+                try {
+                    if (appendToSign && node.getSigns().length > 0) {
+                        // Append lines to last sign
+                        TrackNodeSign[] new_signs = node.getSigns().clone();
+                        TrackNodeSign old_sign = new_signs[new_signs.length - 1];
+                        TrackNodeSign updated = old_sign.clone();
+                        for (String line : lines) {
+                            if (!line.isEmpty()) {
+                                updated.appendLine(line);
+                            }
+                        }
+                        new_signs[new_signs.length - 1] = updated;
+
+                        // Update the signs
+                        setSignsForNode(getHistory(), node, new_signs);;
+                        updateSignInSelectedAnimationStates(node, old_sign, updated);
+                        TCCoastersLocalization.SIGN_ADD_APPEND.message(player);
+                    } else {
+                        // Add a new sign to the node
+                        addSignToNode(getHistory(), node, new TrackNodeSign(lines), true);
+                        TCCoastersLocalization.SIGN_ADD_SUCCESS.message(player);
+                    }
+                } catch (ChangeCancelledException e) {
+                    TCCoastersLocalization.SIGN_ADD_FAILED.message(player);
+                }
+            }
+        }.open(player);
+        return true;
+    }
+
     public void clearSigns() throws ChangeCancelledException {
         // Deselect nodes we cannot edit
         this.deselectLockedNodes();
@@ -1019,7 +1090,7 @@ public class PlayerEditState implements CoasterWorldComponent {
             if (old_signs.length > 0) {
                 setSignsForNode(changes, node, TrackNodeSign.EMPTY_ARR);
                 for (TrackNodeSign sign : old_signs) {
-                    removeSignFromSelectedAnimationStates(node, sign);
+                    updateSignInSelectedAnimationStates(node, sign, null);
                 }
             }
         }
@@ -1037,21 +1108,24 @@ public class PlayerEditState implements CoasterWorldComponent {
         boolean firedEvent = false;
         HistoryChange changes = this.getHistory().addChangeGroup();
         for (TrackNode node : this.editedNodes.keySet()) {
-            TrackNodeSign[] old_signs = node.getSigns();
-            setSignsForNode(changes, node, TrackNodeSign.appendToArray(node.getSigns(), sign.clone()));
-            if (!firedEvent) {
-                firedEvent = true;
-
-                // Fire a sign build event with the sign's custom sign
-                if (!sign.fireBuildEvent(this.getPlayer(), node)) {
-                    node.setSigns(old_signs);
-                    throw new ChangeCancelledException();
-                }
-            }
-
-            // All successful, now add this sign to an animation state if one was set to be edited
-            addSignToSelectedAnimationStates(node, sign);
+            addSignToNode(changes, node, sign, !firedEvent);
+            firedEvent = true;
         }
+    }
+
+    private void addSignToNode(HistoryChangeCollection changes, TrackNode node, TrackNodeSign sign, boolean fireBuildEvent) throws ChangeCancelledException {
+        TrackNodeSign[] old_signs = node.getSigns();
+        setSignsForNode(changes, node, TrackNodeSign.appendToArray(node.getSigns(), sign.clone()));
+        if (fireBuildEvent) {
+            // Fire a sign build event with the sign's custom sign
+            if (!sign.fireBuildEvent(this.getPlayer(), node)) {
+                node.setSigns(old_signs);
+                throw new ChangeCancelledException();
+            }
+        }
+
+        // All successful, now add this sign to an animation state if one was set to be edited
+        updateSignInSelectedAnimationStates(node, null, sign);
     }
 
     private void setSignsForNode(HistoryChangeCollection changes, TrackNode node, TrackNodeSign[] new_signs) throws ChangeCancelledException {
@@ -1066,31 +1140,27 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
     }
 
-    private void addSignToSelectedAnimationStates(TrackNode node, TrackNodeSign sign) {
+    private void updateSignInSelectedAnimationStates(TrackNode node, TrackNodeSign old_sign, TrackNodeSign new_sign) {
         TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
         if (animState != null) {
             // Refresh selected animation state of node too, if one is selected for this node
             // Leave other animation states alone
-            node.setAnimationState(animState.name, animState.state.changeAddSign(sign.clone()), animState.connections);
+            node.setAnimationState(animState.name, updateSignInNodeState(animState.state, old_sign, new_sign), animState.connections);
         } else {
             // No animation is selected for this node, presume the sign should be added to all animation states
             for (TrackNodeAnimationState state : node.getAnimationStates()) {
-                node.setAnimationState(state.name, state.state.changeAddSign(sign.clone()), state.connections);
+                node.setAnimationState(state.name, updateSignInNodeState(state.state, old_sign, new_sign), state.connections);
             }
         }
     }
 
-    private void removeSignFromSelectedAnimationStates(TrackNode node, TrackNodeSign sign) {
-        TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
-        if (animState != null) {
-            // Refresh selected animation state of node too, if one is selected for this node
-            // Leave other animation states alone
-            node.setAnimationState(animState.name, animState.state.changeRemoveSign(sign), animState.connections);
+    private TrackNodeState updateSignInNodeState(TrackNodeState state, TrackNodeSign old_sign, TrackNodeSign new_sign) {
+        if (old_sign == null) {
+            return state.changeAddSign(new_sign.clone());
+        } else if (new_sign == null) {
+            return state.changeRemoveSign(old_sign);
         } else {
-            // No animation is selected for this node, presume the sign should be added to all animation states
-            for (TrackNodeAnimationState state : node.getAnimationStates()) {
-                node.setAnimationState(state.name, state.state.changeRemoveSign(sign), state.connections);
-            }
+            return state.changeUpdateSign(old_sign, new_sign.clone());
         }
     }
 

@@ -94,6 +94,57 @@ public class TrackWorld implements CoasterWorldComponent {
     }
 
     /**
+     * Looks for the node nearest to a point on a path looking at using a given eye
+     * location. If no such node exists, returns null.
+     *
+     * @param eyeLocation
+     * @param fov Field of view factor, 1.0 is default
+     * @param maxDistance Maximum distance away from the eye location to include the results
+     * @return Nearest node result, or null
+     */
+    public TrackNode findNodeLookingAt(Location eyeLocation, double fov, double maxDistance) {
+        // Create an inverted camera transformation of the player's view direction
+        Matrix4x4 cameraTransform = new Matrix4x4();
+        cameraTransform.translateRotate(eyeLocation);
+        return findNodeLookingAt(cameraTransform, fov, maxDistance);
+    }
+
+    /**
+     * Looks for the node nearest to a point on a path looking at using a given eye
+     * location camera transformation matrix. If no such node exists, returns null.
+     *
+     * @param cameraTransform Player eye camera transform
+     * @param fov Field of view factor, 1.0 is default
+     * @param maxDistance Maximum distance away from the eye location to include the results
+     * @return Nearest node result, or null
+     */
+    public TrackNode findNodeLookingAt(Matrix4x4 cameraTransform, double fov, double maxDistance) {
+        Vector startPos = cameraTransform.toVector();
+
+        cameraTransform = cameraTransform.clone();
+        cameraTransform.invert();
+
+        double maxDistSq = maxDistance * maxDistance;
+        double bestViewDistance = Double.MAX_VALUE;
+        TrackNode bestNode = null;
+        for (TrackCoaster coaster : getCoasters()) {
+            for (TrackNode node : coaster.getNodes()) {
+                if (node.getPosition().distanceSquared(startPos) > maxDistSq) {
+                    continue;
+                }
+
+                double viewDistance = getViewDistance(cameraTransform, node.getPosition(), fov);
+                if (viewDistance < bestViewDistance) {
+                    bestViewDistance = viewDistance;
+                    bestNode = node;
+                }
+            }
+        }
+
+        return bestNode;
+    }
+
+    /**
      * Looks for all nearby nodes and their connections and computes the exact point on a path
      * looking at using a given eye Location. If no such point can be found, then null is returned.
      * 

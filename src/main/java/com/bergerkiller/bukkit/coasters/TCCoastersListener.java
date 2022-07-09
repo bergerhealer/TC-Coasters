@@ -13,10 +13,13 @@ import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.event.world.WorldInitEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.events.CoasterConnectionEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterNodeEvent;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
+import com.bergerkiller.bukkit.common.wrappers.HumanHand;
 
 public class TCCoastersListener implements Listener {
     private final TCCoasters plugin;
@@ -38,19 +41,36 @@ public class TCCoastersListener implements Listener {
         world.getParticles().hideAllFor(event.getPlayer());
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
-        if (!this.plugin.isHoldingEditTool(event.getPlayer())) {
-            return;
+        // Right-or-left-clicking a node with a sign to place/break signs
+        if (this.plugin.isHoldingEditSign(event.getPlayer())) {
+            PlayerEditState state = this.plugin.getEditState(event.getPlayer());
+            if (state.getMode() != PlayerEditMode.DISABLED) {
+                TrackNode lookingAt = state.getWorld().getTracks().findNodeLookingAt(
+                        event.getPlayer().getEyeLocation(), 1.0, 10.0);
+                if (lookingAt != null) {
+                    if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
+                        event.setCancelled(state.onSignLeftClick(lookingAt));
+                    }
+                    if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+                        event.setCancelled(state.onSignRightClick(lookingAt, HumanHand.getItemInMainHand(event.getPlayer())));
+                    }
+                    return;
+                }
+            }
         }
 
-        PlayerEditState state = this.plugin.getEditState(event.getPlayer());
-        if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
-            event.setCancelled(state.onLeftClick());
-        }
-        if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            state.setTargetedBlock(event.getClickedBlock(), event.getBlockFace());
-            event.setCancelled(state.onRightClick());
+        // Interacting while holding the editor map
+        if (this.plugin.isHoldingEditTool(event.getPlayer())) {
+            PlayerEditState state = this.plugin.getEditState(event.getPlayer());
+            if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
+                event.setCancelled(state.onLeftClick());
+            }
+            if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+                state.setTargetedBlock(event.getClickedBlock(), event.getBlockFace());
+                event.setCancelled(state.onRightClick());
+            }
         }
     }
 

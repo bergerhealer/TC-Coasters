@@ -42,12 +42,14 @@ import com.bergerkiller.bukkit.common.PluginBase;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.collections.FastIdentityHashMap;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
+import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
 import com.bergerkiller.bukkit.common.io.ByteArrayIOStream;
 import com.bergerkiller.bukkit.common.localization.LocalizationEnum;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.map.MapResourcePack;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.ItemUtil;
+import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
 import com.bergerkiller.bukkit.tc.TCConfig;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
@@ -518,6 +520,25 @@ public class TCCoasters extends PluginBase {
             }
         }
         return true;
+    }
+
+    public boolean isHoldingEditSign(Player player) {
+        if (!hasUsePermission(player)) {
+            return false;
+        }
+
+        ItemStack mainItem = HumanHand.getItemInMainHand(player);
+        if (mainItem == null) {
+            return false;
+        }
+
+        if (CommonCapabilities.MATERIAL_ENUM_CHANGES) {
+            // Modern API re-purposes the block sign type.
+            return MaterialUtil.ISSIGN.get(mainItem.getType());
+        } else {
+            // Legacy sign material type is the only sign type. Other types are for blocks only.
+            return mainItem.getType().name().equals("SIGN");
+        }
     }
 
     public boolean isHoldingEditTool(Player player) {

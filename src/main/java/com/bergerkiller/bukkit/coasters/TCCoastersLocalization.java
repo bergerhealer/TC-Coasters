@@ -13,6 +13,11 @@ public class TCCoastersLocalization extends LocalizationEnum {
     public static final TCCoastersLocalization ANIMATION_ADD = new TCCoastersLocalization("animation.add", ChatColor.GREEN + "Animation %0% added to %1% selected node(s)!");
     public static final TCCoastersLocalization ANIMATION_REMOVE = new TCCoastersLocalization("animation.remove", ChatColor.YELLOW + "Animation %0% removed from %1% selected node(s)!");
     public static final TCCoastersLocalization ANIMATION_RENAME = new TCCoastersLocalization("animation.rename", ChatColor.GREEN + "Animation %0% renamed to %1% for %2% selected node(s)!");
+    public static final TCCoastersLocalization SIGN_REMOVE_FAILED = new TCCoastersLocalization("signs.remove.failed", ChatColor.RED + "Failed to remove the sign from this node!");
+    public static final TCCoastersLocalization SIGN_REMOVE_SUCCESS = new TCCoastersLocalization("signs.remove.success", ChatColor.YELLOW + "Sign has been removed from this node!");
+    public static final TCCoastersLocalization SIGN_ADD_FAILED = new TCCoastersLocalization("signs.add.failed", ChatColor.RED + "Failed to add sign to this node!");
+    public static final TCCoastersLocalization SIGN_ADD_APPEND = new TCCoastersLocalization("signs.add.append", ChatColor.GREEN + "Extra sign added below the sign to extend the lines!");
+    public static final TCCoastersLocalization SIGN_ADD_SUCCESS = new TCCoastersLocalization("signs.add.success", ChatColor.GREEN + "Sign has been added to this node!");
     public static final TCCoastersLocalization INVALID_AXIS = new TCCoastersLocalization("command.invalidaxis", ChatColor.RED + "Invalid axis: %0%");
     public static final TCCoastersLocalization NO_NODES_SELECTED = new TCCoastersLocalization("command.nodes.notselected", ChatColor.RED + "No track nodes are selected!");
 

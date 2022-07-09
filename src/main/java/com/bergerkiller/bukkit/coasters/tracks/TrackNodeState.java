@@ -110,6 +110,17 @@ public final class TrackNodeState {
         return this;
     }
 
+    public TrackNodeState changeUpdateSign(TrackNodeSign sign, TrackNodeSign new_sign) {
+        for (int i = 0; i < this.signs.length; i++) {
+            if (Arrays.equals(this.signs[i].getLines(), sign.getLines())) {
+                TrackNodeSign[] new_signs = this.signs.clone();
+                new_signs[i] = new_sign;
+                return changeSigns(new_signs);
+            }
+        }
+        return this;
+    }
+
     public TrackNodeState changeSigns(TrackNodeSign[] new_signs) {
         return new TrackNodeState(this.position, this.orientation, this.railBlock, new_signs);
     }

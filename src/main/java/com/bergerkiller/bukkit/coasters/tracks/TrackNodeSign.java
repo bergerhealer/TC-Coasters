@@ -66,6 +66,13 @@ public class TrackNodeSign implements Cloneable {
         }
     }
 
+    public void appendLine(String line) {
+        cachedFakeSign = null;
+        int len = this.lines.length;
+        this.lines = Arrays.copyOf(this.lines, len + 1);
+        this.lines[len] = line;
+    }
+
     /**
      * Gets whether this sign is currently receiving redstone power at all.
      *
