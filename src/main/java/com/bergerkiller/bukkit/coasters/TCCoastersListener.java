@@ -41,7 +41,8 @@ public class TCCoastersListener implements Listener {
         world.getParticles().hideAllFor(event.getPlayer());
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    /* Note: Do not ignore cancelled events! Player clicks from afar are cancelled by default. */
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
         // Right-or-left-clicking a node with a sign to place/break signs
         if (this.plugin.isHoldingEditSign(event.getPlayer())) {
