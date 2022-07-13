@@ -30,7 +30,7 @@ import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeLight;
-import com.bergerkiller.bukkit.coasters.signs.SignActionTrackAnimate;
+import com.bergerkiller.bukkit.coasters.signs.actions.SignActionTrackAnimate;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.util.QueuedTask;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;

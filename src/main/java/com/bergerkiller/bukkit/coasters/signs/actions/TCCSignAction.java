@@ -1,4 +1,4 @@
-package com.bergerkiller.bukkit.coasters.signs;
+package com.bergerkiller.bukkit.coasters.signs.actions;
 
 import java.util.List;
 import java.util.Locale;
