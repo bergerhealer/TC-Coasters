@@ -174,7 +174,7 @@ public class CoasterRailType extends RailType {
         // Find all nodes at this rail piece and add all the signs contained in them
         for (TrackNode node : getNodes(railPiece.block())) {
             for (TrackNodeSign sign : node.getSigns()) {
-                result.add(sign.getTrackedSign(railPiece, node));
+                result.add(sign.getTrackedSign(railPiece));
             }
         }
     }

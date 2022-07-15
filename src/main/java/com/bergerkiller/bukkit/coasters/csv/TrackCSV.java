@@ -18,6 +18,7 @@ import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeFallingBlock;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItemStack;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeLeash;
+import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
@@ -36,7 +37,6 @@ import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
-import com.bergerkiller.bukkit.tc.PowerState;
 import com.opencsv.CSVReader;
 
 /**
@@ -763,9 +763,9 @@ public class TrackCSV {
                 if (option.equals("LINES")) {
                     break;
                 } else if (option.startsWith("POWER_ON_")) {
-                    sign.setPowerState(parseFace(buffer, option.substring(9)), PowerState.ON);
+                    sign.addPowerState(buffer.next(), true, parseFace(buffer, option.substring(9)));
                 } else if (option.startsWith("POWER_OFF_")) {
-                    sign.setPowerState(parseFace(buffer, option.substring(10)), PowerState.ON);
+                    sign.addPowerState(buffer.next(), false, parseFace(buffer, option.substring(10)));
                 } else {
                     throw buffer.createSyntaxException("Unknown sign option: " + option);
                 }
@@ -791,12 +791,13 @@ public class TrackCSV {
         @Override
         public void write(StringArrayBuffer buffer) {
             buffer.put("SIGN");
-            for (TrackNodeSign.SignPowerState state : sign.getPowerStates()) {
-                if (state.power == PowerState.ON) {
-                    buffer.put("POWER_ON_" + state.face.name());
-                } else if (state.power == PowerState.OFF) {
-                    buffer.put("POWER_OFF_" + state.face.name());
+            for (NamedPowerChannel state : sign.getPowerStates()) {
+                if (state.isPowered()) {
+                    buffer.put("POWER_ON_" + state.getFace().name());
+                } else {
+                    buffer.put("POWER_OFF_" + state.getFace().name());
                 }
+                buffer.put(state.getName());
             }
             buffer.put("LINES");
             for (String line : sign.getLines()) {

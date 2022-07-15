@@ -20,6 +20,7 @@ import com.bergerkiller.bukkit.coasters.particles.TrackParticleLitBlock;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleSignText;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleState;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleText;
+import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -698,12 +699,14 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
 
     public boolean removeAnimationState(String name) {
         for (int i = 0; i < this._animationStates.length; i++) {
-            if (this._animationStates[i].name.equals(name)) {
-                this._animationStates[i].destroyParticles();
+            TrackNodeAnimationState state = this._animationStates[i];
+            if (state.name.equals(name)) {
+                state.destroyParticles();
                 this._animationStates = LogicUtil.removeArrayElement(this._animationStates, i);
                 for (int j = i; j < this._animationStates.length; j++) {
                     this._animationStates[j].updateIndex(j);
                 }
+                handleSignOwnerUpdates(state.state.signs, TrackNodeSign.EMPTY_ARR, true);
                 this.getPlugin().forAllEditStates(editState -> editState.notifyNodeAnimationRemoved(TrackNode.this, name));
                 return true;
             }
@@ -799,6 +802,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                 old_state.destroyParticles();
                 this._animationStates[i] = state;
                 state.spawnParticles(this, i);
+                handleSignOwnerUpdates(old_state.state.signs, state.state.signs, true);
                 return;
             }
         }
@@ -808,6 +812,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         this._animationStates = Arrays.copyOf(this._animationStates, new_index+1);
         this._animationStates[new_index] = state;
         state.spawnParticles(this, new_index);
+        handleSignOwnerUpdates(TrackNodeSign.EMPTY_ARR, state.state.signs, true);
 
         // Refresh any player edit states so they become aware of this animation
         this.getPlugin().forAllEditStates(editState -> editState.notifyNodeAnimationAdded(this, state.name));
@@ -829,6 +834,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                     old_state.destroyParticles();
                     this._animationStates[i] = new_state;
                     new_state.spawnParticles(this, i);
+                    handleSignOwnerUpdates(old_state.state.signs, new_state.state.signs, true);
                     this.markChanged();
                 }
             }
@@ -977,6 +983,10 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
 
     protected void onRemoved() {
         destroyParticles();
+        handleSignOwnerUpdates(this._signs, TrackNodeSign.EMPTY_ARR, false);
+        for (TrackNodeAnimationState animState : this._animationStates) {
+            handleSignOwnerUpdates(animState.state.signs, TrackNodeSign.EMPTY_ARR, true);
+        }
         _coaster = null; // mark removed by breaking reference to coaster
     }
 
@@ -1041,15 +1051,11 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
      * @param new_signs
      */
     public void setSigns(TrackNodeSign[] new_signs) {
-        for (TrackNodeSign prev : this._signs) {
-            prev.onRemoved();
-        }
+        TrackNodeSign[] prev_signs = this._signs;
         this._signs = new_signs;
-        for (TrackNodeSign added : new_signs) {
-            added.onAdded();
-        }
+        handleSignOwnerUpdates(prev_signs, new_signs, false);
         updateSignParticle();
-        this.markChanged();
+        markChanged();
     }
 
     /**
@@ -1059,12 +1065,44 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
      */
     public void addSign(TrackNodeSign sign) {
         this._signs = TrackNodeSign.appendToArray(this._signs, sign);
-        sign.onAdded();
+        sign.updateOwner(this, false);
         updateSignParticle();
-        this.markChanged();
+        markChanged();
     }
 
-    private void updateSignParticle() {
+    private void handleSignOwnerUpdates(TrackNodeSign[] prev_signs, TrackNodeSign[] new_signs, boolean isAnimationState) {
+        if (prev_signs.length == 0) {
+            // Adding stuff only
+            for (TrackNodeSign sign : new_signs) {
+                sign.updateOwner(this, isAnimationState);
+            }
+        } else if (new_signs.length == 0) {
+            // Removing stuff only
+            for (TrackNodeSign sign : prev_signs) {
+                sign.updateOwner(null, false);
+            }
+        } else {
+            List<TrackNodeSign> prev_signs_list = Arrays.asList(prev_signs);
+            List<TrackNodeSign> new_signs_list = Arrays.asList(new_signs);
+
+            // Add the new signs first. This makes sure named state common to old and
+            // new signs is preserved.
+            for (TrackNodeSign sign : new_signs) {
+                if (!prev_signs_list.contains(sign)) {
+                    sign.updateOwner(this, isAnimationState);
+                }
+            }
+
+            // Remove signs that no longer exist
+            for (TrackNodeSign sign : prev_signs_list) {
+                if (!new_signs_list.contains(sign)) {
+                    sign.updateOwner(null, false);
+                }
+            }
+        }
+    }
+
+    void updateSignParticle() {
         TrackNodeSign[] signs = this._signs;
         if (signs.length == 0) {
             if (this._signTextParticle != null) {
@@ -1075,16 +1113,27 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             String[][] lines = new String[signs.length][];
             for (int s = 0; s < signs.length; s++) {
                 // Remove lines from the end which are all empty (saves space)
-                String[] sign_lines = signs[s].getLines();
+                TrackNodeSign sign = signs[s];
+                String[] sign_lines = sign.getLines();
                 int line_count = sign_lines.length;
                 while (line_count > 0 && sign_lines[line_count-1].isEmpty()) {
                     line_count--;
                 }
                 if (line_count != sign_lines.length) {
-                    lines[s] = Arrays.copyOf(signs[s].getLines(), line_count);
-                } else {
-                    lines[s] = signs[s].getLines();
+                    sign_lines = Arrays.copyOf(sign_lines, line_count);
                 }
+
+                // Add redstone power states, if any
+                NamedPowerChannel[] channels = sign.getPowerStates();
+                if (channels.length > 0) {
+                    int len = sign_lines.length;
+                    sign_lines = Arrays.copyOf(sign_lines, len + channels.length);
+                    for (int i = 0; i < channels.length; i++) {
+                        sign_lines[len + i] = channels[i].getTooltipText();
+                    }
+                }
+
+                lines[s] = sign_lines;
             }
             if (this._signTextParticle == null) {
                 this._signTextParticle = this.getWorld().getParticles().addParticleSignText(this.getPosition(), lines);

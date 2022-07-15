@@ -1,18 +1,23 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.util.Arrays;
+import java.util.function.Predicate;
 
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 
+import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.tc.PowerState;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
+import com.bergerkiller.bukkit.tc.events.SignActionEvent;
 import com.bergerkiller.bukkit.tc.events.SignChangeActionEvent;
 import com.bergerkiller.bukkit.tc.rails.RailLookup.TrackedFakeSign;
 import com.bergerkiller.bukkit.tc.signactions.SignAction;
+import com.bergerkiller.bukkit.tc.signactions.SignActionType;
 
 /**
  * A single fake virtual sign bound to a single node.
@@ -20,24 +25,53 @@ import com.bergerkiller.bukkit.tc.signactions.SignAction;
 public class TrackNodeSign implements Cloneable {
     public static final TrackNodeSign[] EMPTY_ARR = new TrackNodeSign[0];
 
+    private final Object key;
     private String[] lines;
-    private SignPowerState[] powerStates = SignPowerState.NO_STATES;
+    private NamedPowerChannel[] powerStates = NamedPowerChannel.NO_POWER_STATES;
     private TrackedFakeSign cachedFakeSign = null;
 
+    // Registration state
+    private TrackNode nodeOwner;
+    private boolean addedAsAnimation;
+
     public TrackNodeSign() {
+        this(new Object());
+    }
+
+    private TrackNodeSign(Object key) {
+        this.key = key;
         this.lines = new String[] { "", "", "", "" };
     }
 
     public TrackNodeSign(String[] lines) {
+        this.key = new Object();
         setLines(lines);
     }
 
-    public void onAdded() {
-        
-    }
+    void updateOwner(TrackNode node, boolean addedAsAnimation) {
+        if (node == null || addedAsAnimation) {
+            this.cachedFakeSign = null; // Forces re-validation
+        }
 
-    public void onRemoved() {
-        this.cachedFakeSign = null; // Forces re-validation
+        // Register/un-register the power states of this sign
+        {
+            NamedPowerChannel[] states = this.powerStates;
+            if (states.length > 0 && this.nodeOwner != node) {
+                if (node != null) {
+                    for (NamedPowerChannel state : states) {
+                        state.register(node.getWorld().getNamedPowerChannels(), this);
+                    }
+                }
+                if (this.nodeOwner != null) {
+                    for (NamedPowerChannel state : states) {
+                        state.unregister(this.nodeOwner.getWorld().getNamedPowerChannels(), this);
+                    }
+                }
+            }
+        }
+
+        this.nodeOwner = node;
+        this.addedAsAnimation = addedAsAnimation;
     }
 
     /**
@@ -47,6 +81,27 @@ public class TrackNodeSign implements Cloneable {
      */
     public String[] getLines() {
         return this.lines;
+    }
+
+    /**
+     * Gets the track node owning this sign, if it was added to a node or an animation
+     * state of a node.
+     *
+     * @return node owner
+     */
+    public TrackNode getNode() {
+        return this.nodeOwner;
+    }
+
+    /**
+     * Gets whether this sign is part of an animation state of a node, and not the
+     * node itself. If that's the case, changing the power state will have no effect.
+     *
+     * @return True if this sign is added to an animation state of {@link #getNode()},
+     *         False otherwise.
+     */
+    public boolean isAddedAsAnimation() {
+        return this.addedAsAnimation;
     }
 
     /**
@@ -64,6 +119,7 @@ public class TrackNodeSign implements Cloneable {
         } else {
             this.lines = lines;
         }
+        notifyOwningNode();
     }
 
     public void appendLine(String line) {
@@ -71,6 +127,7 @@ public class TrackNodeSign implements Cloneable {
         int len = this.lines.length;
         this.lines = Arrays.copyOf(this.lines, len + 1);
         this.lines[len] = line;
+        notifyOwningNode();
     }
 
     /**
@@ -80,51 +137,153 @@ public class TrackNodeSign implements Cloneable {
      */
     public boolean isPowered() {
         //TODO: Inverted mode/etc.
-        for (SignPowerState state : this.powerStates) {
-            if (state.power.hasPower()) {
+        for (NamedPowerChannel state : this.powerStates) {
+            if (state.isPowered()) {
                 return true;
             }
         }
         return false;
     }
 
-    public SignPowerState[] getPowerStates() {
+    public NamedPowerChannel[] getPowerStates() {
         return this.powerStates;
     }
 
     /**
-     * Sets a new power state for/from a particular face of this Sign.
-     * Returns true when the face power state (powered) changed between on and off.
-     * If true, a REDSTONE_CHANGE event should be fired.
+     * Assigns a new named power channel to this sign. The sign will receive power information
+     * from this state, and if the sign is added to a node, the sign will be activated.
      *
-     * @param face Face of the sign
-     * @param power New power state
-     * @return True if the power state of this face changed
+     * @param name Named power state name
+     * @param powered Named power state powered
+     * @param face Named power state face
      */
-    public boolean setPowerState(BlockFace face, PowerState power) {
-        SignPowerState[] states = this.powerStates;
-        int numStates = states.length;
-        for (int i = 0; i < numStates; i++) {
-            SignPowerState state = states[i];
-            if (state.face == face) {
-                boolean changed = state.power.hasPower() != power.hasPower();
-                states[i] = new SignPowerState(face, power);
-                return changed;
-            }
-        }
-        this.powerStates = states = Arrays.copyOf(states, numStates + 1);
-        states[numStates] = new SignPowerState(face, power);
-        return power.hasPower(); // NONE -> power?
+    public void addPowerState(String name, boolean powered, BlockFace face) {
+        addPowerState(NamedPowerChannel.of(name, powered, face));
     }
 
     /**
-     * Gets or calculates a TrackedSign that represents the information on this fake sign
+     * Assigns a new named power channel to this sign. The sign will receive power information
+     * from this state, and if the sign is added to a node, the sign will be activated.
      *
-     * @param rail Rail Piece
-     * @param node Node this fake sign is tied to currently
+     * @param powerState SignNamedPowerState to add
+     */
+    public void addPowerState(NamedPowerChannel powerState) {
+        NamedPowerChannel[] states = this.powerStates;
+        int numStates = states.length;
+
+        // Avoid adding if this exact power state already exists.
+        // But we do allow adding the same name for multiple faces and such.
+        for (NamedPowerChannel existingState : states) {
+            if (existingState.getName().equals(powerState.getName()) &&
+                existingState.getFace() == powerState.getFace()
+            ) {
+                return;
+            }
+        }
+
+        states = Arrays.copyOf(states, numStates + 1);
+        states[numStates] = powerState;
+        this.powerStates = states;
+
+        if (this.nodeOwner != null) {
+            powerState.register(this.nodeOwner.getWorld().getNamedPowerChannels(), this);
+            notifyOwningNode();
+        }
+    }
+
+    /**
+     * Removes all power states of the given name from this sign
+     *
+     * @param name Name of the power state to remove
+     * @return True if one or more power states were found and removed
+     */
+    public boolean removePowerStates(final String name) {
+        return removePowerStates(existingState -> existingState.getName().equals(name));
+    }
+
+    /**
+     * Removes a SignNamedPowerState previously added using
+     * {@link #addPowerState(NamedPowerChannel)}. Both the
+     * power state name and face direction must match.
+     *
+     * @param powerState Power state to remove
+     * @return True if found and removed
+     */
+    public boolean removePowerState(final NamedPowerChannel powerState) {
+        return removePowerStates(existingState -> {
+            return existingState.getName().equals(powerState.getName()) &&
+                   existingState.getFace() == powerState.getFace();
+        });
+    }
+
+    /**
+     * Removes all named power channels added to this sign
+     */
+    public void clearPowerStates() {
+        removePowerStates(LogicUtil.alwaysTruePredicate());
+    }
+
+    private boolean removePowerStates(Predicate<NamedPowerChannel> filter) {
+        NamedPowerChannel[] states = this.powerStates;
+        int numStates = states.length;
+
+        // Find it
+        boolean found = false;
+        for (int i = numStates-1; i >= 0; i--) {
+            NamedPowerChannel existingState = states[i];
+            if (filter.test(existingState)) {
+                numStates--;
+                if (numStates == 0) {
+                    this.powerStates = NamedPowerChannel.NO_POWER_STATES;
+                } else {
+                    this.powerStates = LogicUtil.removeArrayElement(states, i);
+                }
+                if (this.nodeOwner != null) {
+                    existingState.unregister(this.nodeOwner.getWorld().getNamedPowerChannels(), this);
+                    notifyOwningNode();
+                }
+                found = true;
+            }
+        }
+        return found;
+    }
+
+    private void notifyOwningNode() {
+        if (this.nodeOwner != null) {
+            this.nodeOwner.updateSignParticle();
+            this.nodeOwner.markChanged();
+        }
+    }
+
+    /**
+     * Gets or calculates a TrackedSign that represents the information on this fake sign.
+     * This sign must be added to a node first.
+     *
      * @return Tracked fake sign
      */
-    public TrackedFakeSign getTrackedSign(final RailPiece rail, final TrackNode node) {
+    public TrackedFakeSign getTrackedSign() {
+        final TrackNode node = this.getNode();
+        if (node == null || addedAsAnimation) {
+            throw new IllegalStateException("This sign is not associated with a track node");
+        }
+
+        return getTrackedSign(RailPiece.create(node.getPlugin().getRailType(),
+                BlockUtil.getBlock(node.getBukkitWorld(), node.getRailBlock(true))));
+    }
+
+    /**
+     * Gets or calculates a TrackedSign that represents the information on this fake sign.
+     * This sign must be added to a node first.
+     *
+     * @param rail Rail Piece
+     * @return Tracked fake sign
+     */
+    public TrackedFakeSign getTrackedSign(final RailPiece rail) {
+        final TrackNode node = this.getNode();
+        if (node == null || addedAsAnimation) {
+            throw new IllegalStateException("This sign is not associated with a track node");
+        }
+
         TrackedFakeSign cached = cachedFakeSign;
         if (cached == null || !cached.rail.isSameBlock(rail)) {
             cachedFakeSign = cached = new TrackedFakeSign(rail) {
@@ -136,7 +295,13 @@ public class TrackNodeSign implements Cloneable {
                 @Override
                 public void setLine(int index, String line) throws IndexOutOfBoundsException {
                     lines[index] = line;
+                    node.updateSignParticle();
                     node.markChanged();
+                }
+
+                @Override
+                public Object getUniqueKey() {
+                    return key;
                 }
 
                 @Override
@@ -169,10 +334,27 @@ public class TrackNodeSign implements Cloneable {
 
                 @Override
                 public PowerState getPower(BlockFace from) {
-                    for (SignPowerState state : powerStates) {
-                        if (state.face == from) {
-                            return state.power;
+                    boolean facePowered = false;
+                    boolean selfPowered = false;
+                    boolean foundFace = false;
+                    boolean foundSelf = false;
+
+                    for (NamedPowerChannel state : powerStates) {
+                        if (state.getFace() == from) {
+                            facePowered |= state.isPowered();
+                            foundFace = true;
                         }
+                        if (state.getFace() == BlockFace.SELF) {
+                            selfPowered |= state.isPowered();
+                            foundSelf = true;
+                        }
+                    }
+
+                    if (foundFace) {
+                        return facePowered ? PowerState.ON : PowerState.OFF;
+                    }
+                    if (foundSelf) {
+                        return selfPowered ? PowerState.ON : PowerState.OFF;
                     }
                     return PowerState.NONE;
                 }
@@ -184,30 +366,70 @@ public class TrackNodeSign implements Cloneable {
     /**
      * Fires a sign build event. Displays the type of sign places to the player.
      * If the player lacks permissions to place this type of sign, returns false.
+     * This sign must have been added to a track node prior.
      *
      * @param player
-     * @param node
      * @return True if building was/is permitted
      */
-    public boolean fireBuildEvent(Player player, TrackNode node) {
+    public boolean fireBuildEvent(Player player) {
         // Fire a sign build event with the sign's custom sign
-        TrackedFakeSign oldCached = this.cachedFakeSign;
-        TrackedFakeSign trackedSign = getTrackedSign(
-                RailPiece.create(node.getPlugin().getRailType(),
-                                 BlockUtil.getBlock(node.getBukkitWorld(), node.getRailBlock(true))),
-                node);
-        this.cachedFakeSign = oldCached; // Restore
+        TrackedFakeSign trackedSign = getTrackedSign();
         SignChangeActionEvent event = new SignChangeActionEvent(player, trackedSign);
         SignAction.handleBuild(event);
         return !event.isCancelled();
     }
 
+    /**
+     * Fires a generic action event for the sign. Typically used for redstone changes.
+     * This sign must have been added to a track node prior.
+     *
+     * @param type Sign Action Type
+     */
+    public void fireActionEvent(SignActionType type) {
+        TrackedFakeSign trackedSign = getTrackedSign();
+        SignActionEvent event = trackedSign.createEvent(type);
+        SignAction.executeOne(trackedSign.getAction(), event);
+    }
+
+    /**
+     * Fires a REDSTONE_ON or REDSTONE_OFF event depending on the type of sign header
+     * is used.
+     *
+     * @param newPowerState
+     */
+    public void fireRedstoneEvent(boolean newPowerState) {
+        TrackedFakeSign trackedSign = getTrackedSign();
+        SignActionType type = trackedSign.getHeader().getRedstoneAction(newPowerState);
+        if (type != SignActionType.NONE) {
+            SignActionEvent event = trackedSign.createEvent(type);
+            SignAction.executeOne(trackedSign.getAction(), event);
+        }
+    }
+
+    /**
+     * Called when the powered state changes, before any redstone events
+     * are fired. Also called when a pulsed delay is added or removed.
+     */
+    public void onPowerChanged() {
+        notifyOwningNode();
+    }
+
     @Override
     public TrackNodeSign clone() {
-        TrackNodeSign clone = new TrackNodeSign();
+        TrackNodeSign clone = new TrackNodeSign(this.key);
         clone.lines = this.lines.clone();
-        clone.powerStates = this.powerStates.clone();
-        clone.cachedFakeSign = null;
+
+        {
+            NamedPowerChannel[] states = this.powerStates;
+            int numStates = states.length;
+            if (numStates > 0) {
+                clone.powerStates = new NamedPowerChannel[numStates];
+                for (int i = 0; i < numStates; i++) {
+                    clone.powerStates[i] = states[i].clone();
+                }
+            }
+        }
+
         return clone;
     }
 
@@ -216,16 +438,5 @@ public class TrackNodeSign implements Cloneable {
         TrackNodeSign[] new_arr = Arrays.copyOf(arr, len + 1);
         new_arr[len] = sign;
         return new_arr;
-    }
-
-    public static class SignPowerState {
-        private static final SignPowerState[] NO_STATES = new SignPowerState[0];
-        public final BlockFace face;
-        public final PowerState power;
-
-        public SignPowerState(BlockFace face, PowerState power) {
-            this.face = face;
-            this.power = power;
-        }
     }
 }

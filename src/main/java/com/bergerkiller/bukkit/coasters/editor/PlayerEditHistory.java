@@ -60,17 +60,20 @@ public class PlayerEditHistory extends HistoryChangeCollection {
      * @return True if the undo was performed
      */
     public boolean undo() {
-        if (this.history.isEmpty()) {
-            return false;
+        while (!this.history.isEmpty()) {
+            HistoryChange change = this.history.removeLast();
+            if (change.isNOOP()) {
+                continue;
+            }
+            try {
+                change.undo();
+            } catch (TrackLockedException ex) {
+                this.player.sendMessage(ChatColor.RED + "Some changes could not be rolled back because the coaster is locked!");
+            }
+            this.future.add(change);
+            return true;
         }
-        HistoryChange change = this.history.removeLast();
-        try {
-            change.undo();
-        } catch (TrackLockedException ex) {
-            this.player.sendMessage(ChatColor.RED + "Some changes could not be rolled back because the coaster is locked!");
-        }
-        this.future.add(change);
-        return true;
+        return false;
     }
 
     /**
@@ -79,16 +82,19 @@ public class PlayerEditHistory extends HistoryChangeCollection {
      * @return True if the redo was performed
      */
     public boolean redo() {
-        if (this.future.isEmpty()) {
-            return false;
+        while (!this.future.isEmpty()) {
+            HistoryChange change = this.future.removeLast();
+            if (change.isNOOP()) {
+                continue;
+            }
+            try {
+                change.redo();
+            } catch (TrackLockedException ex) {
+                this.player.sendMessage(ChatColor.RED + "Some changes could not be applied because the coaster is locked!");
+            }
+            this.history.add(change);
+            return true;
         }
-        HistoryChange change = this.future.removeLast();
-        try {
-            change.redo();
-        } catch (TrackLockedException ex) {
-            this.player.sendMessage(ChatColor.RED + "Some changes could not be applied because the coaster is locked!");
-        }
-        this.history.add(change);
-        return true;
+        return false;
     }
 }

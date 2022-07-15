@@ -6,6 +6,8 @@ import java.util.Set;
 
 import org.bukkit.entity.Player;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
+import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
 import com.bergerkiller.bukkit.coasters.events.CoasterAfterChangeNodeEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterAfterChangeTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterBeforeChangeNodeEvent;
@@ -165,6 +167,10 @@ public abstract class HistoryChangeCollection {
     }
 
     public final HistoryChange addChangeBeforeSetSigns(Player who, TrackNode node, TrackNodeSign[] new_signs) throws ChangeCancelledException {
+        if (!TCCoastersPermissions.MAKE_SIGNS.has(who)) {
+            TCCoastersLocalization.SIGNS_NO_PERMISSION.message(who);
+            throw new ChangeCancelledException();
+        }
         handleEvent(new CoasterBeforeChangeNodeEvent(who, node));
         TrackNodeState old_state = node.getState();
         TrackNodeState new_state = old_state.changeSigns(new_signs);

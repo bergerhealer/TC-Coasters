@@ -6,6 +6,7 @@ import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.animation.TrackAnimationWorld;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
+import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannelRegistry;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 
 /**
@@ -18,6 +19,7 @@ public class CoasterWorldImpl implements CoasterWorld {
     private final TrackParticleWorld _particles;
     private final TrackRailsWorld _rails;
     private final TrackAnimationWorld _animations;
+    private final NamedPowerChannelRegistry _namedPowerRegistry;
 
     public CoasterWorldImpl(TCCoasters plugin, World world) {
         this._plugin = plugin;
@@ -26,6 +28,7 @@ public class CoasterWorldImpl implements CoasterWorld {
         this._particles = new TrackParticleWorld(this);
         this._rails = new TrackRailsWorld(this);
         this._animations = new TrackAnimationWorld(this);
+        this._namedPowerRegistry = new NamedPowerChannelRegistry(this);
     }
 
     @Override
@@ -58,10 +61,19 @@ public class CoasterWorldImpl implements CoasterWorld {
         return this._animations;
     }
 
+    @Override
+    public NamedPowerChannelRegistry getNamedPowerChannels() {
+        return this._namedPowerRegistry;
+    }
+
     /**
      * Performs all the logic required to unload a World from memory
      */
     public void unload() {
+        {
+            NamedPowerChannelRegistry powerChannels = getNamedPowerChannels();
+            powerChannels.saveAndAbortPulses();
+        }
         {
             TrackWorld tracks = getTracks();
             tracks.saveChanges();
@@ -78,6 +90,7 @@ public class CoasterWorldImpl implements CoasterWorld {
      */
     public void load() {
         getTracks().load();
+        getNamedPowerChannels().loadPulses();
     }
 
     /**
@@ -95,5 +108,4 @@ public class CoasterWorldImpl implements CoasterWorld {
         getTracks().updateAll();
         getParticles().updateAll();
     }
-
 }

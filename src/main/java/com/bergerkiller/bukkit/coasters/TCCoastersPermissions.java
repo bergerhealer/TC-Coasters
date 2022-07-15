@@ -6,6 +6,7 @@ import com.bergerkiller.bukkit.common.permissions.PermissionEnum;
 
 public class TCCoastersPermissions extends PermissionEnum {
     public static final TCCoastersPermissions USE = new TCCoastersPermissions("train.coasters.use", PermissionDefault.OP, "The player can use TC Coasters anywhere");
+    public static final TCCoastersPermissions MAKE_SIGNS = new TCCoastersPermissions("train.coasters.signs", PermissionDefault.TRUE, "The player can add signs to nodes. Requires USE permission too.");
     public static final TCCoastersPermissions PLOTSQUARED_USE = new TCCoastersPermissions("train.coasters.plotsquared.use", PermissionDefault.FALSE, "The player can use TC Coasters inside own plots. The train.coasters.use permission is not required.");
     public static final TCCoastersPermissions LOCK = new TCCoastersPermissions("train.coasters.lock", PermissionDefault.OP, "The player can lock and unlock coasters to disable modification");
     public static final TCCoastersPermissions IMPORT = new TCCoastersPermissions("train.coasters.import", PermissionDefault.OP, "The player can use the import command to download coasters from online hastebins");

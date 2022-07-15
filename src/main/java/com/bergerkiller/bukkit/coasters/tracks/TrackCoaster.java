@@ -203,7 +203,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
         // this indicates saving failed previously inbetween deleting and renaming the .tmp to .csv.
         // We must load the .tmp file instead, then, but also log a warning about this!
         String baseName = TCCoasters.escapeName(this.getName());
-        File folder = this.getWorld().getTracks().getConfigFolder();
+        File folder = this.getWorld().getConfigFolder();
         File tmpFile = new File(folder, baseName + ".csv.tmp");
         File realFile = new File(folder, baseName + ".csv");
         if (!realFile.exists()) {
@@ -281,7 +281,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
      * @param newName New name
      */
     public void renameTo(String newName) {
-        File folder = this.getWorld().getTracks().getConfigFolder();
+        File folder = this.getWorld().getConfigFolder();
         File oldRealFile = new File(folder, TCCoasters.escapeName(this.getName()) + ".csv");
         File newRealFile = new File(folder, TCCoasters.escapeName(newName) + ".csv");
         oldRealFile.renameTo(newRealFile);
@@ -302,7 +302,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
         // Save coaster information to a tmp file first
         boolean success = false;
         String baseName = TCCoasters.escapeName(this.getName());
-        File folder = this.getWorld().getTracks().getConfigFolder();
+        File folder = this.getWorld().getConfigFolder();
         File tmpFile = new File(folder, baseName + ".csv.tmp");
         File realFile = new File(folder, baseName + ".csv");
         try (TrackCSVWriter writer = new TrackCSVWriter(new FileOutputStream(tmpFile, false))) {

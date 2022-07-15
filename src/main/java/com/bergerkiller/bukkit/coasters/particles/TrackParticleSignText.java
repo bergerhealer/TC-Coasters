@@ -38,12 +38,13 @@ public class TrackParticleSignText extends TrackParticle {
 
     private static TextLine[] generateLines(String[][] signLines, IntSupplier entityIdSupplier) {
         List<TextLine> lines = new ArrayList<>();
-        for (String[] sign : signLines) {
+        for (int i = 0; i < signLines.length; i++) {
+            String[] sign = signLines[i];
             if (!lines.isEmpty()) {
                 lines.add(TextLineSeparator.create(entityIdSupplier.getAsInt()));
             }
             for (String line : sign) {
-                lines.add(TextLine.create(entityIdSupplier.getAsInt(), line));
+                lines.add(TextLine.create(entityIdSupplier.getAsInt(), i == (signLines.length - 1), line));
             }
         }
         return lines.toArray(new TextLine[lines.size()]);
@@ -198,8 +199,9 @@ public class TrackParticleSignText extends TrackParticle {
             return 0.23;
         }
 
-        public static TextLine create(int entityId, String text) {
-            return new TextLine(entityId, ChatText.fromMessage(ChatColor.GREEN + text));
+        public static TextLine create(int entityId, boolean isLast, String text) {
+            ChatColor prefix = isLast ? ChatColor.GREEN : ChatColor.DARK_GREEN;
+            return new TextLine(entityId, ChatText.fromMessage(prefix + text));
         }
     }
 

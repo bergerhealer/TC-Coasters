@@ -31,6 +31,7 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeLight;
 import com.bergerkiller.bukkit.coasters.signs.actions.SignActionTrackAnimate;
+import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.util.QueuedTask;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
@@ -212,6 +213,25 @@ public class TCCoasters extends PluginBase {
                 return name;
             }
         }
+    }
+
+    /**
+     * Looks up a named power channel on any of the loaded worlds. If the same state is used
+     * in more than one place, the returned power state controls both. If no power states
+     * by this name could be found, returns null.
+     *
+     * @param name Name of the power state
+     * @return Found sign named power channel, or null if not found
+     */
+    public NamedPowerChannel findGlobalPowerState(String name) {
+        List<NamedPowerChannel> results = new ArrayList<>();
+        for (CoasterWorld world : this.worlds.values()) {
+            NamedPowerChannel state = world.getNamedPowerChannels().findIfExists(name);
+            if (state != null) {
+                results.add(state);
+            }
+        }
+        return NamedPowerChannel.multiple(results);
     }
 
     /**

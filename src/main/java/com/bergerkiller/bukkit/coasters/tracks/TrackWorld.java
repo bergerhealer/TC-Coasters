@@ -10,7 +10,6 @@ import java.util.Locale;
 import java.util.Set;
 
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
@@ -39,19 +38,6 @@ public class TrackWorld implements CoasterWorldComponent {
     @Override
     public final CoasterWorld getWorld() {
         return this._world;
-    }
-
-    /**
-     * Gets the folder in which coasters and other world-specific data is saved for this world.
-     * This function also ensures that the folder itself exists.
-     * 
-     * @return world config folder
-     */
-    public File getConfigFolder() {
-        World w = this.getBukkitWorld();
-        File f = new File(this.getPlugin().getDataFolder(), w.getName() + "_" + w.getUID());
-        f.mkdirs();
-        return f;
     }
 
     /**
@@ -590,7 +576,7 @@ public class TrackWorld implements CoasterWorldComponent {
 
         // List all coasters saved on disk. List both .csv and .csv.tmp coasters.
         HashSet<String> coasterNames = new HashSet<String>();
-        for (File coasterFile : this.getConfigFolder().listFiles()) {
+        for (File coasterFile : this.getWorld().getConfigFolder().listFiles()) {
             String name = coasterFile.getName().toLowerCase(Locale.ENGLISH);
             if (name.endsWith(".csv.tmp")) {
                 coasterNames.add(TCCoasters.unescapeName(name.substring(0, name.length() - 8)));
@@ -717,7 +703,7 @@ public class TrackWorld implements CoasterWorldComponent {
 
                 // Deletes the physical saved files of the coasters
                 String baseName = TCCoasters.escapeName(coaster.getName());
-                File folder = getConfigFolder();
+                File folder = this.getWorld().getConfigFolder();
                 File tmpFile = new File(folder, baseName + ".csv.tmp");
                 File realFile = new File(folder, baseName + ".csv");
                 if (tmpFile.exists()) {

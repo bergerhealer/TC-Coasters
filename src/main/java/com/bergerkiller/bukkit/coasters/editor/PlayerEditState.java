@@ -1107,6 +1107,77 @@ public class PlayerEditState implements CoasterWorldComponent {
         return new String[] { "", "", "", "" };
     }
 
+    /**
+     * Updates the last sign of all selected nodes in some way
+     *
+     * @param function Function applied to a clone of the last sign of all selected nodes
+     */
+    public void updateLastSign(Consumer<TrackNodeSign> function) throws ChangeCancelledException {
+        updateLastSign(s -> {
+            TrackNodeSign copy = s.clone();
+            function.accept(copy);
+            return copy;
+        });
+    }
+
+    /**
+     * Updates the last sign of all selected nodes in some way
+     *
+     * @param function Function applied to the last sign of all selected nodes
+     */
+    public void updateLastSign(Function<TrackNodeSign, TrackNodeSign> function) throws ChangeCancelledException {
+        // Deselect nodes we cannot edit
+        this.deselectLockedNodes();
+
+        HistoryChange changes = null;
+        for (TrackNode node : this.editedNodes.keySet()) {
+            TrackNodeSign[] old_signs = node.getSigns();
+            if (old_signs.length > 0) {
+                TrackNodeSign[] new_signs = old_signs.clone();
+                new_signs[new_signs.length - 1] = function.apply(old_signs[old_signs.length - 1]);
+                if (changes == null) {
+                    changes = this.getHistory().addChangeGroup();
+                }
+                setSignsForNode(changes, node, new_signs);
+                updateSignInSelectedAnimationStates(node, old_signs[old_signs.length - 1],
+                                                          new_signs[new_signs.length - 1]);
+            }
+        }
+    }
+
+    public boolean removeLastSign() throws ChangeCancelledException {
+        // Deselect nodes we cannot edit
+        this.deselectLockedNodes();
+
+        HistoryChange changes = this.getHistory().addChangeGroup();
+        for (TrackNode node : this.editedNodes.keySet()) {
+            TrackNodeSign[] old_signs = node.getSigns();
+            if (old_signs.length > 0) {
+                this.setSignsForNode(changes, node, Arrays.copyOf(old_signs, old_signs.length - 1));
+                this.updateSignInSelectedAnimationStates(node, old_signs[old_signs.length - 1], null);
+            }
+        }
+
+        return changes.hasChanges();
+    }
+
+    public void scrollSigns() throws ChangeCancelledException {
+        // Deselect nodes we cannot edit
+        this.deselectLockedNodes();
+
+        HistoryChange changes = this.getHistory().addChangeGroup();
+        for (TrackNode node : this.editedNodes.keySet()) {
+            TrackNodeSign[] old_signs = node.getSigns();
+            if (old_signs.length > 1) {
+                TrackNodeSign[] new_signs = new TrackNodeSign[old_signs.length];
+                for (int n = 0; n < old_signs.length; n++) {
+                    new_signs[(n == 0) ? old_signs.length - 1 : (n-1)] = old_signs[n];
+                }
+                setSignsForNode(changes, node, new_signs);
+            }
+        }
+    }
+
     public void clearSigns() throws ChangeCancelledException {
         // Deselect nodes we cannot edit
         this.deselectLockedNodes();
@@ -1141,11 +1212,12 @@ public class PlayerEditState implements CoasterWorldComponent {
     }
 
     private void addSignToNode(HistoryChangeCollection changes, TrackNode node, TrackNodeSign sign, boolean fireBuildEvent) throws ChangeCancelledException {
+        TrackNodeSign node_sign = sign.clone();
         TrackNodeSign[] old_signs = node.getSigns();
-        setSignsForNode(changes, node, TrackNodeSign.appendToArray(node.getSigns(), sign.clone()));
+        setSignsForNode(changes, node, TrackNodeSign.appendToArray(node.getSigns(), node_sign));
         if (fireBuildEvent) {
             // Fire a sign build event with the sign's custom sign
-            if (!sign.fireBuildEvent(this.getPlayer(), node)) {
+            if (!node_sign.fireBuildEvent(this.getPlayer())) {
                 node.setSigns(old_signs);
                 throw new ChangeCancelledException();
             }

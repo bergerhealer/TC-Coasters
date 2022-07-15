@@ -99,4 +99,14 @@ public abstract class HistoryChange extends HistoryChangeCollection {
     public boolean hasChanges() {
         return !this.children.isEmpty();
     }
+
+    /**
+     * Gets whether this historic change is a no-op: It has no effect when undoing
+     * or redoing it.
+     *
+     * @return True if this is a No-Op
+     */
+    public boolean isNOOP() {
+        return false;
+    }
 }

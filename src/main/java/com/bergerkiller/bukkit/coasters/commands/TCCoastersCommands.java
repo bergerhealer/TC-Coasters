@@ -10,10 +10,15 @@ import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.commands.annotations.CommandRequiresSelectedNodes;
 import com.bergerkiller.bukkit.coasters.commands.annotations.CommandRequiresTCCPermission;
+import com.bergerkiller.bukkit.coasters.commands.arguments.CommandInputPowerState;
 import com.bergerkiller.bukkit.coasters.commands.arguments.TrackPositionAxis;
+import com.bergerkiller.bukkit.coasters.commands.parsers.CommandInputPowerStateParser;
 import com.bergerkiller.bukkit.coasters.commands.parsers.LocalizedParserException;
+import com.bergerkiller.bukkit.coasters.commands.parsers.NamedPowerChannelParser;
+import com.bergerkiller.bukkit.coasters.commands.parsers.SignBlockFaceParser;
 import com.bergerkiller.bukkit.coasters.commands.parsers.TrackPositionAxisParser;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.common.cloud.CloudSimpleHandler;
 
 /**
@@ -47,6 +52,11 @@ public class TCCoastersCommands {
                     .collect(Collectors.toSet()));
         });
 
+        // Power channel name suggestions (for use assigning a sign to a channel)
+        final NamedPowerChannelParser namedPowerChannelParser = new NamedPowerChannelParser(plugin);
+        cloud.suggest("power_channels", namedPowerChannelParser::suggestions);
+        cloud.parse("sign_block_face", p -> new SignBlockFaceParser());
+
         // Makes PlayerEditState available as a command argument
         cloud.injector(PlayerEditState.class, (context, annotations) -> {
             if (context.getSender() instanceof Player) {
@@ -66,6 +76,8 @@ public class TCCoastersCommands {
             });
         });
         cloud.parse(TrackPositionAxis.class, p -> new TrackPositionAxisParser());
+        cloud.parse(NamedPowerChannel.class, p -> namedPowerChannelParser);
+        cloud.parse(CommandInputPowerState.class, p -> new CommandInputPowerStateParser());
 
         // All commands that don't rely on an edit state, can be performed by non-players
         cloud.annotations(new GlobalCommands());
@@ -80,6 +92,7 @@ public class TCCoastersCommands {
         cloud.annotations(new EditStateRailCommands());
         cloud.annotations(new EditStateAnimationCommands());
         cloud.annotations(new EditStateSignCommands());
+        cloud.annotations(new PowerCommands());
 
         // Help menu
         cloud.helpCommand(Collections.singletonList("tccoasters"), "Shows information about all of TC-Coasters commands");
