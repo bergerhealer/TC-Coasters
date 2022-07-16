@@ -35,7 +35,7 @@ class EditStatePowerCommands {
     @CommandRequiresTCCPermission
     @CommandMethod("<channel> <state>")
     @CommandDescription("Updates the power state of a named sign power channel")
-    public void commandReadChannelPower(
+    public void commandWriteChannelPower(
             final CommandSender sender,
             final @Argument("channel") NamedPowerChannel channel,
             final @Argument("state") CommandInputPowerState state,
@@ -51,6 +51,19 @@ class EditStatePowerCommands {
             channel.setPowered(powered);
             sendChannelMessage(sender, channel, "set to " + stringifyPower(powered));
         }
+    }
+
+    // Just an alias. Easier typing to quickly trigger a sign.
+    @CommandRequiresTCCPermission
+    @CommandMethod("<channel> pulse [delay]")
+    @CommandDescription("Updates the power state of a named sign power channel")
+    public void commandWriteChannelPulsePower(
+            final CommandSender sender,
+            final @Argument("channel") NamedPowerChannel channel,
+            final @Argument("delay") Integer delay
+    ) {
+        commandWriteChannelPower(sender, channel, CommandInputPowerState.ON,
+                delay == null ? 0 : delay);
     }
 
     private void sendChannelMessage(CommandSender sender, NamedPowerChannel channel, String message) {
