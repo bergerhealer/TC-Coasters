@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
+import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.tc.PowerState;
@@ -145,7 +146,7 @@ public class TrackNodeSign implements Cloneable {
         return false;
     }
 
-    public NamedPowerChannel[] getPowerStates() {
+    public NamedPowerChannel[] getPowerChannels() {
         return this.powerStates;
     }
 
@@ -157,8 +158,8 @@ public class TrackNodeSign implements Cloneable {
      * @param powered Named power state powered
      * @param face Named power state face
      */
-    public void addPowerState(String name, boolean powered, BlockFace face) {
-        addPowerState(NamedPowerChannel.of(name, powered, face));
+    public void addPowerChannel(String name, boolean powered, BlockFace face) {
+        addPowerChannel(NamedPowerChannel.of(name, powered, face));
     }
 
     /**
@@ -167,7 +168,7 @@ public class TrackNodeSign implements Cloneable {
      *
      * @param powerState SignNamedPowerState to add
      */
-    public void addPowerState(NamedPowerChannel powerState) {
+    public void addPowerChannel(NamedPowerChannel powerState) {
         NamedPowerChannel[] states = this.powerStates;
         int numStates = states.length;
 
@@ -197,20 +198,20 @@ public class TrackNodeSign implements Cloneable {
      * @param name Name of the power state to remove
      * @return True if one or more power states were found and removed
      */
-    public boolean removePowerStates(final String name) {
-        return removePowerStates(existingState -> existingState.getName().equals(name));
+    public boolean removePowerChannels(final String name) {
+        return removePowerChannels(existingState -> existingState.getName().equals(name));
     }
 
     /**
      * Removes a SignNamedPowerState previously added using
-     * {@link #addPowerState(NamedPowerChannel)}. Both the
+     * {@link #addPowerChannel(NamedPowerChannel)}. Both the
      * power state name and face direction must match.
      *
      * @param powerState Power state to remove
      * @return True if found and removed
      */
     public boolean removePowerState(final NamedPowerChannel powerState) {
-        return removePowerStates(existingState -> {
+        return removePowerChannels(existingState -> {
             return existingState.getName().equals(powerState.getName()) &&
                    existingState.getFace() == powerState.getFace();
         });
@@ -219,11 +220,48 @@ public class TrackNodeSign implements Cloneable {
     /**
      * Removes all named power channels added to this sign
      */
-    public void clearPowerStates() {
-        removePowerStates(LogicUtil.alwaysTruePredicate());
+    public void clearPowerChannels() {
+        removePowerChannels(LogicUtil.alwaysTruePredicate());
     }
 
-    private boolean removePowerStates(Predicate<NamedPowerChannel> filter) {
+    /**
+     * Rotates the faces of all powered channels by 90 degrees. SELF isn't rotated.
+     *
+     * @return True if a power channel was changed
+     */
+    public boolean rotatePowerChannels() {
+        boolean changed = false;
+        NamedPowerChannel[] states = this.powerStates;
+        for (int i = 0; i < states.length; i++) {
+            NamedPowerChannel state = states[i];
+            if (state.getFace().getModX() != 0 || state.getFace().getModZ() != 0) {
+                changed = true;
+                states[i] = state.changeFace(FaceUtil.rotate(state.getFace(), 2));
+            }
+        }
+        return changed;
+    }
+
+    /**
+     * Rotates the faces of a powered channel by 90 degrees. SELF isn't rotated.
+     *
+     * @param channelName
+     * @return True if a power channel was changed
+     */
+    public boolean rotatePowerChannel(String channelName) {
+        boolean changed = false;
+        NamedPowerChannel[] states = this.powerStates;
+        for (int i = 0; i < states.length; i++) {
+            NamedPowerChannel state = states[i];
+            if (state.getName().equals(channelName) && state.getFace().getModX() != 0 || state.getFace().getModZ() != 0) {
+                changed = true;
+                states[i] = state.changeFace(FaceUtil.rotate(state.getFace(), 2));
+            }
+        }
+        return changed;
+    }
+
+    private boolean removePowerChannels(Predicate<NamedPowerChannel> filter) {
         NamedPowerChannel[] states = this.powerStates;
         int numStates = states.length;
 

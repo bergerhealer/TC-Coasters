@@ -763,9 +763,9 @@ public class TrackCSV {
                 if (option.equals("LINES")) {
                     break;
                 } else if (option.startsWith("POWER_ON_")) {
-                    sign.addPowerState(buffer.next(), true, parseFace(buffer, option.substring(9)));
+                    sign.addPowerChannel(buffer.next(), true, parseFace(buffer, option.substring(9)));
                 } else if (option.startsWith("POWER_OFF_")) {
-                    sign.addPowerState(buffer.next(), false, parseFace(buffer, option.substring(10)));
+                    sign.addPowerChannel(buffer.next(), false, parseFace(buffer, option.substring(10)));
                 } else {
                     throw buffer.createSyntaxException("Unknown sign option: " + option);
                 }
@@ -791,7 +791,7 @@ public class TrackCSV {
         @Override
         public void write(StringArrayBuffer buffer) {
             buffer.put("SIGN");
-            for (NamedPowerChannel state : sign.getPowerStates()) {
+            for (NamedPowerChannel state : sign.getPowerChannels()) {
                 if (state.isPowered()) {
                     buffer.put("POWER_ON_" + state.getFace().name());
                 } else {

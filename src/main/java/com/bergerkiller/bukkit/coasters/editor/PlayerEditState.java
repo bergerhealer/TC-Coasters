@@ -1134,13 +1134,16 @@ public class PlayerEditState implements CoasterWorldComponent {
             TrackNodeSign[] old_signs = node.getSigns();
             if (old_signs.length > 0) {
                 TrackNodeSign[] new_signs = old_signs.clone();
-                new_signs[new_signs.length - 1] = function.apply(old_signs[old_signs.length - 1]);
-                if (changes == null) {
-                    changes = this.getHistory().addChangeGroup();
+                TrackNodeSign old_sign = old_signs[old_signs.length - 1];
+                TrackNodeSign new_sign = function.apply(old_sign);
+                if (old_sign != new_sign) {
+                    new_signs[new_signs.length - 1] = new_sign;
+                    if (changes == null) {
+                        changes = this.getHistory().addChangeGroup();
+                    }
+                    setSignsForNode(changes, node, new_signs);
+                    updateSignInSelectedAnimationStates(node, old_sign, new_sign);
                 }
-                setSignsForNode(changes, node, new_signs);
-                updateSignInSelectedAnimationStates(node, old_signs[old_signs.length - 1],
-                                                          new_signs[new_signs.length - 1]);
             }
         }
     }

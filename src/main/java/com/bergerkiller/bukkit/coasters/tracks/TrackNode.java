@@ -1124,7 +1124,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                 }
 
                 // Add redstone power states, if any
-                NamedPowerChannel[] channels = sign.getPowerStates();
+                NamedPowerChannel[] channels = sign.getPowerChannels();
                 if (channels.length > 0) {
                     int len = sign_lines.length;
                     sign_lines = Arrays.copyOf(sign_lines, len + channels.length);

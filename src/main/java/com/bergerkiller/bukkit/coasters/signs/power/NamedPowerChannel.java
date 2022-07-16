@@ -97,6 +97,18 @@ public class NamedPowerChannel implements Cloneable {
     }
 
     /**
+     * Changes what BlockFace this power channel powers. Does not change
+     * the underlying registration state.
+     *
+     * @param face
+     * @return updated channel
+     * @see #getFace()
+     */
+    public NamedPowerChannel changeFace(BlockFace face) {
+        return new NamedPowerChannel(this.state, face);
+    }
+
+    /**
      * Sets the current power state. If this named state was registered,
      * it changes the power state of (all) these registered signs.
      *
