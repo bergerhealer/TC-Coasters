@@ -1,7 +1,6 @@
 package com.bergerkiller.bukkit.coasters.editor;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -21,7 +20,6 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
@@ -32,6 +30,7 @@ import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
 import com.bergerkiller.bukkit.coasters.editor.object.ObjectEditState;
+import com.bergerkiller.bukkit.coasters.editor.signs.SignEditState;
 import com.bergerkiller.bukkit.coasters.events.CoasterSelectNodeEvent;
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
@@ -41,27 +40,20 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeReference;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
-import com.bergerkiller.bukkit.common.block.SignEditDialog;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.map.MapPlayerInput;
-import com.bergerkiller.bukkit.common.map.widgets.MapWidgetSubmitText;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
-import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
-import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
-import com.bergerkiller.bukkit.common.wrappers.ChatText;
-import com.bergerkiller.bukkit.tc.Util;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
@@ -82,6 +74,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     private final PlayerEditHistory history;
     private final PlayerEditClipboard clipboard;
     private final ObjectEditState objectState;
+    private final SignEditState signState;
     private final Map<TrackNode, PlayerEditNode> editedNodes = new LinkedHashMap<TrackNode, PlayerEditNode>();
     private final TreeMultimap<String, TrackNode> editedNodesByAnimationName = TreeMultimap.create(Ordering.natural(), Ordering.arbitrary());
     private CoasterWorld cachedCoasterWorld = null;
@@ -106,6 +99,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         this.history = new PlayerEditHistory(player);
         this.clipboard = new PlayerEditClipboard(this);
         this.objectState = new ObjectEditState(this);
+        this.signState = new SignEditState(this);
     }
 
     /**
@@ -198,6 +192,10 @@ public class PlayerEditState implements CoasterWorldComponent {
 
     public ObjectEditState getObjects() {
         return this.objectState;
+    }
+
+    public SignEditState getSigns() {
+        return this.signState;
     }
 
     public long getLastEditTime(TrackNode node) {
@@ -1014,324 +1012,6 @@ public class PlayerEditState implements CoasterWorldComponent {
             for (TrackNode node : this.getEditedNodes()) {
                 setRailForNode(changes, node, manipulator.apply(node.getRailBlock(true)));
             }
-        }
-    }
-
-    public boolean onSignLeftClick(TrackNode node) {
-        // If there are no signs, act as if the node wasn't clicked
-        // This allows a player to still break the blocks behind a node
-        TrackNodeSign[] signs = node.getSigns();
-        if (signs.length == 0) {
-            return false;
-        }
-
-        // Deny if locked
-        if (node.isLocked()) {
-            TCCoastersLocalization.LOCKED.message(this.player);
-            return false;
-        }
-
-        // Try to remove the last sign
-        try {
-            setSignsForNode(this.getHistory(), node, Arrays.copyOf(signs, signs.length - 1));
-            updateSignInSelectedAnimationStates(node, signs[signs.length - 1], null);
-        } catch (ChangeCancelledException e) {
-            TCCoastersLocalization.SIGN_REMOVE_FAILED.message(player);
-            return false;
-        }
-
-        TCCoastersLocalization.SIGN_REMOVE_SUCCESS.message(player);
-        return true;
-    }
-
-    public boolean onSignRightClick(TrackNode node, ItemStack signItem) {
-        // Deny if locked
-        if (node.isLocked()) {
-            TCCoastersLocalization.LOCKED.message(this.player);
-            return false;
-        }
-
-        final boolean appendToSign = player.isSneaking();
-        new SignEditDialog() {
-            @Override
-            public void onClosed(Player player, String[] lines) {
-                try {
-                    if (appendToSign && node.getSigns().length > 0) {
-                        // Append lines to last sign
-                        TrackNodeSign[] new_signs = node.getSigns().clone();
-                        TrackNodeSign old_sign = new_signs[new_signs.length - 1];
-                        TrackNodeSign updated = old_sign.clone();
-                        for (String line : lines) {
-                            if (!line.isEmpty()) {
-                                updated.appendLine(line);
-                            }
-                        }
-                        new_signs[new_signs.length - 1] = updated;
-
-                        // Update the signs
-                        setSignsForNode(getHistory(), node, new_signs);;
-                        updateSignInSelectedAnimationStates(node, old_sign, updated);
-                        TCCoastersLocalization.SIGN_ADD_APPEND.message(player);
-                    } else {
-                        // Add a new sign to the node
-                        addSignToNode(getHistory(), node, new TrackNodeSign(lines), true);
-                        TCCoastersLocalization.SIGN_ADD_SUCCESS.message(player);
-                    }
-                } catch (ChangeCancelledException e) {
-                    TCCoastersLocalization.SIGN_ADD_FAILED.message(player);
-                }
-            }
-        }.open(player, findInitialLines(signItem));
-        return true;
-    }
-
-    public boolean onTorchLeftClick(TrackNode node) {
-        TrackNodeSign[] old_signs = node.getSigns();
-        if (old_signs.length == 0) {
-            return false;
-        }
-        TrackNodeSign old_sign = old_signs[old_signs.length - 1];
-        if (old_sign.getPowerChannels().length == 0) {
-            return false;
-        }
-
-        // Deny if locked
-        if (node.isLocked()) {
-            TCCoastersLocalization.LOCKED.message(this.player);
-            return false;
-        }
-
-        // Remove the last power channel
-        TrackNodeSign new_sign = old_sign.clone();
-        new_sign.removePowerChannel(new_sign.getPowerChannels()[new_sign.getPowerChannels().length - 1]);
-
-        // Try to update the signs of this node
-        TrackNodeSign[] new_signs = old_signs.clone();
-        new_signs[new_signs.length - 1] = new_sign;
-        try {
-            setSignsForNode(getHistory(), node, new_signs);
-            updateSignInSelectedAnimationStates(node, old_sign, new_sign);
-            TCCoastersLocalization.SIGN_POWER_REMOVED.message(player);
-        } catch (ChangeCancelledException e) {
-            TCCoastersLocalization.SIGN_POWER_FAILED.message(player);
-        }
-
-        return true;
-    }
-
-    public boolean onTorchRightClick(TrackNode node) {
-        TrackNodeSign[] old_signs = node.getSigns();
-        if (old_signs.length == 0) {
-            return false;
-        }
-
-        // Deny if locked
-        if (node.isLocked()) {
-            TCCoastersLocalization.LOCKED.message(this.player);
-            return false;
-        }
-
-        // Decide the face to assign to the sign
-        // When player sneaks, use the opposite-face from where the player looks
-        final BlockFace face = player.isSneaking()
-                ? Util.vecToFace(player.getEyeLocation().getDirection(), false).getOppositeFace() : BlockFace.SELF;
-
-        /*
-        // Show a dialog asking for a power channel name. On completion, add it to the sign/node
-        // TODO: This is kind of nasty, using widgets outside of a map display
-        //       Would be nicer if there was a separate class for such dialogs
-        MapWidgetSubmitText submit = new MapWidgetSubmitText() {
-            @Override
-            public void onAccept(String text) {
-                System.out.println("ACCEPT: " + text);
-            }
-        };
-        submit.onActivate();
-        */
-                
-        return true;
-    }
-
-    private static String[] findInitialLines(ItemStack signItem) {
-        if (signItem != null) {
-            try {
-                CommonTagCompound nbt = ItemUtil.getMetaTag(signItem, false);
-                if (nbt != null && nbt.containsKey("BlockEntityTag")) {
-                    CommonTagCompound blockTag = nbt.createCompound("BlockEntityTag");
-                    if (blockTag != null && "minecraft:sign".equals(blockTag.getValue("id", String.class))) {
-                        return new String[] {
-                                ChatText.fromJson(blockTag.getValue("Text1", "")).getMessage(),
-                                ChatText.fromJson(blockTag.getValue("Text2", "")).getMessage(),
-                                ChatText.fromJson(blockTag.getValue("Text3", "")).getMessage(),
-                                ChatText.fromJson(blockTag.getValue("Text4", "")).getMessage()
-                        };
-                    }
-                }
-            } catch (Throwable t) {
-                // Probably failed to decode something
-                // Ignore. Corrupt item?
-            }
-        }
-
-        return new String[] { "", "", "", "" };
-    }
-
-    /**
-     * Updates the last sign of all selected nodes in some way
-     *
-     * @param function Function applied to a clone of the last sign of all selected nodes
-     */
-    public void updateLastSign(Consumer<TrackNodeSign> function) throws ChangeCancelledException {
-        updateLastSign(s -> {
-            TrackNodeSign copy = s.clone();
-            function.accept(copy);
-            return copy;
-        });
-    }
-
-    /**
-     * Updates the last sign of all selected nodes in some way
-     *
-     * @param function Function applied to the last sign of all selected nodes
-     */
-    public void updateLastSign(Function<TrackNodeSign, TrackNodeSign> function) throws ChangeCancelledException {
-        // Deselect nodes we cannot edit
-        this.deselectLockedNodes();
-
-        HistoryChange changes = null;
-        for (TrackNode node : this.editedNodes.keySet()) {
-            TrackNodeSign[] old_signs = node.getSigns();
-            if (old_signs.length > 0) {
-                TrackNodeSign[] new_signs = old_signs.clone();
-                TrackNodeSign old_sign = old_signs[old_signs.length - 1];
-                TrackNodeSign new_sign = function.apply(old_sign);
-                if (old_sign != new_sign) {
-                    new_signs[new_signs.length - 1] = new_sign;
-                    if (changes == null) {
-                        changes = this.getHistory().addChangeGroup();
-                    }
-                    setSignsForNode(changes, node, new_signs);
-                    updateSignInSelectedAnimationStates(node, old_sign, new_sign);
-                }
-            }
-        }
-    }
-
-    public boolean removeLastSign() throws ChangeCancelledException {
-        // Deselect nodes we cannot edit
-        this.deselectLockedNodes();
-
-        HistoryChange changes = this.getHistory().addChangeGroup();
-        for (TrackNode node : this.editedNodes.keySet()) {
-            TrackNodeSign[] old_signs = node.getSigns();
-            if (old_signs.length > 0) {
-                this.setSignsForNode(changes, node, Arrays.copyOf(old_signs, old_signs.length - 1));
-                this.updateSignInSelectedAnimationStates(node, old_signs[old_signs.length - 1], null);
-            }
-        }
-
-        return changes.hasChanges();
-    }
-
-    public void scrollSigns() throws ChangeCancelledException {
-        // Deselect nodes we cannot edit
-        this.deselectLockedNodes();
-
-        HistoryChange changes = this.getHistory().addChangeGroup();
-        for (TrackNode node : this.editedNodes.keySet()) {
-            TrackNodeSign[] old_signs = node.getSigns();
-            if (old_signs.length > 1) {
-                TrackNodeSign[] new_signs = new TrackNodeSign[old_signs.length];
-                for (int n = 0; n < old_signs.length; n++) {
-                    new_signs[(n == 0) ? old_signs.length - 1 : (n-1)] = old_signs[n];
-                }
-                setSignsForNode(changes, node, new_signs);
-            }
-        }
-    }
-
-    public void clearSigns() throws ChangeCancelledException {
-        // Deselect nodes we cannot edit
-        this.deselectLockedNodes();
-
-        HistoryChange changes = this.getHistory().addChangeGroup();
-        for (TrackNode node : this.editedNodes.keySet()) {
-            TrackNodeSign[] old_signs = node.getSigns();
-            if (old_signs.length > 0) {
-                setSignsForNode(changes, node, TrackNodeSign.EMPTY_ARR);
-                for (TrackNodeSign sign : old_signs) {
-                    updateSignInSelectedAnimationStates(node, sign, null);
-                }
-            }
-        }
-    }
-
-    public void addSign(TrackNodeSign sign) throws ChangeCancelledException {
-        // Deselect nodes we cannot edit
-        this.deselectLockedNodes();
-
-        // Failure if no nodes are selected
-        if (this.editedNodes.isEmpty()) {
-            return;
-        }
-
-        boolean firedEvent = false;
-        HistoryChange changes = this.getHistory().addChangeGroup();
-        for (TrackNode node : this.editedNodes.keySet()) {
-            addSignToNode(changes, node, sign, !firedEvent);
-            firedEvent = true;
-        }
-    }
-
-    private void addSignToNode(HistoryChangeCollection changes, TrackNode node, TrackNodeSign sign, boolean fireBuildEvent) throws ChangeCancelledException {
-        TrackNodeSign node_sign = sign.clone();
-        TrackNodeSign[] old_signs = node.getSigns();
-        setSignsForNode(changes, node, TrackNodeSign.appendToArray(node.getSigns(), node_sign));
-        if (fireBuildEvent) {
-            // Fire a sign build event with the sign's custom sign
-            if (!node_sign.fireBuildEvent(this.getPlayer())) {
-                node.setSigns(old_signs);
-                throw new ChangeCancelledException();
-            }
-        }
-
-        // All successful, now add this sign to an animation state if one was set to be edited
-        updateSignInSelectedAnimationStates(node, null, sign);
-    }
-
-    private void setSignsForNode(HistoryChangeCollection changes, TrackNode node, TrackNodeSign[] new_signs) throws ChangeCancelledException {
-        TrackNodeSign[] old_signs = node.getSigns();
-        changes.addChangeBeforeSetSigns(this.player, node, new_signs);
-        node.setSigns(new_signs);
-        try {
-            changes.handleChangeAfterSetSigns(this.player, node, old_signs);
-        } catch (ChangeCancelledException ex) {
-            node.setSigns(old_signs);
-            throw ex;
-        }
-    }
-
-    private void updateSignInSelectedAnimationStates(TrackNode node, TrackNodeSign old_sign, TrackNodeSign new_sign) {
-        TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
-        if (animState != null) {
-            // Refresh selected animation state of node too, if one is selected for this node
-            // Leave other animation states alone
-            node.setAnimationState(animState.name, updateSignInNodeState(animState.state, old_sign, new_sign), animState.connections);
-        } else {
-            // No animation is selected for this node, presume the sign should be added to all animation states
-            for (TrackNodeAnimationState state : node.getAnimationStates()) {
-                node.setAnimationState(state.name, updateSignInNodeState(state.state, old_sign, new_sign), state.connections);
-            }
-        }
-    }
-
-    private TrackNodeState updateSignInNodeState(TrackNodeState state, TrackNodeSign old_sign, TrackNodeSign new_sign) {
-        if (old_sign == null) {
-            return state.changeAddSign(new_sign.clone());
-        } else if (new_sign == null) {
-            return state.changeRemoveSign(old_sign);
-        } else {
-            return state.changeUpdateSign(old_sign, new_sign.clone());
         }
     }
 

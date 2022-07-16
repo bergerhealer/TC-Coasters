@@ -54,10 +54,10 @@ public class TCCoastersListener implements Listener {
                 TrackNode lookingAt = state.getWorld().getTracks().findNodeLookingAt(
                         event.getPlayer().getEyeLocation(), 1.0, 10.0);
                 if (lookingAt != null) {
-                    if (isLeftClick && state.onSignLeftClick(lookingAt)) {
+                    if (isLeftClick && state.getSigns().onSignLeftClick(lookingAt)) {
                         event.setCancelled(true);
                     }
-                    if (isRightClick && state.onSignRightClick(lookingAt, HumanHand.getItemInMainHand(event.getPlayer()))) {
+                    if (isRightClick && state.getSigns().onSignRightClick(lookingAt, HumanHand.getItemInMainHand(event.getPlayer()))) {
                         event.setCancelled(true);
                     }
                     return;
@@ -72,10 +72,10 @@ public class TCCoastersListener implements Listener {
                 TrackNode lookingAt = state.getWorld().getTracks().findNodeLookingAt(
                         event.getPlayer().getEyeLocation(), 1.0, 10.0);
                 if (lookingAt != null) {
-                    if (isLeftClick && state.onTorchLeftClick(lookingAt)) {
+                    if (isLeftClick && state.getSigns().onTorchLeftClick(lookingAt)) {
                         event.setCancelled(true);
                     }
-                    if (isRightClick && state.onTorchRightClick(lookingAt)) {
+                    if (isRightClick && state.getSigns().onTorchRightClick(lookingAt)) {
                         event.setCancelled(true);
                     }
                     return;

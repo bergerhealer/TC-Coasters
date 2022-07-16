@@ -40,7 +40,7 @@ class EditStateSignCommands {
 
         TrackNodeSign sign = new TrackNodeSign(lines);
         try {
-            state.addSign(sign);
+            state.getSigns().addSign(sign);
             sender.sendMessage(ChatColor.GREEN + "Sign added to the selected node(s)");
         } catch (ChangeCancelledException e) {
             sender.sendMessage(ChatColor.RED + "The sign could not be added to the selected nodes");
@@ -56,7 +56,7 @@ class EditStateSignCommands {
             final CommandSender sender
     ) {
         try {
-            if (state.removeLastSign()) {
+            if (state.getSigns().removeLastSign()) {
                 sender.sendMessage(ChatColor.GREEN + "Last sign removed from the selected nodes");
             } else {
                 sender.sendMessage(ChatColor.RED + "The selected nodes do not have signs");
@@ -75,7 +75,7 @@ class EditStateSignCommands {
             final CommandSender sender
     ) {
         try {
-            state.clearSigns();
+            state.getSigns().clearSigns();
             sender.sendMessage(ChatColor.GREEN + "Signs cleared");
         } catch (ChangeCancelledException e) {
             sender.sendMessage(ChatColor.RED + "The signs of the selected nodes could not be cleared");
@@ -91,7 +91,7 @@ class EditStateSignCommands {
             final CommandSender sender
     ) {
         try {
-            state.scrollSigns();
+            state.getSigns().scrollSigns();
             sender.sendMessage(ChatColor.GREEN + "Signs scrolled one down");
         } catch (ChangeCancelledException e) {
             sender.sendMessage(ChatColor.RED + "Failed to scroll the signs by one");
@@ -114,7 +114,7 @@ class EditStateSignCommands {
     ) {
         final AtomicInteger numNodesChanged = new AtomicInteger(0);
         try {
-            state.updateLastSign(s -> {
+            state.getSigns().updateLastSign(s -> {
                 s.addPowerChannel(
                         channel_name,
                         powered,
@@ -154,7 +154,7 @@ class EditStateSignCommands {
     ) {
         final AtomicInteger numNodesChanged = new AtomicInteger(0);
         try {
-            state.updateLastSign(s -> {
+            state.getSigns().updateLastSign(s -> {
                 boolean removed;
                 if (face == null) {
                     removed = s.removePowerChannels(channel_name);
@@ -189,7 +189,7 @@ class EditStateSignCommands {
             final CommandSender sender
     ) {
         try {
-            state.updateLastSign(s -> {
+            state.getSigns().updateLastSign(s -> {
                 s.clearPowerChannels();
             });
             sender.sendMessage(ChatColor.GREEN + "Last sign power channels cleared");
@@ -208,7 +208,7 @@ class EditStateSignCommands {
     ) {
         try {
             final AtomicBoolean changed = new AtomicBoolean(false);
-            state.updateLastSign(s -> {
+            state.getSigns().updateLastSign(s -> {
                 TrackNodeSign newSign = s.clone();
                 if (newSign.rotatePowerChannels()) {
                     changed.set(true);
@@ -238,7 +238,7 @@ class EditStateSignCommands {
     ) {
         try {
             final AtomicBoolean changed = new AtomicBoolean(false);
-            state.updateLastSign(s -> {
+            state.getSigns().updateLastSign(s -> {
                 TrackNodeSign newSign = s.clone();
                 if (newSign.rotatePowerChannel(channel_name)) {
                     changed.set(true);
