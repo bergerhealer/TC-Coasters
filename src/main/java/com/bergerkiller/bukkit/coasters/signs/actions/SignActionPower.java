@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Effect;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
@@ -20,6 +21,7 @@ import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
+import com.bergerkiller.bukkit.tc.SignActionHeader;
 import com.bergerkiller.bukkit.tc.TrainCarts;
 import com.bergerkiller.bukkit.tc.events.SignActionEvent;
 import com.bergerkiller.bukkit.tc.events.SignChangeActionEvent;
@@ -51,14 +53,14 @@ public class SignActionPower extends SignAction {
         NamedPowerChannel channel = plugin.getCoasterWorld(info.getWorld())
                 .getNamedPowerChannels().findIfExists(info.getLine(2));
         if (channel == null) {
-            failNoPowerChannel(info);
+            playHiss(info.getBlock());
             return;
         }
 
         int delay = ParseUtil.parseInt(info.getLine(3), -1);
         if (delay > 0) {
             if (info.isAction(SignActionType.REDSTONE_ON)) {
-                channel.pulsePowered(true, delay);
+                channel.pulsePowered(!info.getHeader().isInverted(), delay);
             }
         } else {
             channel.setPowered(info.isAction(SignActionType.REDSTONE_ON));
@@ -66,8 +68,8 @@ public class SignActionPower extends SignAction {
     }
 
     // Plays a smoke and sound effect at the sign to indicate the power channel doesn't exist
-    private void failNoPowerChannel(SignActionEvent event) {
-        Location loc = event.getBlock().getLocation().add(0.5, 0.5, 0.5);
+    private static void playHiss(Block block) {
+        Location loc = block.getLocation().add(0.5, 0.5, 0.5);
         loc.getWorld().playEffect(loc, Effect.SMOKE, 0);
         WorldUtil.playSound(loc, SoundEffect.EXTINGUISH, 1.0f, 2.0f);
     }
@@ -79,6 +81,11 @@ public class SignActionPower extends SignAction {
 
     @Override
     public boolean build(SignChangeActionEvent event) {
+        if (event.getLine(2).isEmpty()) {
+            event.getPlayer().sendMessage(ChatColor.RED + "Must specify the channel name on the third line");
+            return false;
+        }
+
         return SignBuildOptions.create()
                 .setPermission(TCCoastersPermissions.BUILD_POWER)
                 .setName("power channel transceiver")
@@ -90,7 +97,7 @@ public class SignActionPower extends SignAction {
     public void loadedChanged(SignActionEvent info, boolean loaded) {
         // Note: we ignore unloading, it stays active even while the sign chunk isn't loaded
         // Removal occurs when the offline sign metadata store signals the sign is gone
-        if (loaded && !info.getLine(2).isEmpty()) {
+        if (loaded) {
             TrainCarts.plugin.getOfflineSigns().computeIfAbsent(info.getSign(), TCCPowerSignMetadata.class,
                     offline -> new TCCPowerSignMetadata(false, null));
         }
@@ -101,11 +108,13 @@ public class SignActionPower extends SignAction {
 
             @Override
             public void onAdded(OfflineSignStore store, OfflineSign sign, TCCPowerSignMetadata metadata) {
-                String name = sign.getLine(2);
-                if (!name.isEmpty()) {
+                String channelName = sign.getLine(2);
+                if (!channelName.isEmpty()) {
                     Block signBlock = sign.getLoadedBlock();
+                    boolean inverted = SignActionHeader.parse(sign.getLine(0)).isInverted();
 
-                    TCCPowerSignRecipient recipient = new TCCPowerSignRecipient(plugin, signBlock, store, name, metadata.powered);
+                    TCCPowerSignRecipient recipient = new TCCPowerSignRecipient(plugin, signBlock, inverted,
+                            store, channelName, metadata.powered);
                     metadata.recipient = recipient;
 
                     // Refresh powered metadata if needed. Shouldn't be though...
@@ -159,17 +168,20 @@ public class SignActionPower extends SignAction {
         private Task nextTickTask = null;
         private final TCCoasters plugin;
         private final Block signBlock;
+        private final boolean inverted;
         private final OfflineSignStore store;
         private final NamedPowerChannelRegistry channelRegistry;
         private final NamedPowerChannel channel;
 
         public TCCPowerSignRecipient(
                 TCCoasters plugin,
-                Block signBlock, OfflineSignStore store,
+                Block signBlock, boolean inverted,
+                OfflineSignStore store,
                 String name, boolean powered
         ) {
             this.plugin = plugin;
             this.signBlock = signBlock;
+            this.inverted = inverted;
             this.store = store;
             this.channelRegistry = plugin.getCoasterWorld(signBlock.getWorld()).getNamedPowerChannels();
             this.channel = channelRegistry.create(name, powered, this);
@@ -216,7 +228,7 @@ public class SignActionPower extends SignAction {
             // Persistence of powered state if this is the only recipient
             store.put(this.signBlock, new TCCPowerSignMetadata(powered, this));
             // Update levers
-            BlockUtil.setLeversAroundBlock(this.signBlock.getRelative(blockData.getAttachedFace()), powered);
+            BlockUtil.setLeversAroundBlock(this.signBlock.getRelative(blockData.getAttachedFace()), powered != inverted);
         }
 
         private void refreshNextTick() {
