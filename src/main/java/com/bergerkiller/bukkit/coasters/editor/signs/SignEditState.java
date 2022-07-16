@@ -182,7 +182,7 @@ public class SignEditState {
                         TrackNodeSign[] new_signs = old_signs.clone();
                         TrackNodeSign old_sign = old_signs[old_signs.length - 1];
                         TrackNodeSign new_sign = old_sign.clone();
-                        new_sign.addPowerChannel(channel_name, true, face);
+                        new_sign.addPowerChannel(channel_name, false, face);
                         new_signs[new_signs.length - 1] = new_sign;
                         setSignsForNode(editState.getHistory(), node, new_signs);
                         updateSignInSelectedAnimationStates(node, old_sign, new_sign);
