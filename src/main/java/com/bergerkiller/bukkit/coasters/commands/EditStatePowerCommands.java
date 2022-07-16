@@ -13,7 +13,7 @@ import cloud.commandframework.annotations.CommandMethod;
 import cloud.commandframework.annotations.Flag;
 
 @CommandMethod("tccoasters|tcc power")
-class PowerCommands {
+class EditStatePowerCommands {
 
     @CommandRequiresTCCPermission
     @CommandMethod("<channel>")

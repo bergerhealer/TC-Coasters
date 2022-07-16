@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.editor.signs;
 
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -13,12 +14,14 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
+import com.bergerkiller.bukkit.coasters.editor.signs.ui.InputDialogSubmitText;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.common.block.SignEditDialog;
 import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
+import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.bukkit.common.wrappers.ChatText;
 import com.bergerkiller.bukkit.tc.Util;
@@ -28,9 +31,27 @@ import com.bergerkiller.bukkit.tc.Util;
  */
 public class SignEditState {
     private final PlayerEditState editState;
+    private int lastTickClicked = -1;
+    private boolean hasOpenDialog = false;
 
     public SignEditState(PlayerEditState editState) {
         this.editState = editState;
+    }
+
+    private boolean handlePreClick(TrackNode node) {
+        int ticks = CommonUtil.getServerTicks();
+        if (lastTickClicked > ticks) {
+            return false;
+        }
+        lastTickClicked = ticks + 5;
+
+        // Deny if locked
+        if (node.isLocked()) {
+            TCCoastersLocalization.LOCKED.message(editState.getPlayer());
+            return false;
+        }
+
+        return true;
     }
 
     public boolean onSignLeftClick(TrackNode node) {
@@ -41,10 +62,9 @@ public class SignEditState {
             return false;
         }
 
-        // Deny if locked
-        if (node.isLocked()) {
-            TCCoastersLocalization.LOCKED.message(editState.getPlayer());
-            return false;
+        // Prevent spam-clicks and editing locked coasters
+        if (!handlePreClick(node)) {
+            return true;
         }
 
         // Try to remove the last sign
@@ -61,10 +81,9 @@ public class SignEditState {
     }
 
     public boolean onSignRightClick(TrackNode node, ItemStack signItem) {
-        // Deny if locked
-        if (node.isLocked()) {
-            TCCoastersLocalization.LOCKED.message(editState.getPlayer());
-            return false;
+        // Prevent spam-clicks and editing locked coasters
+        if (!handlePreClick(node)) {
+            return true;
         }
 
         final boolean appendToSign = editState.getPlayer().isSneaking();
@@ -111,10 +130,9 @@ public class SignEditState {
             return false;
         }
 
-        // Deny if locked
-        if (node.isLocked()) {
-            TCCoastersLocalization.LOCKED.message(editState.getPlayer());
-            return false;
+        // Prevent spam-clicks and editing locked coasters
+        if (!handlePreClick(node)) {
+            return true;
         }
 
         // Remove the last power channel
@@ -141,10 +159,9 @@ public class SignEditState {
             return false;
         }
 
-        // Deny if locked
-        if (node.isLocked()) {
-            TCCoastersLocalization.LOCKED.message(editState.getPlayer());
-            return false;
+        // Prevent spam-clicks and editing locked coasters
+        if (!handlePreClick(node) || hasOpenDialog) {
+            return true;
         }
 
         // Decide the face to assign to the sign
@@ -152,19 +169,48 @@ public class SignEditState {
         final BlockFace face = editState.getPlayer().isSneaking()
                 ? Util.vecToFace(editState.getPlayer().getEyeLocation().getDirection(), false).getOppositeFace() : BlockFace.SELF;
 
-        /*
         // Show a dialog asking for a power channel name. On completion, add it to the sign/node
-        // TODO: This is kind of nasty, using widgets outside of a map display
-        //       Would be nicer if there was a separate class for such dialogs
-        MapWidgetSubmitText submit = new MapWidgetSubmitText() {
+        hasOpenDialog = true;
+        InputDialogSubmitText dialog = new InputDialogSubmitText(editState.getPlugin(), editState.getPlayer()) {
             @Override
-            public void onAccept(String text) {
-                System.out.println("ACCEPT: " + text);
+            public void onAccept(String channel_name) {
+                try {
+                    TrackNodeSign[] old_signs = node.getSigns();
+                    if (old_signs.length == 0) {
+                        TCCoastersLocalization.SIGN_MISSING.message(editState.getPlayer());
+                    } else {
+                        TrackNodeSign[] new_signs = old_signs.clone();
+                        TrackNodeSign old_sign = old_signs[old_signs.length - 1];
+                        TrackNodeSign new_sign = old_sign.clone();
+                        new_sign.addPowerChannel(channel_name, true, face);
+                        new_signs[new_signs.length - 1] = new_sign;
+                        setSignsForNode(editState.getHistory(), node, new_signs);
+                        updateSignInSelectedAnimationStates(node, old_sign, new_sign);
+
+                        String faceStr = (face == null || face == BlockFace.SELF)
+                                ? "All sides" : ("The " + face.name().toLowerCase(Locale.ENGLISH) + " side");
+                        TCCoastersLocalization.SIGN_POWER_ASSIGNED.message(editState.getPlayer(), channel_name, faceStr, "1");
+                    }
+                } catch (ChangeCancelledException e) {
+                    TCCoastersLocalization.SIGN_POWER_FAILED.message(editState.getPlayer());
+                    return;
+                }
+            }
+
+            @Override
+            public void onOpen() {
+                super.onOpen();
+                this.setDescription("Enter power channel");
+            }
+
+            @Override
+            public void onClose() {
+                hasOpenDialog = false;
+                super.onClose();
             }
         };
-        submit.onActivate();
-        */
-                
+        CommonUtil.nextTick(dialog::open);
+
         return true;
     }
 

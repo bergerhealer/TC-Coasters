@@ -67,9 +67,7 @@ public class SignBlockFaceParser implements ArgumentParser<CommandSender, BlockF
         if (relative != null && commandContext.getSender() instanceof Player) {
             Player player = (Player) commandContext.getSender();
             face = FaceUtil.yawToFace(player.getEyeLocation().getYaw() - 90.0f, false);
-            System.out.println("PLAYER: " + face);
             face = FaceUtil.rotate(face, relative.intValue());
-            System.out.println("RESULT: " + face);
             inputQueue.poll();
             return ArgumentParseResult.success(face);
         }

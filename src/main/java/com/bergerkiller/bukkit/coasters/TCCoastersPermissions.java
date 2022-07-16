@@ -12,6 +12,7 @@ public class TCCoastersPermissions extends PermissionEnum {
     public static final TCCoastersPermissions IMPORT = new TCCoastersPermissions("train.coasters.import", PermissionDefault.OP, "The player can use the import command to download coasters from online hastebins");
     public static final TCCoastersPermissions EXPORT = new TCCoastersPermissions("train.coasters.export", PermissionDefault.OP, "The player can use the export command to upload tracks and share it online");
     public static final TCCoastersPermissions BUILD_ANIMATOR = new TCCoastersPermissions("train.coasters.build.animator", PermissionDefault.OP, "The player can build track animator signs");
+    public static final TCCoastersPermissions BUILD_POWER = new TCCoastersPermissions("train.coasters.build.power", PermissionDefault.OP, "The player can build a power channel controlling sign");
 
     private TCCoastersPermissions(final String node, final PermissionDefault permdefault, final String desc) {
         super(node, permdefault, desc);

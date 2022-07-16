@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -30,6 +31,7 @@ import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeLight;
+import com.bergerkiller.bukkit.coasters.signs.actions.SignActionPower;
 import com.bergerkiller.bukkit.coasters.signs.actions.SignActionTrackAnimate;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
@@ -67,7 +69,8 @@ public class TCCoasters extends PluginBase {
     private Task worldUpdateTask, runQueuedTasksTask, updatePlayerEditStatesTask, autosaveTask;
     private TCCoastersCommands commands;
     private final CoasterRailType coasterRailType = new CoasterRailType(this);
-    private final SignActionTrackAnimate trackAnimateAction = new SignActionTrackAnimate();
+    private final List<SignAction> registeredSignActions = Arrays.asList(
+            new SignActionPower(this), new SignActionTrackAnimate());
     private final Hastebin hastebin = new Hastebin(this);
     private final TCCoastersListener listener = new TCCoastersListener(this);
     private final TCCoastersInteractionListener interactionListener = new TCCoastersInteractionListener(this);
@@ -370,7 +373,7 @@ public class TCCoasters extends PluginBase {
         RailType.register(this.coasterRailType, priority);
 
         // More magic! Done early so signs are activated on spawn.
-        SignAction.register(this.trackAnimateAction);
+        registeredSignActions.forEach(SignAction::register);
 
         // Before loading coasters, detect LightAPI
         // We don't know yet it has enabled, but we'll assume that it will.
@@ -441,7 +444,7 @@ public class TCCoasters extends PluginBase {
         }
 
         // Unregister ourselves
-        SignAction.unregister(this.trackAnimateAction);
+        registeredSignActions.forEach(SignAction::unregister);
         RailType.unregister(this.coasterRailType);
 
         // Clean up when disabling (save dirty coasters + despawn particles)

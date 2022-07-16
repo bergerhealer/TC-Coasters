@@ -19,8 +19,12 @@ public class TCCoastersLocalization extends LocalizationEnum {
     public static final TCCoastersLocalization SIGN_ADD_FAILED = new TCCoastersLocalization("signs.add.failed", ChatColor.RED + "Failed to add sign to this node!");
     public static final TCCoastersLocalization SIGN_ADD_APPEND = new TCCoastersLocalization("signs.add.append", ChatColor.GREEN + "Extra sign added below the sign to extend the lines!");
     public static final TCCoastersLocalization SIGN_ADD_SUCCESS = new TCCoastersLocalization("signs.add.success", ChatColor.GREEN + "Sign has been added to this node!");
+    public static final TCCoastersLocalization SIGN_MISSING = new TCCoastersLocalization("signs.missing", ChatColor.RED + "The selected nodes don't have any signs!");
     public static final TCCoastersLocalization SIGN_POWER_FAILED = new TCCoastersLocalization("signs.power.failed", ChatColor.RED + "Failed to update power channels!");
-    public static final TCCoastersLocalization SIGN_POWER_ADDED = new TCCoastersLocalization("signs.power.added", ChatColor.GREEN + "Power channel assigned to sign!");
+    public static final TCCoastersLocalization SIGN_POWER_ASSIGNED = new TCCoastersLocalization("signs.power.assigned",
+            ChatColor.YELLOW + "Power channel '" + ChatColor.WHITE + "%0%" + ChatColor.YELLOW +
+            "' assigned to " + ChatColor.BLUE + "%1%" + ChatColor.YELLOW +
+            " of the last sign of " + ChatColor.WHITE + "%2%" + ChatColor.YELLOW + " nodes");
     public static final TCCoastersLocalization SIGN_POWER_REMOVED = new TCCoastersLocalization("signs.power.removed", ChatColor.YELLOW + "Power channel removed from sign!");
     public static final TCCoastersLocalization INVALID_AXIS = new TCCoastersLocalization("command.invalidaxis", ChatColor.RED + "Invalid axis: %0%");
     public static final TCCoastersLocalization INVALID_POWER_CHANNEL = new TCCoastersLocalization("command.power.invalidchannel", ChatColor.RED + "Invalid power channel: %0%");

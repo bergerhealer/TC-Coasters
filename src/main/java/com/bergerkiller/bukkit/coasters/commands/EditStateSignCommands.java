@@ -127,17 +127,13 @@ class EditStateSignCommands {
         }
 
         if (numNodesChanged.get() == 0) {
-            sender.sendMessage(ChatColor.RED + "The selected nodes don't have any signs!");
+            TCCoastersLocalization.SIGN_MISSING.message(sender);
             return;
         }
 
         String faceStr = (face == null || face == BlockFace.SELF)
                 ? "All sides" : ("The " + face.name().toLowerCase(Locale.ENGLISH) + " side");
-        sender.sendMessage(ChatColor.YELLOW + "Power channel '" + ChatColor.WHITE + channel_name +
-                ChatColor.YELLOW + "' assigned to " +
-                ChatColor.BLUE + faceStr +
-                ChatColor.YELLOW + " of the last sign of " + ChatColor.WHITE + numNodesChanged.get() +
-                ChatColor.YELLOW + " nodes");
+        TCCoastersLocalization.SIGN_POWER_ASSIGNED.message(sender, channel_name, faceStr, Integer.toString(numNodesChanged.get()));
     }
 
     @CommandRequiresTCCPermission

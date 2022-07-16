@@ -203,6 +203,11 @@ public class NamedPowerChannel implements Cloneable {
         return new NamedPowerChannel(state, face);
     }
 
+    @Override
+    public String toString() {
+        return "Channel{name=" + getName() + ", powered=" + isPowered() + "}";
+    }
+
     static class NamedPowerState {
         private final String name;
         private boolean powered;
