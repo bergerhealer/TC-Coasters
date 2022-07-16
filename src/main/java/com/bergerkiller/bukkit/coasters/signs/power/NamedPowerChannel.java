@@ -4,11 +4,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.bukkit.ChatColor;
 import org.bukkit.block.BlockFace;
 
+import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
-
-import net.md_5.bungee.api.ChatColor;
+import com.bergerkiller.bukkit.tc.signactions.SignActionType;
 
 /**
  * Power state of a sign, mapped to a name so that power state
@@ -153,27 +154,27 @@ public class NamedPowerChannel implements Cloneable {
     }
 
     /**
-     * Registers a sign as a recipient of this named power channel.
+     * Registers a recipient of this named power channel.
      * If this state had no prior recipients, the named state becomes globally
      * registered.
      *
      * @param power Power registry to register inside of
-     * @param sign Sign to register
+     * @param recipient Recipient to register
      */
-    public void register(NamedPowerChannelRegistry power, TrackNodeSign sign) {
-        state = state.register(power, sign);
+    public void addRecipient(NamedPowerChannelRegistry power, Recipient recipient) {
+        state = state.addRecipient(power, recipient);
     }
 
     /**
-     * Un-registers a sign previously registered using {@link #register(TrackNodeSign)}.
-     * If this was the last sign that was a recipient, then the power state is globally
+     * Un-registers a recipient previously registered using {@link #addRecipient(Recipient)}.
+     * If this was the last recipient, then the power channel is globally
      * un-registered and the power state information is lost.
      *
      * @param power Power registry to un-register inside of
-     * @param sign Sign to un-register
+     * @param recipient Recipient to un-register
      */
-    public void unregister(NamedPowerChannelRegistry power, TrackNodeSign sign) {
-        state.unregister(power, sign);
+    public void removeRecipient(NamedPowerChannelRegistry power, Recipient recipient) {
+        state.removeRecipient(power, recipient);
     }
 
     /**
@@ -206,6 +207,78 @@ public class NamedPowerChannel implements Cloneable {
     @Override
     public String toString() {
         return "Channel{name=" + getName() + ", powered=" + isPowered() + "}";
+    }
+
+    /**
+     * Receives notifications about power state changes of a named power channel
+     */
+    public static interface Recipient {
+        /**
+         * Called right before a powered state change occurs
+         */
+        void onPreChange();
+
+        /**
+         * Called right after a new powered state change completes
+         *
+         * @param powered New powered state
+         */
+        void onPostChange(boolean powered);
+
+        /**
+         * Called when the named channel changes power state, or starts or stops
+         * a pulse.
+         */
+        void onChanged();
+
+        public static Recipient ofSign(TrackNodeSign sign) {
+            return new TrackNodeSignRecipient(sign);
+        }
+    }
+
+    private static class TrackNodeSignRecipient implements Recipient {
+        public final TrackNodeSign sign;
+        public boolean wasPowered; // used for event handling
+
+        private TrackNodeSignRecipient(TrackNodeSign sign) {
+            this.sign = sign;
+        }
+
+        @Override
+        public void onPreChange() {
+            wasPowered = sign.isPowered();
+        }
+
+        @Override
+        public void onChanged() {
+            sign.onPowerChanged();
+        }
+
+        @Override
+        public void onPostChange(boolean powered) {
+            TrackNode node = sign.getNode();
+            if (node == null) {
+                return;
+            }
+            node.markChanged(); // Power state changed, important to re-save CSV
+            if (sign.isAddedAsAnimation()) {
+                return;
+            }
+
+            boolean isPowered = sign.isPowered();
+            if (isPowered != wasPowered) {
+                // Fire REDSTONE_ON or REDSTONE_OFF event depending on type of transition
+                sign.fireRedstoneEvent(isPowered);
+            }
+
+            // Fire REDSTONE_CHANGE event
+            sign.fireActionEvent(SignActionType.REDSTONE_CHANGE);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof TrackNodeSignRecipient && ((TrackNodeSignRecipient) o).sign == this.sign;
+        }
     }
 
     static class NamedPowerState {
@@ -241,11 +314,11 @@ public class NamedPowerChannel implements Cloneable {
             return false;
         }
 
-        public NamedPowerState register(NamedPowerChannelRegistry power, TrackNodeSign sign) {
-            return power.register(getName(), isPowered(), sign);
+        public NamedPowerState addRecipient(NamedPowerChannelRegistry power, Recipient recipient) {
+            return power.createState(getName(), isPowered(), recipient);
         }
 
-        public void unregister(NamedPowerChannelRegistry power, TrackNodeSign sign) {
+        public void removeRecipient(NamedPowerChannelRegistry power, Recipient recipient) {
             // Not registered - no-op
         }
     }
@@ -305,8 +378,8 @@ public class NamedPowerChannel implements Cloneable {
         }
 
         @Override
-        public NamedPowerState register(NamedPowerChannelRegistry power, TrackNodeSign sign) {
-            throw new UnsupportedOperationException("Can't register signs to multiple power states");
+        public NamedPowerState addRecipient(NamedPowerChannelRegistry power, Recipient recipient) {
+            throw new UnsupportedOperationException("Can't register recipients to multiple power states");
         }
     }
 }

@@ -8,6 +8,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
+import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel.Recipient;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
@@ -60,12 +61,12 @@ public class TrackNodeSign implements Cloneable {
             if (states.length > 0 && this.nodeOwner != node) {
                 if (node != null) {
                     for (NamedPowerChannel state : states) {
-                        state.register(node.getWorld().getNamedPowerChannels(), this);
+                        state.addRecipient(node.getWorld().getNamedPowerChannels(), Recipient.ofSign(this));
                     }
                 }
                 if (this.nodeOwner != null) {
                     for (NamedPowerChannel state : states) {
-                        state.unregister(this.nodeOwner.getWorld().getNamedPowerChannels(), this);
+                        state.removeRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSign(this));
                     }
                 }
             }
@@ -187,7 +188,7 @@ public class TrackNodeSign implements Cloneable {
         this.powerStates = states;
 
         if (this.nodeOwner != null) {
-            powerState.register(this.nodeOwner.getWorld().getNamedPowerChannels(), this);
+            powerState.addRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSign(this));
             notifyOwningNode();
         }
     }
@@ -277,7 +278,7 @@ public class TrackNodeSign implements Cloneable {
                     this.powerStates = LogicUtil.removeArrayElement(states, i);
                 }
                 if (this.nodeOwner != null) {
-                    existingState.unregister(this.nodeOwner.getWorld().getNamedPowerChannels(), this);
+                    existingState.removeRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSign(this));
                     notifyOwningNode();
                 }
                 found = true;

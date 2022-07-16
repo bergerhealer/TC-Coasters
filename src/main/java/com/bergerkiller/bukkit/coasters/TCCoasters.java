@@ -375,6 +375,9 @@ public class TCCoasters extends PluginBase {
         // More magic! Done early so signs are activated on spawn.
         registeredSignActions.forEach(SignAction::register);
 
+        // Loads/activates the tcc-power signs
+        SignActionPower.init(this);
+
         // Before loading coasters, detect LightAPI
         // We don't know yet it has enabled, but we'll assume that it will.
         // Check this isnt the legacy LightAPI as it does not work at all
@@ -444,6 +447,7 @@ public class TCCoasters extends PluginBase {
         }
 
         // Unregister ourselves
+        SignActionPower.deinit();
         registeredSignActions.forEach(SignAction::unregister);
         RailType.unregister(this.coasterRailType);
 

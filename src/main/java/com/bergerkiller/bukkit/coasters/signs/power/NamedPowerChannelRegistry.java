@@ -12,15 +12,12 @@ import java.util.stream.Collectors;
 import org.bukkit.block.BlockFace;
 
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel.NamedPowerState;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.config.ConfigurationNode;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
-import com.bergerkiller.bukkit.tc.signactions.SignActionType;
 
 /**
  * Tracks the named redstone power states for all signs on a
@@ -66,21 +63,34 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
     }
 
     /**
+     * Initializes a named power channel and right away registers a recipient for it
+     *
+     * @param name Name of the power state
+     * @param powered Initial powered state.
+     *                Used when creating a state for the first time.
+     * @param recipient Recipient to assign to the power channel state
+     * @return NamedPowerChannel
+     */
+    public NamedPowerChannel create(String name, boolean powered, NamedPowerChannel.Recipient recipient) {
+        return new NamedPowerChannel(createState(name, powered, recipient), BlockFace.SELF);
+    }
+
+    /**
      * Looks up a named power channel in the cache by the name specified. If it exists,
      * registers the sign as a recipient, if not, creates a new state.
      *
      * @param name Name of the power state
      * @param powered Initial powered state.
      *                Used when creating a state for the first time.
-     * @param sign Sign to assign as recipient to the state
+     * @param recipient Recipient to assign to the power channel state
      * @return NamedPowerState
      */
-    NamedPowerChannel.NamedPowerState register(String name, boolean powered, TrackNodeSign sign) {
+    NamedPowerChannel.NamedPowerState createState(String name, boolean powered, NamedPowerChannel.Recipient recipient) {
         SignRegisteredNamedPowerState state = byName.get(name);
         if (state != null) {
-            return state.register(this, sign);
+            return state.addRecipient(this, recipient);
         } else {
-            state = new SignRegisteredNamedPowerState(name, powered, sign);
+            state = new SignRegisteredNamedPowerState(name, powered, recipient);
 
             byName.put(name, state);
             names.add(name);
@@ -159,13 +169,13 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
     }
 
     private class SignRegisteredNamedPowerState extends NamedPowerChannel.NamedPowerState {
-        private List<Recipient> recipients;
+        private List<NamedPowerChannel.Recipient> recipients;
         private Task pulseTask = null;
         private int pulseTaskDoneTime = -1;
 
-        public SignRegisteredNamedPowerState(String name, boolean powered, TrackNodeSign signRecipient) {
+        public SignRegisteredNamedPowerState(String name, boolean powered, NamedPowerChannel.Recipient recipient) {
             super(name, powered);
-            this.recipients = Collections.singletonList(Recipient.of(signRecipient));
+            this.recipients = Collections.singletonList(recipient);
         }
 
         @Override
@@ -217,39 +227,19 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
 
         public void changePowered(boolean powered) {
             // Store previous 'is powered' state
-            List<Recipient> recipients = this.recipients;
-            for (Recipient recipient : recipients) {
-                recipient.wasPowered = recipient.sign.isPowered();
-            }
+            List<NamedPowerChannel.Recipient> recipients = this.recipients;
+            recipients.forEach(NamedPowerChannel.Recipient::onPreChange);
 
             // Update
             super.setPowered(powered);
 
             // Notify to update particles
-            notifyRecipientsOfChange();
+            recipients.forEach(NamedPowerChannel.Recipient::onChanged);
 
             // Fire events for all recipients
             // One sign action might alter the recipients, causing it no
             // be deleted from the node. Catch that.
-            for (Recipient recipient : recipients) {
-                TrackNode node = recipient.sign.getNode();
-                if (node == null) {
-                    continue;
-                }
-                node.markChanged(); // Power state changed, important to re-save CSV
-                if (recipient.sign.isAddedAsAnimation()) {
-                    continue;
-                }
-
-                boolean isPowered = recipient.sign.isPowered();
-                if (isPowered != recipient.wasPowered) {
-                    // Fire REDSTONE_ON or REDSTONE_OFF event depending on type of transition
-                    recipient.sign.fireRedstoneEvent(isPowered);
-                }
-
-                // Fire REDSTONE_CHANGE event
-                recipient.sign.fireActionEvent(SignActionType.REDSTONE_CHANGE);
-            }
+            recipients.forEach(r -> r.onPostChange(powered));
         }
 
         @Override
@@ -275,68 +265,52 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
         }
 
         public void notifyRecipientsOfChange() {
-            recipients.forEach(r -> r.sign.onPowerChanged());
+            recipients.forEach(NamedPowerChannel.Recipient::onChanged);
         }
 
         @Override
-        public NamedPowerState register(NamedPowerChannelRegistry power, TrackNodeSign sign) {
-            List<Recipient> recipients = this.recipients;
+        public NamedPowerState addRecipient(NamedPowerChannelRegistry power, NamedPowerChannel.Recipient recipient) {
+            List<NamedPowerChannel.Recipient> recipients = this.recipients;
 
             // If not registered anymore, or a different world, defer
             if (recipients.isEmpty() || NamedPowerChannelRegistry.this != power) {
-                return super.register(power, sign);
+                return super.addRecipient(power, recipient);
             }
 
             // Check not already registered
-            int size = recipients.size();
-            for (int i = 0; i < size; i++) {
-                if (recipients.get(i).sign == sign) {
-                    return this;
-                }
+            if (recipients.contains(recipient)) {
+                return this;
             }
 
             // Clone the list. Avoids trouble when iterating.
             recipients = new ArrayList<>(recipients);
-            recipients.add(Recipient.of(sign));
+            recipients.add(recipient);
             this.recipients = recipients;
             return this;
         }
 
         @Override
-        public void unregister(NamedPowerChannelRegistry power, TrackNodeSign sign) {
-            int size = recipients.size();
-            for (int i = 0; i < size; i++) {
-                if (recipients.get(i).sign == sign) {
-                    if (recipients.size() == 1) {
-                        // No more recipients. De-register this named state.
-                        recipients = Collections.emptyList();
-                        byName.remove(getName());
-                        names.remove(getName());
-                        namesCopy = null; // Invalidate
-                        if (pulseTask != null) {
-                            pulseTask.stop();
-                            pulseTask = null;
-                        }
-                    } else {
-                        // Remove it
-                        recipients.remove(i);
-                        break;
-                    }
-                }
+        public void removeRecipient(NamedPowerChannelRegistry power, NamedPowerChannel.Recipient recipient) {
+            List<NamedPowerChannel.Recipient> recipients = this.recipients;
+            int index = recipients.indexOf(recipient);
+            if (index == -1) {
+                return;
             }
-        }
-    }
-
-    private static class Recipient {
-        public final TrackNodeSign sign;
-        public boolean wasPowered; // used for event handling
-
-        private Recipient(TrackNodeSign sign) {
-            this.sign = sign;
-        }
-
-        public static Recipient of(TrackNodeSign sign) {
-            return new Recipient(sign);
+            if (recipients.size() == 1) {
+                // No more recipients. De-register this named state.
+                this.recipients = Collections.emptyList();
+                byName.remove(getName());
+                names.remove(getName());
+                namesCopy = null; // Invalidate
+                if (pulseTask != null) {
+                    pulseTask.stop();
+                    pulseTask = null;
+                }
+            } else {
+                recipients = new ArrayList<>(recipients);
+                recipients.remove(index);
+                this.recipients = recipients;
+            }
         }
     }
 
