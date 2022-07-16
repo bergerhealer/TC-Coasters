@@ -44,6 +44,9 @@ public class TCCoastersListener implements Listener {
     /* Note: Do not ignore cancelled events! Player clicks from afar are cancelled by default. */
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
+        boolean isLeftClick = (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK);
+        boolean isRightClick = (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK);
+
         // Right-or-left-clicking a node with a sign to place/break signs
         if (this.plugin.isHoldingEditSign(event.getPlayer())) {
             PlayerEditState state = this.plugin.getEditState(event.getPlayer());
@@ -51,11 +54,29 @@ public class TCCoastersListener implements Listener {
                 TrackNode lookingAt = state.getWorld().getTracks().findNodeLookingAt(
                         event.getPlayer().getEyeLocation(), 1.0, 10.0);
                 if (lookingAt != null) {
-                    if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
-                        event.setCancelled(state.onSignLeftClick(lookingAt));
+                    if (isLeftClick && state.onSignLeftClick(lookingAt)) {
+                        event.setCancelled(true);
                     }
-                    if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-                        event.setCancelled(state.onSignRightClick(lookingAt, HumanHand.getItemInMainHand(event.getPlayer())));
+                    if (isRightClick && state.onSignRightClick(lookingAt, HumanHand.getItemInMainHand(event.getPlayer()))) {
+                        event.setCancelled(true);
+                    }
+                    return;
+                }
+            }
+        }
+
+        // Right-or-left-clicking a node with a redstone torch to assign/remove power channels
+        if (this.plugin.isHoldingEditTorch(event.getPlayer())) {
+            PlayerEditState state = this.plugin.getEditState(event.getPlayer());
+            if (state.getMode() != PlayerEditMode.DISABLED) {
+                TrackNode lookingAt = state.getWorld().getTracks().findNodeLookingAt(
+                        event.getPlayer().getEyeLocation(), 1.0, 10.0);
+                if (lookingAt != null) {
+                    if (isLeftClick && state.onTorchLeftClick(lookingAt)) {
+                        event.setCancelled(true);
+                    }
+                    if (isRightClick && state.onTorchRightClick(lookingAt)) {
+                        event.setCancelled(true);
                     }
                     return;
                 }
@@ -65,12 +86,14 @@ public class TCCoastersListener implements Listener {
         // Interacting while holding the editor map
         if (this.plugin.isHoldingEditTool(event.getPlayer())) {
             PlayerEditState state = this.plugin.getEditState(event.getPlayer());
-            if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
-                event.setCancelled(state.onLeftClick());
+            if (isLeftClick && state.onLeftClick()) {
+                event.setCancelled(true);
             }
-            if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+            if (isRightClick) {
                 state.setTargetedBlock(event.getClickedBlock(), event.getBlockFace());
-                event.setCancelled(state.onRightClick());
+            }
+            if (isRightClick && state.onRightClick()) {
+                event.setCancelled(true);
             }
         }
     }

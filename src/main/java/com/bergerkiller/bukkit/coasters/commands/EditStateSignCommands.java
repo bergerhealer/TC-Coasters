@@ -15,7 +15,6 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
-import com.bergerkiller.bukkit.common.utils.FaceUtil;
 
 import cloud.commandframework.annotations.Argument;
 import cloud.commandframework.annotations.CommandDescription;
@@ -160,7 +159,7 @@ class EditStateSignCommands {
                 if (face == null) {
                     removed = s.removePowerChannels(channel_name);
                 } else {
-                    removed = s.removePowerState(NamedPowerChannel.of(channel_name, false, face));
+                    removed = s.removePowerChannel(NamedPowerChannel.of(channel_name, false, face));
                 }
                 if (removed) {
                     numNodesChanged.incrementAndGet();

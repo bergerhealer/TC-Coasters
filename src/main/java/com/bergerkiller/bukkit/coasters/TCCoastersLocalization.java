@@ -20,6 +20,8 @@ public class TCCoastersLocalization extends LocalizationEnum {
     public static final TCCoastersLocalization SIGN_ADD_APPEND = new TCCoastersLocalization("signs.add.append", ChatColor.GREEN + "Extra sign added below the sign to extend the lines!");
     public static final TCCoastersLocalization SIGN_ADD_SUCCESS = new TCCoastersLocalization("signs.add.success", ChatColor.GREEN + "Sign has been added to this node!");
     public static final TCCoastersLocalization SIGN_POWER_FAILED = new TCCoastersLocalization("signs.power.failed", ChatColor.RED + "Failed to update power channels!");
+    public static final TCCoastersLocalization SIGN_POWER_ADDED = new TCCoastersLocalization("signs.power.added", ChatColor.GREEN + "Power channel assigned to sign!");
+    public static final TCCoastersLocalization SIGN_POWER_REMOVED = new TCCoastersLocalization("signs.power.removed", ChatColor.YELLOW + "Power channel removed from sign!");
     public static final TCCoastersLocalization INVALID_AXIS = new TCCoastersLocalization("command.invalidaxis", ChatColor.RED + "Invalid axis: %0%");
     public static final TCCoastersLocalization INVALID_POWER_CHANNEL = new TCCoastersLocalization("command.power.invalidchannel", ChatColor.RED + "Invalid power channel: %0%");
     public static final TCCoastersLocalization INVALID_POWER_STATE = new TCCoastersLocalization("command.power.invalidstate", ChatColor.RED + "Invalid power state: %0%");

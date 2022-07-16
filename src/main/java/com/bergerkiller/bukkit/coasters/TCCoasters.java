@@ -542,6 +542,19 @@ public class TCCoasters extends PluginBase {
         return true;
     }
 
+    public boolean isHoldingEditTorch(Player player) {
+        if (!hasUsePermission(player)) {
+            return false;
+        }
+
+        ItemStack mainItem = HumanHand.getItemInMainHand(player);
+        if (mainItem == null) {
+            return false;
+        }
+
+        return MaterialUtil.ISREDSTONETORCH.get(mainItem.getType());
+    }
+
     public boolean isHoldingEditSign(Player player) {
         if (!hasUsePermission(player)) {
             return false;

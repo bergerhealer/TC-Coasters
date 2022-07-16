@@ -51,6 +51,7 @@ import com.bergerkiller.bukkit.common.block.SignEditDialog;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.map.MapPlayerInput;
+import com.bergerkiller.bukkit.common.map.widgets.MapWidgetSubmitText;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
@@ -60,6 +61,7 @@ import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 import com.bergerkiller.bukkit.common.wrappers.ChatText;
+import com.bergerkiller.bukkit.tc.Util;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
@@ -1023,7 +1025,7 @@ public class PlayerEditState implements CoasterWorldComponent {
             return false;
         }
 
-        // Deny if blocked
+        // Deny if locked
         if (node.isLocked()) {
             TCCoastersLocalization.LOCKED.message(this.player);
             return false;
@@ -1043,7 +1045,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     }
 
     public boolean onSignRightClick(TrackNode node, ItemStack signItem) {
-        // Deny if blocked
+        // Deny if locked
         if (node.isLocked()) {
             TCCoastersLocalization.LOCKED.message(this.player);
             return false;
@@ -1080,6 +1082,73 @@ public class PlayerEditState implements CoasterWorldComponent {
                 }
             }
         }.open(player, findInitialLines(signItem));
+        return true;
+    }
+
+    public boolean onTorchLeftClick(TrackNode node) {
+        TrackNodeSign[] old_signs = node.getSigns();
+        if (old_signs.length == 0) {
+            return false;
+        }
+        TrackNodeSign old_sign = old_signs[old_signs.length - 1];
+        if (old_sign.getPowerChannels().length == 0) {
+            return false;
+        }
+
+        // Deny if locked
+        if (node.isLocked()) {
+            TCCoastersLocalization.LOCKED.message(this.player);
+            return false;
+        }
+
+        // Remove the last power channel
+        TrackNodeSign new_sign = old_sign.clone();
+        new_sign.removePowerChannel(new_sign.getPowerChannels()[new_sign.getPowerChannels().length - 1]);
+
+        // Try to update the signs of this node
+        TrackNodeSign[] new_signs = old_signs.clone();
+        new_signs[new_signs.length - 1] = new_sign;
+        try {
+            setSignsForNode(getHistory(), node, new_signs);
+            updateSignInSelectedAnimationStates(node, old_sign, new_sign);
+            TCCoastersLocalization.SIGN_POWER_REMOVED.message(player);
+        } catch (ChangeCancelledException e) {
+            TCCoastersLocalization.SIGN_POWER_FAILED.message(player);
+        }
+
+        return true;
+    }
+
+    public boolean onTorchRightClick(TrackNode node) {
+        TrackNodeSign[] old_signs = node.getSigns();
+        if (old_signs.length == 0) {
+            return false;
+        }
+
+        // Deny if locked
+        if (node.isLocked()) {
+            TCCoastersLocalization.LOCKED.message(this.player);
+            return false;
+        }
+
+        // Decide the face to assign to the sign
+        // When player sneaks, use the opposite-face from where the player looks
+        final BlockFace face = player.isSneaking()
+                ? Util.vecToFace(player.getEyeLocation().getDirection(), false).getOppositeFace() : BlockFace.SELF;
+
+        /*
+        // Show a dialog asking for a power channel name. On completion, add it to the sign/node
+        // TODO: This is kind of nasty, using widgets outside of a map display
+        //       Would be nicer if there was a separate class for such dialogs
+        MapWidgetSubmitText submit = new MapWidgetSubmitText() {
+            @Override
+            public void onAccept(String text) {
+                System.out.println("ACCEPT: " + text);
+            }
+        };
+        submit.onActivate();
+        */
+                
         return true;
     }
 

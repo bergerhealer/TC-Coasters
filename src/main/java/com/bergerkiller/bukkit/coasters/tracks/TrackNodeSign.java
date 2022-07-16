@@ -210,7 +210,7 @@ public class TrackNodeSign implements Cloneable {
      * @param powerState Power state to remove
      * @return True if found and removed
      */
-    public boolean removePowerState(final NamedPowerChannel powerState) {
+    public boolean removePowerChannel(final NamedPowerChannel powerState) {
         return removePowerChannels(existingState -> {
             return existingState.getName().equals(powerState.getName()) &&
                    existingState.getFace() == powerState.getFace();
