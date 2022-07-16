@@ -62,7 +62,7 @@ public class SignActionPower extends SignAction {
         return SignBuildOptions.create()
                 .setPermission(TCCoastersPermissions.BUILD_POWER)
                 .setName("power channel transmitter")
-                .setDescription("updates a power channel using input redstone state")
+                .setDescription("update a power channel using an input redstone signal")
                 .handle(event.getPlayer());
     }
 }
