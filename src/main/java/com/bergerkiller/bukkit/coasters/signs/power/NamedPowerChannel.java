@@ -184,9 +184,6 @@ public class NamedPowerChannel implements Cloneable {
      */
     public String getTooltipText() {
         StringBuilder str = new StringBuilder(64);
-        if (hasPulse()) {
-            str.append(ChatColor.WHITE).append('\u231B');
-        }
         if (isPowered()) {
             str.append(ChatColor.RED).append('\u2726');
             str.append(ChatColor.BLUE);
@@ -196,6 +193,9 @@ public class NamedPowerChannel implements Cloneable {
         str.append(this.getFace() == BlockFace.SELF
                 ? '*' : this.getFace().name().charAt(0));
         str.append(' ').append(ChatColor.WHITE).append(getName());
+        if (hasPulse()) {
+            str.append(ChatColor.RED).append(" \u231B");
+        }
         return str.toString();
     }
 
