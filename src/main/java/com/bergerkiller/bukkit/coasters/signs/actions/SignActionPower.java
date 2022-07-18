@@ -12,6 +12,7 @@ import org.bukkit.block.Block;
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
+import com.bergerkiller.bukkit.coasters.commands.parsers.TimeTicksParser;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannelRegistry;
 import com.bergerkiller.bukkit.common.Task;
@@ -19,7 +20,6 @@ import com.bergerkiller.bukkit.common.resources.SoundEffect;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
-import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.tc.SignActionHeader;
@@ -57,7 +57,7 @@ public class SignActionPower extends TCCSignAction {
             return;
         }
 
-        int delay = ParseUtil.parseInt(info.getLine(3), -1);
+        int delay = TimeTicksParser.parse(info.getLine(3));
         if (delay > 0) {
             if (info.isAction(SignActionType.REDSTONE_ON)) {
                 channel.pulsePowered(!info.getHeader().isInverted(), delay);

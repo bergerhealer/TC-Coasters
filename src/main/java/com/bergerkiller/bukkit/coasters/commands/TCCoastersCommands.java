@@ -16,6 +16,7 @@ import com.bergerkiller.bukkit.coasters.commands.parsers.CommandInputPowerStateP
 import com.bergerkiller.bukkit.coasters.commands.parsers.LocalizedParserException;
 import com.bergerkiller.bukkit.coasters.commands.parsers.NamedPowerChannelParser;
 import com.bergerkiller.bukkit.coasters.commands.parsers.SignBlockFaceParser;
+import com.bergerkiller.bukkit.coasters.commands.parsers.TimeTicksParser;
 import com.bergerkiller.bukkit.coasters.commands.parsers.TrackPositionAxisParser;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
@@ -56,6 +57,7 @@ public class TCCoastersCommands {
         final NamedPowerChannelParser namedPowerChannelParser = new NamedPowerChannelParser(plugin);
         cloud.suggest("power_channels", namedPowerChannelParser::suggestions);
         cloud.parse("sign_block_face", p -> new SignBlockFaceParser());
+        cloud.parse("time_duration_ticks", p -> new TimeTicksParser());
 
         // Makes PlayerEditState available as a command argument
         cloud.injector(PlayerEditState.class, (context, annotations) -> {

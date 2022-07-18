@@ -30,6 +30,7 @@ public class TCCoastersLocalization extends LocalizationEnum {
     public static final TCCoastersLocalization INVALID_AXIS = new TCCoastersLocalization("command.invalidaxis", ChatColor.RED + "Invalid axis: %0%");
     public static final TCCoastersLocalization INVALID_POWER_CHANNEL = new TCCoastersLocalization("command.power.invalidchannel", ChatColor.RED + "Invalid power channel: %0%");
     public static final TCCoastersLocalization INVALID_POWER_STATE = new TCCoastersLocalization("command.power.invalidstate", ChatColor.RED + "Invalid power state: %0%");
+    public static final TCCoastersLocalization INVALID_TIME = new TCCoastersLocalization("command.power.invalidtime", ChatColor.RED + "Invalid time duration: %0%");
     public static final TCCoastersLocalization INVALID_SIGN_FACE = new TCCoastersLocalization("command.sign.invalidface", ChatColor.RED + "Invalid sign face: %0%");
     public static final TCCoastersLocalization NO_NODES_SELECTED = new TCCoastersLocalization("command.nodes.notselected", ChatColor.RED + "No track nodes are selected!");
 

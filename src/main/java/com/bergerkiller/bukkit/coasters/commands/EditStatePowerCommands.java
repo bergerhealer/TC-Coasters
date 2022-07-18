@@ -41,7 +41,9 @@ class EditStatePowerCommands {
             final CommandSender sender,
             final @Argument("channel") NamedPowerChannel channel,
             final @Argument("state") CommandInputPowerState state,
-            final @Flag(value="pulse", description="Sends a power state change pulse") Integer pulseDelay
+            final @Flag(value="pulse",
+                        parserName="time_duration_ticks",
+                        description="Sends a power state change pulse") Integer pulseDelay
     ) {
         if (!TCCoastersPermissions.CHANGE_POWER.has(sender, channel.getName())) {
             TCCoastersLocalization.SIGN_POWER_NOPERM.message(sender, channel.getName());
@@ -67,7 +69,9 @@ class EditStatePowerCommands {
     public void commandWriteChannelPulsePower(
             final CommandSender sender,
             final @Argument("channel") NamedPowerChannel channel,
-            final @Argument("delay") Integer delay
+            final @Argument(value="delay",
+                            parserName="time_duration_ticks",
+                            description="Sends a power state change pulse") Integer delay
     ) {
         commandWriteChannelPower(sender, channel, CommandInputPowerState.ON,
                 delay == null ? 0 : delay);
