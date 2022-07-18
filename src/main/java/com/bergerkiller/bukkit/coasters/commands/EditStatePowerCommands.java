@@ -3,6 +3,8 @@ package com.bergerkiller.bukkit.coasters.commands;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
+import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
 import com.bergerkiller.bukkit.coasters.commands.annotations.CommandRequiresTCCPermission;
 import com.bergerkiller.bukkit.coasters.commands.arguments.CommandInputPowerState;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
@@ -41,6 +43,11 @@ class EditStatePowerCommands {
             final @Argument("state") CommandInputPowerState state,
             final @Flag(value="pulse", description="Sends a power state change pulse") Integer pulseDelay
     ) {
+        if (!TCCoastersPermissions.CHANGE_POWER.has(sender, channel.getName())) {
+            TCCoastersLocalization.SIGN_POWER_NOPERM.message(sender, channel.getName());
+            return;
+        }
+
         boolean powered = state.getState(channel);
         if (pulseDelay != null) {
             channel.pulsePowered(powered, pulseDelay.intValue());

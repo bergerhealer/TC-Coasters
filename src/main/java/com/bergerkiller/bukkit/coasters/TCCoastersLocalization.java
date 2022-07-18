@@ -25,6 +25,7 @@ public class TCCoastersLocalization extends LocalizationEnum {
             ChatColor.YELLOW + "Power channel '" + ChatColor.WHITE + "%0%" + ChatColor.YELLOW +
             "' assigned to " + ChatColor.BLUE + "%1%" + ChatColor.YELLOW +
             " of the last sign of " + ChatColor.WHITE + "%2%" + ChatColor.YELLOW + " nodes");
+    public static final TCCoastersLocalization SIGN_POWER_NOPERM = new TCCoastersLocalization("signs.power.noperm", ChatColor.RED + "You do not have permission to access power channel '%0%'!");
     public static final TCCoastersLocalization SIGN_POWER_REMOVED = new TCCoastersLocalization("signs.power.removed", ChatColor.YELLOW + "Power channel removed from sign!");
     public static final TCCoastersLocalization INVALID_AXIS = new TCCoastersLocalization("command.invalidaxis", ChatColor.RED + "Invalid axis: %0%");
     public static final TCCoastersLocalization INVALID_POWER_CHANNEL = new TCCoastersLocalization("command.power.invalidchannel", ChatColor.RED + "Invalid power channel: %0%");

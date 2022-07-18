@@ -10,6 +10,7 @@ import org.bukkit.Location;
 import org.bukkit.block.Block;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannelRegistry;
@@ -81,8 +82,14 @@ public class SignActionPower extends SignAction {
 
     @Override
     public boolean build(SignChangeActionEvent event) {
-        if (event.getLine(2).isEmpty()) {
+        String channelName = event.getLine(2);
+        if (channelName.isEmpty()) {
             event.getPlayer().sendMessage(ChatColor.RED + "Must specify the channel name on the third line");
+            return false;
+        }
+
+        if (!TCCoastersPermissions.CHANGE_POWER.has(event.getPlayer(), channelName)) {
+            TCCoastersLocalization.SIGN_POWER_NOPERM.message(event.getPlayer(), channelName);
             return false;
         }
 
