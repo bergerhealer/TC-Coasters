@@ -29,11 +29,10 @@ import com.bergerkiller.bukkit.tc.events.SignChangeActionEvent;
 import com.bergerkiller.bukkit.tc.offline.sign.OfflineSign;
 import com.bergerkiller.bukkit.tc.offline.sign.OfflineSignMetadataHandler;
 import com.bergerkiller.bukkit.tc.offline.sign.OfflineSignStore;
-import com.bergerkiller.bukkit.tc.signactions.SignAction;
 import com.bergerkiller.bukkit.tc.signactions.SignActionType;
 import com.bergerkiller.bukkit.tc.utils.SignBuildOptions;
 
-public class SignActionPower extends SignAction {
+public class SignActionPower extends TCCSignAction {
     private final TCCoasters plugin;
 
     public SignActionPower(TCCoasters plugin) {
@@ -41,8 +40,8 @@ public class SignActionPower extends SignAction {
     }
 
     @Override
-    public boolean match(SignActionEvent info) {
-        return info.isType("tcc-power");
+    public String getPrefix() {
+        return "power";
     }
 
     @Override

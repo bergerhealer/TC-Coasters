@@ -9,7 +9,7 @@ import com.bergerkiller.bukkit.tc.events.SignActionEvent;
 import com.bergerkiller.bukkit.tc.events.SignChangeActionEvent;
 import com.bergerkiller.bukkit.tc.utils.SignBuildOptions;
 
-public class SignActionTrackAnimate extends TCCSignAction {
+public class SignActionTrackAnimate extends TCCSignNodeAction {
 
     @Override
     public String getPrefix() {
