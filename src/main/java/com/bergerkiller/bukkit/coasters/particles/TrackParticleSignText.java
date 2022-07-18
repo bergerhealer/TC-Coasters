@@ -3,7 +3,6 @@ package com.bergerkiller.bukkit.coasters.particles;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.function.IntSupplier;
 
 import org.bukkit.ChatColor;
 import org.bukkit.entity.EntityType;
@@ -16,6 +15,7 @@ import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.ChatText;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityDestroyHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityMetadataHandle;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityTeleportHandle;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityLivingHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.EntityHandle;
@@ -33,18 +33,21 @@ public class TrackParticleSignText extends TrackParticle {
 
     protected TrackParticleSignText(Vector position, String[][] signLines) {
         this.position = DoubleOctree.Entry.create(position, this);
-        this.lines = generateLines(signLines, EntityUtil::getUniqueEntityId);
+        this.lines = generateLines(signLines, signLines.length * 5);
+        for (TextLine line : lines) {
+            line.entityId = EntityUtil.getUniqueEntityId();
+        }
     }
 
-    private static TextLine[] generateLines(String[][] signLines, IntSupplier entityIdSupplier) {
-        List<TextLine> lines = new ArrayList<>();
+    private static TextLine[] generateLines(String[][] signLines, int expectedLineCount) {
+        List<TextLine> lines = new ArrayList<>(expectedLineCount + 5);
         for (int i = 0; i < signLines.length; i++) {
             String[] sign = signLines[i];
             if (!lines.isEmpty()) {
-                lines.add(TextLineSeparator.create(entityIdSupplier.getAsInt()));
+                lines.add(TextLineSeparator.create());
             }
             for (String line : sign) {
-                lines.add(TextLine.create(entityIdSupplier.getAsInt(), i == (signLines.length - 1), line));
+                lines.add(TextLineContent.create(i == (signLines.length - 1), line));
             }
         }
         return lines.toArray(new TextLine[lines.size()]);
@@ -69,14 +72,35 @@ public class TrackParticleSignText extends TrackParticle {
     }
 
     public void setSignLines(String[][] lines) {
+        TextLine[] old_lines = this.lines;
+        TextLine[] new_lines = generateLines(lines, old_lines.length);
+
+        // If only contents have changed, not the line count, try to repurpose the lines first
+        // If we find out any types are mismatched, respawn anyway so the positions are correct
+        if (old_lines.length == new_lines.length) {
+            boolean isUpdated = true;
+            for (int i = 0; i < new_lines.length; i++) {
+                if (!old_lines[i].tryUpdate(this, new_lines[i])) {
+                    // Must respawn
+                    isUpdated = false;
+                    break;
+                }
+            }
+            if (isUpdated) {
+                return;
+            }
+        }
+
         // De-spawn the original armorstands
         for (Player player : this.getViewers()) {
             this.makeHiddenFor(player);
         }
 
         // Update the lines. Re-use entity id's if we can.
-        TextLineEntityIdExtractor extractor = new TextLineEntityIdExtractor(this.lines);
-        this.lines = generateLines(lines, extractor::get);
+        for (int i = 0; i < new_lines.length; i++) {
+            new_lines[i].entityId = (i < old_lines.length) ? old_lines[i].entityId : EntityUtil.getUniqueEntityId();
+        }
+        this.lines = new_lines;
 
         // Make the new lines visible again
         for (Player player : this.getViewers()) {
@@ -110,7 +134,7 @@ public class TrackParticleSignText extends TrackParticle {
             spawnPacket.setMotZ(0.0);
             spawnPacket.setPitch(0.0f);
             spawnPacket.setYaw(0.0f);
-            PacketUtil.sendEntityLivingSpawnPacket(viewer, spawnPacket, line.metadata);
+            PacketUtil.sendEntityLivingSpawnPacket(viewer, spawnPacket, line.getMetadata());
             yOffset += half_offset;
         }
     }
@@ -161,63 +185,106 @@ public class TrackParticleSignText extends TrackParticle {
         return false;
     }
 
-    private static class TextLineEntityIdExtractor {
-        private final TextLine[] lines;
-        private int index;
+    private static abstract class TextLine {
+        public int entityId;
+        private DataWatcher metadata;
 
-        public TextLineEntityIdExtractor(TextLine[] lines) {
-            this.lines = lines;
-            this.index = 0;
+        protected TextLine() {
+            this.entityId = -1;
+            this.metadata = null;
         }
 
-        public int get() {
-            if (index < lines.length) {
-                return lines[index++].entityId;
-            } else {
-                return EntityUtil.getUniqueEntityId();
+        public DataWatcher getMetadata() {
+            DataWatcher meta = this.metadata;
+            if (meta == null) {
+                meta = new DataWatcher();
+                meta.set(EntityHandle.DATA_NO_GRAVITY, true);
+                meta.set(EntityHandle.DATA_CUSTOM_NAME_VISIBLE, true);
+                meta.set(EntityHandle.DATA_CUSTOM_NAME, buildText());
+                meta.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_ON_FIRE));
+                meta.set(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, (byte) (EntityArmorStandHandle.DATA_FLAG_SET_MARKER
+                        | EntityArmorStandHandle.DATA_FLAG_NO_BASEPLATE | EntityArmorStandHandle.DATA_FLAG_IS_SMALL));
+                this.metadata = meta;
             }
+            return meta;
         }
-    }
 
-    private static class TextLine {
-        public final int entityId;
-        public final DataWatcher metadata;
-
-        protected TextLine(int entityId, ChatText text) {
-            this.entityId = entityId;
-
-            this.metadata = new DataWatcher();
-            this.metadata.set(EntityHandle.DATA_NO_GRAVITY, true);
-            this.metadata.set(EntityHandle.DATA_CUSTOM_NAME_VISIBLE, true);
-            this.metadata.set(EntityHandle.DATA_CUSTOM_NAME, text);
-            this.metadata.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_ON_FIRE));
-            this.metadata.set(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, (byte) (EntityArmorStandHandle.DATA_FLAG_SET_MARKER
-                    | EntityArmorStandHandle.DATA_FLAG_NO_BASEPLATE | EntityArmorStandHandle.DATA_FLAG_IS_SMALL));
+        public void rebuildText(TrackParticleSignText particle) {
+            DataWatcher meta = this.metadata;
+            if (meta != null) {
+                meta.set(EntityHandle.DATA_CUSTOM_NAME, buildText());
+                particle.broadcastPacket(PacketPlayOutEntityMetadataHandle.createNew(this.entityId, meta, false));
+            }
         }
 
         public double getOffset() {
             return 0.23;
         }
 
-        public static TextLine create(int entityId, boolean isLast, String text) {
+        public abstract ChatText buildText();
+
+        public abstract boolean tryUpdate(TrackParticleSignText particle, TextLine line);
+    }
+
+    private static class TextLineContent extends TextLine {
+        private boolean isLast;
+        private String content;
+
+        private TextLineContent(boolean isLast, String content) {
+            this.isLast = isLast;
+            this.content = content;
+        }
+
+        public static TextLineContent create(boolean isLast, String content) {
+            return new TextLineContent(isLast, content);
+        }
+
+        @Override
+        public boolean tryUpdate(TrackParticleSignText particle, TextLine line) {
+            if (line instanceof TextLineContent) {
+                TextLineContent line_content = (TextLineContent) line;
+                if (line_content.content.equals(this.content) || line_content.isLast != this.isLast) {
+                    return true; // No changes needed
+                }
+
+                // Update content in metadata and resend it
+                this.content = line_content.content;
+                this.isLast = line_content.isLast;
+                this.rebuildText(particle);
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public ChatText buildText() {
             ChatColor prefix = isLast ? ChatColor.GREEN : ChatColor.DARK_GREEN;
-            return new TextLine(entityId, ChatText.fromMessage(prefix + text));
+            return ChatText.fromMessage(prefix + content);
         }
     }
 
     private static class TextLineSeparator extends TextLine {
         private static final ChatText SEPARATOR_TEXT = ChatText.fromMessage(ChatColor.RED.toString() + ChatColor.STRIKETHROUGH.toString() + "              ");
 
-        protected TextLineSeparator(int entityId) {
-            super(entityId, SEPARATOR_TEXT);
+        private TextLineSeparator() {
         }
 
         public double getOffset() {
             return 0.1;
         }
 
-        public static TextLineSeparator create(int entityId) {
-            return new TextLineSeparator(entityId);
+        public static TextLineSeparator create() {
+            return new TextLineSeparator();
+        }
+
+        @Override
+        public boolean tryUpdate(TrackParticleSignText particle, TextLine line) {
+            return line instanceof TextLineSeparator;
+        }
+
+        @Override
+        public ChatText buildText() {
+            return SEPARATOR_TEXT;
         }
     }
 }
