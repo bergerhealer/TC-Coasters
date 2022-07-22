@@ -6,7 +6,10 @@ import java.util.List;
 
 import org.bukkit.ChatColor;
 import org.bukkit.block.BlockFace;
+import org.bukkit.command.CommandSender;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
+import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.tc.signactions.SignActionType;
@@ -223,6 +226,19 @@ public class NamedPowerChannel implements Cloneable {
     @Override
     public String toString() {
         return "Channel{name=" + getName() + ", powered=" + isPowered() + "}";
+    }
+
+    public boolean checkPermission(CommandSender sender) {
+        return checkPermission(sender, this.getName());
+    }
+
+    public static boolean checkPermission(CommandSender sender, String channelName) {
+        if (TCCoastersPermissions.CHANGE_POWER.has(sender, channelName)) {
+            return true;
+        } else {
+            TCCoastersLocalization.SIGN_POWER_NOPERM.message(sender, channelName);
+            return false;
+        }
     }
 
     /**

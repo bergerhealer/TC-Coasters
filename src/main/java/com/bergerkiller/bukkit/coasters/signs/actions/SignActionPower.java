@@ -87,8 +87,7 @@ public class SignActionPower extends TCCSignAction {
             return false;
         }
 
-        if (!TCCoastersPermissions.CHANGE_POWER.has(event.getPlayer(), channelName)) {
-            TCCoastersLocalization.SIGN_POWER_NOPERM.message(event.getPlayer(), channelName);
+        if (!NamedPowerChannel.checkPermission(event.getPlayer(), channelName)) {
             return false;
         }
 
