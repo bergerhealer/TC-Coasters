@@ -178,11 +178,11 @@ public class NamedPowerChannel implements Cloneable {
     }
 
     /**
-     * Gets the text displayed on the tooltip sign particle for this power channel
+     * Gets the text displayed on the tooltip sign particle for this power channel as an input
      *
      * @return tooltip text
      */
-    public String getTooltipText() {
+    public String getInputTooltipText() {
         StringBuilder str = new StringBuilder(64);
         if (isPowered()) {
             str.append(ChatColor.RED).append('\u2726');
@@ -196,6 +196,22 @@ public class NamedPowerChannel implements Cloneable {
         if (hasPulse()) {
             str.append(ChatColor.RED).append(" \u231B");
         }
+        return str.toString();
+    }
+
+    /**
+     * Gets the text displayed on the tooltip sign particle for this power channel as an output
+     *
+     * @return tooltip text
+     */
+    public String getOutputTooltipText() {
+        StringBuilder str = new StringBuilder(64);
+        if (isPowered()) {
+            str.append(ChatColor.YELLOW).append('\u25A0');
+        } else {
+            str.append(ChatColor.GRAY).append('\u25A1');
+        }
+        str.append(' ').append(ChatColor.WHITE).append(getName());
         return str.toString();
     }
 
@@ -231,16 +247,20 @@ public class NamedPowerChannel implements Cloneable {
          */
         void onChanged();
 
-        public static Recipient ofSign(TrackNodeSign sign) {
-            return new TrackNodeSignRecipient(sign);
+        public static Recipient ofSignInput(TrackNodeSign sign) {
+            return new TrackNodeSignRecipientInput(sign);
+        }
+
+        public static Recipient ofSignOutput(TrackNodeSign sign) {
+            return new TrackNodeSignRecipientOutput(sign);
         }
     }
 
-    private static class TrackNodeSignRecipient implements Recipient {
+    private static class TrackNodeSignRecipientInput implements Recipient {
         public final TrackNodeSign sign;
         public boolean wasPowered; // used for event handling
 
-        private TrackNodeSignRecipient(TrackNodeSign sign) {
+        private TrackNodeSignRecipientInput(TrackNodeSign sign) {
             this.sign = sign;
         }
 
@@ -277,7 +297,39 @@ public class NamedPowerChannel implements Cloneable {
 
         @Override
         public boolean equals(Object o) {
-            return o instanceof TrackNodeSignRecipient && ((TrackNodeSignRecipient) o).sign == this.sign;
+            return o instanceof TrackNodeSignRecipientInput && ((TrackNodeSignRecipientInput) o).sign == this.sign;
+        }
+    }
+
+    // Purely keeps the power state around/listable. Doesn't respond.
+    private static class TrackNodeSignRecipientOutput implements Recipient {
+        public final TrackNodeSign sign;
+
+        private TrackNodeSignRecipientOutput(TrackNodeSign sign) {
+            this.sign = sign;
+        }
+
+        @Override
+        public void onPreChange() {
+        }
+
+        @Override
+        public void onPostChange(boolean powered) {
+            TrackNode node = sign.getNode();
+            if (node == null) {
+                return;
+            }
+            node.markChanged(); // Power state changed, important to re-save CSV
+        }
+
+        @Override
+        public void onChanged() {
+            sign.onPowerChanged();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof TrackNodeSignRecipientOutput && ((TrackNodeSignRecipientOutput) o).sign == this.sign;
         }
     }
 

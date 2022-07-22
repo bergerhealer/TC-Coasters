@@ -29,7 +29,8 @@ public class TrackNodeSign implements Cloneable {
 
     private final Object key;
     private String[] lines;
-    private NamedPowerChannel[] powerStates = NamedPowerChannel.NO_POWER_STATES;
+    private NamedPowerChannel[] inputPowerChannels = NamedPowerChannel.NO_POWER_STATES;
+    private NamedPowerChannel[] outputPowerChannels = NamedPowerChannel.NO_POWER_STATES;
     private TrackedFakeSign cachedFakeSign = null;
 
     // Registration state
@@ -56,18 +57,23 @@ public class TrackNodeSign implements Cloneable {
         }
 
         // Register/un-register the power states of this sign
-        {
-            NamedPowerChannel[] states = this.powerStates;
-            if (states.length > 0 && this.nodeOwner != node) {
-                if (node != null) {
-                    for (NamedPowerChannel state : states) {
-                        state.addRecipient(node.getWorld().getNamedPowerChannels(), Recipient.ofSign(this));
-                    }
+        if (this.nodeOwner != node) {
+            NamedPowerChannel[] inputChannels = this.inputPowerChannels;
+            NamedPowerChannel[] outputChannels = this.outputPowerChannels;
+            if (node != null) {
+                for (NamedPowerChannel channel : inputChannels) {
+                    channel.addRecipient(node.getWorld().getNamedPowerChannels(), Recipient.ofSignInput(this));
                 }
-                if (this.nodeOwner != null) {
-                    for (NamedPowerChannel state : states) {
-                        state.removeRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSign(this));
-                    }
+                for (NamedPowerChannel channel : outputChannels) {
+                    channel.addRecipient(node.getWorld().getNamedPowerChannels(), Recipient.ofSignOutput(this));
+                }
+            }
+            if (this.nodeOwner != null) {
+                for (NamedPowerChannel channel : inputChannels) {
+                    channel.removeRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSignInput(this));
+                }
+                for (NamedPowerChannel channel : outputChannels) {
+                    channel.removeRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSignOutput(this));
                 }
             }
         }
@@ -139,7 +145,7 @@ public class TrackNodeSign implements Cloneable {
      */
     public boolean isPowered() {
         //TODO: Inverted mode/etc.
-        for (NamedPowerChannel state : this.powerStates) {
+        for (NamedPowerChannel state : this.inputPowerChannels) {
             if (state.isPowered()) {
                 return true;
             }
@@ -148,7 +154,7 @@ public class TrackNodeSign implements Cloneable {
     }
 
     public NamedPowerChannel[] getPowerChannels() {
-        return this.powerStates;
+        return this.inputPowerChannels;
     }
 
     /**
@@ -167,34 +173,34 @@ public class TrackNodeSign implements Cloneable {
      * Assigns a new named power channel to this sign. The sign will receive power information
      * from this state, and if the sign is added to a node, the sign will be activated.
      *
-     * @param powerState SignNamedPowerState to add
+     * @param channel NamedPowerChannel to add
      */
-    public void addPowerChannel(NamedPowerChannel powerState) {
-        NamedPowerChannel[] states = this.powerStates;
+    public void addPowerChannel(NamedPowerChannel channel) {
+        NamedPowerChannel[] states = this.inputPowerChannels;
         int numStates = states.length;
 
         // Avoid adding if this exact power state already exists.
         // But we do allow adding the same name for multiple faces and such.
         for (NamedPowerChannel existingState : states) {
-            if (existingState.getName().equals(powerState.getName()) &&
-                existingState.getFace() == powerState.getFace()
+            if (existingState.getName().equals(channel.getName()) &&
+                existingState.getFace() == channel.getFace()
             ) {
                 return;
             }
         }
 
         states = Arrays.copyOf(states, numStates + 1);
-        states[numStates] = powerState;
-        this.powerStates = states;
+        states[numStates] = channel;
+        this.inputPowerChannels = states;
 
         if (this.nodeOwner != null) {
-            powerState.addRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSign(this));
+            channel.addRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSignInput(this));
             notifyOwningNode();
         }
     }
 
     /**
-     * Removes all power states of the given name from this sign
+     * Removes all power channels of the given name from this sign
      *
      * @param name Name of the power state to remove
      * @return True if one or more power states were found and removed
@@ -204,17 +210,17 @@ public class TrackNodeSign implements Cloneable {
     }
 
     /**
-     * Removes a SignNamedPowerState previously added using
+     * Removes a NamedPowerChannel previously added using
      * {@link #addPowerChannel(NamedPowerChannel)}. Both the
-     * power state name and face direction must match.
+     * power channel name and face direction must match.
      *
-     * @param powerState Power state to remove
+     * @param channel Power channel to remove
      * @return True if found and removed
      */
-    public boolean removePowerChannel(final NamedPowerChannel powerState) {
+    public boolean removePowerChannel(final NamedPowerChannel channel) {
         return removePowerChannels(existingState -> {
-            return existingState.getName().equals(powerState.getName()) &&
-                   existingState.getFace() == powerState.getFace();
+            return existingState.getName().equals(channel.getName()) &&
+                   existingState.getFace() == channel.getFace();
         });
     }
 
@@ -232,7 +238,7 @@ public class TrackNodeSign implements Cloneable {
      */
     public boolean rotatePowerChannels() {
         boolean changed = false;
-        NamedPowerChannel[] states = this.powerStates;
+        NamedPowerChannel[] states = this.inputPowerChannels;
         for (int i = 0; i < states.length; i++) {
             NamedPowerChannel state = states[i];
             if (state.getFace().getModX() != 0 || state.getFace().getModZ() != 0) {
@@ -251,7 +257,7 @@ public class TrackNodeSign implements Cloneable {
      */
     public boolean rotatePowerChannel(String channelName) {
         boolean changed = false;
-        NamedPowerChannel[] states = this.powerStates;
+        NamedPowerChannel[] states = this.inputPowerChannels;
         for (int i = 0; i < states.length; i++) {
             NamedPowerChannel state = states[i];
             if (state.getName().equals(channelName) && state.getFace().getModX() != 0 || state.getFace().getModZ() != 0) {
@@ -263,22 +269,106 @@ public class TrackNodeSign implements Cloneable {
     }
 
     private boolean removePowerChannels(Predicate<NamedPowerChannel> filter) {
-        NamedPowerChannel[] states = this.powerStates;
-        int numStates = states.length;
+        NamedPowerChannel[] channels = this.inputPowerChannels;
+        int numStates = channels.length;
 
         // Find it
         boolean found = false;
         for (int i = numStates-1; i >= 0; i--) {
-            NamedPowerChannel existingState = states[i];
+            NamedPowerChannel existingState = channels[i];
             if (filter.test(existingState)) {
                 numStates--;
                 if (numStates == 0) {
-                    this.powerStates = NamedPowerChannel.NO_POWER_STATES;
+                    this.inputPowerChannels = NamedPowerChannel.NO_POWER_STATES;
                 } else {
-                    this.powerStates = LogicUtil.removeArrayElement(states, i);
+                    this.inputPowerChannels = LogicUtil.removeArrayElement(channels, i);
                 }
                 if (this.nodeOwner != null) {
-                    existingState.removeRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSign(this));
+                    existingState.removeRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSignInput(this));
+                    notifyOwningNode();
+                }
+                found = true;
+            }
+        }
+        return found;
+    }
+
+    public NamedPowerChannel[] getOutputPowerChannels() {
+        return this.outputPowerChannels;
+    }
+
+    public void addOutputPowerChannel(String name, boolean initialPowered) {
+        addOutputPowerChannel(NamedPowerChannel.of(name, initialPowered, BlockFace.SELF));
+    }
+
+    public void addOutputPowerChannel(NamedPowerChannel output) {
+        NamedPowerChannel[] channels = this.outputPowerChannels;
+
+        // Check already exists
+        for (NamedPowerChannel channel : channels) {
+            if (channel.getName().equals(output.getName())) {
+                return;
+            }
+        }
+
+        // Add
+        int len = channels.length;
+        channels = Arrays.copyOf(channels, len + 1);
+        channels[len] = output;
+        this.outputPowerChannels = channels;
+
+        if (this.nodeOwner != null) {
+            output.addRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSignOutput(this));
+            notifyOwningNode();
+        }
+    }
+
+    /**
+     * Removes all named output power channels added to this sign
+     */
+    public void clearOutputPowerChannels() {
+        removeOutputPowerChannels(LogicUtil.alwaysTruePredicate());
+    }
+
+    /**
+     * Removes all output power channels of the given name from this sign
+     *
+     * @param name Name of the power state to remove
+     * @return True if one or more power states were found and removed
+     */
+    public boolean removeOutputPowerChannel(final String name) {
+        return removeOutputPowerChannels(existingState -> existingState.getName().equals(name));
+    }
+
+    /**
+     * Removes a NamedPowerChannel previously added using
+     * {@link #addOutputPowerChannel(NamedPowerChannel)}. The power channel
+     * name must match.
+     *
+     * @param channel Power channel to remove
+     * @return True if found and removed
+     */
+    public boolean removeOutputPowerChannel(final NamedPowerChannel channel) {
+        return removeOutputPowerChannel(channel.getName());
+    }
+
+    private boolean removeOutputPowerChannels(Predicate<NamedPowerChannel> filter) {
+        NamedPowerChannel[] channels = this.outputPowerChannels;
+        int numStates = channels.length;
+
+        // Find it
+        boolean found = false;
+        for (int i = numStates-1; i >= 0; i--) {
+            NamedPowerChannel existingState = channels[i];
+            if (filter.test(existingState)) {
+                numStates--;
+                if (numStates == 0) {
+                    this.outputPowerChannels = NamedPowerChannel.NO_POWER_STATES;
+                } else {
+                    this.outputPowerChannels = LogicUtil.removeArrayElement(channels, i);
+                }
+                if (this.nodeOwner != null) {
+                    existingState.removeRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSignOutput(this));
                     notifyOwningNode();
                 }
                 found = true;
@@ -366,6 +456,13 @@ public class TrackNodeSign implements Cloneable {
                 }
 
                 @Override
+                public void setOutput(boolean output) {
+                    for (NamedPowerChannel channel : outputPowerChannels) {
+                        channel.setPowered(output);
+                    }
+                }
+
+                @Override
                 public String[] getExtraLines() {
                     String[] l = lines;
                     return l.length <= 4 ? StringUtil.EMPTY_ARRAY : Arrays.copyOfRange(l, 4, l.length - 4);
@@ -378,7 +475,7 @@ public class TrackNodeSign implements Cloneable {
                     boolean foundFace = false;
                     boolean foundSelf = false;
 
-                    for (NamedPowerChannel state : powerStates) {
+                    for (NamedPowerChannel state : inputPowerChannels) {
                         if (state.getFace() == from) {
                             facePowered |= state.isPowered();
                             foundFace = true;
@@ -459,12 +556,23 @@ public class TrackNodeSign implements Cloneable {
         clone.lines = this.lines.clone();
 
         {
-            NamedPowerChannel[] states = this.powerStates;
-            int numStates = states.length;
-            if (numStates > 0) {
-                clone.powerStates = new NamedPowerChannel[numStates];
-                for (int i = 0; i < numStates; i++) {
-                    clone.powerStates[i] = states[i].clone();
+            NamedPowerChannel[] channels = this.inputPowerChannels;
+            int numChannels = channels.length;
+            if (numChannels > 0) {
+                clone.inputPowerChannels = new NamedPowerChannel[numChannels];
+                for (int i = 0; i < numChannels; i++) {
+                    clone.inputPowerChannels[i] = channels[i].clone();
+                }
+            }
+        }
+
+        {
+            NamedPowerChannel[] channels = this.outputPowerChannels;
+            int numChannels = channels.length;
+            if (numChannels > 0) {
+                clone.outputPowerChannels = new NamedPowerChannel[numChannels];
+                for (int i = 0; i < numChannels; i++) {
+                    clone.outputPowerChannels[i] = channels[i].clone();
                 }
             }
         }

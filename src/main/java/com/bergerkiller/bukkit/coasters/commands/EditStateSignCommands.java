@@ -102,7 +102,7 @@ class EditStateSignCommands {
     @CommandRequiresSelectedNodes
     @CommandMethod("power add <channel>")
     @CommandDescription("Assigns a power channel to the last-added sign of the selected nodes")
-    public void commandAddPowerChannel(
+    public void commandAddInputPowerChannel(
             final PlayerEditState state,
             final CommandSender sender,
             final @Argument(value="channel", suggestions="power_channels") String channel_name,
@@ -140,7 +140,7 @@ class EditStateSignCommands {
     @CommandRequiresSelectedNodes
     @CommandMethod("power remove <channel>")
     @CommandDescription("Removes a power channel from the last-added sign of the selected nodes")
-    public void commandRemovePowerChannel(
+    public void commandRemoveInputPowerChannel(
             final PlayerEditState state,
             final CommandSender sender,
             final @Argument(value="channel", suggestions="power_channels") String channel_name,
@@ -180,7 +180,7 @@ class EditStateSignCommands {
     @CommandRequiresSelectedNodes
     @CommandMethod("power clear")
     @CommandDescription("Clears all power channels from last-added sign of the selected nodes")
-    public void commandClearPowerChannels(
+    public void commandClearInputPowerChannels(
             final PlayerEditState state,
             final CommandSender sender
     ) {
@@ -198,7 +198,7 @@ class EditStateSignCommands {
     @CommandRequiresSelectedNodes
     @CommandMethod("power rotate")
     @CommandDescription("Rotates all power channels from last-added sign of the selected nodes by 90 degrees")
-    public void commandRotatePowerChannels(
+    public void commandRotateInputPowerChannels(
             final PlayerEditState state,
             final CommandSender sender
     ) {
@@ -227,7 +227,7 @@ class EditStateSignCommands {
     @CommandRequiresSelectedNodes
     @CommandMethod("power rotate <channel>")
     @CommandDescription("Rotates a power channel from last-added sign of the selected nodes by 90 degrees")
-    public void commandRotateNamedPowerChannels(
+    public void commandRotateInputNamedPowerChannels(
             final PlayerEditState state,
             final CommandSender sender,
             final @Argument(value="channel", suggestions="power_channels") String channel_name
@@ -250,6 +250,88 @@ class EditStateSignCommands {
             }
         } catch (ChangeCancelledException e) {
             sender.sendMessage(ChatColor.RED + "The power channel of the selected nodes' last signs could not be rotated");
+        }
+    }
+
+    @CommandRequiresTCCPermission
+    @CommandRequiresSelectedNodes
+    @CommandMethod("power output add <channel>")
+    @CommandDescription("Assigns a power output channel to the last-added sign of the selected nodes")
+    public void commandAddOutputPowerChannel(
+            final PlayerEditState state,
+            final CommandSender sender,
+            final @Argument(value="channel", suggestions="power_channels") String channel_name,
+            final @Flag(value="powered",
+                        description="If first creating the channel, defaults to it being powered") boolean powered
+    ) {
+        final AtomicInteger numNodesChanged = new AtomicInteger(0);
+        try {
+            state.getSigns().updateLastSign(s -> {
+                s.addOutputPowerChannel(
+                        channel_name,
+                        powered);
+                numNodesChanged.incrementAndGet();
+            });
+        } catch (ChangeCancelledException e) {
+            TCCoastersLocalization.SIGN_POWER_FAILED.message(sender);
+            return;
+        }
+
+        if (numNodesChanged.get() == 0) {
+            TCCoastersLocalization.SIGN_MISSING.message(sender);
+            return;
+        }
+
+        TCCoastersLocalization.SIGN_POWER_ASSIGNED.message(sender, channel_name, "OUTPUT", Integer.toString(numNodesChanged.get()));
+    }
+
+    @CommandRequiresTCCPermission
+    @CommandRequiresSelectedNodes
+    @CommandMethod("power output remove <channel>")
+    @CommandDescription("Removes a power output channel from the last-added sign of the selected nodes")
+    public void commandRemoveOutputPowerChannel(
+            final PlayerEditState state,
+            final CommandSender sender,
+            final @Argument(value="channel", suggestions="power_channels") String channel_name
+    ) {
+        final AtomicInteger numNodesChanged = new AtomicInteger(0);
+        try {
+            state.getSigns().updateLastSign(s -> {
+                boolean removed = s.removeOutputPowerChannel(channel_name);
+                if (removed) {
+                    numNodesChanged.incrementAndGet();
+                }
+            });
+        } catch (ChangeCancelledException e) {
+            TCCoastersLocalization.SIGN_POWER_FAILED.message(sender);
+            return;
+        }
+
+        if (numNodesChanged.get() == 0) {
+            sender.sendMessage(ChatColor.RED + "The selected nodes don't have any signs with power output channels that match!");
+            return;
+        }
+
+        sender.sendMessage(ChatColor.YELLOW + "Output power channel '" + ChatColor.WHITE + channel_name +
+                ChatColor.YELLOW + "' removed from the last sign of " + ChatColor.WHITE + numNodesChanged.get() +
+                ChatColor.YELLOW + " nodes");
+    }
+
+    @CommandRequiresTCCPermission
+    @CommandRequiresSelectedNodes
+    @CommandMethod("power output clear")
+    @CommandDescription("Clears all power output channels from last-added sign of the selected nodes")
+    public void commandClearOutputPowerChannels(
+            final PlayerEditState state,
+            final CommandSender sender
+    ) {
+        try {
+            state.getSigns().updateLastSign(s -> {
+                s.clearOutputPowerChannels();
+            });
+            sender.sendMessage(ChatColor.GREEN + "Last sign output power channels cleared");
+        } catch (ChangeCancelledException e) {
+            sender.sendMessage(ChatColor.RED + "The output power channels of the selected nodes' last signs could not be cleared");
         }
     }
 }
