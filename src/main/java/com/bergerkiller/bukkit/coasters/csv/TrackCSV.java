@@ -763,9 +763,9 @@ public class TrackCSV {
                 if (option.equals("LINES")) {
                     break;
                 } else if (option.startsWith("POWER_ON_")) {
-                    sign.addPowerChannel(buffer.next(), true, parseFace(buffer, option.substring(9)));
+                    sign.addInputPowerChannel(buffer.next(), true, parseFace(buffer, option.substring(9)));
                 } else if (option.startsWith("POWER_OFF_")) {
-                    sign.addPowerChannel(buffer.next(), false, parseFace(buffer, option.substring(10)));
+                    sign.addInputPowerChannel(buffer.next(), false, parseFace(buffer, option.substring(10)));
                 } else if (option.equals("OUTPUT_ON")) {
                     sign.addOutputPowerChannel(buffer.next(), true);
                 } else if (option.equals("OUTPUT_OFF")) {
@@ -795,7 +795,7 @@ public class TrackCSV {
         @Override
         public void write(StringArrayBuffer buffer) {
             buffer.put("SIGN");
-            for (NamedPowerChannel channel : sign.getPowerChannels()) {
+            for (NamedPowerChannel channel : sign.getInputPowerChannels()) {
                 if (channel.isPowered()) {
                     buffer.put("POWER_ON_" + channel.getFace().name());
                 } else {

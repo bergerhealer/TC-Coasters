@@ -126,7 +126,7 @@ public class SignEditState {
             return false;
         }
         TrackNodeSign old_sign = old_signs[old_signs.length - 1];
-        if (old_sign.getPowerChannels().length == 0) {
+        if (old_sign.getInputPowerChannels().length == 0) {
             return false;
         }
 
@@ -137,7 +137,7 @@ public class SignEditState {
 
         // Remove the last power channel
         TrackNodeSign new_sign = old_sign.clone();
-        new_sign.removePowerChannel(new_sign.getPowerChannels()[new_sign.getPowerChannels().length - 1]);
+        new_sign.removeInputPowerChannel(new_sign.getInputPowerChannels()[new_sign.getInputPowerChannels().length - 1]);
 
         // Try to update the signs of this node
         TrackNodeSign[] new_signs = old_signs.clone();
@@ -182,7 +182,7 @@ public class SignEditState {
                         TrackNodeSign[] new_signs = old_signs.clone();
                         TrackNodeSign old_sign = old_signs[old_signs.length - 1];
                         TrackNodeSign new_sign = old_sign.clone();
-                        new_sign.addPowerChannel(channel_name, false, face);
+                        new_sign.addInputPowerChannel(channel_name, false, face);
                         new_signs[new_signs.length - 1] = new_sign;
                         setSignsForNode(editState.getHistory(), node, new_signs);
                         updateSignInSelectedAnimationStates(node, old_sign, new_sign);

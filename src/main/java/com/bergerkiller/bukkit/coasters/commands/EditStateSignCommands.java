@@ -115,7 +115,7 @@ class EditStateSignCommands {
         final AtomicInteger numNodesChanged = new AtomicInteger(0);
         try {
             state.getSigns().updateLastSign(s -> {
-                s.addPowerChannel(
+                s.addInputPowerChannel(
                         channel_name,
                         powered,
                         (face == null) ? BlockFace.SELF : face);
@@ -153,9 +153,9 @@ class EditStateSignCommands {
             state.getSigns().updateLastSign(s -> {
                 boolean removed;
                 if (face == null) {
-                    removed = s.removePowerChannels(channel_name);
+                    removed = s.removeInputPowerChannels(channel_name);
                 } else {
-                    removed = s.removePowerChannel(NamedPowerChannel.of(channel_name, false, face));
+                    removed = s.removeInputPowerChannel(NamedPowerChannel.of(channel_name, false, face));
                 }
                 if (removed) {
                     numNodesChanged.incrementAndGet();
@@ -186,7 +186,7 @@ class EditStateSignCommands {
     ) {
         try {
             state.getSigns().updateLastSign(s -> {
-                s.clearPowerChannels();
+                s.clearInputPowerChannels();
             });
             sender.sendMessage(ChatColor.GREEN + "Last sign power channels cleared");
         } catch (ChangeCancelledException e) {
@@ -255,7 +255,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("power output add <channel>")
+    @CommandMethod("output add <channel>")
     @CommandDescription("Assigns a power output channel to the last-added sign of the selected nodes")
     public void commandAddOutputPowerChannel(
             final PlayerEditState state,
@@ -287,7 +287,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("power output remove <channel>")
+    @CommandMethod("output remove <channel>")
     @CommandDescription("Removes a power output channel from the last-added sign of the selected nodes")
     public void commandRemoveOutputPowerChannel(
             final PlayerEditState state,
@@ -319,7 +319,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("power output clear")
+    @CommandMethod("output clear")
     @CommandDescription("Clears all power output channels from last-added sign of the selected nodes")
     public void commandClearOutputPowerChannels(
             final PlayerEditState state,
