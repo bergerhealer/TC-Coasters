@@ -5,8 +5,10 @@ import java.util.function.Predicate;
 
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel.Recipient;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
@@ -375,6 +377,21 @@ public class TrackNodeSign implements Cloneable {
             }
         }
         return found;
+    }
+
+    /**
+     * If this sign contains output power states, checks that the given
+     * sender has permission to change those power states.
+     *
+     * @param sender
+     * @throws ChangeCancelledException If sender lacks permission
+     */
+    public void checkPowerPermissions(CommandSender sender) throws ChangeCancelledException {
+        for (NamedPowerChannel channel : getOutputPowerChannels()) {
+            if (!channel.checkPermission(sender)) {
+                throw new ChangeCancelledException();
+            }
+        }
     }
 
     private void notifyOwningNode() {

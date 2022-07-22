@@ -382,6 +382,16 @@ class EditStateCommands {
                 }
             }
 
+            // Check power state permissions. Would rather do it during load but whatever...
+            try {
+                for (TrackNode node : coaster.getNodes()) {
+                    node.checkPowerPermissions(player);
+                }
+            } catch (ChangeCancelledException ex) {
+                coaster.remove();
+                return;
+            }
+
             // Handle event
             if (CommonUtil.callEvent(new CoasterImportEvent(player, coaster)).isCancelled()) {
                 player.sendMessage(ChatColor.RED + "Coaster could not be imported here!");

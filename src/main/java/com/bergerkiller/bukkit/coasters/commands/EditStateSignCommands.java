@@ -264,6 +264,10 @@ class EditStateSignCommands {
             final @Flag(value="powered",
                         description="If first creating the channel, defaults to it being powered") boolean powered
     ) {
+        if (!NamedPowerChannel.checkPermission(sender, channel_name)) {
+            return;
+        }
+
         final AtomicInteger numNodesChanged = new AtomicInteger(0);
         try {
             state.getSigns().updateLastSign(s -> {

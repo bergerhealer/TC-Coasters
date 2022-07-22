@@ -8,12 +8,14 @@ import java.util.List;
 import java.util.function.Function;
 
 import org.bukkit.Location;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleArrow;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleLitBlock;
@@ -1153,6 +1155,25 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                 this._signTextParticle = this.getWorld().getParticles().addParticleSignText(this.getPosition(), lines);
             } else {
                 this._signTextParticle.setSignLines(lines);
+            }
+        }
+    }
+
+    /**
+     * If this track node contains signs with output power states, checks that the given
+     * sender has permission to change those power states. Checks node itself and all
+     * animations.
+     *
+     * @param sender
+     * @throws ChangeCancelledException If sender lacks permission
+     */
+    public void checkPowerPermissions(CommandSender sender) throws ChangeCancelledException {
+        for (TrackNodeSign sign : this._signs) {
+            sign.checkPowerPermissions(sender);
+        }
+        for (TrackNodeAnimationState animState : this._animationStates) {
+            for (TrackNodeSign sign : animState.state.signs) {
+                sign.checkPowerPermissions(sender);
             }
         }
     }
