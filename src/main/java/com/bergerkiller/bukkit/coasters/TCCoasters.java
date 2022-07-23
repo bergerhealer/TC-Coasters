@@ -29,7 +29,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import com.bergerkiller.bukkit.coasters.commands.TCCoastersCommands;
 import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
-import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditTool;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeLight;
 import com.bergerkiller.bukkit.coasters.signs.actions.SignActionPower;
 import com.bergerkiller.bukkit.coasters.signs.actions.SignActionTrackAnimate;
@@ -45,14 +45,10 @@ import com.bergerkiller.bukkit.common.PluginBase;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.collections.FastIdentityHashMap;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
-import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
 import com.bergerkiller.bukkit.common.io.ByteArrayIOStream;
 import com.bergerkiller.bukkit.common.localization.LocalizationEnum;
-import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.map.MapResourcePack;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
-import com.bergerkiller.bukkit.common.utils.ItemUtil;
-import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
 import com.bergerkiller.bukkit.tc.TCConfig;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
@@ -549,52 +545,18 @@ public class TCCoasters extends PluginBase {
         return true;
     }
 
-    public boolean isHoldingEditTorch(Player player) {
+    public PlayerEditTool getHeldTool(Player player) {
         if (!hasUsePermission(player)) {
-            return false;
+            return PlayerEditTool.NONE;
         }
 
         ItemStack mainItem = HumanHand.getItemInMainHand(player);
-        if (mainItem == null) {
-            return false;
+        for (PlayerEditTool tool : PlayerEditTool.values()) {
+            if (tool.isItem(player, mainItem)) {
+                return tool;
+            }
         }
-
-        return MaterialUtil.ISREDSTONETORCH.get(mainItem.getType());
-    }
-
-    public boolean isHoldingEditSign(Player player) {
-        if (!hasUsePermission(player)) {
-            return false;
-        }
-
-        ItemStack mainItem = HumanHand.getItemInMainHand(player);
-        if (mainItem == null) {
-            return false;
-        }
-
-        if (CommonCapabilities.MATERIAL_ENUM_CHANGES) {
-            // Modern API re-purposes the block sign type.
-            return MaterialUtil.ISSIGN.get(mainItem.getType());
-        } else {
-            // Legacy sign material type is the only sign type. Other types are for blocks only.
-            return mainItem.getType().name().equals("SIGN");
-        }
-    }
-
-    public boolean isHoldingEditTool(Player player) {
-        if (!hasUsePermission(player)) {
-            return false;
-        }
-
-        ItemStack mainItem = HumanHand.getItemInMainHand(player);
-        if (MapDisplay.getViewedDisplay(player, mainItem) instanceof TCCoastersDisplay) {
-            return true;
-        } else if (!ItemUtil.isEmpty(mainItem)) {
-            return false;
-        }
-
-        ItemStack offItem = HumanHand.getItemInOffHand(player);
-        return MapDisplay.getViewedDisplay(player, offItem) instanceof TCCoastersDisplay;
+        return PlayerEditTool.NONE;
     }
 
     public CompletableFuture<Hastebin.DownloadResult> importFileOrURL(final String fileOrURL) {

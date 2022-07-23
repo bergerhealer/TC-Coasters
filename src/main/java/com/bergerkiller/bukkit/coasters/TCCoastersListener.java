@@ -15,11 +15,10 @@ import org.bukkit.event.world.WorldUnloadEvent;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditMode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditTool;
 import com.bergerkiller.bukkit.coasters.events.CoasterConnectionEvent;
 import com.bergerkiller.bukkit.coasters.events.CoasterNodeEvent;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
-import com.bergerkiller.bukkit.common.wrappers.HumanHand;
 
 public class TCCoastersListener implements Listener {
     private final TCCoasters plugin;
@@ -44,63 +43,28 @@ public class TCCoastersListener implements Listener {
     /* Note: Do not ignore cancelled events! Player clicks from afar are cancelled by default. */
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
-        boolean isLeftClick = (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK);
-        boolean isRightClick = (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK);
-
-        // Right-or-left-clicking a node with a sign to place/break signs
-        if (this.plugin.isHoldingEditSign(event.getPlayer())) {
+        final boolean isLeftClick = (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK);
+        final boolean isRightClick = (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK);
+        final PlayerEditTool tool = plugin.getHeldTool(event.getPlayer());
+        if (tool != PlayerEditTool.NONE) {
             PlayerEditState state = this.plugin.getEditState(event.getPlayer());
             if (state.getMode() != PlayerEditMode.DISABLED) {
-                TrackNode lookingAt = state.getWorld().getTracks().findNodeLookingAt(
-                        event.getPlayer().getEyeLocation(), 1.0, 10.0);
-                if (lookingAt != null) {
-                    if (isLeftClick && state.getSigns().onSignLeftClick(lookingAt)) {
-                        event.setCancelled(true);
-                    }
-                    if (isRightClick && state.getSigns().onSignRightClick(lookingAt, HumanHand.getItemInMainHand(event.getPlayer()))) {
-                        event.setCancelled(true);
-                    }
-                    return;
+                // This one is tricky to handle generically
+                if (tool == PlayerEditTool.MAP && isRightClick) {
+                    state.setTargetedBlock(event.getClickedBlock(), event.getBlockFace());
                 }
-            }
-        }
 
-        // Right-or-left-clicking a node with a redstone torch to assign/remove power channels
-        if (this.plugin.isHoldingEditTorch(event.getPlayer())) {
-            PlayerEditState state = this.plugin.getEditState(event.getPlayer());
-            if (state.getMode() != PlayerEditMode.DISABLED) {
-                TrackNode lookingAt = state.getWorld().getTracks().findNodeLookingAt(
-                        event.getPlayer().getEyeLocation(), 1.0, 10.0);
-                if (lookingAt != null) {
-                    if (isLeftClick && state.getSigns().onTorchLeftClick(lookingAt)) {
-                        event.setCancelled(true);
-                    }
-                    if (isRightClick && state.getSigns().onTorchRightClick(lookingAt)) {
-                        event.setCancelled(true);
-                    }
-                    return;
+                // Handle tool
+                if (tool.handleClick(state, isLeftClick, isRightClick)) {
+                    event.setCancelled(true);
                 }
-            }
-        }
-
-        // Interacting while holding the editor map
-        if (this.plugin.isHoldingEditTool(event.getPlayer())) {
-            PlayerEditState state = this.plugin.getEditState(event.getPlayer());
-            if (isLeftClick && state.onLeftClick()) {
-                event.setCancelled(true);
-            }
-            if (isRightClick) {
-                state.setTargetedBlock(event.getClickedBlock(), event.getBlockFace());
-            }
-            if (isRightClick && state.onRightClick()) {
-                event.setCancelled(true);
             }
         }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerSneakChange(PlayerToggleSneakEvent event) {
-        if (!this.plugin.isHoldingEditTool(event.getPlayer())) {
+        if (this.plugin.getHeldTool(event.getPlayer()) != PlayerEditTool.MAP) {
             return;
         }
 

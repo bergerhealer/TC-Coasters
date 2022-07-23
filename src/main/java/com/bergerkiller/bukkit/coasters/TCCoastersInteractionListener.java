@@ -16,6 +16,7 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil.TargetedBlockInfo;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditTool;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.events.PacketReceiveEvent;
@@ -240,7 +241,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
             // When the player is in edit mode, skip this expensive lookup and always fire an interaction with block air
             // Due to a bug we can only do this for 'right click' (interact) actions
             TargetedBlockInfo clickInfo = null;
-            if (!this.plugin.isHoldingEditTool(event.getPlayer()) || !isInteractEvent) {
+            if (this.plugin.getHeldTool(event.getPlayer()) != PlayerEditTool.MAP || !isInteractEvent) {
                 clickInfo = TCCoastersUtil.rayTrace(event.getPlayer());
             }
 
