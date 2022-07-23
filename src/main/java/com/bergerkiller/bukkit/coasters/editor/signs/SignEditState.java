@@ -15,6 +15,7 @@ import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
 import com.bergerkiller.bukkit.coasters.editor.signs.ui.InputDialogSubmitText;
+import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
@@ -190,6 +191,93 @@ public class SignEditState {
                         String faceStr = (face == null || face == BlockFace.SELF)
                                 ? "All sides" : ("The " + face.name().toLowerCase(Locale.ENGLISH) + " side");
                         TCCoastersLocalization.SIGN_POWER_ASSIGNED.message(editState.getPlayer(), channel_name, faceStr, "1");
+                    }
+                } catch (ChangeCancelledException e) {
+                    TCCoastersLocalization.SIGN_POWER_FAILED.message(editState.getPlayer());
+                    return;
+                }
+            }
+
+            @Override
+            public void onOpen() {
+                super.onOpen();
+                this.setDescription("Enter power channel");
+            }
+
+            @Override
+            public void onClose() {
+                hasOpenDialog = false;
+                super.onClose();
+            }
+        };
+        CommonUtil.nextTick(dialog::open);
+
+        return true;
+    }
+
+    public boolean onLeverLeftClick(TrackNode node) {
+        TrackNodeSign[] old_signs = node.getSigns();
+        if (old_signs.length == 0) {
+            return false;
+        }
+        TrackNodeSign old_sign = old_signs[old_signs.length - 1];
+        if (old_sign.getOutputPowerChannels().length == 0) {
+            return false;
+        }
+
+        // Prevent spam-clicks and editing locked coasters
+        if (!handlePreClick(node)) {
+            return true;
+        }
+
+        // Remove the last power output channel
+        TrackNodeSign new_sign = old_sign.clone();
+        new_sign.removeOutputPowerChannel(new_sign.getOutputPowerChannels()[new_sign.getOutputPowerChannels().length - 1]);
+
+        // Try to update the signs of this node
+        TrackNodeSign[] new_signs = old_signs.clone();
+        new_signs[new_signs.length - 1] = new_sign;
+        try {
+            setSignsForNode(editState.getHistory(), node, new_signs);
+            updateSignInSelectedAnimationStates(node, old_sign, new_sign);
+            TCCoastersLocalization.SIGN_POWER_REMOVED.message(editState.getPlayer());
+        } catch (ChangeCancelledException e) {
+            TCCoastersLocalization.SIGN_POWER_FAILED.message(editState.getPlayer());
+        }
+
+        return true;
+    }
+
+    public boolean onLeverRightClick(TrackNode node) {
+        TrackNodeSign[] old_signs = node.getSigns();
+        if (old_signs.length == 0) {
+            return false;
+        }
+
+        // Prevent spam-clicks and editing locked coasters
+        if (!handlePreClick(node) || hasOpenDialog) {
+            return true;
+        }
+
+        // Show a dialog asking for a power channel name. On completion, add it to the sign/node
+        hasOpenDialog = true;
+        InputDialogSubmitText dialog = new InputDialogSubmitText(editState.getPlugin(), editState.getPlayer()) {
+            @Override
+            public void onAccept(String channel_name) {
+                try {
+                    TrackNodeSign[] old_signs = node.getSigns();
+                    if (old_signs.length == 0) {
+                        TCCoastersLocalization.SIGN_MISSING.message(editState.getPlayer());
+                    } else if (NamedPowerChannel.checkPermission(editState.getPlayer(), channel_name)) {
+                        TrackNodeSign[] new_signs = old_signs.clone();
+                        TrackNodeSign old_sign = old_signs[old_signs.length - 1];
+                        TrackNodeSign new_sign = old_sign.clone();
+                        new_sign.addOutputPowerChannel(channel_name, false);
+                        new_signs[new_signs.length - 1] = new_sign;
+                        setSignsForNode(editState.getHistory(), node, new_signs);
+                        updateSignInSelectedAnimationStates(node, old_sign, new_sign);
+
+                        TCCoastersLocalization.SIGN_POWER_ASSIGNED.message(editState.getPlayer(), channel_name, "OUTPUT", "1");
                     }
                 } catch (ChangeCancelledException e) {
                     TCCoastersLocalization.SIGN_POWER_FAILED.message(editState.getPlayer());

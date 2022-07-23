@@ -109,6 +109,16 @@ public enum PlayerEditTool {
 
         @Override
         public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick) {
+            TrackNode lookingAt = state.getWorld().getTracks().findNodeLookingAt(
+                    state.getPlayer().getEyeLocation(), 1.0, 10.0);
+            if (lookingAt != null) {
+                if (isLeftClick && state.getSigns().onLeverLeftClick(lookingAt)) {
+                    return true;
+                }
+                if (isRightClick && state.getSigns().onLeverRightClick(lookingAt)) {
+                    return true;
+                }
+            }
             return false;
         }
     };
