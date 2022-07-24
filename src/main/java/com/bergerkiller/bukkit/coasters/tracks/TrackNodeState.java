@@ -98,7 +98,7 @@ public final class TrackNodeState {
     }
 
     public TrackNodeState changeAddSign(TrackNodeSign sign) {
-        return changeSigns(TrackNodeSign.appendToArray(this.signs, sign));
+        return changeSigns(LogicUtil.appendArrayElement(this.signs, sign));
     }
 
     public TrackNodeState changeRemoveSign(TrackNodeSign sign) {
@@ -130,6 +130,6 @@ public final class TrackNodeState {
     }
 
     public static TrackNodeState create(TrackNode node) {
-        return new TrackNodeState(node.getPosition(), node.getOrientation(), node.getRailBlock(false), node.getSigns());
+        return new TrackNodeState(node.getPosition(), node.getOrientation(), node.getRailBlock(false), LogicUtil.cloneAll(node.getSigns(), TrackNodeSign::clone));
     }
 }

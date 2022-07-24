@@ -135,7 +135,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         this.setPosition(state.position);
         this.setOrientation(state.orientation);
         this.setRailBlock(state.railBlock);
-        this.setSigns(state.signs);
+        this.setSigns(LogicUtil.cloneAll(state.signs, TrackNodeSign::clone));
     }
 
     public void markChanged() {
@@ -810,10 +810,8 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         }
 
         // Add new
-        int new_index = this._animationStates.length;
-        this._animationStates = Arrays.copyOf(this._animationStates, new_index+1);
-        this._animationStates[new_index] = state;
-        state.spawnParticles(this, new_index);
+        this._animationStates = LogicUtil.appendArrayElement(this._animationStates, state);
+        state.spawnParticles(this, this._animationStates.length - 1);
         handleSignOwnerUpdates(TrackNodeSign.EMPTY_ARR, state.state.signs, true);
 
         // Refresh any player edit states so they become aware of this animation
@@ -1066,7 +1064,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
      * @param sign
      */
     public void addSign(TrackNodeSign sign) {
-        this._signs = TrackNodeSign.appendToArray(this._signs, sign);
+        this._signs = LogicUtil.appendArrayElement(this._signs, sign);
         sign.updateOwner(this, false);
         updateSignParticle();
         markChanged();

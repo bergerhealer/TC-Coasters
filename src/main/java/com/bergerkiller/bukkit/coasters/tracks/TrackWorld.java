@@ -17,6 +17,7 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Quaternion;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 
 /**
  * Stores all the track groups and the special connections between track nodes.
@@ -719,8 +720,7 @@ public class TrackWorld implements CoasterWorldComponent {
     }
 
     private static void addConnectionToNode(TrackNode node, TrackConnection connection) {
-        node._connections = Arrays.copyOf(node._connections, node._connections.length + 1);
-        node._connections[node._connections.length - 1] = connection;
+        node._connections = LogicUtil.appendArray(node._connections, connection);
     }
 
     private static void removeConnectionFromNode(TrackNode node, TrackConnection connection) {

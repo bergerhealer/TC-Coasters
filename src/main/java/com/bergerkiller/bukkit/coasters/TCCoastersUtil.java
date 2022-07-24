@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -331,5 +332,18 @@ public class TCCoastersUtil {
         public Block block;
         public Vector position;
         public BlockFace face;
+    }
+
+    public static <T> T[] cloneArray(T[] array, UnaryOperator<T> clone) {
+        int len = array.length;
+        if (len == 0) {
+            return array;
+        } else {
+            T[] copy = array.clone();
+            for (int i = 0; i < len; i++) {
+                copy[i] = clone.apply(copy[i]);
+            }
+            return copy;
+        }
     }
 }

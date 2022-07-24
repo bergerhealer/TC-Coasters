@@ -239,7 +239,7 @@ public class TrackCSVWriter implements AutoCloseable {
             }
             node_entry.setFromNode(startNode);
             this.write(node_entry);
-            this.writeAllSigns(startNode.getSigns());
+            this.writeAllSigns(startNode.getSigns(), startNode.hasAnimationStates());
 
             // If any exist, add animation node state entries
             boolean saveConnections = startNode.doAnimationStatesChangeConnections();
@@ -248,7 +248,7 @@ public class TrackCSVWriter implements AutoCloseable {
                 anim_entry.name = animState.name;
                 anim_entry.setFromState(animState.state);
                 this.write(anim_entry);
-                this.writeAllSigns(animState.state.signs);
+                this.writeAllSigns(animState.state.signs, true);
                 if (saveConnections) {
                     for (TrackConnectionState ref : animState.connections) {
                         this.writeAllObjects(ref);
@@ -348,10 +348,11 @@ public class TrackCSVWriter implements AutoCloseable {
         }
     }
 
-    private void writeAllSigns(TrackNodeSign[] signs) throws IOException {
+    private void writeAllSigns(TrackNodeSign[] signs, boolean writeKeys) throws IOException {
         for (TrackNodeSign sign : signs) {
             SignEntry entry = new SignEntry();
             entry.sign = sign;
+            entry.writeKeys = writeKeys;
             this.write(entry);
         }
     }

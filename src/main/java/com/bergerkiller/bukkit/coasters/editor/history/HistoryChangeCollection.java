@@ -26,6 +26,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 
 /**
  * Base class that makes it easier to create and add new changes
@@ -158,7 +159,7 @@ public abstract class HistoryChangeCollection {
     }
 
     public final HistoryChange addChangeBeforeAddSign(Player who, TrackNode node, TrackNodeSign new_sign) throws ChangeCancelledException {
-        return addChangeBeforeSetSigns(who, node, TrackNodeSign.appendToArray(node.getSigns(), new_sign));
+        return addChangeBeforeSetSigns(who, node, LogicUtil.appendArrayElement(node.getSigns(), new_sign));
     }
 
     public void handleChangeAfterSetSigns(Player who, TrackNode node, TrackNodeSign[] old_signs) throws ChangeCancelledException {

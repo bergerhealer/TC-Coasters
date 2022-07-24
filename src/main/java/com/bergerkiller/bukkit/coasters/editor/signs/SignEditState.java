@@ -24,6 +24,7 @@ import com.bergerkiller.bukkit.common.block.SignEditDialog;
 import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.ItemUtil;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.wrappers.ChatText;
 import com.bergerkiller.bukkit.tc.Util;
 
@@ -436,7 +437,7 @@ public class SignEditState {
     private void addSignToNode(HistoryChangeCollection changes, TrackNode node, TrackNodeSign sign, boolean fireBuildEvent) throws ChangeCancelledException {
         TrackNodeSign node_sign = sign.clone();
         TrackNodeSign[] old_signs = node.getSigns();
-        setSignsForNode(changes, node, TrackNodeSign.appendToArray(node.getSigns(), node_sign));
+        setSignsForNode(changes, node, LogicUtil.appendArrayElement(node.getSigns(), node_sign));
         if (fireBuildEvent) {
             // Fire a sign build event with the sign's custom sign
             if (!node_sign.fireBuildEvent(editState.getPlayer())) {

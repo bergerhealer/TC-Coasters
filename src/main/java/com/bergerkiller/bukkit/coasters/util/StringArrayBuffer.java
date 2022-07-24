@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
@@ -127,6 +128,15 @@ public class StringArrayBuffer implements Iterator<String> {
     }
 
     /**
+     * Sets the next UUID value
+     *
+     * @param uuid
+     */
+    public void putUUID(UUID uuid) {
+        put(uuid.toString());
+    }
+
+    /**
      * Sets the next ItemStack value
      * 
      * @param item
@@ -200,6 +210,21 @@ public class StringArrayBuffer implements Iterator<String> {
      */
     public String peek() {
         return get(this.index);
+    }
+
+    /**
+     * Gets the next UUID value, which is a stringified UUID token
+     *
+     * @return next UUID value
+     * @throws SyntaxException If the field value isn't a decodable valid UUID
+     */
+    public UUID nextUUID() throws SyntaxException {
+        String str = next();
+        try {
+            return UUID.fromString(str);
+        } catch (IllegalArgumentException ex) {
+            throw createSyntaxException("Invalid UUID: " + str);
+        }
     }
 
     /**

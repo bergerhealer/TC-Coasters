@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.util.Arrays;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 import org.bukkit.block.Block;
@@ -29,7 +30,7 @@ import com.bergerkiller.bukkit.tc.signactions.SignActionType;
 public class TrackNodeSign implements Cloneable {
     public static final TrackNodeSign[] EMPTY_ARR = new TrackNodeSign[0];
 
-    private final Object key;
+    private UUID key;
     private String[] lines;
     private NamedPowerChannel[] inputPowerChannels = NamedPowerChannel.NO_POWER_STATES;
     private NamedPowerChannel[] outputPowerChannels = NamedPowerChannel.NO_POWER_STATES;
@@ -40,16 +41,16 @@ public class TrackNodeSign implements Cloneable {
     private boolean addedAsAnimation;
 
     public TrackNodeSign() {
-        this(new Object());
+        this(UUID.randomUUID());
     }
 
-    private TrackNodeSign(Object key) {
+    private TrackNodeSign(UUID key) {
         this.key = key;
         this.lines = new String[] { "", "", "", "" };
     }
 
     public TrackNodeSign(String[] lines) {
-        this.key = new Object();
+        this.key = UUID.randomUUID();
         setLines(lines);
     }
 
@@ -82,6 +83,26 @@ public class TrackNodeSign implements Cloneable {
 
         this.nodeOwner = node;
         this.addedAsAnimation = addedAsAnimation;
+    }
+
+    /**
+     * Gets a unique key associated with this sign. This is used to preserve linkage
+     * when signs transfer between animations.
+     *
+     * @return key
+     */
+    public UUID getKey() {
+        return this.key;
+    }
+
+    /**
+     * Sets the key of this sign
+     *
+     * @param key
+     * @see #getKey()
+     */
+    public void setKey(UUID key) {
+        this.key = key;
     }
 
     /**
@@ -134,9 +155,7 @@ public class TrackNodeSign implements Cloneable {
 
     public void appendLine(String line) {
         cachedFakeSign = null;
-        int len = this.lines.length;
-        this.lines = Arrays.copyOf(this.lines, len + 1);
-        this.lines[len] = line;
+        this.lines = LogicUtil.appendArray(this.lines, line);
         notifyOwningNode();
     }
 
@@ -179,7 +198,6 @@ public class TrackNodeSign implements Cloneable {
      */
     public void addInputPowerChannel(NamedPowerChannel channel) {
         NamedPowerChannel[] channels = this.inputPowerChannels;
-        int numChannels = channels.length;
 
         // Avoid adding if this exact power state already exists.
         // But we do allow adding the same name for multiple faces and such.
@@ -191,8 +209,7 @@ public class TrackNodeSign implements Cloneable {
             }
         }
 
-        channels = Arrays.copyOf(channels, numChannels + 1);
-        channels[numChannels] = channel;
+        channels = LogicUtil.appendArray(channels, channel);
         this.inputPowerChannels = channels;
 
         if (this.nodeOwner != null) {
@@ -314,9 +331,7 @@ public class TrackNodeSign implements Cloneable {
         }
 
         // Add
-        int len = channels.length;
-        channels = Arrays.copyOf(channels, len + 1);
-        channels[len] = output;
+        channels = LogicUtil.appendArray(channels, output);
         this.outputPowerChannels = channels;
 
         if (this.nodeOwner != null) {
@@ -571,36 +586,8 @@ public class TrackNodeSign implements Cloneable {
     public TrackNodeSign clone() {
         TrackNodeSign clone = new TrackNodeSign(this.key);
         clone.lines = this.lines.clone();
-
-        {
-            NamedPowerChannel[] channels = this.inputPowerChannels;
-            int numChannels = channels.length;
-            if (numChannels > 0) {
-                clone.inputPowerChannels = new NamedPowerChannel[numChannels];
-                for (int i = 0; i < numChannels; i++) {
-                    clone.inputPowerChannels[i] = channels[i].clone();
-                }
-            }
-        }
-
-        {
-            NamedPowerChannel[] channels = this.outputPowerChannels;
-            int numChannels = channels.length;
-            if (numChannels > 0) {
-                clone.outputPowerChannels = new NamedPowerChannel[numChannels];
-                for (int i = 0; i < numChannels; i++) {
-                    clone.outputPowerChannels[i] = channels[i].clone();
-                }
-            }
-        }
-
+        clone.inputPowerChannels = LogicUtil.cloneAll(this.inputPowerChannels, NamedPowerChannel::clone);
+        clone.outputPowerChannels = LogicUtil.cloneAll(this.outputPowerChannels, NamedPowerChannel::clone);
         return clone;
-    }
-
-    public static TrackNodeSign[] appendToArray(TrackNodeSign[] arr, TrackNodeSign sign) {
-        int len = arr.length;
-        TrackNodeSign[] new_arr = Arrays.copyOf(arr, len + 1);
-        new_arr[len] = sign;
-        return new_arr;
     }
 }

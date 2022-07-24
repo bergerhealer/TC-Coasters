@@ -36,6 +36,7 @@ import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.opencsv.CSVReader;
 
@@ -745,6 +746,7 @@ public class TrackCSV {
      */
     public static final class SignEntry extends CSVEntry {
         public TrackNodeSign sign;
+        public boolean writeKeys = false;
 
         @Override
         public boolean detect(StringArrayBuffer buffer) {
@@ -756,6 +758,7 @@ public class TrackCSV {
             buffer.next();
 
             sign = new TrackNodeSign();
+            writeKeys = false;
 
             // Options might be expanded in the future
             while (buffer.hasNext()) {
@@ -770,6 +773,9 @@ public class TrackCSV {
                     sign.addOutputPowerChannel(buffer.next(), true);
                 } else if (option.equals("OUTPUT_OFF")) {
                     sign.addOutputPowerChannel(buffer.next(), false);
+                } else if (option.equals("KEY")) {
+                    sign.setKey(buffer.nextUUID());
+                    writeKeys = true;
                 } else {
                     throw buffer.createSyntaxException("Unknown sign option: " + option);
                 }
@@ -795,6 +801,10 @@ public class TrackCSV {
         @Override
         public void write(StringArrayBuffer buffer) {
             buffer.put("SIGN");
+            if (writeKeys) {
+                buffer.put("KEY");
+                buffer.putUUID(sign.getKey());
+            }
             for (NamedPowerChannel channel : sign.getInputPowerChannels()) {
                 if (channel.isPowered()) {
                     buffer.put("POWER_ON_" + channel.getFace().name());
@@ -822,7 +832,7 @@ public class TrackCSV {
             if (state.prevNodeAnimName != null) {
                 // Add to this specific animation state
                 state.prevNode.updateAnimationStates(state.prevNodeAnimName, anim_state -> {
-                    return anim_state.updateSigns(TrackNodeSign.appendToArray(anim_state.state.signs, sign));
+                    return anim_state.updateSigns(LogicUtil.appendArrayElement(anim_state.state.signs, sign));
                 });
             } else {
                 // Add to the node itself
