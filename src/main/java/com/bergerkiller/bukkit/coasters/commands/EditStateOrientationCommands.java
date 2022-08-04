@@ -22,6 +22,7 @@ import cloud.commandframework.CommandManager;
 import cloud.commandframework.annotations.Argument;
 import cloud.commandframework.annotations.CommandDescription;
 import cloud.commandframework.annotations.CommandMethod;
+import cloud.commandframework.annotations.Flag;
 import cloud.commandframework.annotations.InitializationMethod;
 import cloud.commandframework.meta.CommandMeta;
 
@@ -88,18 +89,52 @@ class EditStateOrientationCommands {
     public void commandSetOrientationRollAngle(
             final PlayerEditState state,
             final CommandSender sender,
-            final @Argument("roll") double roll
+            final @Argument("roll") double roll,
+            final @Flag("add") boolean add
     ) {
         try {
-            // Angle offset applies to the 'up' orientation
-            // Compute average forward direction vector of selected nodes
-            Vector forward = new Vector();
-            for (TrackNode node : state.getEditedNodes()) {
-                forward.add(node.getDirection());
+            // Compute average forward direction of all selected nodes
+            // We use this to flip the direction of nodes while processing, so that
+            // they all rotate in the same direction properly.
+            final Vector forwardAvg = new Vector();
+            if (state.hasEditedNodes()) {
+                for (TrackNode node : state.getEditedNodes()) {
+                    forwardAvg.add(node.getDirection());
+                }
+                forwardAvg.normalize();
             }
-            Quaternion q = Quaternion.fromLookDirection(forward, new Vector(0, 1, 0));
-            q.rotateZ(roll);
-            state.setOrientation(q.upVector());
+
+            state.calcOrientation(node -> {
+                Vector forward = node.getDirection();
+                if (forward.dot(forwardAvg) < 0.0) {
+                    forward = forward.clone().multiply(-1.0);
+                }
+                Quaternion q;
+                if (add) {
+                    q = Quaternion.fromLookDirection(forward, node.getOrientation());
+                } else {
+                    q = Quaternion.fromLookDirection(forward, new Vector(0, 1, 0));
+                }
+                q.rotateZ(roll);
+                return q.upVector();
+            });
+
+            showOrientation(state, sender, true);
+        } catch (ChangeCancelledException e) {
+            sender.sendMessage(ChatColor.RED + "The orientation of the selected nodes could not be changed");
+        }
+    }
+
+    @CommandRequiresTCCPermission
+    @CommandRequiresSelectedNodes
+    @CommandMethod("flip|invert")
+    @CommandDescription("Flips the orientation of the selected nodes 180 degrees")
+    public void commandFlipOrientation(
+            final PlayerEditState state,
+            final CommandSender sender
+    ) {
+        try {
+            state.calcOrientation(node -> node.getOrientation().clone().multiply(-1.0));
 
             showOrientation(state, sender, true);
         } catch (ChangeCancelledException e) {

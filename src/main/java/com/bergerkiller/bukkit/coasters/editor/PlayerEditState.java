@@ -1052,6 +1052,15 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @param orientation vector to set to
      */
     public void setOrientation(Vector orientation) throws ChangeCancelledException {
+        calcOrientation(node -> orientation);
+    }
+
+    /**
+     * Sets the orientation for all selected nodes
+     * 
+     * @param orientationFunc Function called to compute a new orientation up vector
+     */
+    public void calcOrientation(Function<TrackNode, Vector> orientationFunc) throws ChangeCancelledException {
         // Deselect locked nodes that we cannot edit
         this.deselectLockedNodes();
 
@@ -1064,6 +1073,7 @@ public class PlayerEditState implements CoasterWorldComponent {
 
             changes.handleChangeBefore(this.player, node);
             TrackNodeState startState = node.getState();
+            Vector orientation = orientationFunc.apply(node);
             node.setOrientation(orientation);
             changes.addChangeAfterChangingNode(this.player, node, startState);
 
