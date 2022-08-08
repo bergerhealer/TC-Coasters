@@ -81,6 +81,7 @@ public class TCCoasters extends PluginBase {
     private boolean lightAPIEnabled = DEFAULT_LIGHTAPI_ENABLED;
     private boolean fixLeashGlitch = DEFAULT_LEASH_GLITCH_FIX;
     private boolean lightAPIFound = false;
+    private boolean isDisabled = false;
     private Listener plotSquaredHandler = null;
     private File importFolder, exportFolder;
 
@@ -105,6 +106,9 @@ public class TCCoasters extends PluginBase {
     public CoasterWorld getCoasterWorld(World world) {
         CoasterWorldImpl coasterWorld = this.worlds.get(world);
         if (coasterWorld == null) {
+            if (this.isDisabled) {
+                throw new IllegalStateException("TC-Coasters is disabled");
+            }
             coasterWorld = new CoasterWorldImpl(this, world);
             this.worlds.put(world, coasterWorld);
             coasterWorld.load();
@@ -161,6 +165,9 @@ public class TCCoasters extends PluginBase {
     public synchronized PlayerEditState getEditState(Player player) {
         PlayerEditState state = editStates.get(player);
         if (state == null) {
+            if (isDisabled) {
+                throw new IllegalStateException("TC-Coasters is disabled");
+            }
             state = new PlayerEditState(this, player);
             editStates.put(player, state);
             state.load();
@@ -365,6 +372,9 @@ public class TCCoasters extends PluginBase {
         boolean priority = config.get("priority", false);
         config.save();
 
+        // Might be important if in the future some rogue plugin management plugin re-uses the constructed class or something
+        isDisabled = false;
+
         // Magic! Done early before trains are initialized that need this rails.
         RailType.register(this.coasterRailType, priority);
 
@@ -430,26 +440,34 @@ public class TCCoasters extends PluginBase {
 
     @Override
     public void disable() {
-        this.listener.disable();
-        this.interactionListener.disable();
-        Task.stop(this.worldUpdateTask);
-        Task.stop(this.runQueuedTasksTask);
-        Task.stop(this.updatePlayerEditStatesTask);
-        Task.stop(this.autosaveTask);
+        try {
+            this.listener.disable();
+            this.interactionListener.disable();
+            Task.stop(this.worldUpdateTask);
+            Task.stop(this.runQueuedTasksTask);
+            Task.stop(this.updatePlayerEditStatesTask);
+            Task.stop(this.autosaveTask);
 
-        // Log off all players
-        for (Player player : getPlayersWithEditStates()) {
-            this.logoutPlayer(player);
-        }
+            // Log off all players
+            for (Player player : getPlayersWithEditStates()) {
+                this.logoutPlayer(player);
+            }
 
-        // Unregister ourselves
-        SignActionPower.deinit();
-        registeredSignActions.forEach(SignAction::unregister);
-        RailType.unregister(this.coasterRailType);
+            // Unregister ourselves
+            SignActionPower.deinit();
+            registeredSignActions.forEach(SignAction::unregister);
+            RailType.unregister(this.coasterRailType);
 
-        // Clean up when disabling (save dirty coasters + despawn particles)
-        for (World world : Bukkit.getWorlds()) {
-            unloadWorld(world);
+            // Clean up when disabling (save dirty coasters + despawn particles)
+            for (World world : Bukkit.getWorlds()) {
+                unloadWorld(world);
+            }
+        } finally {
+            // At this point everything is disabled
+            // Guarantee nobody will touch TCC again by explicitly CLEARING all worlds
+            isDisabled = true;
+            worlds.clear();
+            editStates.clear();
         }
     }
 
