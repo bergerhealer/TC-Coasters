@@ -174,7 +174,7 @@ public abstract class HistoryChangeCollection {
         }
         handleEvent(new CoasterBeforeChangeNodeEvent(who, node));
         TrackNodeState old_state = node.getState();
-        TrackNodeState new_state = old_state.changeSigns(new_signs);
+        TrackNodeState new_state = old_state.changeSigns(LogicUtil.cloneAll(new_signs, TrackNodeSign::clone));
         return addChange(new HistoryChangeNode(node.getWorld(), old_state, new_state));
     }
 
