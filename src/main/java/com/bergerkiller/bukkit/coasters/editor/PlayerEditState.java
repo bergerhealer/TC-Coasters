@@ -786,7 +786,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     }
 
     public boolean isHoldingRightClick() {
-        return this.input.hasInput() && this.plugin.getHeldTool(this.player) == PlayerEditTool.MAP;
+        return this.input.hasInput() &&  this.plugin.getHeldTool(this.player).isNodeSelector();
     }
 
     public void update() {

@@ -50,7 +50,7 @@ public class TCCoastersListener implements Listener {
             PlayerEditState state = this.plugin.getEditState(event.getPlayer());
             if (state.getMode() != PlayerEditMode.DISABLED) {
                 // This one is tricky to handle generically
-                if (tool == PlayerEditTool.MAP && isRightClick) {
+                if (tool.isNodeSelector() && isRightClick) {
                     state.setTargetedBlock(event.getClickedBlock(), event.getBlockFace());
                 }
 
@@ -64,7 +64,7 @@ public class TCCoastersListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerSneakChange(PlayerToggleSneakEvent event) {
-        if (this.plugin.getHeldTool(event.getPlayer()) != PlayerEditTool.MAP) {
+        if (!this.plugin.getHeldTool(event.getPlayer()).isNodeSelector()) {
             return;
         }
 

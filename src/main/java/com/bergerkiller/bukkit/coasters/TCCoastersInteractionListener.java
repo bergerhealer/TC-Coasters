@@ -241,7 +241,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
             // When the player is in edit mode, skip this expensive lookup and always fire an interaction with block air
             // Due to a bug we can only do this for 'right click' (interact) actions
             TargetedBlockInfo clickInfo = null;
-            if (this.plugin.getHeldTool(event.getPlayer()) != PlayerEditTool.MAP || !isInteractEvent) {
+            if (!this.plugin.getHeldTool(event.getPlayer()).isNodeSelector() || !isInteractEvent) {
                 clickInfo = TCCoastersUtil.rayTrace(event.getPlayer());
             }
 

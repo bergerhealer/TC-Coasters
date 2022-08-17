@@ -570,7 +570,7 @@ public class TCCoasters extends PluginBase {
 
         ItemStack mainItem = HumanHand.getItemInMainHand(player);
         for (PlayerEditTool tool : PlayerEditTool.values()) {
-            if (tool.isItem(player, mainItem)) {
+            if (tool.isItem(this, player, mainItem)) {
                 return tool;
             }
         }

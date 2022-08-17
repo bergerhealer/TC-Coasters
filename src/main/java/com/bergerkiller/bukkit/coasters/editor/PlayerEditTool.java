@@ -4,9 +4,11 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
+import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
 import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
@@ -16,9 +18,9 @@ import com.bergerkiller.bukkit.common.wrappers.HumanHand;
  */
 public enum PlayerEditTool {
     /** Player is not holding any sort of editor tool */
-    NONE {
+    NONE(false) {
         @Override
-        public boolean isItem(Player player, ItemStack mainItem) {
+        public boolean isItem(TCCoasters plugin, Player player, ItemStack mainItem) {
             return false;
         }
 
@@ -28,9 +30,9 @@ public enum PlayerEditTool {
         }
     },
     /** Player is holding a TC-Coasters editor map */
-    MAP {
+    MAP(true) {
         @Override
-        public boolean isItem(Player player, ItemStack mainItem) {
+        public boolean isItem(TCCoasters plugin, Player player, ItemStack mainItem) {
             if (MapDisplay.getViewedDisplay(player, mainItem) instanceof TCCoastersDisplay) {
                 return true;
             } else if (!ItemUtil.isEmpty(mainItem)) {
@@ -46,11 +48,40 @@ public enum PlayerEditTool {
             return (isLeftClick && state.onLeftClick()) || (isRightClick && state.onRightClick());
         }
     },
-    /** Player is holding a sign item. Used to add signs to nodes. */
-    SIGN {
+    /** Player is holding a TC-Coasters editor stick */
+    STICK(true) {
         @Override
-        public boolean isItem(Player player, ItemStack mainItem) {
-            if (mainItem == null) {
+        public boolean isItem(TCCoasters plugin, Player player, ItemStack mainItem) {
+            if (isStickItem(plugin, mainItem)) {
+                return true;
+            } else if (!ItemUtil.isEmpty(mainItem)) {
+                return false;
+            } else {
+                return isStickItem(plugin, HumanHand.getItemInOffHand(player));
+            }
+        }
+
+        private boolean isStickItem(TCCoasters plugin, ItemStack item) {
+            if (ItemUtil.isEmpty(item)) {
+                return false;
+            } else {
+                CommonTagCompound metadata = ItemUtil.getMetaTag(item, false);
+                return metadata != null &&
+                        metadata.containsKey("editorStick") &&
+                        plugin.getName().equals(metadata.getValue("plugin", String.class));
+            }
+        }
+
+        @Override
+        public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick) {
+            return (isLeftClick && state.onLeftClick()) || (isRightClick && state.onRightClick());
+        }
+    },
+    /** Player is holding a sign item. Used to add signs to nodes. */
+    SIGN(false) {
+        @Override
+        public boolean isItem(TCCoasters plugin, Player player, ItemStack mainItem) {
+            if (ItemUtil.isEmpty(mainItem)) {
                 return false;
             } else if (CommonCapabilities.MATERIAL_ENUM_CHANGES) {
                 // Modern API re-purposes the block sign type.
@@ -77,10 +108,10 @@ public enum PlayerEditTool {
         }
     },
     /** Player is holding a redstone torch item. Used to assign power input channels */
-    TORCH {
+    TORCH(false) {
         @Override
-        public boolean isItem(Player player, ItemStack mainItem) {
-            return mainItem != null && MaterialUtil.ISREDSTONETORCH.get(mainItem.getType());
+        public boolean isItem(TCCoasters plugin, Player player, ItemStack mainItem) {
+            return !ItemUtil.isEmpty(mainItem) && MaterialUtil.ISREDSTONETORCH.get(mainItem.getType());
         }
 
         @Override
@@ -99,12 +130,12 @@ public enum PlayerEditTool {
         }
     },
     /** Player is holding a lever item. Used to assign power output channels */
-    LEVER {
+    LEVER(false) {
         final Material lever_type = MaterialUtil.getFirst("LEVER", "LEGACY_LEVER");
 
         @Override
-        public boolean isItem(Player player, ItemStack mainItem) {
-            return mainItem != null && mainItem.getType() == lever_type;
+        public boolean isItem(TCCoasters plugin, Player player, ItemStack mainItem) {
+            return !ItemUtil.isEmpty(mainItem) && mainItem.getType() == lever_type;
         }
 
         @Override
@@ -123,14 +154,30 @@ public enum PlayerEditTool {
         }
     };
 
+    private final boolean _isNodeSelector;
+
+    private PlayerEditTool(boolean isNodeSelector) {
+        this._isNodeSelector = isNodeSelector;
+    }
+
+    /**
+     * Whether this tool can be used to select and drag nodes/objects
+     *
+     * @return True if this tool type is a node or object selector
+     */
+    public boolean isNodeSelector() {
+        return _isNodeSelector;
+    }
+
     /**
      * Gets whether the given Item held by a Player matches this edit tool type
      *
+     * @param plugin Plugin instance
      * @param player Player
      * @param mainItem Item held in the player's main hand
      * @return True if it matches
      */
-    public abstract boolean isItem(Player player, ItemStack mainItem);
+    public abstract boolean isItem(TCCoasters plugin, Player player, ItemStack mainItem);
 
     /**
      * Called when the player left-or-right-clicks while holding the tool
