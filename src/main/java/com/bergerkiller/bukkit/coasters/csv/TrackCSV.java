@@ -343,7 +343,7 @@ public class TrackCSV {
             buffer.skipNext(1); // Type
             this.pos = buffer.nextVector();
             this.up = buffer.nextVector();
-            if (buffer.hasNext()) {
+            if (buffer.isNextNotEmpty()) {
                 this.rail = buffer.nextIntVector3();
             } else {
                 buffer.skipNext(3);
@@ -463,7 +463,7 @@ public class TrackCSV {
         public void read(StringArrayBuffer buffer) throws SyntaxException {
             buffer.skipNext(1); // Type
             this.pos = buffer.nextVector();
-            if (buffer.hasNext()) {
+            if (buffer.isNextNotEmpty()) {
                 objectsFlipped = buffer.next().equals("FLIPPED");
             }
         }

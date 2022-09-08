@@ -343,13 +343,24 @@ public class StringArrayBuffer implements Iterator<String> {
     }
 
     /**
-     * Checks whether a next String value is available
+     * Checks whether a next String value is available.
+     * If false, all upcoming values are empty strings / unavailable.
      * 
      * @return True if a next String value is available
      */
     @Override
     public boolean hasNext() {
-        return has(this.index);
+        return this.index < this.size;
+    }
+
+    /**
+     * Checks whether the next value is available, and not an empty String
+     *
+     * @return True if a next non-empty value is available
+     * @see #has(int)
+     */
+    public boolean isNextNotEmpty() {
+        return has(index);
     }
 
     /**
