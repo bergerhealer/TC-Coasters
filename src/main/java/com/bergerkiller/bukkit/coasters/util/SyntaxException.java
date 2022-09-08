@@ -25,11 +25,15 @@ public class SyntaxException extends Exception {
     }
 
     public SyntaxException setLine(int line) {
-        return new SyntaxException(line, this.column, this.baseMessage);
+        SyntaxException copy = new SyntaxException(line, this.column, this.baseMessage);
+        copy.setStackTrace(this.getStackTrace());
+        return copy;
     }
 
     public SyntaxException setColumn(int column) {
-        return new SyntaxException(this.line, column, this.baseMessage);
+        SyntaxException copy = new SyntaxException(this.line, column, this.baseMessage);
+        copy.setStackTrace(this.getStackTrace());
+        return copy;
     }
 
     private static String generateMessage(int line, int column, String message) {
