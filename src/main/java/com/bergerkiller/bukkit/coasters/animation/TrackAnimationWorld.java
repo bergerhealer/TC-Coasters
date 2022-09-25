@@ -145,6 +145,11 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
 
         // Compute new position on the new, adjusted tracks
         for (TrackMemberState state : members.values()) {
+            // Skip unloaded/dead members
+            if (state.member.isUnloaded() || state.member.getEntity().isRemoved()) {
+                continue;
+            }
+
             // Compute the points of connections, cache them for if multiple members are on one
             List<RailPath.Point> points = connectionPoints.get(state.connection);
             if (points.isEmpty()) {
@@ -237,6 +242,10 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
     }
 
     private static TrackMemberState computeState(MinecartMember<?> member, TrackConnection connection, List<RailPath.Point> points, double total_len) {
+        if (member.isUnloaded() || member.getEntity().isRemoved()) {
+            return new TrackMemberState(member, connection, 0.0);
+        }
+
         Vector pos = member.getEntity().loc.vector();
         Iterator<RailPath.Point> p_iter = points.iterator();
         RailPath.Point p_prev = p_iter.next();
