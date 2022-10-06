@@ -224,7 +224,7 @@ public class CoasterRailType extends RailType {
                     // Check picked once before, and if so, consider it for picking
                     // Then, use comparator to decide whether it is a better pick than
                     // our previous pick, if we had one.
-                    if (pick.isPickedBefore(serverTickThreshold)) {
+                    if (state.member() != null && pick.isPickedBefore(serverTickThreshold)) {
                         if (preferredLast == null || isBetterSection(pick, preferredLast)) {
                             preferredLast = pick;
                         }
@@ -268,7 +268,7 @@ public class CoasterRailType extends RailType {
                     for (TrackRailsSection pick : rails) {
                         // Check if picked before, if so, we already filtered this earlier
                         // Check if below distance threshold of the preferred one
-                        if (pick.isPickedBefore(serverTickThreshold) || pick.lastDistanceSquared > preferredDistSq) {
+                        if ((state.member() != null && pick.isPickedBefore(serverTickThreshold)) || pick.lastDistanceSquared > preferredDistSq) {
                             continue;
                         }
 
