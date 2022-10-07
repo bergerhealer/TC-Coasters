@@ -19,6 +19,12 @@ public class TCCoastersLocalization extends LocalizationEnum {
     public static final TCCoastersLocalization SIGN_ADD_FAILED = new TCCoastersLocalization("signs.add.failed", ChatColor.RED + "Failed to add sign to this node!");
     public static final TCCoastersLocalization SIGN_ADD_APPEND = new TCCoastersLocalization("signs.add.append", ChatColor.GREEN + "Extra sign added below the sign to extend the lines!");
     public static final TCCoastersLocalization SIGN_ADD_SUCCESS = new TCCoastersLocalization("signs.add.success", ChatColor.GREEN + "Sign has been added to this node!");
+    public static final TCCoastersLocalization SIGN_ADD_MANY_FAILED = new TCCoastersLocalization("signs.addmany.failed", ChatColor.RED + "The sign could not be added to the selected node(s)");
+    public static final TCCoastersLocalization SIGN_ADD_MANY_SUCCESS = new TCCoastersLocalization("signs.addmany.success", ChatColor.GREEN + "Sign added to the selected node(s)");
+    public static final TCCoastersLocalization SIGN_EDIT_MANY_FAILED = new TCCoastersLocalization("signs.editmany.failed", ChatColor.RED + "The sign in the selected node(s) could not be updated");
+    public static final TCCoastersLocalization SIGN_EDIT_MANY_SUCCESS = new TCCoastersLocalization("signs.editmany.success", ChatColor.GREEN + "Updates the sign in the selected node(s)");
+    public static final TCCoastersLocalization SIGN_EDIT_MANY_NOTEXIST = new TCCoastersLocalization("signs.editmany.notexist", ChatColor.RED + "The sign that was edited no longer exists!");
+    public static final TCCoastersLocalization SIGN_EDIT_MANY_NOTCHANGED = new TCCoastersLocalization("signs.editmany.notchanged", ChatColor.YELLOW + "The sign text was not changed!");
     public static final TCCoastersLocalization SIGN_MISSING = new TCCoastersLocalization("signs.missing", ChatColor.RED + "The selected nodes don't have any signs!");
     public static final TCCoastersLocalization SIGN_POWER_FAILED = new TCCoastersLocalization("signs.power.failed", ChatColor.RED + "Failed to update power channels!");
     public static final TCCoastersLocalization SIGN_POWER_ASSIGNED = new TCCoastersLocalization("signs.power.assigned",

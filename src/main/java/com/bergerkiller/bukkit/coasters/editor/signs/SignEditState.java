@@ -417,6 +417,58 @@ public class SignEditState {
         }
     }
 
+    /**
+     * Replaces the sign in all selected nodes matching the sign with a replacement
+     *
+     * @param toReplace Sign whose lines to match and replace
+     * @param sign Sign replacement
+     * @return True if one or more signs were replaced, False if none matched
+     * @throws ChangeCancelledException
+     */
+    public boolean replaceSign(TrackNodeSign toReplace, TrackNodeSign sign) throws ChangeCancelledException {
+        // Deselect nodes we cannot edit
+        editState.deselectLockedNodes();
+
+        boolean hasChanges = false;
+        HistoryChange changes = editState.getHistory().addChangeGroup();
+        for (TrackNode node : editState.getEditedNodes()) {
+            TrackNodeSign[] old_signs = node.getSigns();
+            if (old_signs.length == 0) {
+                continue;
+            }
+
+            TrackNodeSign addedSign = null;
+            TrackNodeSign[] new_signs = node.getSigns().clone();
+            for (int i = 0; i < new_signs.length; i++) {
+                if (new_signs[i].hasSameLines(toReplace)) {
+                    new_signs[i] = addedSign = sign.clone();
+                }
+            }
+            if (addedSign == null) {
+                continue;
+            }
+
+            // Update signs first
+            setSignsForNode(changes, node, new_signs);
+
+            // Fire build event the first time
+            // Handle events/changes/perms
+            if (!hasChanges) {
+                hasChanges = true;
+                if (!addedSign.fireBuildEvent(editState.getPlayer())) {
+                    node.setSigns(old_signs);
+                    throw new ChangeCancelledException();
+                }
+            }
+
+            // Update animations too
+            for (int i = 0; i < new_signs.length; i++) {
+                updateSignInSelectedAnimationStates(node, old_signs[i], new_signs[i]);
+            }
+        }
+        return hasChanges;
+    }
+
     public void addSign(TrackNodeSign sign) throws ChangeCancelledException {
         // Deselect nodes we cannot edit
         editState.deselectLockedNodes();

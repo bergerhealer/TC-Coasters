@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.bukkit.ChatColor;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.commands.annotations.CommandRequiresSelectedNodes;
@@ -14,7 +15,9 @@ import com.bergerkiller.bukkit.coasters.commands.annotations.CommandRequiresTCCP
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
+import com.bergerkiller.bukkit.common.block.SignEditDialog;
 
 import cloud.commandframework.annotations.Argument;
 import cloud.commandframework.annotations.CommandDescription;
@@ -26,25 +29,119 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
+    @CommandMethod("add")
+    @CommandDescription("Shows a sign dialog and puts the inputed text as a sign to the currently selected nodes")
+    public void commandAddWithDialog(
+            final PlayerEditState state,
+            final Player sender
+    ) {
+        new SignEditDialog() {
+            @Override
+            public void onClosed(Player player, String[] lines) {
+                commandAddWithLines(state, player, lines);
+            }
+        }.open(sender);
+    }
+
+    @CommandRequiresTCCPermission
+    @CommandRequiresSelectedNodes
     @CommandMethod("add <lines>")
     @CommandDescription("Adds a new sign to the currently selected nodes")
-    public void commandReset(
+    public void commandAddWithLines(
             final PlayerEditState state,
-            final CommandSender sender,
+            final Player sender,
             final @Argument("lines") String[] lines
     ) {
         if (lines == null || lines.length == 0) {
-            sender.sendMessage(ChatColor.RED + "Please specify at least one line of text");
+            commandAddWithDialog(state, sender);
             return;
         }
 
         TrackNodeSign sign = new TrackNodeSign(lines);
         try {
             state.getSigns().addSign(sign);
-            sender.sendMessage(ChatColor.GREEN + "Sign added to the selected node(s)");
+            TCCoastersLocalization.SIGN_ADD_MANY_SUCCESS.message(sender);
         } catch (ChangeCancelledException e) {
-            sender.sendMessage(ChatColor.RED + "The sign could not be added to the selected nodes");
+            TCCoastersLocalization.SIGN_ADD_MANY_FAILED.message(sender);
         }
+    }
+
+    @CommandRequiresTCCPermission
+    @CommandRequiresSelectedNodes
+    @CommandMethod("edit")
+    @CommandDescription("Shows a sign dialog and replaces the sign text with the inputed text for all signs of the currently selected nodes")
+    public void commandEditWithDialog(
+            final PlayerEditState state,
+            final Player sender
+    ) {
+        final TrackNodeSign toEdit = findSignToEdit(state);
+        if (toEdit != null) {
+            new SignEditDialog() {
+                @Override
+                public void onClosed(Player player, String[] lines) {
+                    commandEditWithLines(state, player, toEdit, lines);
+                }
+            }.open(sender, toEdit.getLines());
+        }
+    }
+
+    @CommandRequiresTCCPermission
+    @CommandRequiresSelectedNodes
+    @CommandMethod("edit <lines>")
+    @CommandDescription("Adds a new sign to the currently selected nodes")
+    public void commandEditWithLines(
+            final PlayerEditState state,
+            final Player sender,
+            final @Argument("lines") String[] lines
+    ) {
+        if (lines == null || lines.length == 0) {
+            commandEditWithDialog(state, sender);
+            return;
+        }
+
+        TrackNodeSign toEdit = findSignToEdit(state);
+        if (toEdit != null) {
+            commandEditWithLines(state, sender, toEdit, lines);
+        }
+    }
+
+    private void commandEditWithLines(
+            final PlayerEditState state,
+            final Player sender,
+            final TrackNodeSign toReplace,
+            final String[] lines
+    ) {
+        TrackNodeSign sign = new TrackNodeSign(lines);
+        if (toReplace.hasSameLines(sign)) {
+            TCCoastersLocalization.SIGN_EDIT_MANY_NOTCHANGED.message(sender);
+            return;
+        }
+        try {
+            if (state.getSigns().replaceSign(toReplace, sign)) {
+                TCCoastersLocalization.SIGN_ADD_MANY_SUCCESS.message(sender);
+            } else {
+                TCCoastersLocalization.SIGN_EDIT_MANY_NOTEXIST.message(sender);
+            }
+        } catch (ChangeCancelledException e) {
+            TCCoastersLocalization.SIGN_ADD_MANY_FAILED.message(sender);
+        }
+    }
+
+    private static TrackNodeSign findSignToEdit(PlayerEditState state) {
+        TrackNode lastEdited = state.getLastEditedNode();
+        TrackNodeSign[] signs;
+        if (lastEdited != null && (signs = lastEdited.getSigns()).length > 0) {
+            return signs[signs.length - 1];
+        }
+
+        for (TrackNode node : state.getEditedNodes()) {
+            if ((signs = node.getSigns()).length > 0) {
+                return signs[signs.length - 1];
+            }
+        }
+
+        TCCoastersLocalization.SIGN_MISSING.message(state.getPlayer());
+        return null;
     }
 
     @CommandRequiresTCCPermission

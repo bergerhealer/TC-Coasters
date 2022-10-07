@@ -112,7 +112,7 @@ public final class TrackNodeState {
 
     public TrackNodeState changeUpdateSign(TrackNodeSign sign, TrackNodeSign new_sign) {
         for (int i = 0; i < this.signs.length; i++) {
-            if (Arrays.equals(this.signs[i].getLines(), sign.getLines())) {
+            if (this.signs[i].hasSameLines(sign)) {
                 TrackNodeSign[] new_signs = this.signs.clone();
                 new_signs[i] = new_sign;
                 return changeSigns(new_signs);

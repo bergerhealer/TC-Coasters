@@ -115,6 +115,16 @@ public class TrackNodeSign implements Cloneable {
     }
 
     /**
+     * Gets whether this sign and another sign have the exact same lines
+     *
+     * @param sign
+     * @return True if they have the same lines
+     */
+    public boolean hasSameLines(TrackNodeSign sign) {
+        return Arrays.equals(this.getLines(), sign.getLines());
+    }
+
+    /**
      * Gets the track node owning this sign, if it was added to a node or an animation
      * state of a node.
      *
