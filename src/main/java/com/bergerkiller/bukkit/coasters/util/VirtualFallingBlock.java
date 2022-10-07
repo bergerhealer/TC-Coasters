@@ -32,7 +32,6 @@ import com.bergerkiller.generated.net.minecraft.world.entity.ambient.EntityBatHa
  */
 public class VirtualFallingBlock {
     private static final double BAT_HOLDER_OFFSET = 0.675;
-    private static final double FALLING_BLOCK_OFFSET = 0.01;
     private static final boolean CAN_DISABLE_GRAVITY = Common.evaluateMCVersion(">=", "1.10.2");
     private static final boolean CAN_GLOW = Common.evaluateMCVersion(">=", "1.9");
     private static final boolean CAN_FIRE_LIT = Common.evaluateMCVersion(">", "1.8");
@@ -175,7 +174,7 @@ public class VirtualFallingBlock {
         packet.setEntityId(this.entityId);
         packet.setEntityUUID(UUID.randomUUID());
         packet.setPosX(this.posX);
-        packet.setPosY(this.posY - FALLING_BLOCK_OFFSET);
+        packet.setPosY(this.posY);
         packet.setPosZ(this.posZ);
         packet.setEntityType(EntityType.FALLING_BLOCK);
         packet.setFallingBlockData(this.material);
