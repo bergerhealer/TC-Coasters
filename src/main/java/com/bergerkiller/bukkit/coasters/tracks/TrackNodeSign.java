@@ -507,7 +507,7 @@ public class TrackNodeSign implements Cloneable {
                 @Override
                 public String[] getExtraLines() {
                     String[] l = lines;
-                    return l.length <= 4 ? StringUtil.EMPTY_ARRAY : Arrays.copyOfRange(l, 4, l.length - 4);
+                    return l.length <= 4 ? StringUtil.EMPTY_ARRAY : Arrays.copyOfRange(l, 4, l.length);
                 }
 
                 @Override
