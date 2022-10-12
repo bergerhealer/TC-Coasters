@@ -384,7 +384,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         if (this._connections[1] == connection) {
             this._connections[1] = this._connections[0];
             this._connections[0] = connection;
-            this.scheduleRefresh();
+            this.scheduleRefreshWithPriority();
             this.markChanged();
             return;
         }
@@ -394,7 +394,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             if (this._connections[i] == connection) {
                 System.arraycopy(this._connections, 0, this._connections, 1, i);
                 this._connections[0] = connection;
-                this.scheduleRefresh();
+                this.scheduleRefreshWithPriority();
                 this.markChanged();
                 return;
             }
@@ -1295,6 +1295,10 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
 
     private void scheduleRefresh() {
         getWorld().getTracks().scheduleNodeRefresh(this);
+    }
+
+    private void scheduleRefreshWithPriority() {
+        getWorld().getTracks().scheduleNodeRefreshWithPriority(this);
     }
 
     // CoasterWorldAccess

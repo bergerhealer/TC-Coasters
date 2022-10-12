@@ -2,7 +2,6 @@ package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -26,14 +25,12 @@ import com.bergerkiller.bukkit.common.utils.LogicUtil;
 public class TrackWorld implements CoasterWorldComponent {
     private final CoasterWorld _world;
     private final List<TrackCoaster> _coasters;
-    private final Set<TrackNode> _changedNodes;
-    private final List<TrackNode> _changedNodesLive;
+    private final NodeUpdateList _changedNodes = new NodeUpdateList();
+    private final NodeUpdateList _changedNodesPriority = new NodeUpdateList();
 
     public TrackWorld(CoasterWorld world) {
         this._world = world;
         this._coasters = new ArrayList<TrackCoaster>();
-        this._changedNodes = new HashSet<TrackNode>();
-        this._changedNodesLive = new ArrayList<TrackNode>();
     }
 
     @Override
@@ -565,6 +562,7 @@ public class TrackWorld implements CoasterWorldComponent {
         }
         this._coasters.clear();
         this._changedNodes.clear();
+        this._changedNodesPriority.clear();
 
         this.getWorld().getRails().clear();
     }
@@ -604,32 +602,29 @@ public class TrackWorld implements CoasterWorldComponent {
      * Called every tick to update any changed nodes
      */
     public void updateAll() {
-        if (!this._changedNodes.isEmpty()) {
-            // For two cycles, add the neighbours of the nodes we have already collected
-            // this is because a node change has a ripple effect that extends two connected nodes down
-            this._changedNodesLive.addAll(this._changedNodes);
-            for (int n = 0; n < 2; n++) {
-                int size = this._changedNodesLive.size();
-                for (int i = 0; i < size; i++) {
-                    TrackNode node = this._changedNodesLive.get(i);
-                    for (TrackConnection conn_a : node._connections) {
-                        TrackNode other = conn_a.getOtherNode(node);
-                        if (this._changedNodes.add(other)) {
-                            this._changedNodesLive.add(other);
-                        }
-                    }
-                }
-                this._changedNodesLive.subList(0, size).clear();
-            }
-            this._changedNodesLive.clear();
+        this._changedNodesPriority.clear(); // At this stage this shouldn't even contain elements
+        runAllUpdates(this._changedNodes);
+    }
 
+    /**
+     * To be called manually, to update all the (adjacent) nodes scheduled using
+     * {@link #scheduleNodeRefreshWithPriority(TrackNode)}
+     */
+    public void updateAllWithPriority() {
+        this._changedNodes.removeAll(this._changedNodesPriority); // No need for these next tick
+        runAllUpdates(this._changedNodesPriority);
+    }
+
+    private void runAllUpdates(NodeUpdateList updates) {
+        Set<TrackNode> nodesToUpdate = updates.getAllNodesToUpdate();
+        if (!nodesToUpdate.isEmpty()) {
             // Connections of changedNodes
-            HashSet<TrackConnection> changedConnections = new HashSet<TrackConnection>(this._changedNodes.size()+1);
+            HashSet<TrackConnection> changedConnections = new HashSet<TrackConnection>(nodesToUpdate.size()+1);
 
             // Remove nodes from the changed list that have been removed
             // This avoids executing logic on removed nodes, or worse, adding to the rails world
             // Refresh all the node's shape and track the connections that also changed
-            for (Iterator<TrackNode> iter = this._changedNodes.iterator(); iter.hasNext(); ) {
+            for (Iterator<TrackNode> iter = nodesToUpdate.iterator(); iter.hasNext(); ) {
                 TrackNode changedNode = iter.next();
                 if (changedNode.isRemoved()) {
                     iter.remove();
@@ -644,14 +639,25 @@ public class TrackWorld implements CoasterWorldComponent {
             }
 
             // Purge all cached rail information for the changed nodes
-            this.getWorld().getRails().purge(this._changedNodes);
+            this.getWorld().getRails().purge(nodesToUpdate);
 
             // Re-create all the cached rail information for the changed nodes
-            for (TrackNode changedNode : this._changedNodes) {
+            for (TrackNode changedNode : nodesToUpdate) {
                 this.getWorld().getRails().store(changedNode);
             }
-            this._changedNodes.clear();
+            updates.clear();
         }
+    }
+
+    /**
+     * Schedules a node for refreshing it's shape and path information in the world right away.
+     * Caller should next call {@link #updateAllWithPriority()}.
+     *
+     * @param node
+     */
+    public void scheduleNodeRefreshWithPriority(TrackNode node) {
+        this._changedNodes.add(node); // Just to make sure this gets handled at all in the future
+        this._changedNodesPriority.add(node);
     }
 
     /**
@@ -736,6 +742,58 @@ public class TrackWorld implements CoasterWorldComponent {
             }
         } else if (node._connections[0] == connection) {
             node._connections = TrackConnection.EMPTY_ARR;
+        }
+    }
+
+    private static final class NodeUpdateList {
+        private final Set<TrackNode> changed = new HashSet<>();
+        private final List<TrackNode> buffer = new ArrayList<>();
+
+        public void add(TrackNode node) {
+            changed.add(node);
+        }
+
+        public void remove(TrackNode node) {
+            changed.remove(node);
+        }
+
+        public void removeAll(NodeUpdateList list) {
+            changed.removeAll(list.changed);
+        }
+
+        public void clear() {
+            changed.clear();
+        }
+
+        public Set<TrackNode> getAllNodesToUpdate() {
+            Set<TrackNode> changed = this.changed;
+            if (!changed.isEmpty()) {
+                addTwoDeepNeighbours(changed, buffer);
+            }
+            return changed;
+        }
+
+        private static void addTwoDeepNeighbours(Set<TrackNode> changed, List<TrackNode> buffer) {
+            // For two cycles, add the neighbours of the nodes we have already collected
+            // this is because a node change has a ripple effect that extends two connected nodes down
+            try {
+                buffer.addAll(changed);
+                for (int n = 0; n < 2; n++) {
+                    int size = buffer.size();
+                    for (int i = 0; i < size; i++) {
+                        TrackNode node = buffer.get(i);
+                        for (TrackConnection conn_a : node._connections) {
+                            TrackNode other = conn_a.getOtherNode(node);
+                            if (changed.add(other)) {
+                                buffer.add(other);
+                            }
+                        }
+                    }
+                    buffer.subList(0, size).clear();
+                }
+            } finally {
+                buffer.clear();
+            }
         }
     }
 }

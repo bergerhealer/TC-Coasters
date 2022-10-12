@@ -129,11 +129,15 @@ public class CoasterRailType extends RailType {
         int toIdx = (to == null) ? -1 : (ParseUtil.parseInt(to.name(), 0) - 1);
         TrackNode node = rails.get(0).node;
         List<TrackConnection> connections = node.getSortedConnections();
-        if (fromIdx >= 0 && fromIdx < connections.size()) {
-            node.switchJunction(connections.get(fromIdx));
-        }
-        if (toIdx >= 0 && toIdx < connections.size()) {
-            node.switchJunction(connections.get(toIdx));
+        try {
+            if (fromIdx >= 0 && fromIdx < connections.size()) {
+                node.switchJunction(connections.get(fromIdx));
+            }
+            if (toIdx >= 0 && toIdx < connections.size()) {
+                node.switchJunction(connections.get(toIdx));
+            }
+        } finally {
+            node.getWorld().getTracks().updateAllWithPriority();
         }
     }
 

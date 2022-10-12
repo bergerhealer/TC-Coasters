@@ -678,7 +678,9 @@ public class PlayerEditState implements CoasterWorldComponent {
 
         // Switch junction when clicking on one
         if (bestJunction != null) {
-            bestNodes.iterator().next().switchJunction(bestJunction);
+            TrackNode node = bestNodes.iterator().next();
+            node.switchJunction(bestJunction);
+            node.getWorld().getTracks().updateAllWithPriority();
             return true;
         }
 
