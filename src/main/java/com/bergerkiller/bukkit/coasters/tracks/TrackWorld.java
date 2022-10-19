@@ -575,12 +575,15 @@ public class TrackWorld implements CoasterWorldComponent {
 
         // List all coasters saved on disk. List both .csv and .csv.tmp coasters.
         HashSet<String> coasterNames = new HashSet<String>();
-        for (File coasterFile : this.getWorld().getConfigFolder().listFiles()) {
-            String name = coasterFile.getName().toLowerCase(Locale.ENGLISH);
-            if (name.endsWith(".csv.tmp")) {
-                coasterNames.add(TCCoasters.unescapeName(name.substring(0, name.length() - 8)));
-            } else if (name.endsWith(".csv")) {
-                coasterNames.add(TCCoasters.unescapeName(name.substring(0, name.length() - 4)));
+        File[] filesInFolder = this.getWorld().getConfigFolder().listFiles();
+        if (filesInFolder != null) {
+            for (File coasterFile : filesInFolder) {
+                String name = coasterFile.getName().toLowerCase(Locale.ENGLISH);
+                if (name.endsWith(".csv.tmp")) {
+                    coasterNames.add(TCCoasters.unescapeName(name.substring(0, name.length() - 8)));
+                } else if (name.endsWith(".csv")) {
+                    coasterNames.add(TCCoasters.unescapeName(name.substring(0, name.length() - 4)));
+                }
             }
         }
 
@@ -710,7 +713,7 @@ public class TrackWorld implements CoasterWorldComponent {
 
                 // Deletes the physical saved files of the coasters
                 String baseName = TCCoasters.escapeName(coaster.getName());
-                File folder = this.getWorld().getConfigFolder();
+                File folder = this.getWorld().getConfigFolder(true);
                 File tmpFile = new File(folder, baseName + ".csv.tmp");
                 File realFile = new File(folder, baseName + ".csv");
                 if (tmpFile.exists()) {

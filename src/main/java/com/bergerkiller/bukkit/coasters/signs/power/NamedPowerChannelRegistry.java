@@ -109,7 +109,7 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
      * at runtime.
      */
     public void loadPulses() {
-        File configFile = getPulsesConfigFile();
+        File configFile = getPulsesConfigFile(false);
         FileConfiguration config = new FileConfiguration(configFile);
         if (config.exists()) {
             config.load();
@@ -144,11 +144,13 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
         abortAllPulses();
 
         // Save to disk
-        File configFile = getPulsesConfigFile();
         if (pendingPulseConfigs.isEmpty()) {
-            configFile.delete(); // Just in case
+            File configFile = getPulsesConfigFile(false);
+            if (configFile.exists()) {
+                configFile.delete(); // Just in case
+            }
         } else {
-            FileConfiguration pulsesConfig = new FileConfiguration(configFile);
+            FileConfiguration pulsesConfig = new FileConfiguration(getPulsesConfigFile(true));
             pulsesConfig.setNodeList("pulses", pendingPulseConfigs);
             pulsesConfig.saveSync();
         }
@@ -164,8 +166,8 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
         }
     }
 
-    private File getPulsesConfigFile() {
-        return new File(this.getWorld().getConfigFolder(), "PendingPowerPulses.yml");
+    private File getPulsesConfigFile(boolean mkdir) {
+        return new File(this.getWorld().getConfigFolder(mkdir), "PendingPowerPulses.yml");
     }
 
     private class SignRegisteredNamedPowerState extends NamedPowerChannel.NamedPowerState {

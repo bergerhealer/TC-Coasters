@@ -35,9 +35,22 @@ public interface CoasterWorld extends CoasterWorldComponent {
      * @return world config folder
      */
     default File getConfigFolder() {
+        return getConfigFolder(false);
+    }
+
+    /**
+     * Gets the folder in which coasters and other world-specific data is saved for this world.
+     * This function also ensures that the folder itself exists.
+     * 
+     * @param mkdir Whether to make the config folder directory structure
+     * @return world config folder
+     */
+    default File getConfigFolder(boolean mkdir) {
         World w = this.getBukkitWorld();
         File f = new File(this.getPlugin().getDataFolder(), w.getName() + "_" + w.getUID());
-        f.mkdirs();
+        if (mkdir) {
+            f.mkdirs();
+        }
         return f;
     }
 
