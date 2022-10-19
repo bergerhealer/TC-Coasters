@@ -66,7 +66,7 @@ public class TCCoastersCommands {
             if (input.isEmpty()) {
                 return Arrays.asList("1", "4", "8");
             } else if (Character.isDigit(input.charAt(0))) {
-                return IntStream.range(0, 10).mapToObj(i -> input + i).toList();
+                return IntStream.range(0, 10).mapToObj(i -> input + i).collect(Collectors.toList());
             } else {
                 return Collections.emptyList();
             }
