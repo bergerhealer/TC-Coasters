@@ -56,14 +56,28 @@ public class PlayerEditHistory extends HistoryChangeCollection {
 
     /**
      * Undoes the last change.
-     * 
-     * @return True if the undo was performed
+     *
+     * @return The change that was un-done, or null if none
      */
-    public boolean undo() {
+    public HistoryChange undo() {
+        return undo(Long.MIN_VALUE);
+    }
+
+    /**
+     * Undoes the last change.
+     *
+     * @param minTimestamp Minimum timestamp, only changes beyond this point are undone
+     * @return The change that was un-done, or null if none
+     */
+    public HistoryChange undo(long minTimestamp) {
         while (!this.history.isEmpty()) {
             HistoryChange change = this.history.removeLast();
             if (change.isNOOP()) {
                 continue;
+            }
+            if (change.getTimestamp() < minTimestamp) {
+                this.history.addLast(change);
+                return null;
             }
             try {
                 change.undo();
@@ -71,17 +85,38 @@ public class PlayerEditHistory extends HistoryChangeCollection {
                 this.player.sendMessage(ChatColor.RED + "Some changes could not be rolled back because the coaster is locked!");
             }
             this.future.add(change);
-            return true;
+            return change;
         }
-        return false;
+        return null;
+    }
+
+    /**
+     * Gets the number of times {@link #undo()} can be called successfully before no more changes
+     * can be undone.
+     *
+     * @return undo count
+     */
+    public int undoCountRemaining() {
+        int count = 0;
+        int limit = 0;
+        for (HistoryChange change : this.history) {
+            if (!change.isNOOP()) {
+                count++;
+            }
+            if (++limit == 1000) {
+                // Abort early. Don't want to iterate thousands of entries here, waste of time.
+                return count + this.history.size() - limit;
+            }
+        }
+        return count;
     }
 
     /**
      * Redoes the last change that has been un-done.
      * 
-     * @return True if the redo was performed
+     * @return The change that was re-done, or null if none
      */
-    public boolean redo() {
+    public HistoryChange redo() {
         while (!this.future.isEmpty()) {
             HistoryChange change = this.future.removeLast();
             if (change.isNOOP()) {
@@ -93,8 +128,18 @@ public class PlayerEditHistory extends HistoryChangeCollection {
                 this.player.sendMessage(ChatColor.RED + "Some changes could not be applied because the coaster is locked!");
             }
             this.history.add(change);
-            return true;
+            return change;
         }
-        return false;
+        return null;
+    }
+
+    /**
+     * Gets the number of times {@link #redo()} can be called successfully before no more changes
+     * can be redone.
+     *
+     * @return redo count
+     */
+    public int redoCountRemaining() {
+        return this.future.size();
     }
 }

@@ -40,6 +40,15 @@ public class TCCoastersLocalization extends LocalizationEnum {
     public static final TCCoastersLocalization INVALID_SIGN_FACE = new TCCoastersLocalization("command.sign.invalidface", ChatColor.RED + "Invalid sign face: %0%");
     public static final TCCoastersLocalization NO_NODES_SELECTED = new TCCoastersLocalization("command.nodes.notselected", ChatColor.RED + "No track nodes are selected!");
 
+    public static final TCCoastersLocalization HISTORY_REMAINING = new TCCoastersLocalization("command.history.remaining", ChatColor.YELLOW + "[ " +
+            ChatColor.GREEN + "%0% undo(s) (%1% ago) remaining" + ChatColor.YELLOW + " / " + ChatColor.BLUE + "%2% redo(s) remaining" + ChatColor.YELLOW + " ]");
+    public static final TCCoastersLocalization UNDO_FAILED = new TCCoastersLocalization("command.undo.failed", ChatColor.RED + "No more changes to undo");
+    public static final TCCoastersLocalization UNDO_SINGLE = new TCCoastersLocalization("command.undo.single", ChatColor.YELLOW + "Your last change from %0% ago has been undone");
+    public static final TCCoastersLocalization UNDO_MANY = new TCCoastersLocalization("command.undo.many", ChatColor.YELLOW + "Your last %0% change(s) from %1% ago have been undone");
+    public static final TCCoastersLocalization REDO_FAILED = new TCCoastersLocalization("command.undo.failed", ChatColor.RED + "No more changes to redo");
+    public static final TCCoastersLocalization REDO_SINGLE = new TCCoastersLocalization("command.redo.single", ChatColor.BLUE + "Re-done your change from %0% ago");
+    public static final TCCoastersLocalization REDO_MANY = new TCCoastersLocalization("command.redo.many", ChatColor.BLUE + "Re-done your last %0% change(s) from %1% ago");
+
     private TCCoastersLocalization(String name, String defValue) {
         super(name, defValue);
     }

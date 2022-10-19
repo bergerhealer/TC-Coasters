@@ -1,8 +1,10 @@
 package com.bergerkiller.bukkit.coasters.commands;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.bukkit.entity.Player;
 
@@ -59,6 +61,17 @@ public class TCCoastersCommands {
         cloud.parse("sign_block_face", p -> new SignBlockFaceParser());
         cloud.parse("time_duration_ticks", p -> new TimeTicksParser());
 
+        // Undo/redo count. Is quiet for the first argument except for a select few.
+        cloud.suggest("history_count", (context, input) -> {
+            if (input.isEmpty()) {
+                return Arrays.asList("1", "4", "8");
+            } else if (Character.isDigit(input.charAt(0))) {
+                return IntStream.range(0, 10).mapToObj(i -> input + i).toList();
+            } else {
+                return Collections.emptyList();
+            }
+        });
+
         // Makes PlayerEditState available as a command argument
         cloud.injector(PlayerEditState.class, (context, annotations) -> {
             if (context.getSender() instanceof Player) {
@@ -89,6 +102,7 @@ public class TCCoastersCommands {
 
         // All commands that use a PlayerEditState (player info)
         cloud.annotations(new EditStateCommands());
+        cloud.annotations(new EditStateHistoryCommands());
         cloud.annotations(new EditStatePositionCommands());
         cloud.annotations(new EditStateOrientationCommands());
         cloud.annotations(new EditStateRailCommands());

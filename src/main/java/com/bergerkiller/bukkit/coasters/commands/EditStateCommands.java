@@ -98,36 +98,6 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("undo")
-    @CommandDescription("Undoes the last action")
-    public void commandUndo(
-            final PlayerEditState state,
-            final CommandSender sender,
-            final TCCoasters plugin
-    ) {
-        if (state.getHistory().undo()) {
-            sender.sendMessage("Your last change has been undone");
-        } else {
-            sender.sendMessage("No more changes to undo");
-        }
-    }
-
-    @CommandRequiresTCCPermission
-    @CommandMethod("redo")
-    @CommandDescription("Redoes the last action that was undone using undo")
-    public void commandRedo(
-            final PlayerEditState state,
-            final CommandSender sender,
-            final TCCoasters plugin
-    ) {
-        if (state.getHistory().redo()) {
-            sender.sendMessage("Redo of previous undo is successful");
-        } else {
-            sender.sendMessage("No more changes to redo");
-        }
-    }
-
-    @CommandRequiresTCCPermission
     @CommandMethod("deselect")
     @CommandDescription("Deselects all nodes currently selected")
     public void commandDeselect(
