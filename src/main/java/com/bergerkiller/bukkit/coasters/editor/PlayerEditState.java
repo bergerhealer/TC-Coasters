@@ -972,7 +972,7 @@ public class PlayerEditState implements CoasterWorldComponent {
             return;
         }
 
-        changes.addChangeBeforeSetRail(this.player, node, null);
+        changes.addChangeBeforeSetRail(this.player, node, new_rail);
         node.setRailBlock(new_rail);
         try {
             changes.handleChangeAfterSetRail(this.player, node, old_rail);
