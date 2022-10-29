@@ -179,6 +179,7 @@ public class TrackCSV {
         public Map<String, TrackObjectType<?>> trackObjectTypesByName = new HashMap<>();
         public List<TrackObject> pendingTrackObjects = new ArrayList<TrackObject>();
         public boolean prevNode_hasDefaultAnimationLinks = true;
+        public TrackNode firstNode = null;
         public TrackNode prevNode = null;
         public String prevNodeAnimName = null;
         public Matrix4x4 transform = null;
@@ -233,6 +234,9 @@ public class TrackCSV {
             }
 
             // Refresh prevNode
+            if (this.firstNode == null) {
+                this.firstNode = node;
+            }
             this.prevNode = node;
             this.prevNodeAnimName = null;
             this.prevNode_hasDefaultAnimationLinks = true;
@@ -286,9 +290,19 @@ public class TrackCSV {
          * Process this entry while reading the file sequentially.
          * The reader csv state should be updated by this entry.
          * 
-         * @param state
+         * @param state State of the reader
          */
         public abstract void processReader(CSVReaderState state);
+
+        /**
+         * Called when this is the last entry read from a reader. Some types
+         * of nodes can perform special logic here, like connecting the first
+         * and last entries together.
+         *
+         * @param state State of the reader
+         */
+        public void processReaderEnd(CSVReaderState state) {
+        }
     }
 
     /**
@@ -934,6 +948,19 @@ public class TrackCSV {
         @Override
         public void processReader(CSVReaderState state) {
             state.addNode(this.toState(), true);
+        }
+
+        @Override
+        public void processReaderEnd(CSVReaderState state) {
+            // Connect first node to the previous node to create a loop, as all NoLimits2
+            // coasters are loops. Only do this if the distance between the nodes is
+            // acceptably low, perhaps it is not a loop? If that is at all possible.
+            if (state.firstNode != null &&
+                state.firstNode != state.prevNode &&
+                state.firstNode.getPosition().distance(state.prevNode.getPosition()) < 8.0
+            ) {
+                state.world.getTracks().connect(state.prevNode, state.firstNode);
+            }
         }
     }
 }

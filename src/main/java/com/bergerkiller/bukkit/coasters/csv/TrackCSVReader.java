@@ -89,6 +89,7 @@ public class TrackCSVReader implements AutoCloseable {
         state.coaster.setLocked(false);
 
         // Read all the entries we can from the CSV reader
+        TrackCSV.CSVEntry lastEntry = null;
         TrackCSV.CSVEntry entry;
         while ((entry = readNextEntry()) != null) {
             // Read the origin of the coaster from the csv
@@ -99,6 +100,12 @@ public class TrackCSVReader implements AutoCloseable {
 
             // Let the entry refresh the reader state
             entry.processReader(state);
+            lastEntry = entry;
+        }
+
+        // Closing logic, like connecting first node with last node
+        if (lastEntry != null) {
+            lastEntry.processReaderEnd(state);
         }
 
         // Go by all created nodes and initialize animation state connections up-front
