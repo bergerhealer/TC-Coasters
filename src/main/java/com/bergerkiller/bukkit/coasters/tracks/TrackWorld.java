@@ -578,7 +578,7 @@ public class TrackWorld implements CoasterWorldComponent {
         File[] filesInFolder = this.getWorld().getConfigFolder().listFiles();
         if (filesInFolder != null) {
             for (File coasterFile : filesInFolder) {
-                String name = coasterFile.getName().toLowerCase(Locale.ENGLISH);
+                String name = coasterFile.getName();
                 if (name.endsWith(".csv.tmp")) {
                     coasterNames.add(TCCoasters.unescapeName(name.substring(0, name.length() - 8)));
                 } else if (name.endsWith(".csv")) {
