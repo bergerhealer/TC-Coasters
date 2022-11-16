@@ -24,7 +24,6 @@ import cloud.commandframework.annotations.CommandPermission;
 @CommandMethod("tccoasters|tcc")
 class GlobalCommands {
 
-    @CommandRequiresTCCPermission
     @CommandMethod("")
     @CommandDescription("Shows help")
     public void commandRootHelp(
@@ -32,8 +31,12 @@ class GlobalCommands {
             final TCCoasters plugin
     ) {
         sender.sendMessage("This command is for TC-Coasters, a TrainCarts add-on");
-        sender.sendMessage("/tcc help - Show help information");
-        sender.sendMessage("/tcc give - Give player the editor map");
+        if (plugin.hasUsePermission(sender)) {
+            sender.sendMessage("/tcc help - Show help information");
+            sender.sendMessage("/tcc give - Give player the editor map");
+        } else {
+            sender.sendMessage(ChatColor.RED + "You do not have permission to use TC-Coasters. Ask an Admin.");
+        }
     }
 
     @CommandRequiresTCCPermission
