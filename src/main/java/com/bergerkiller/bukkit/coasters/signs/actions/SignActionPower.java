@@ -246,7 +246,7 @@ public class SignActionPower extends TCCSignAction {
                             onPostChange(channel.isPowered());
                         }
                     }
-                }.start();
+                }.start(1);
             }
         }
         
