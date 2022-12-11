@@ -23,6 +23,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
+import com.bergerkiller.bukkit.coasters.util.TrailingNewLineTrimmingWriter;
 import com.bergerkiller.mountiplex.reflection.util.UniqueHash;
 import com.opencsv.CSVWriter;
 
@@ -47,7 +48,7 @@ public class TrackCSVWriter implements AutoCloseable {
     }
 
     public TrackCSVWriter(OutputStream outputStream, char separator) {
-        java.io.Writer writer = new java.io.OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
+        java.io.Writer writer = new TrailingNewLineTrimmingWriter(new java.io.OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
         char quotechar = '"';
         char escapechar = '\\';
         String lineEnd = "\r\n";

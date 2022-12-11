@@ -4,7 +4,9 @@ import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
+import java.io.Writer;
 
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
@@ -21,6 +23,7 @@ import com.bergerkiller.bukkit.coasters.csv.TrackCSV.NodeEntry;
 import com.bergerkiller.bukkit.coasters.csv.TrackCSV.RootNodeEntry;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
+import com.bergerkiller.bukkit.coasters.util.TrailingNewLineTrimmingWriter;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.internal.CommonBootstrap;
 
@@ -200,7 +203,60 @@ public class CoasterCSVReaderTest {
         }
     }
 
+    @Test
+    public void testTrailingNewLineTrimming() {
+        testTrailingNewLineTrimming(writer -> {
+            writer.write("hello");
+            writer.write("world");
+            writer.write("\r\n");
+        }, "helloworld");
+
+        testTrailingNewLineTrimming(writer -> {
+            writer.write("hello\r\n");
+            writer.write("world\r\n");
+        }, "hello\r\nworld");
+
+        testTrailingNewLineTrimming(writer -> {
+            writer.write("hello\r\nworld\r\nagain");
+            writer.write("\r\n");
+        }, "hello\r\nworld\r\nagain");
+
+        testTrailingNewLineTrimming(writer -> {
+            writer.write("hello\nworld\nagain");
+            writer.write("\n");
+        }, "hello\nworld\nagain");
+
+        testTrailingNewLineTrimming(writer -> {
+            writer.write("hello");
+            writer.write("\r\n");
+            writer.write("\r\n");
+        }, "hello\r\n");
+
+        testTrailingNewLineTrimming(writer -> {
+            writer.write("hello");
+            writer.write("\n");
+            writer.write("\n");
+        }, "hello\n");
+    }
+
+    private void testTrailingNewLineTrimming(WriterConsumer callback, String expected) {
+        try {
+            StringWriter strWriter = new StringWriter();
+            try (TrailingNewLineTrimmingWriter writer = new TrailingNewLineTrimmingWriter(strWriter)) {
+                callback.accept(writer);
+            }
+            assertEquals(expected, strWriter.toString());
+        } catch (IOException ex) {
+            throw new RuntimeException("Unexpected io exception", ex);
+        }
+    }
+
     private TrackCSVReader openReader(String text) throws UnsupportedEncodingException, IOException {
         return new TrackCSVReader(new ByteArrayInputStream(text.getBytes("UTF-8")));
+    }
+
+    @FunctionalInterface
+    private static interface WriterConsumer {
+        public void accept(Writer writer) throws IOException;
     }
 }
