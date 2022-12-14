@@ -14,8 +14,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.build.number>NO-CI</project.build.number>
         <project.serverversion>1.15.2-R0.1-SNAPSHOT</project.serverversion>
-        <project.bkcversion>1.19-v2</project.bkcversion>
-        <project.tcversion>1.19.2-v1-SNAPSHOT</project.tcversion>
+        <project.bkcversion>1.19.2-v1</project.bkcversion>
+        <project.tcversion>1.19.2-v1</project.tcversion>
         <junit.version>4.12</junit.version>
         <project.preloaderversion>1.6</project.preloaderversion>
         <project.cloud.version>1.8.0-SNAPSHOT</project.cloud.version>
