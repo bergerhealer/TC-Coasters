@@ -54,6 +54,7 @@ import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
+import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
@@ -330,6 +331,27 @@ public class PlayerEditState implements CoasterWorldComponent {
             }
         }
         return bestNode;
+    }
+
+    /**
+     * Finds the track node the player is currently looking at exactly, up to a distance
+     * away. Also checks that the view is unobstructed - there is no solid block in the line
+     * of sight.
+     *
+     * @param maxDistance Maximum distance
+     * @return node looking at
+     */
+    public TrackNode findLookingAtIfUnobstructed(double maxDistance) {
+        Location eyeLocation = getPlayer().getEyeLocation();
+        TrackNode lookingAt = getWorld().getTracks().findNodeLookingAt(
+                eyeLocation, 1.0, maxDistance);
+        if (lookingAt != null) {
+            double distance = lookingAt.getPosition().distance(eyeLocation.toVector());
+            if (WorldUtil.rayTraceBlock(eyeLocation, distance) == null) {
+                return lookingAt;
+            }
+        }
+        return null;
     }
 
     public PlayerEditMode getMode() {
