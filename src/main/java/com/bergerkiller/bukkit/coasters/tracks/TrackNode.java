@@ -390,7 +390,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         }
 
         // Find the connection in the array and shift it to the start of the array
-        for (int i = 0; i < this._connections.length; i++) {
+        for (int i = 2; i < this._connections.length; i++) {
             if (this._connections[i] == connection) {
                 System.arraycopy(this._connections, 0, this._connections, 1, i);
                 this._connections[0] = connection;
