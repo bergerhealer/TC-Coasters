@@ -321,11 +321,10 @@ public class TrackRailsWorld implements CoasterWorldComponent {
 
     private static void removeFromMap(Collection<TrackRailsSection> sections, Collection<TrackNode> nodes, Set<TrackRailsSection> sectionsToReAdd) {
         Iterator<TrackRailsSection> sections_iter = sections.iterator();
-        if (sections.size() == 1) {
-            // Single section (or linked section) is stored
+        while (sections_iter.hasNext()) {
             TrackRailsSection section = sections_iter.next();
             if (!section.containsNode(nodes)) {
-                return;
+                continue;
             }
 
             // Sub-sections that should not be removed, should be re-added later
@@ -339,23 +338,6 @@ public class TrackRailsWorld implements CoasterWorldComponent {
 
             // Remove entry entirely
             sections_iter.remove();
-        } else {
-            // Multiple sections are stored in an ArrayList
-            while (sections_iter.hasNext()) {
-                TrackRailsSection section = sections_iter.next();
-                if (section.containsNode(nodes)) {
-                    // Sub-sections that should not be removed, should be re-added later
-                    if (section instanceof TrackRailsSectionLinked) { // optimization. Can remove.
-                        for (TrackRailsSection part : section.getAllSections()) {
-                            if (!part.containsNode(nodes)) {
-                                sectionsToReAdd.add(part);
-                            }
-                        }
-                    }
-
-                    sections_iter.remove();
-                }
-            }
         }
     }
 
