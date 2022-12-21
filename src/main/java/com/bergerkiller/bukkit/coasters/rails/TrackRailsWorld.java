@@ -284,6 +284,15 @@ public class TrackRailsWorld implements CoasterWorldComponent {
         }
     }
 
+    private void mapSectionToBlock(IntVector3 key, Collection<IntVector3> suppressed, TrackRailsSection section) {
+        if (!suppressed.contains(key) && sectionsByBlock.addSection(key, section)) {
+            section.getNodes().forEach(node -> {
+                tmpNodeBlocks.computeIfAbsent(node, unused -> ObjectCache.newHashSet())
+                        .get().add(key);
+            });
+        }
+    }
+
     private void finishAddingSectionsToMap() {
         // Map all added nodes to the track node
         // We may be adding more than one node, because of merging tracks at the same rails
@@ -307,15 +316,6 @@ public class TrackRailsWorld implements CoasterWorldComponent {
             }
         } finally {
             tmpNodeBlocks.clear();
-        }
-    }
-
-    private void mapSectionToBlock(IntVector3 key, Collection<IntVector3> suppressed, TrackRailsSection section) {
-        if (!suppressed.contains(key) && sectionsByBlock.addSection(key, section)) {
-            section.getNodes().forEach(node -> {
-                tmpNodeBlocks.computeIfAbsent(node, unused -> ObjectCache.newHashSet())
-                        .get().add(key);
-            });
         }
     }
 
