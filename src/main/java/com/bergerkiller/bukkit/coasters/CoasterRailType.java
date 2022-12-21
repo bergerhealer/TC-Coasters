@@ -334,7 +334,7 @@ public class CoasterRailType extends RailType {
     public static final boolean isBetterSection(TrackRailsSection a, TrackRailsSection b) {
         // When similar enough, but one is primary (junction selected), prefer primary
         // This makes sure junction switching works correctly
-        if (a.primary != b.primary && Math.abs(a.lastDistanceSquared - b.lastDistanceSquared) < 1e-3) {
+        if (a.primary != b.primary && Math.abs(a.lastDistanceSquared - b.lastDistanceSquared) < (1e-4 * 1e-4)) {
             return a.primary;
         }
 
