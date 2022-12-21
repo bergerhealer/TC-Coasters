@@ -25,10 +25,8 @@ import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.collections.ObjectCache;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
-import com.google.common.collect.SetMultimap;
 
 /**
  * Tracks the lookup of rails information from block positions on a single world
@@ -36,7 +34,7 @@ import com.google.common.collect.SetMultimap;
 public class TrackRailsWorld implements CoasterWorldComponent {
     private final CoasterWorld _world;
     private final ListMultimap<IntVector3, TrackRailsSection> sectionsByRails = LinkedListMultimap.create(10000);
-    private final SetMultimap<IntVector3, TrackRailsSection> sectionsByBlock = HashMultimap.create(10000, 2);
+    private final TrackRailsSectionsAtPosition.Map sectionsByBlock = new TrackRailsSectionsAtPosition.Map();
     private final Map<TrackNode, TrackNodeMeta> trackNodeMeta = new IdentityHashMap<>();
     private final Map<TrackNode, ObjectCache.Entry<Set<IntVector3>>> tmpNodeBlocks = new IdentityHashMap<>();
 
@@ -55,8 +53,8 @@ public class TrackRailsWorld implements CoasterWorldComponent {
         this.trackNodeMeta.clear();
     }
 
-    public Collection<TrackRailsSection> findAtBlock(Block block) {
-        return sectionsByBlock.get(new IntVector3(block));
+    public TrackRailsSectionsAtPosition findAtBlock(Block block) {
+        return sectionsByBlock.getOrDefault(new IntVector3(block), TrackRailsSectionsAtPosition.NONE);
     }
 
     public List<TrackRailsSection> findAtRails(Block railsBlock) {
@@ -112,7 +110,7 @@ public class TrackRailsWorld implements CoasterWorldComponent {
                 removeFromMap(sectionsByRails.get(railBlock), nodes, sectionsToReAdd.get());
             }
             for (IntVector3 posBlock : addedTrackBlocks.get()) {
-                removeFromMap(sectionsByBlock.get(posBlock), nodes, sectionsToReAdd.get());
+                removeFromMap(sectionsByBlock.getSections(posBlock), nodes, sectionsToReAdd.get());
             }
 
             // Re-add sections that were merged
@@ -230,7 +228,7 @@ public class TrackRailsWorld implements CoasterWorldComponent {
                             TrackNodeMeta meta = trackNodeMeta.get(mergedSection.node);
                             if (meta != null) {
                                 for (IntVector3 posBlock : meta.blocks) {
-                                    sectionsByBlock.get(posBlock).remove(mergedSection);
+                                    sectionsByBlock.removeSection(posBlock, mergedSection);
                                 }
                             }
                         }
@@ -313,7 +311,7 @@ public class TrackRailsWorld implements CoasterWorldComponent {
     }
 
     private void mapSectionToBlock(IntVector3 key, Collection<IntVector3> suppressed, TrackRailsSection section) {
-        if (!suppressed.contains(key) && sectionsByBlock.get(key).add(section)) {
+        if (!suppressed.contains(key) && sectionsByBlock.addSection(key, section)) {
             section.getNodes().forEach(node -> {
                 tmpNodeBlocks.computeIfAbsent(node, unused -> ObjectCache.newHashSet())
                         .get().add(key);
@@ -360,69 +358,6 @@ public class TrackRailsWorld implements CoasterWorldComponent {
             }
         }
     }
-
-    /*
-    private void addToSectionsByBlock(BlockRelativePosition position, TrackRailsSection section) {
-        int min_x = position.block_x;
-        int max_x = position.block_x;
-        int min_y = position.block_y;
-        int max_y = position.block_y;
-        int min_z = position.block_z;
-        int max_z = position.block_z;
-        final double c = 1e-8;
-        if (position.x < c) {
-            min_x--;
-        } else if (position.x > (1.0 - c)) {
-            max_x++;
-        }
-        if (position.y < c) {
-            min_y--;
-        } else if (position.y > (1.0 - c)) {
-            max_y++;
-        }
-        if (position.z < c) {
-            min_z--;
-        } else if (position.z > (1.0 - c)) {
-            max_z++;
-        }
-        for (int bx = min_x; bx <= max_x; bx++) {
-            for (int by = min_y; by <= max_y; by++) {
-                for (int bz = min_z; bz <= max_z; bz++) {
-                    addToMap(sectionsByBlock, new IntVector3(bx, by, bz), section);
-                }
-            }
-        }
-    }
-    */
-
-    /*
-    public void store(TrackRailsSection section) {
-        this.sectionsByRails.put(section.rails, section);
-
-        // For all segments of the path, store the block positions being covered in the lookup table
-        for (RailPath.Segment segment : section.path.getSegments()) {
-            double x = section.rails.x + segment.p0.x;
-            double y = section.rails.y + segment.p0.y;
-            double z = section.rails.z + segment.p0.z;
-            int numSteps = MathUtil.ceil(segment.l / 0.1);
-            if (numSteps <= 0) {
-                continue;
-            }
-
-            if (numSteps == 1) {
-                sectionsByBlock.put(new IntVector3(x, y, z), section);
-            } else {
-                for (int i = 0; i < numSteps; i++) {
-                    double m = (double) i / (double) (numSteps - 1);
-                    IntVector3 pos = new IntVector3(x + m * segment.dt.x,
-                                                    y + m * segment.dt.y,
-                                                    z + m * segment.dt.z);
-                    sectionsByBlock.put(pos, section);
-                }
-            }
-        }
-    }
-    */
 
     /**
      * Stores metadata for a track node, used when purging data for nodes

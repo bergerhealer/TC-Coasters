@@ -1,7 +1,6 @@
 package com.bergerkiller.bukkit.coasters;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -19,6 +18,7 @@ import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
+import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
@@ -60,13 +60,13 @@ public class CoasterRailType extends RailType {
 
     @Override
     public List<Block> findRails(Block pos) {
-        Collection<TrackRailsSection> rails = getRails(pos.getWorld()).findAtBlock(pos);
+        List<IntVector3> rails = getRails(pos.getWorld()).findAtBlock(pos).rails();
         if (rails.isEmpty()) {
             return Collections.emptyList();
         } else {
             ArrayList<Block> railsBlocks = new ArrayList<Block>(rails.size());
-            for (TrackRailsSection rail : rails) {
-                railsBlocks.add(BlockUtil.getBlock(pos.getWorld(), rail.rails));
+            for (IntVector3 rail : rails) {
+                railsBlocks.add(BlockUtil.getBlock(pos.getWorld(), rail));
             }
             return railsBlocks;
         }
