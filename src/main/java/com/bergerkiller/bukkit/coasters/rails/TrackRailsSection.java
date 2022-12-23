@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.bukkit.Location;
@@ -84,13 +85,6 @@ public abstract class TrackRailsSection implements TrackRailsSectionsAtRail {
      */
     public abstract List<TrackRailsSectionSingleNode> getSingleNodeSections();
 
-    /**
-     * Gets the CoasterWorld this section of rails is on
-     *
-     * @return coaster world
-     */
-    public abstract CoasterWorld getWorld();
-
     public abstract BlockFace getMovementDirection();
 
     public double distanceSq(Vector railPosition) {
@@ -104,20 +98,35 @@ public abstract class TrackRailsSection implements TrackRailsSectionsAtRail {
                                         railPosition.getX(), railPosition.getY(), railPosition.getZ());
     }
 
+    //TODO: Migrate to traincarts RailPath
+    protected Vector findAbsoluteSectionPos(Function<RailPath, RailPath.Position> posFunc, Vector fallbackPos) {
+        if (path.isEmpty()) {
+            return fallbackPos;
+        } else {
+            RailPath.Position pos = posFunc.apply(path);
+            if (pos.relative) {
+                return new Vector(rails.x + pos.posX, rails.y + pos.posY, rails.z + pos.posZ);
+            } else {
+                return new Vector(pos.posX, pos.posY, pos.posZ);
+            }
+        }
+    }
+
     /**
      * Marks this particular path section as having been used by a particular member.
      * Future logic checks will prefer this section over other ones if they match
      * equally.
      *
+     * @param world CoasterWorld this rails section is at
      * @param member
      */
-    public void setPickedByMember(MinecartMember<?> member) {
+    public void setPickedByMember(CoasterWorld world, MinecartMember<?> member) {
         LastPickedInfo info = findLastPickedInfo(member);
         if (info == null) {
             info = new LastPickedInfo(member);
             if (lastPicked.isEmpty()) {
                 lastPicked = new ArrayList<>(4);
-                getWorld().getRails().lastPickedSections.add(this); // Background cleanup
+                world.getRails().lastPickedSections.add(this); // Background cleanup
             }
             lastPicked.add(info);
         } else {

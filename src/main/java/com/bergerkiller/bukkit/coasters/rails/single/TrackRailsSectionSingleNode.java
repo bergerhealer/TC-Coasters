@@ -17,7 +17,6 @@ import com.bergerkiller.bukkit.coasters.rails.TrackRailsSectionsAtRail;
 import com.bergerkiller.bukkit.coasters.rails.multiple.TrackRailsSectionMultipleLinked;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.util.RailSectionBlockIterator;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
@@ -39,11 +38,6 @@ public abstract class TrackRailsSectionSingleNode extends TrackRailsSection impl
     @Override
     public TrackNode node() {
         return node;
-    }
-
-    @Override
-    public CoasterWorld getWorld() {
-        return node.getWorld();
     }
 
     @Override
@@ -104,17 +98,17 @@ public abstract class TrackRailsSectionSingleNode extends TrackRailsSection impl
         if (numSections > 0) { // Probably not needed
             if (this.connectsWithNode(sectionChain.get(0).node)) {
                 // Append to start
-                ArrayList<TrackRailsSingleNodeElement> newSections = new ArrayList<>(numSections + 1);
+                ArrayList<TrackRailsSectionSingleNode> newSections = new ArrayList<>(numSections + 1);
                 newSections.add(this);
                 newSections.addAll(sectionChain);
-                return new TrackRailsSectionMultipleLinked(rails, sectionChain, primary);
+                return new TrackRailsSectionMultipleLinked(rails, newSections, primary);
             } else if (this.connectsWithNode(sectionChain.get(numSections - 1).node)) {
                 // Append to end
-                ArrayList<TrackRailsSingleNodeElement> newSections = new ArrayList<>(numSections + 1);
+                ArrayList<TrackRailsSectionSingleNode> newSections = new ArrayList<>(numSections + 1);
                 newSections.addAll(sectionChain);
                 newSections.add(this);
-                return new TrackRailsSectionMultipleLinked(rails, sectionChain, primary);
-            }   
+                return new TrackRailsSectionMultipleLinked(rails, newSections, primary);
+            }
         }
 
         return null;
@@ -161,8 +155,8 @@ public abstract class TrackRailsSectionSingleNode extends TrackRailsSection impl
 
     protected void writeDebugString(StringBuilder builder, String name, String linePrefix) {
         Vector pos = node.getPosition();
-        Vector p0 = path.getStartPosition().toLocation(rails.toBlock(node.getBukkitWorld())).toVector();
-        Vector p1 = path.getEndPosition().toLocation(rails.toBlock(node.getBukkitWorld())).toVector();
+        Vector p0 = findAbsoluteSectionPos(RailPath::getStartPosition, pos);
+        Vector p1 = findAbsoluteSectionPos(RailPath::getEndPosition, pos);
 
         builder.append(linePrefix);
         if (!primary) {

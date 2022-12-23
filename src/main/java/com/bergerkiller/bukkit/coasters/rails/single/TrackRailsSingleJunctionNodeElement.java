@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.rails.single;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -101,7 +102,7 @@ public class TrackRailsSingleJunctionNodeElement implements TrackRailsSingleNode
             for (TrackNode neighbour : node.getNeighbours()) {
                 if (section.node() == neighbour) {
                     TrackRailsSectionMultipleJunction multipleJunc = new TrackRailsSectionMultipleJunction(this);
-                    return multipleJunc.merge(section);
+                    return multipleJunc.merge(Collections.singletonList(section));
                 }
             }
         } else {

@@ -18,6 +18,7 @@ import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
@@ -194,7 +195,8 @@ public class CoasterRailType extends RailType {
 
     @Override
     public RailLogic getLogic(RailState state) {
-        final List<? extends TrackRailsSection> rails = getRailSections(state.railBlock());
+        final CoasterWorld world = this.plugin.getCoasterWorld(state.railWorld());
+        final List<? extends TrackRailsSection> rails = world.getRails().findAtRails(state.railBlock());
 
         // This iterator is only used once, eliminating need to use size()
         final Iterator<? extends TrackRailsSection> railsIter = rails.iterator();
@@ -290,7 +292,7 @@ public class CoasterRailType extends RailType {
             }
         }
 
-        return new CoasterRailLogic(section);
+        return new CoasterRailLogic(world, section);
     }
 
     @Override

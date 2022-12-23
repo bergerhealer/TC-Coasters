@@ -17,7 +17,6 @@ import com.bergerkiller.bukkit.coasters.rails.TrackRailsSectionsAtRail;
 import com.bergerkiller.bukkit.coasters.rails.single.TrackRailsSingleNodeElement;
 import com.bergerkiller.bukkit.coasters.rails.single.TrackRailsSectionSingleNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
-import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.Util;
@@ -44,11 +43,6 @@ public class TrackRailsSectionMultipleLinked extends TrackRailsSection implement
     @Override
     public Stream<TrackNode> getNodes() {
         return this.sections.stream().map(TrackRailsSectionSingleNode::node);
-    }
-
-    @Override
-    public CoasterWorld getWorld() {
-        return sections.get(0).getWorld();
     }
 
     @Override
@@ -230,8 +224,8 @@ public class TrackRailsSectionMultipleLinked extends TrackRailsSection implement
 
     @Override
     public void writeDebugString(StringBuilder builder, String linePrefix) {
-        Vector p0 = path.getStartPosition().toLocation(rails.toBlock(sections.get(0).node().getBukkitWorld())).toVector();
-        Vector p1 = path.getEndPosition().toLocation(rails.toBlock(sections.get(0).node().getBukkitWorld())).toVector();
+        Vector p0 = findAbsoluteSectionPos(RailPath::getStartPosition, sections.get(0).node().getPosition());
+        Vector p1 = findAbsoluteSectionPos(RailPath::getEndPosition, sections.get(0).node().getPosition());
 
         builder.append(linePrefix);
         if (!primary) {
