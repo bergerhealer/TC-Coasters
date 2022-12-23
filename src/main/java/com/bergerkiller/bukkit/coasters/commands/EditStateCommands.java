@@ -31,7 +31,6 @@ import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.common.wrappers.ChatText;
-import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 
 import cloud.commandframework.annotations.Argument;
 import cloud.commandframework.annotations.CommandDescription;
@@ -503,23 +502,6 @@ class EditStateCommands {
             sender.sendMessage(ChatColor.YELLOW + "Right-click drag menu control is now " + ChatColor.GREEN + "ENABLED");
         } else {
             sender.sendMessage(ChatColor.YELLOW + "Right-click drag menu control is now " + ChatColor.RED + "DISABLED");
-        }
-    }
-
-    @CommandRequiresTCCPermission
-    @CommandMethod("debug path")
-    @CommandDescription("Logs the path segments of the selected nodes to system log")
-    public void commandDebugPath(
-            final PlayerEditState state,
-            final CommandSender sender,
-            final TCCoasters plugin
-    ) {
-        sender.sendMessage("Logging paths of all selected nodes");
-        for (TrackNode node : state.getEditedNodes()) {
-            plugin.log(Level.INFO, "Path for: " + node.getPosition());
-            for (RailPath.Point point : node.buildPath().getPoints()) {
-                plugin.log(Level.INFO, "  - " + point);
-            }
         }
     }
 }

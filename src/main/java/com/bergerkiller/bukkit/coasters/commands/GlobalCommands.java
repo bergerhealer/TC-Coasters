@@ -107,17 +107,6 @@ class GlobalCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("build")
-    @CommandDescription("Rebuilds the track data, might sometimes fix things")
-    public void commandBuild(
-            final CommandSender sender,
-            final TCCoasters plugin
-    ) {
-        sender.sendMessage("Rebuilding tracks");
-        plugin.buildAll();
-    }
-
-    @CommandRequiresTCCPermission
     @CommandMethod("smoothness")
     @CommandDescription("Gets the track smoothness value")
     public void commandGetSmoothness(

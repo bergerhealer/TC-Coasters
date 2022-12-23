@@ -359,6 +359,70 @@ public class PlayerEditState implements CoasterWorldComponent {
         return null;
     }
 
+    /**
+     * Checks whether player is looking to find any rail blocks of nodes in the general
+     * position.
+     *
+     * @return LookingAtRailInfo for the rail block the player is looking at, or null
+     *         if the player isn't looking at any rails.
+     */
+    public LookingAtRailInfo findLookingAtRailBlock() {
+        return findLookingAtRailBlock(false);
+    }
+
+    /**
+     * Checks whether player is looking to find any rail blocks of nodes in the general
+     * position.
+     *
+     * @param ignoreDefaultRailBlocks Whether to ignore rail blocks of nodes that are
+     *        set to the default (reset)
+     * @return LookingAtRailInfo for the rail block the player is looking at, or null
+     *         if the player isn't looking at any rails.
+     */
+    public LookingAtRailInfo findLookingAtRailBlock(boolean ignoreDefaultRailBlocks) {
+        // Create an inverted camera transformation of the player's view direction
+        Matrix4x4 cameraTransform = new Matrix4x4();
+        cameraTransform.translateRotate(this.player.getEyeLocation());
+        cameraTransform.invert();
+
+        return findLookingAtRailBlockWithCamera(cameraTransform, ignoreDefaultRailBlocks);
+    }
+
+    /**
+     * Checks whether player is looking to find any rail blocks of nodes in the general
+     * position.
+     *
+     * @param invertedCameraTransform Inverted camera transform
+     * @param ignoreDefaultRailBlocks Whether to ignore rail blocks of nodes that are
+     *        set to the default (reset)
+     * @return LookingAtRailInfo for the rail block the player is looking at, or null
+     *         if the player isn't looking at any rails.
+     */
+    private LookingAtRailInfo findLookingAtRailBlockWithCamera(Matrix4x4 invertedCameraTransform, boolean ignoreDefaultRailBlocks) {
+        // Try to find any nodes that have a rail block where the player looks
+        double bestDistance = Double.MAX_VALUE; // getRailBlockViewDistance already limits
+        IntVector3 bestRail = null;
+        List<TrackNode> bestNodes = new ArrayList<>(5);
+        for (TrackCoaster coaster : getWorld().getTracks().getCoasters()) {
+            for (TrackNode node : coaster.getNodes()) {
+                if (!ignoreDefaultRailBlocks || node.getRailBlock(false) != null) {
+                    double distance = node.getRailBlockViewDistance(invertedCameraTransform);
+                    if (distance <= bestDistance && distance != Double.MAX_VALUE) {
+                        // Multi-select the nodes when they match the same rail block
+                        if (distance < bestDistance) {
+                            bestNodes.clear();
+                            bestRail = node.getRailBlock(true);
+                        }
+                        bestNodes.add(node);
+                        bestDistance = distance;
+                    }
+                }
+            }
+        }
+
+        return bestRail == null ? null : new LookingAtRailInfo(bestRail, bestNodes, bestDistance);
+    }
+
     public PlayerEditMode getMode() {
         return this.editMode;
     }
@@ -637,31 +701,20 @@ public class PlayerEditState implements CoasterWorldComponent {
         // The transformed point is a projective view of the Minecart in the player's vision
         // X/Y is left-right/up-down and Z is depth after the transformation is applied
         Set<TrackNode> bestNodes = new HashSet<TrackNode>();
-        TrackConnection bestJunction = null;
         double bestDistance = Double.MAX_VALUE;
 
         // When in rail mode, look up using the rail block of the nodes as well
         // Ignore nodes that don't have a rail block set
         if (this.getMode() == PlayerEditMode.RAILS) {
-            for (TrackCoaster coaster : getWorld().getTracks().getCoasters()) {
-                for (TrackNode node : coaster.getNodes()) {
-                    if (node.getRailBlock(false) != null) {
-                        double distance = node.getRailBlockViewDistance(cameraTransform);
-                        if (distance <= bestDistance && distance != Double.MAX_VALUE) {
-                            // Multi-select the nodes when they match the same rail block
-                            if (distance < bestDistance) {
-                                bestNodes.clear();
-                            }
-                            bestNodes.add(node);
-                            bestDistance = distance;
-                            bestJunction = null;
-                        }
-                    }
-                }
+            LookingAtRailInfo info = findLookingAtRailBlockWithCamera(cameraTransform, true);
+            if (info != null) {
+                bestNodes.addAll(info.nodes);
+                bestDistance = info.distance;
             }
         }
 
         // Clicking on a node, or a junction floating block particle
+        TrackConnection bestJunction = null;
         for (TrackCoaster coaster : getWorld().getTracks().getCoasters()) {
             for (TrackNode node : coaster.getNodes()) {
                 // Node itself
@@ -1688,5 +1741,22 @@ public class PlayerEditState implements CoasterWorldComponent {
      */
     private void removeConnectionForAnimationStates(TrackNode node, TrackNodeReference target) {
         node.removeAnimationStateConnection(this.selectedAnimation, target);
+    }
+
+    /**
+     * Result of the looking-at-rail block information. Stores the rail block coordinates
+     * the player is looking at, the distance to it and the nodes that use this
+     * rail block.
+     */
+    public static final class LookingAtRailInfo {
+        public final IntVector3 rail;
+        public final List<TrackNode> nodes;
+        public final double distance;
+
+        public LookingAtRailInfo(IntVector3 rail, List<TrackNode> nodes, double distance) {
+            this.rail = rail;
+            this.nodes = nodes;
+            this.distance = distance;
+        }
     }
 }
