@@ -144,6 +144,11 @@ public class PlayerEditState implements CoasterWorldComponent {
                                 for (TrackNodeAnimationState animation : node.getAnimationStates()) {
                                     this.editedNodesByAnimationName.put(animation.name, node);
                                 }
+
+                                TrackNode zeroDistNeighbour = node.getZeroDistanceNeighbour();
+                                if (zeroDistNeighbour != null) {
+                                    this.editedNodes.put(zeroDistNeighbour, new PlayerEditNode(zeroDistNeighbour));
+                                }
                             }
                         } catch (NumberFormatException ex) {}
                     }
