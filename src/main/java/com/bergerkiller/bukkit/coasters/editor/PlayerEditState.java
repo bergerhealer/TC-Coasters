@@ -1401,6 +1401,7 @@ public class PlayerEditState implements CoasterWorldComponent {
 
             // Create another node at the same position as this node
             TrackNode newNode = this.getWorld().getTracks().addNode(node, node.getPosition().clone());
+            newNode.setRailBlock(node.getRailBlock(false));
 
             // Create new nodes at the same position as the node, for every neighbour
             nodeChanges.addChangeCreateNode(this.player, newNode);
