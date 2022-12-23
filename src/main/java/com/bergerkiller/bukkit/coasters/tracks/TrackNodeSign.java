@@ -456,7 +456,7 @@ public class TrackNodeSign implements Cloneable {
         }
 
         TrackedFakeSign cached = cachedFakeSign;
-        if (cached == null || !cached.rail.isSameBlock(rail)) {
+        if (cached == null || !cached.getRail().isSameBlock(rail)) {
             cachedFakeSign = cached = new TrackedFakeSign(rail) {
                 @Override
                 public String getLine(int index) throws IndexOutOfBoundsException {
@@ -479,7 +479,7 @@ public class TrackNodeSign implements Cloneable {
                 public boolean verify() {
                     return cachedFakeSign == this &&
                            !node.isRemoved() &&
-                           rail.blockPosition().equals(node.getRailBlock(true));
+                           getRail().blockPosition().equals(node.getRailBlock(true));
                 }
 
                 @Override
@@ -494,7 +494,7 @@ public class TrackNodeSign implements Cloneable {
 
                 @Override
                 public Block getAttachedBlock() {
-                    return this.rail.block();
+                    return this.getRail().block();
                 }
 
                 @Override

@@ -3,8 +3,6 @@ package com.bergerkiller.bukkit.coasters.commands;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
-import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
-import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
 import com.bergerkiller.bukkit.coasters.commands.annotations.CommandRequiresTCCPermission;
 import com.bergerkiller.bukkit.coasters.commands.arguments.CommandInputPowerState;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;

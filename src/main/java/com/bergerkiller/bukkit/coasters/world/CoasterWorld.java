@@ -10,6 +10,7 @@ import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannelRegistry;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
+import com.bergerkiller.bukkit.common.offline.OfflineWorld;
 
 /**
  * Everything from TC Coasters that is accessible for a single World
@@ -27,6 +28,9 @@ public interface CoasterWorld extends CoasterWorldComponent {
 
     @Override
     World getBukkitWorld();
+
+    @Override
+    OfflineWorld getOfflineWorld();
 
     /**
      * Gets the folder in which coasters and other world-specific data is saved for this world.

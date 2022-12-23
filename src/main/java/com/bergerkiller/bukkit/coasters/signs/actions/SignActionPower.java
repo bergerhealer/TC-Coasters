@@ -10,7 +10,6 @@ import org.bukkit.Location;
 import org.bukkit.block.Block;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
-import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
 import com.bergerkiller.bukkit.coasters.commands.parsers.TimeTicksParser;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;

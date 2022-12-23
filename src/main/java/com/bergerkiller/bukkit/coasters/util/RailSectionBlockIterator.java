@@ -21,9 +21,9 @@ public class RailSectionBlockIterator {
     private double remaining;
 
     public RailSectionBlockIterator(RailPath.Segment segment, IntVector3 rails) {
-        this.dx = segment.dt_norm.x;
-        this.dy = segment.dt_norm.y;
-        this.dz = segment.dt_norm.z;
+        this.dx = segment.mot.getX();
+        this.dy = segment.mot.getY();
+        this.dz = segment.mot.getZ();
         this.px = rails.x + segment.p0.x;
         this.py = rails.y + segment.p0.y;
         this.pz = rails.z + segment.p0.z;

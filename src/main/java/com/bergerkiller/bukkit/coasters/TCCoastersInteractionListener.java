@@ -16,7 +16,6 @@ import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil.TargetedBlockInfo;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
-import com.bergerkiller.bukkit.coasters.editor.PlayerEditTool;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.events.PacketReceiveEvent;

@@ -11,6 +11,7 @@ import com.bergerkiller.bukkit.coasters.particles.TrackParticleWorld;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannelRegistry;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
+import com.bergerkiller.bukkit.common.offline.OfflineWorld;
 
 /**
  * Stores all coaster information of a single World
@@ -18,6 +19,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 public class CoasterWorldImpl implements CoasterWorld {
     private final TCCoasters _plugin;
     private final World _world;
+    private final OfflineWorld _offlineWorld;
     private final TrackWorld _tracks;
     private final TrackParticleWorld _particles;
     private final TrackRailsWorld _rails;
@@ -28,6 +30,7 @@ public class CoasterWorldImpl implements CoasterWorld {
     public CoasterWorldImpl(TCCoasters plugin, World world) {
         this._plugin = plugin;
         this._world = world;
+        this._offlineWorld = OfflineWorld.of(world);
         this._tracks = new TrackWorld(this);
         this._particles = new TrackParticleWorld(this);
         this._rails = new TrackRailsWorld(this);
@@ -44,6 +47,11 @@ public class CoasterWorldImpl implements CoasterWorld {
     @Override
     public World getBukkitWorld() {
         return this._world;
+    }
+
+    @Override
+    public OfflineWorld getOfflineWorld() {
+        return this._offlineWorld;
     }
 
     @Override
