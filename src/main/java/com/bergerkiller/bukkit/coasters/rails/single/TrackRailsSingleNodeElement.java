@@ -34,7 +34,7 @@ public interface TrackRailsSingleNodeElement extends TrackRailsSectionsAtRail {
      * Creates the single-node rail element for a node
      *
      * @param node Node
-     * @return rails node elemnt for the node. Returns null if the node is
+     * @return rails element for the node. Returns null if the node is
      *         free-standing and has no effect on trains/the world.
      */
     public static TrackRailsSingleNodeElement create(TrackNode node) {

@@ -231,7 +231,7 @@ public class TrackRailsSectionMultipleLinked extends TrackRailsSection implement
         TrackRailsSection first = sections_it.next();
         TrackRailsSection second = sections_it.next();
         if (first == null) {
-            return (second == null) ? RailPath.EMPTY : second.path;
+            return RailPath.EMPTY;
         } else if (second == null) {
             return first.path;
         }
