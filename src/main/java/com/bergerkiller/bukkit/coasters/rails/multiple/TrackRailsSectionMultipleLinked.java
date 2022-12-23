@@ -223,114 +223,9 @@ public class TrackRailsSectionMultipleLinked extends TrackRailsSection implement
     }
 
     private static RailPath combineRailPaths(List<? extends TrackRailsSection> sections) {
-        RailPath.Builder builder = new RailPath.Builder();
-        NonEmptyPathIterator sections_it = new NonEmptyPathIterator(sections);
-
-        // We need at least two non-empty path sections to do any combining
-        // It might be some are empty because of straightened nodes
-        TrackRailsSection first = sections_it.next();
-        TrackRailsSection second = sections_it.next();
-        if (first == null) {
-            return RailPath.EMPTY;
-        } else if (second == null) {
-            return first.path;
-        }
-
-        // For first section, compare with the sections that follow to find curr_point
-        RailPath.Point[] first_points = first.path.getPoints();
-        RailPath.Point[] second_points = second.path.getPoints();
-
-        boolean first_reversed, second_reversed;
-
-        // Use these to find the rail path point order
-        double dist_sq_first_first = getDistSq(first_points[0], second_points[0]);
-        double dist_sq_first_last = getDistSq(first_points[0], second_points[second_points.length-1]);
-        double dist_sq_last_first = getDistSq(first_points[first_points.length-1], second_points[0]);
-        double dist_sq_last_last = getDistSq(first_points[first_points.length-1], second_points[second_points.length-1]);
-
-        // Check in what order the first and second section should be stored in the builder
-        first_reversed = Math.min(dist_sq_first_first, dist_sq_first_last) < Math.min(dist_sq_last_first, dist_sq_last_last);
-        if (first_reversed) {
-            second_reversed = (dist_sq_first_last < dist_sq_first_first);
-        } else {
-            second_reversed = (dist_sq_last_last < dist_sq_last_first);
-        }
-
-        // Add points of first section to the builder
-        if (first_reversed) {
-            for (int i = first_points.length-1; i >= 0; i--) {
-                builder.add(first_points[i]);
-            }
-        } else {
-            for (int i = 0; i < first_points.length; i++) {
-                builder.add(first_points[i]);
-            }
-        }
-
-        // Add points of second section to the builder. Ignore first point.
-        RailPath.Point curr_point;
-        if (second_reversed) {
-            curr_point = second_points[0];
-            for (int i = second_points.length-2; i >= 0; i--) {
-                builder.add(second_points[i]);
-            }
-        } else {
-            curr_point = second_points[second_points.length-1];
-            for (int i = 1; i < second_points.length; i++) {
-                builder.add(second_points[i]);
-            }
-        }
-
-        // Add points of all remaining sections
-        TrackRailsSection nextSection;
-        while ((nextSection = sections_it.next()) != null) {
-            RailPath.Point[] next_points = nextSection.path.getPoints();
-
-            if (getDistSq(curr_point, next_points[0]) < getDistSq(curr_point, next_points[next_points.length-1])) {
-                // Natural order, skip first point
-                curr_point = next_points[next_points.length-1];
-                for (int i = 1; i < next_points.length; i++) {
-                    builder.add(next_points[i]);
-                }
-            } else {
-                // Reversed, skip first point
-                curr_point = next_points[0];
-                for (int i = next_points.length-2; i >= 0; i--) {
-                    builder.add(next_points[i]);
-                }
-            }
-        }
-
-        return builder.build();
-    }
-
-    private static double getDistSq(RailPath.Point a, RailPath.Point b) {
-        double dx = b.x - a.x;
-        double dy = b.y - a.y;
-        double dz = b.z - a.z;
-        return dx*dx + dy*dy + dz*dz;
-    }
-
-    private static class NonEmptyPathIterator {
-        private final List<? extends TrackRailsSection> sections;
-        private int index;
-
-        public NonEmptyPathIterator(List<? extends TrackRailsSection> sections) {
-            this.sections = sections;
-            this.index = -1;
-        }
-
-        public TrackRailsSection next() {
-            // Don't care about ++ overflow
-            while (++index < sections.size()) {
-                TrackRailsSection section = sections.get(index);
-                if (!section.path.isEmpty()) {
-                    return section;
-                }
-            }
-
-            return null;
-        }
+        PathJoiner joiner = new PathJoiner();
+        sections.forEach(joiner);
+        return joiner.join();
     }
 
     @Override
@@ -356,5 +251,129 @@ public class TrackRailsSectionMultipleLinked extends TrackRailsSection implement
             builder.append('\n');
         }
         builder.append(linePrefix).append("]");
+    }
+
+    /**
+     * Joins a number of rail paths together into a single joined rail path.
+     * Preserves logic such as zero-length connections to break up interpolation.
+     * Might get moved to TrainCarts as API instead.
+     */
+    private static final class PathJoiner implements Consumer<TrackRailsSection> {
+        private final RailPath.Builder builder = new RailPath.Builder();
+        private RailPath pendingFirst = null;
+        private RailPath.Point lastPoint = null;
+        private boolean lastPointPending = false;
+
+        @Override
+        public void accept(TrackRailsSection t) {
+            add(t.path);
+        }
+
+        public void add(RailPath path) {
+            RailPath.Point[] points = path.getPoints();
+            if (points.length == 0) {
+                return; // Useless
+            }
+
+            // Before we have a last point, we don't know in what order to add
+            // the very first path points to the builder.
+            boolean orderReversed;
+            if (lastPoint == null) {
+                if (pendingFirst == null) {
+                    if (path.isEmpty()) {
+                        // Order doesn't matter
+                        lastPoint = points[0];
+                        orderReversed = false;
+                    } else {
+                        // We need more paths to find order
+                        pendingFirst = path;
+                        return;
+                    }
+                } else {
+                    // Found further points beyond the first path
+                    // Now we can tell in what order the first path should be put
+
+                    RailPath.Point[] firstPoints = pendingFirst.getPoints();
+                    RailPath.Point firstFirstPoint = firstPoints[0];
+                    RailPath.Point firstLastPoint = firstPoints[firstPoints.length - 1];
+
+                    // Use these to find the rail path point order
+                    double dist_sq_first_first = getDistSq(firstFirstPoint, points[0]);
+                    double dist_sq_first_last = getDistSq(firstFirstPoint, points[points.length-1]);
+                    double dist_sq_last_first = getDistSq(firstLastPoint, points[0]);
+                    double dist_sq_last_last = getDistSq(firstLastPoint, points[points.length-1]);
+
+                    // Check in what order the first and second section should be stored in the builder
+                    boolean first_reversed = Math.min(dist_sq_first_first, dist_sq_first_last) < Math.min(dist_sq_last_first, dist_sq_last_last);
+                    if (first_reversed) {
+                        lastPoint = firstLastPoint;
+                        orderReversed = (dist_sq_first_last < dist_sq_first_first);
+                    } else {
+                        lastPoint = firstFirstPoint;
+                        orderReversed = (dist_sq_last_last < dist_sq_last_first);
+                    }
+
+                    // Make sure the first point of the first path is added, too
+                    lastPointPending = true;
+
+                    // Process the first path first
+                    addPoints(firstPoints, first_reversed, pendingFirst.isEmpty());
+                    pendingFirst = null;
+                }
+            } else if (points.length > 1) {
+                // Use last point information to decide whether order is reversed
+                orderReversed = getDistSq(lastPoint, points[points.length-1]) < getDistSq(lastPoint, points[0]);
+            } else {
+                // Order doesn't matter
+                orderReversed = false;
+            }
+
+            // Add the points to the builder
+            addPoints(points, orderReversed, path.isEmpty());
+        }
+
+        private void addPoints(RailPath.Point[] points, boolean orderReversed, boolean empty) {
+            if (empty) {
+                // A single zero-length segment can create a break in the rotation of carts on the path
+                // For that reason, they must be kept when joining paths together
+                // We want to omit them if they sit at the end of a path
+                lastPointPending = true;
+                lastPoint = points[0];
+                return;
+            }
+
+            // If there was an empty point end, add that one first
+            // This guarantees that rotation resets instantly
+            // This also adds the first point of the first path added
+            if (lastPointPending) {
+                lastPointPending = false;
+                builder.add(lastPoint);
+            }
+
+            if (orderReversed) {
+                // Reversed, skip first point
+                lastPoint = points[0];
+                for (int i = points.length-2; i >= 0; i--) {
+                    builder.add(points[i]);
+                }
+            } else {
+                // Natural order, skip first point
+                lastPoint = points[points.length-1];
+                for (int i = 1; i < points.length; i++) {
+                    builder.add(points[i]);
+                }
+            }
+        }
+
+        public RailPath join() {
+            return (pendingFirst != null) ? pendingFirst : builder.build();
+        }
+
+        private static double getDistSq(RailPath.Point a, RailPath.Point b) {
+            double dx = b.x - a.x;
+            double dy = b.y - a.y;
+            double dz = b.z - a.z;
+            return dx*dx + dy*dy + dz*dz;
+        }
     }
 }
