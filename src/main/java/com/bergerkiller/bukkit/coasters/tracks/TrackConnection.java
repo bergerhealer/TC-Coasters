@@ -613,6 +613,11 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
         public NodeEndPoint(TrackNode node, TrackNode other) {
             this.node = node;
             this.other = other;
+
+            // Positions of nodes are fairly well known. We need the strength to know whether
+            // this connection is a zero-length one. For that reason, calculate it earlier.
+            // A second calculation is done later during onShapeUpdated()
+            this.computeStrengthUsingPositions();
         }
 
         @Override

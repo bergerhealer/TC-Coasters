@@ -253,8 +253,13 @@ public class TrackWorld implements CoasterWorldComponent {
     }
 
     /**
-     * Finds the track node that exists precisely at a particular 3d position
-     * 
+     * Finds the track node that exists precisely at a particular 3d position.<br>
+     * <br>
+     * If multiple nodes exist at the same position (=zero distance neighbours),
+     * then it will select the orphan node if i has zero connections to other nodes.
+     * This makes sure that when creating links, the 'straightened' effect of the
+     * node is preferred instead of creating random broken junctions.
+     *
      * @param position
      * @return node at the position, null if not found
      */

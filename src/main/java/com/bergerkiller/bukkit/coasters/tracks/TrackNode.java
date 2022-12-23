@@ -554,15 +554,32 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
      * @return zero-distance neighbour, null if no such neighbour exists
      */
     public TrackNode getZeroDistanceNeighbour() {
-        List<TrackNode> result = Collections.emptyList();
         for (TrackConnection connection : this._connections) {
             if (connection.isZeroLength()) {
-                if (result.isEmpty()) {
-                    return connection.getOtherNode(this);
-                }
+                return connection.getOtherNode(this);
             }
         }
         return null;
+    }
+
+    /**
+     * Same as {@link #getZeroDistanceNeighbour()} but only returns the zero-distance
+     * neighbour if it has no connections other than with this node. Instead of null
+     * it returns this node if those conditions aren't met.
+     *
+     * @return zero-distance neighbour, or this node if no such neighbour exists or
+     *         the neighbour has connections to nodes other than this node.
+     */
+    public TrackNode selectZeroDistanceOrphan() {
+        for (TrackConnection connection : this._connections) {
+            if (connection.isZeroLength()) {
+                TrackNode zeroDistNeigh = connection.getOtherNode(this);
+                if (zeroDistNeigh._connections.length == 1) {
+                    return zeroDistNeigh;
+                }
+            }
+        }
+        return this;
     }
 
     public final List<RailJunction> getJunctions() {

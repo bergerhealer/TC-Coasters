@@ -36,16 +36,20 @@ public abstract class EndPoint {
 
     public void initNormal() {
         this.direction = getNodeDirection();
-        computeStrength(getNodePosition().distance(getOtherNodePosition()));
+        computeStrengthUsingPositions();
     }
 
     public void initInverted() {
         this.direction = getNodeDirection().clone().multiply(-1.0);
-        computeStrength(getNodePosition().distance(getOtherNodePosition()));
+        computeStrengthUsingPositions();
     }
 
     private final void computeStrength(double distance) {
         this.strength = 0.5 * distance;
+    }
+
+    protected final void computeStrengthUsingPositions() {
+        computeStrength(getNodePosition().distance(getOtherNodePosition()));
     }
 
     public final Vector getPosition() {
@@ -98,6 +102,7 @@ public abstract class EndPoint {
             this._nodeDirection = nodeDirection.clone().normalize();
             this._otherPosition = otherPosition;
             this._otherDirection = otherDirection.clone().normalize();
+            this.computeStrengthUsingPositions(); // Positions known, can now be called
         }
 
         @Override
