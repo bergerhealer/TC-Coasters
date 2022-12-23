@@ -1,9 +1,9 @@
 package com.bergerkiller.bukkit.coasters.rails;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
@@ -12,31 +12,27 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bukkit.block.Block;
-import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
+import com.bergerkiller.bukkit.coasters.rails.multiple.TrackRailsSectionMultipleList;
+import com.bergerkiller.bukkit.coasters.rails.single.TrackRailsSingleNodeElement;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
-import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
-import com.bergerkiller.bukkit.coasters.util.RailSectionBlockIterator;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.collections.ObjectCache;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
-import com.bergerkiller.bukkit.tc.controller.components.RailPath;
-import com.google.common.collect.LinkedListMultimap;
-import com.google.common.collect.ListMultimap;
 
 /**
  * Tracks the lookup of rails information from block positions on a single world
  */
 public class TrackRailsWorld implements CoasterWorldComponent {
     private final CoasterWorld _world;
-    private final ListMultimap<IntVector3, TrackRailsSection> sectionsByRails = LinkedListMultimap.create(10000);
+    private final Map<IntVector3, TrackRailsSectionsAtRail> sectionsByRails = new HashMap<>();
     private final TrackRailsSectionsAtPosition.Map sectionsByBlock = new TrackRailsSectionsAtPosition.Map();
     private final Map<TrackNode, TrackNodeMeta> trackNodeMeta = new IdentityHashMap<>();
     private final Map<TrackNode, ObjectCache.Entry<Set<IntVector3>>> tmpNodeBlocks = new IdentityHashMap<>();
+    final Set<TrackRailsSection> lastPickedSections = new HashSet<>(); // For background cleanup
 
     public TrackRailsWorld(CoasterWorld world) {
         this._world = world;
@@ -57,12 +53,38 @@ public class TrackRailsWorld implements CoasterWorldComponent {
         return sectionsByBlock.getOrDefault(new IntVector3(block), TrackRailsSectionsAtPosition.NONE);
     }
 
-    public List<TrackRailsSection> findAtRails(Block railsBlock) {
-        return sectionsByRails.get(new IntVector3(railsBlock));
+    public TrackNode findJunctionNode(Block railsBlock) {
+        TrackRailsSectionsAtRail atRail = sectionsByRails.get(new IntVector3(railsBlock));
+        return (atRail == null) ? null : atRail.getJunctionNode();
     }
 
-    public List<TrackRailsSection> findAtRails(int x, int y, int z) {
+    public TrackRailsSectionsAtRail findAtRailsInformation(int x, int y, int z) {
         return sectionsByRails.get(new IntVector3(x, y, z));
+    }
+
+    public List<? extends TrackRailsSection> findAtRails(Block railsBlock) {
+        TrackRailsSectionsAtRail atRail = sectionsByRails.get(new IntVector3(railsBlock));
+        return (atRail == null) ? Collections.emptyList() : atRail.options();
+    }
+
+    public List<? extends TrackRailsSection> findAtRails(int x, int y, int z) {
+        TrackRailsSectionsAtRail atRail = sectionsByRails.get(new IntVector3(x, y, z));
+        return (atRail == null) ? Collections.emptyList() : atRail.options();
+    }
+
+    /**
+     * Cleans up picked-before information tracks for rail sections in the world
+     */
+    @Override
+    public void updateAll() {
+        if (!lastPickedSections.isEmpty()) {
+            int serverTickThreshold = TrackRailsSection.getPickServerTickThreshold();
+            for (Iterator<TrackRailsSection> iter = lastPickedSections.iterator(); iter.hasNext();) {
+                if (iter.next().cleanupPickedBefore(serverTickThreshold)) {
+                    iter.remove();
+                }
+            }
+        }
     }
 
     /**
@@ -92,31 +114,50 @@ public class TrackRailsWorld implements CoasterWorldComponent {
      * @param nodes
      */
     public void purge(Collection<TrackNode> nodes) {
-        try (ObjectCache.Entry<Set<TrackRailsSection>> sectionsToReAdd = ObjectCache.newHashSet();
-             ObjectCache.Entry<Set<IntVector3>> addedTrackRails = ObjectCache.newHashSet();
-             ObjectCache.Entry<Set<IntVector3>> addedTrackBlocks = ObjectCache.newHashSet())
+        try (ObjectCache.Entry<Set<TrackRailsSingleNodeElement>> nodeElementsToReAdd = ObjectCache.newHashSet();
+             ObjectCache.Entry<Set<IntVector3>> addedTrackBlocks = ObjectCache.newHashSet();
+             ObjectCache.Entry<Set<IntVector3>> addedTrackRails = ObjectCache.newHashSet())
         {
             // Collect all block and rail coordinates affected
             for (TrackNode node : nodes) {
                 TrackNodeMeta meta = trackNodeMeta.remove(node);
                 if (meta != null) {
-                    addedTrackRails.get().add(meta.rails);
                     addedTrackBlocks.get().addAll(Arrays.asList(meta.blocks));
+                    addedTrackRails.get().add(meta.rails);
                 }
             }
 
-            // Remove from the found coordinates
-            for (IntVector3 railBlock : addedTrackRails.get()) {
-                removeFromMap(sectionsByRails.get(railBlock), nodes, sectionsToReAdd.get());
-            }
+            // Remove all sections from the by-block-position mapping
+            // These sections are the un-merged single-node originals
             for (IntVector3 posBlock : addedTrackBlocks.get()) {
-                removeFromMap(sectionsByBlock.getSections(posBlock), nodes, sectionsToReAdd.get());
+                Iterator<TrackRailsSingleNodeElement> sections_iter = sectionsByBlock.getSections(posBlock).iterator();
+                while (sections_iter.hasNext()) {
+                    TrackRailsSingleNodeElement section = sections_iter.next();
+                    if (nodes.contains(section.node())) {
+                        sections_iter.remove();
+                    }
+                }
             }
 
-            // Re-add sections that were merged
-            for (TrackRailsSection reAdd : sectionsToReAdd.get()) {
-                addSectionToMap(reAdd);
+            final Set<TrackRailsSingleNodeElement> nodeElementsToReAddSet = nodeElementsToReAdd.get();
+
+            // Look up all rail blocks affected and remove the single-node sections affected
+            // by this removal. Sections that match nodes that weren't removed are re-added
+            // later.
+            for (IntVector3 railBlock : addedTrackRails.get()) {
+                TrackRailsSectionsAtRail atRail = sectionsByRails.remove(railBlock);
+                if (atRail != null) {
+                    atRail.forEachNodeElement(element -> {
+                        if (!nodes.contains(element.node())) {
+                            nodeElementsToReAddSet.add(element);
+                        }
+                    });
+                }
             }
+
+            // Re-add sections that were merged and are now detached. This might result in
+            // a new way of merging these together.
+            nodeElementsToReAddSet.forEach(this::addSectionToByRailMap);
         } finally {
             finishAddingSectionsToMap();
         }
@@ -124,173 +165,46 @@ public class TrackRailsWorld implements CoasterWorldComponent {
 
     public void store(TrackNode node) {
         try {
-            // If no connections, don't map it in the world at all - it does nothing
-            List<TrackConnection> connections = node.getConnections();
-            if (connections.isEmpty()) {
+            TrackRailsSingleNodeElement nodeSection = TrackRailsSingleNodeElement.create(node);
+            if (nodeSection == null) {
                 return;
             }
 
-            // Rails
-            IntVector3 rails = node.getRailBlock(true);
-
-            // First 1 or 2 connections, which connect to each other and are selected
-            addSectionToMapIfPathNotEmpty(node, rails, node.buildPath(), true);
-
-            // All other kinds of connections lead to their best fit
-            if (connections.size() > 2) {
-                Vector dir0 = connections.get(0).getDirection(node);
-                Vector dir1 = connections.get(1).getDirection(node);
-                for (int i = 2; i < connections.size(); i++) {
-                    TrackConnection conn = connections.get(i);
-                    TrackConnection other;
-                    Vector dir = conn.getDirection(node);
-                    if (dir0.dot(dir) > dir1.dot(dir)) {
-                        other = connections.get(1);
-                    } else {
-                        other = connections.get(0);
-                    }
-                    addSectionToMapIfPathNotEmpty(node, rails, node.buildPath(conn, other), false);
+            // Map this section to all block position blocks where it is active
+            nodeSection.forEachBlockPosition(block -> {
+                if (sectionsByBlock.addSection(block, nodeSection)) {
+                    tmpNodeBlocks.computeIfAbsent(node, u -> ObjectCache.newHashSet()).get().add(block);
                 }
-            }
+            });
+
+            // Map this section to the rail block. This might result in it being merged
+            // with other sections.
+            addSectionToByRailMap(nodeSection);
         } finally {
             finishAddingSectionsToMap();
         }
     }
 
-    private final void addSectionToMapIfPathNotEmpty(TrackNode node, IntVector3 rails, RailPath path, boolean primary) {
-        if (!path.isEmpty()) {
-            addSectionToMap(new TrackRailsSection(node, rails, path, primary));
-        }
-    }
-
-    private final void addSectionToMap(TrackRailsSection section) {
-        // Add to sections by rails mapping. If not empty, try to merge the sections.
-        // We then proceed to store the merged-together sections in the map, instead.
-        // Only do this for primary sections, never for non-primary (junctions) to prevent issues.
-        {
-            List<TrackRailsSection> sectionsAtRails = sectionsByRails.get(section.rails);
-            if (sectionsAtRails.isEmpty()) {
-                // No sections here, store it and nothing special
-                sectionsAtRails.add(section);
+    /**
+     * Adds the section of rails for a single node to the by-rails mapping. This might
+     * merge the section with pre-existing sections of other nodes.
+     *
+     * @param section
+     */
+    private final void addSectionToByRailMap(final TrackRailsSingleNodeElement section) {
+        sectionsByRails.compute(section.rail(), (rail, atRail) -> {
+            if (atRail == null) {
+                return section;
             } else {
-                //TODO: Debug validation, can be removed when no longer an issue
-                if (sectionsAtRails.contains(section)) {
-                    throw new IllegalArgumentException("Rails section is already contained");
-                }
-                if (section instanceof TrackRailsSectionLinked) {
-                    throw new IllegalArgumentException("Linked rails sections cannot be added this way");
-                }
-
-                // Try to merge it with existing track sections at these rails
-                if (section.primary) {
-                    List<TrackRailsSection> sectionsToMerge = new ArrayList<TrackRailsSection>(2);
-                    for (TrackRailsSection other : sectionsAtRails) {
-                        if (other.isConnectedWith(section)) {
-                            sectionsToMerge.add(other);
-                        }
-                    }
-
-                    int numSectionsToMerge = sectionsToMerge.size();
-                    if (numSectionsToMerge == 1 || numSectionsToMerge == 2) {
-                        List<TrackRailsSection> allSections = new ArrayList<TrackRailsSection>();
-                        allSections.addAll(sectionsToMerge.get(0).getAllSections());
-                        if (allSections.get(0).isConnectedWith(section)) {
-                            allSections.add(0, section);
-                            if (numSectionsToMerge == 2) {
-                                List<TrackRailsSection> secondSections = sectionsToMerge.get(1).getAllSections();
-                                if (secondSections.get(0).isConnectedWith(section)) {
-                                    // First section is connected, which means the list is the wrong way around
-                                    // Reverse it
-                                    secondSections = new ArrayList<TrackRailsSection>(secondSections);
-                                    Collections.reverse(secondSections);
-                                }
-                                allSections.addAll(0, secondSections);
-                            }
-                        } else {
-                            allSections.add(section);
-                            if (numSectionsToMerge == 2) {
-                                List<TrackRailsSection> secondSections = sectionsToMerge.get(1).getAllSections();
-                                if (secondSections.get(secondSections.size()-1).isConnectedWith(section)) {
-                                    // Last section is connected, which means the list is the wrong way around
-                                    // Reverse it
-                                    secondSections = new ArrayList<TrackRailsSection>(secondSections);
-                                    Collections.reverse(secondSections);
-                                }
-                                allSections.addAll(secondSections);
-                            }
-                        }
-
-                        // Unregister sections we are replacing from the by-rails list
-                        sectionsAtRails.removeAll(sectionsToMerge);
-
-                        // Remove sections we are replacing from the by-block-position mapping
-                        for (TrackRailsSection mergedSection : sectionsToMerge) {
-                            TrackNodeMeta meta = trackNodeMeta.get(mergedSection.node);
-                            if (meta != null) {
-                                for (IntVector3 posBlock : meta.blocks) {
-                                    sectionsByBlock.removeSection(posBlock, mergedSection);
-                                }
-                            }
-                        }
-
-                        // Now create a single linked section from all the sections we've gathered
-                        section = new TrackRailsSectionLinked(allSections);
-                    }
-                }
-
-                // Add section to list
-                sectionsAtRails.add(section);
-            }
-        }
-
-        // For dead-end nodes we must ignore the blocks beyond the node
-        // Otherwise the node cannot be 'exited' to other rail types
-        Collection<IntVector3> ignoredBlocks = Collections.emptyList();
-        if (section.node.getConnections().size() == 1) {
-            // Figure out the block occupied by the node itself
-            IntVector3 posBlock = section.node.getPositionBlock();
-            Vector dir = section.node.getDirection();
-            ignoredBlocks = new HashSet<IntVector3>();
-
-            // These are the deltas in the opposite direction
-            int[] dx_values = TCCoastersUtil.getBlockDeltas(-dir.getX());
-            int[] dy_values = TCCoastersUtil.getBlockDeltas(-dir.getY());
-            int[] dz_values = TCCoastersUtil.getBlockDeltas(-dir.getZ());
-
-            // Do not register for all blocks relative to the node in the opposite direction
-            for (int dx : dx_values) {
-                for (int dy : dy_values) {
-                    for (int dz : dz_values) {
-                        if (dx != 0 || dy != 0 || dz != 0) {
-                            ignoredBlocks.add(posBlock.add(dx, dy, dz));
-                        }
-                    }
+                TrackRailsSectionsAtRail merged = atRail.merge(section);
+                if (merged != null) {
+                    return merged;
+                } else {
+                    // Can't merge, make it into a List
+                    return new TrackRailsSectionMultipleList(rail, atRail, section);
                 }
             }
-        }
-
-        // For all segments of the path, store the block positions being covered in the lookup table
-        for (RailPath.Segment segment : section.path.getSegments()) {
-            RailSectionBlockIterator iter = new RailSectionBlockIterator(segment, section.rails);
-            do {
-                mapSectionToBlock(iter.block(), ignoredBlocks, section);
-                for (IntVector3 around : iter.around(0.4)) {
-                    mapSectionToBlock(around, ignoredBlocks, section);
-                }
-            } while (iter.next());
-            for (IntVector3 around : iter.aroundEnd(0.4)) {
-                mapSectionToBlock(around, ignoredBlocks, section);
-            }
-        }
-    }
-
-    private void mapSectionToBlock(IntVector3 key, Collection<IntVector3> suppressed, TrackRailsSection section) {
-        if (!suppressed.contains(key) && sectionsByBlock.addSection(key, section)) {
-            section.getNodes().forEach(node -> {
-                tmpNodeBlocks.computeIfAbsent(node, unused -> ObjectCache.newHashSet())
-                        .get().add(key);
-            });
-        }
+        });
     }
 
     private void finishAddingSectionsToMap() {
@@ -316,28 +230,6 @@ public class TrackRailsWorld implements CoasterWorldComponent {
             }
         } finally {
             tmpNodeBlocks.clear();
-        }
-    }
-
-    private static void removeFromMap(Collection<TrackRailsSection> sections, Collection<TrackNode> nodes, Set<TrackRailsSection> sectionsToReAdd) {
-        Iterator<TrackRailsSection> sections_iter = sections.iterator();
-        while (sections_iter.hasNext()) {
-            TrackRailsSection section = sections_iter.next();
-            if (!section.containsNode(nodes)) {
-                continue;
-            }
-
-            // Sub-sections that should not be removed, should be re-added later
-            if (section instanceof TrackRailsSectionLinked) { // optimization. Can remove.
-                for (TrackRailsSection part : section.getAllSections()) {
-                    if (!part.containsNode(nodes)) {
-                        sectionsToReAdd.add(part);
-                    }
-                }
-            }
-
-            // Remove entry entirely
-            sections_iter.remove();
         }
     }
 

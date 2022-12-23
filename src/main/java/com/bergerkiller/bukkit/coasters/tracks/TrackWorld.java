@@ -603,6 +603,7 @@ public class TrackWorld implements CoasterWorldComponent {
     /**
      * Called every tick to update any changed nodes
      */
+    @Override
     public void updateAll() {
         this._changedNodesPriority.clear(); // At this stage this shouldn't even contain elements
         runAllUpdates(this._changedNodes);

@@ -1,7 +1,9 @@
 package com.bergerkiller.bukkit.coasters.rails;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -10,29 +12,26 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
 
-import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
+import com.bergerkiller.bukkit.coasters.rails.single.TrackRailsSectionSingleNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
-import com.bergerkiller.bukkit.tc.controller.components.RailState;
-import com.bergerkiller.bukkit.tc.Util;
+
+import com.bergerkiller.bukkit.tc.controller.MinecartMember;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 
 /**
  * Stores cached information about a portion of track
  */
-public class TrackRailsSection {
+public abstract class TrackRailsSection implements TrackRailsSectionsAtRail {
     /**
      * When below this distance, use tickLastPicked to decide whether to select
      * this section over another
      */
     private static final double PICK_MIN_DIST_SQ = (0.4 * 0.4);
 
-    /**
-     * Node owner of this rails section
-     */
-    public final TrackNode node;
     /**
      * The block coordinates of the rails block for this section.
      * This is the block where signs are activated.
@@ -47,11 +46,9 @@ public class TrackRailsSection {
      */
     public final boolean primary;
     /**
-     * The server tick when this section was last chosen.
-     * Is used to make sure junctions within the same block stay functional
-     * and don't cause trains to snap to the other junction when crossing it.
+     * List of members that were last driving over this rails section
      */
-    public int tickLastPicked = 0;
+    private List<LastPickedInfo> lastPicked = Collections.emptyList();
     /**
      * Last-calculated distance between this section and a given point position,
      * during lookup. Has no meaningful use outside of CoasterRailType.getLogic.
@@ -59,46 +56,42 @@ public class TrackRailsSection {
     public double lastDistanceSquared = 0.0;
 
     public TrackRailsSection(TrackRailsSection original, RailPath path) {
-        this(original.node, original.rails, path, original.primary);
+        this(original.rails, path, original.primary);
     }
 
-    public TrackRailsSection(TrackNode node, IntVector3 rails, RailPath path, boolean primary) {
-        if (path.isEmpty()) {
-            throw new IllegalArgumentException("Path is empty");
-        }
-        this.node = node;
+    public TrackRailsSection(IntVector3 rails, RailPath path, boolean primary) {
         this.rails = rails;
         this.path = path;
         this.primary = primary;
     }
 
-    public BlockFace getMovementDirection() {
-        return Util.vecToFace(this.node.getDirection(), false);
+    @Override
+    public IntVector3 rail() {
+        return rails;
     }
 
-    public String getSectionStr() {
-        double x1 = rails.x + path.getPoints()[0].x;
-        double y1 = rails.y + path.getPoints()[0].y;
-        double z1 = rails.z + path.getPoints()[0].z;
-        double x2 = rails.x + path.getPoints()[path.getPoints().length - 1].x;
-        double y2 = rails.y + path.getPoints()[path.getPoints().length - 1].y;
-        double z2 = rails.z + path.getPoints()[path.getPoints().length - 1].z;
-        return "[" + x1 + "/" + y1 + "/" + z1 + "      " + x2 + "/" + y2 + "/" + z2 + "]";
+    @Override
+    public List<TrackRailsSection> options() {
+        return path.isEmpty() ? Collections.emptyList() : Collections.singletonList(this);
     }
-    
-    public void test(RailState state) {
-        CommonUtil.broadcast("ON RAIL " + this.rails);
-        
-        Vector v = state.railPosition();
-        RailPath.Position pos = new RailPath.Position();
-        pos.posX = v.getX();
-        pos.posY = v.getY();
-        pos.posZ = v.getZ();
-        this.path.moveRelative(pos, 0.0);
 
-        //System.out.println("RAIL [" + System.identityHashCode(this) + "]   " + pos.posX + "/" + pos.posY + "/" + pos.posZ + "    " +
-        //                   pos.motX + "/" + pos.motY + "/" + pos.motZ);
-    }
+    /**
+     * Obtains a List of single-node rails sections that make up this rails section.
+     * If this section is itself a single-node rails section, returns a singleton list
+     * of this one element.
+     *
+     * @return List of single-node rails sections making up this rails section
+     */
+    public abstract List<TrackRailsSectionSingleNode> getSingleNodeSections();
+
+    /**
+     * Gets the CoasterWorld this section of rails is on
+     *
+     * @return coaster world
+     */
+    public abstract CoasterWorld getWorld();
+
+    public abstract BlockFace getMovementDirection();
 
     public double distanceSq(Vector railPosition) {
         RailPath.Position pos = new RailPath.Position();
@@ -112,13 +105,89 @@ public class TrackRailsSection {
     }
 
     /**
+     * Marks this particular path section as having been used by a particular member.
+     * Future logic checks will prefer this section over other ones if they match
+     * equally.
+     *
+     * @param member
+     */
+    public void setPickedByMember(MinecartMember<?> member) {
+        LastPickedInfo info = findLastPickedInfo(member);
+        if (info == null) {
+            info = new LastPickedInfo(member);
+            if (lastPicked.isEmpty()) {
+                lastPicked = new ArrayList<>(4);
+                getWorld().getRails().lastPickedSections.add(this); // Background cleanup
+            }
+            lastPicked.add(info);
+        } else {
+            info.pick();
+        }
+    }
+
+    /**
+     * Gets whether this section was picked by a member before in the recent past
+     *
+     * @param member
+     * @param serverTickThreshold
+     * @return True if picked before by that member
+     */
+    public boolean isPickedBefore(MinecartMember<?> member, int serverTickThreshold) {
+        if (this.lastDistanceSquared < PICK_MIN_DIST_SQ) {
+            LastPickedInfo info = findLastPickedInfo(member);
+            return info != null && info.isPicked(serverTickThreshold);
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Removes picked-before entries that have timed out
+     *
+     * @param serverTickThreshold
+     * @return True if all picked-before entries have been removed and no more
+     *         background cleanup is needed. False if some remain.
+     */
+    public boolean cleanupPickedBefore(int serverTickThreshold) {
+        boolean empty = true;
+        for (Iterator<LastPickedInfo> iter = lastPicked.iterator(); iter.hasNext();) {
+            LastPickedInfo info = iter.next();
+            if (info.isPicked(serverTickThreshold)) {
+                empty = false;
+            } else {
+                iter.remove();
+            }
+        }
+        if (empty) {
+            lastPicked = Collections.emptyList(); // Memory cleanup
+        }
+        return empty;
+    }
+
+    /**
+     * Sections picked a tick by this value or later are considered picked before
+     *
+     * @return picked before server tick threshold
+     */
+    public static int getPickServerTickThreshold() {
+        return CommonUtil.getServerTicks() - 1;
+    }
+
+    private LastPickedInfo findLastPickedInfo(MinecartMember<?> member) {
+        for (LastPickedInfo info : lastPicked) {
+            if (info.member == member) {
+                return info;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Gets a stream of all the track nodes represented in this section of track
      * 
      * @return stream of nodes
      */
-    public Stream<TrackNode> getNodes() {
-        return Stream.of(this.node);
-    }
+    public abstract Stream<TrackNode> getNodes();
 
     /**
      * Gets whether a list of nodes contains a node of this section
@@ -126,39 +195,25 @@ public class TrackRailsSection {
      * @param nodes
      * @return True if a node in the nodes list is part of this section
      */
-    public boolean containsNode(Collection<TrackNode> nodes) {
-        return nodes.contains(this.node);
-    }
+    public abstract boolean containsNode(Collection<TrackNode> nodes);
 
     /**
-     * Gets whether another section is directly connected with this one
-     * 
+     * Attempts to append a single-node section to either the start or the end of this section.
+     * If successful, returns a new section of the combined path. If not, returns null.
+     *
      * @param section
-     * @return True if connected
+     * @return Combined section, or null if combining was not possible
      */
-    public boolean isConnectedWith(TrackRailsSection section) {
-        // Disallow non-primary sections as that can break physics
-        if (!this.primary) {
-            return false;
-        }
-
-        // Check a connection exists between this section's node, and the new section's node
-        for (TrackConnection connection : this.node.getConnections()) {
-            if (connection.getNodeA() == section.node || connection.getNodeB() == section.node) {
-                return true;
-            }
-        }
-        return false;
-    }
+    public abstract TrackRailsSection appendToChain(TrackRailsSectionSingleNode section);
 
     /**
-     * Gets all sections represented by this rails section.
-     * 
-     * @return list of sections
+     * Attempts to append multiple single-node sections to either the start or the end of this
+     * section. If successful, returns a new section of the combined path. If not, returns null.
+     *
+     * @param sectionChain Chain of single-node sections
+     * @return Combined section, or null if combining was not possible
      */
-    public List<TrackRailsSection> getAllSections() {
-        return Collections.singletonList(this);
-    }
+    public abstract TrackRailsSection appendToChain(List<TrackRailsSectionSingleNode> sectionChain);
 
     /**
      * Gets the desired spawn location of this track section
@@ -167,12 +222,37 @@ public class TrackRailsSection {
      * @param orientation vector
      * @return spawn location
      */
-    public Location getSpawnLocation(Block railBlock, Vector orientation) {
-        // Single node, pick node position
-        return this.node.getSpawnLocation(orientation);
+    public abstract Location getSpawnLocation(Block railBlock, Vector orientation);
+
+    /**
+     * When a Minecart Member drives over rails, this object is created to track when
+     * and for what section this happened. This makes sure that when two ambiguous sections
+     * must be picked between, it always picks the one the member was using before.
+     * This prevents unwanted teleporting between paths through junctions.
+     */
+    private static final class LastPickedInfo {
+        /** Member that is picked */
+        public final MinecartMember<?> member;
+
+        /**
+         * The server tick when this section was last chosen.
+         * Is used to make sure junctions within the same block stay functional
+         * and don't cause trains to snap to the other junction when crossing it.
+         */
+        public int tickLastPicked;
+
+        public LastPickedInfo(MinecartMember<?> member) {
+            this.member = member;
+            this.tickLastPicked = CommonUtil.getServerTicks();
+        }
+
+        public void pick() {
+            tickLastPicked = CommonUtil.getServerTicks();
+        }
+
+        public boolean isPicked(int serverTickThreshold) {
+            return tickLastPicked >= serverTickThreshold;
+        }
     }
 
-    public boolean isPickedBefore(int serverTickThreshold) {
-        return this.lastDistanceSquared < PICK_MIN_DIST_SQ && this.tickLastPicked >= serverTickThreshold;
-    }
 }

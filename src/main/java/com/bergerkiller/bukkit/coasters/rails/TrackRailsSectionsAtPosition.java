@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.BiFunction;
 
+import com.bergerkiller.bukkit.coasters.rails.single.TrackRailsSingleNodeElement;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.collections.CollectionBasics;
 
@@ -37,17 +38,17 @@ public interface TrackRailsSectionsAtPosition {
         }
 
         @Override
-        public List<TrackRailsSection> values() {
+        public List<TrackRailsSingleNodeElement> values() {
             return Collections.emptyList();
         }
 
         @Override
-        public TrackRailsSectionsAtPosition tryAdd(TrackRailsSection sectionToAdd) {
+        public TrackRailsSectionsAtPosition tryAdd(TrackRailsSingleNodeElement sectionToAdd) {
             return single(sectionToAdd);
         }
 
         @Override
-        public TrackRailsSectionsAtPosition tryRemove(TrackRailsSection sectionToRemove) {
+        public TrackRailsSectionsAtPosition tryRemove(TrackRailsSingleNodeElement sectionToRemove) {
             return null;
         }
     };
@@ -64,7 +65,7 @@ public interface TrackRailsSectionsAtPosition {
      *
      * @return values
      */
-    List<TrackRailsSection> values();
+    List<TrackRailsSingleNodeElement> values();
 
     /**
      * Gets the number of track rail sections stored here
@@ -87,7 +88,7 @@ public interface TrackRailsSectionsAtPosition {
      * @return Updated object, might be same instance.
      *         Returns null if the section was already added.
      */
-    TrackRailsSectionsAtPosition tryAdd(TrackRailsSection sectionToAdd);
+    TrackRailsSectionsAtPosition tryAdd(TrackRailsSingleNodeElement sectionToAdd);
 
     /**
      * Removes a section so it is no longer included
@@ -97,7 +98,7 @@ public interface TrackRailsSectionsAtPosition {
      *         Returns null if the section was not added here, and was
      *         not removed as a result.
      */
-    TrackRailsSectionsAtPosition tryRemove(TrackRailsSection sectionToRemove);
+    TrackRailsSectionsAtPosition tryRemove(TrackRailsSingleNodeElement sectionToRemove);
 
     /**
      * Creates a track rails section at position object for a single section of rails
@@ -105,11 +106,11 @@ public interface TrackRailsSectionsAtPosition {
      * @param section
      * @return TrackRailsSectionsAtPosition
      */
-    public static TrackRailsSectionsAtPosition single(final TrackRailsSection section) {
+    public static TrackRailsSectionsAtPosition single(final TrackRailsSingleNodeElement section) {
         return new TrackRailsSectionsAtPosition() {
             @Override
             public List<IntVector3> rails() {
-                return Collections.singletonList(section.rails);
+                return Collections.singletonList(section.rail());
             }
 
             @Override
@@ -123,12 +124,12 @@ public interface TrackRailsSectionsAtPosition {
             }
 
             @Override
-            public List<TrackRailsSection> values() {
+            public List<TrackRailsSingleNodeElement> values() {
                 return Collections.singletonList(section);
             }
 
             @Override
-            public TrackRailsSectionsAtPosition tryAdd(TrackRailsSection sectionToAdd) {
+            public TrackRailsSectionsAtPosition tryAdd(TrackRailsSingleNodeElement sectionToAdd) {
                 if (section == sectionToAdd) {
                     return null;
                 }
@@ -138,7 +139,7 @@ public interface TrackRailsSectionsAtPosition {
             }
 
             @Override
-            public TrackRailsSectionsAtPosition tryRemove(TrackRailsSection sectionToRemove) {
+            public TrackRailsSectionsAtPosition tryRemove(TrackRailsSingleNodeElement sectionToRemove) {
                 return (section == sectionToRemove) ? NONE : null;
             }
         };
@@ -149,19 +150,22 @@ public interface TrackRailsSectionsAtPosition {
      * an element results in a list of 1 element or less, it returns a new list instead.
      */
     public static final class TrackRailsSectionsAtPositionList implements TrackRailsSectionsAtPosition {
-        private final List<TrackRailsSection> sections;
+        private final List<TrackRailsSingleNodeElement> sections;
         private List<IntVector3> rails;
 
-        public TrackRailsSectionsAtPositionList(TrackRailsSection first, TrackRailsSection second) {
+        public TrackRailsSectionsAtPositionList(TrackRailsSingleNodeElement first, TrackRailsSingleNodeElement second) {
             sections = new ArrayList<>(4); // We assume 4 is probably on the higher end stored at a single block
             sections.add(first);
             sections.add(second);
-            if (first.rails.equals(second.rails)) {
-                rails = Collections.singletonList(first.rails);
+
+            IntVector3 firstRail = first.rail();
+            IntVector3 secondRail = second.rail();
+            if (firstRail.equals(secondRail)) {
+                rails = Collections.singletonList(firstRail);
             } else {
                 rails = new ArrayList<>(2);
-                rails.add(first.rails);
-                rails.add(second.rails);
+                rails.add(firstRail);
+                rails.add(secondRail);
             }
         }
 
@@ -176,7 +180,7 @@ public interface TrackRailsSectionsAtPosition {
         }
 
         @Override
-        public List<TrackRailsSection> values() {
+        public List<TrackRailsSingleNodeElement> values() {
             return Collections.unmodifiableList(sections);
         }
 
@@ -192,9 +196,9 @@ public interface TrackRailsSectionsAtPosition {
                 int i = 1;
 
                 rails = new ArrayList<IntVector3>(numSections);
-                rails.add(sections.get(0).rails);
+                rails.add(sections.get(0).rail());
                 do {
-                    IntVector3 sectionRails = sections.get(i).rails;
+                    IntVector3 sectionRails = sections.get(i).rail();
                     if (!rails.contains(sectionRails)) {
                         rails.add(sectionRails);
                     }
@@ -206,7 +210,7 @@ public interface TrackRailsSectionsAtPosition {
         }
 
         @Override
-        public TrackRailsSectionsAtPosition tryAdd(TrackRailsSection sectionToAdd) {
+        public TrackRailsSectionsAtPosition tryAdd(TrackRailsSingleNodeElement sectionToAdd) {
             if (sections.contains(sectionToAdd)) {
                 return null;
             }
@@ -217,7 +221,7 @@ public interface TrackRailsSectionsAtPosition {
         }
 
         @Override
-        public TrackRailsSectionsAtPosition tryRemove(TrackRailsSection sectionToRemove) {
+        public TrackRailsSectionsAtPosition tryRemove(TrackRailsSingleNodeElement sectionToRemove) {
             if (sections.size() == 2) {
                 if (sections.get(0) == sectionToRemove) {
                     return single(sections.get(1));
@@ -251,7 +255,7 @@ public interface TrackRailsSectionsAtPosition {
          * @param blockPos Block position
          * @return collection of rail sections at the block position
          */
-        public Collection<TrackRailsSection> getSections(IntVector3 blockPos) {
+        public Collection<TrackRailsSingleNodeElement> getSections(IntVector3 blockPos) {
             return new CollectionWrapper(blockPos);
         }
 
@@ -262,7 +266,7 @@ public interface TrackRailsSectionsAtPosition {
          * @param section Section to add
          * @return True if added
          */
-        public boolean addSection(IntVector3 blockPos, TrackRailsSection section) {
+        public boolean addSection(IntVector3 blockPos, TrackRailsSingleNodeElement section) {
             AddToMapComputeFunction compute = new AddToMapComputeFunction(section);
             super.compute(blockPos, compute);
             return compute.added;
@@ -275,7 +279,7 @@ public interface TrackRailsSectionsAtPosition {
          * @param section Section to remove
          * @return True if removed
          */
-        public boolean removeSection(IntVector3 blockPos, TrackRailsSection section) {
+        public boolean removeSection(IntVector3 blockPos, TrackRailsSingleNodeElement section) {
             RemoveFromMapComputeFunction compute = new RemoveFromMapComputeFunction(section);
             super.computeIfPresent(blockPos, compute);
             return compute.removed;
@@ -288,9 +292,9 @@ public interface TrackRailsSectionsAtPosition {
         private static class AddToMapComputeFunction implements BiFunction<IntVector3, TrackRailsSectionsAtPosition, TrackRailsSectionsAtPosition> {
             /** Set to true if the element was added */
             public boolean added = false;
-            private final TrackRailsSection section;
+            private final TrackRailsSingleNodeElement section;
 
-            public AddToMapComputeFunction(TrackRailsSection section) {
+            public AddToMapComputeFunction(TrackRailsSingleNodeElement section) {
                 this.section = section;
             }
 
@@ -317,9 +321,9 @@ public interface TrackRailsSectionsAtPosition {
         private static class RemoveFromMapComputeFunction implements BiFunction<IntVector3, TrackRailsSectionsAtPosition, TrackRailsSectionsAtPosition> {
             /** Set to true if the element was removed */
             public boolean removed = false;
-            private final TrackRailsSection section;
+            private final TrackRailsSingleNodeElement section;
 
-            public RemoveFromMapComputeFunction(TrackRailsSection section) {
+            public RemoveFromMapComputeFunction(TrackRailsSingleNodeElement section) {
                 this.section = section;
             }
 
@@ -348,7 +352,7 @@ public interface TrackRailsSectionsAtPosition {
          * Wraps the positions at a single block stored in a map and presents it as a
          * collection of rail sections.
          */
-        private final class CollectionWrapper implements Collection<TrackRailsSection> {
+        private final class CollectionWrapper implements Collection<TrackRailsSingleNodeElement> {
             private final IntVector3 pos;
             private TrackRailsSectionsAtPosition curr;
 
@@ -368,14 +372,14 @@ public interface TrackRailsSectionsAtPosition {
             }
 
             @Override
-            public Iterator<TrackRailsSection> iterator() {
+            public Iterator<TrackRailsSingleNodeElement> iterator() {
                 if (curr.isEmpty()) {
                     return Collections.emptyIterator();
                 } else {
                     // Note: relies on reliable order of values()
-                    return new Iterator<TrackRailsSection>() {
-                        TrackRailsSection last = null;
-                        List<TrackRailsSection> values = curr.values();
+                    return new Iterator<TrackRailsSingleNodeElement>() {
+                        TrackRailsSingleNodeElement last = null;
+                        List<TrackRailsSingleNodeElement> values = curr.values();
                         int index = 0;
 
                         @Override
@@ -384,8 +388,8 @@ public interface TrackRailsSectionsAtPosition {
                         }
 
                         @Override
-                        public TrackRailsSection next() {
-                            TrackRailsSection value;
+                        public TrackRailsSingleNodeElement next() {
+                            TrackRailsSingleNodeElement value;
                             try {
                                 value = values.get(index);
                             } catch (IndexOutOfBoundsException ex) {
@@ -415,7 +419,7 @@ public interface TrackRailsSectionsAtPosition {
             }
 
             @Override
-            public boolean add(TrackRailsSection e) {
+            public boolean add(TrackRailsSingleNodeElement e) {
                 TrackRailsSectionsAtPosition updated = curr.tryAdd(e);
                 if (updated == null) {
                     return false;
@@ -431,7 +435,7 @@ public interface TrackRailsSectionsAtPosition {
 
             @Override
             public boolean remove(Object o) {
-                TrackRailsSectionsAtPosition updated = curr.tryRemove((TrackRailsSection) o);
+                TrackRailsSectionsAtPosition updated = curr.tryRemove((TrackRailsSingleNodeElement) o);
                 if (updated == null) {
                     return false;
                 }
@@ -477,7 +481,7 @@ public interface TrackRailsSectionsAtPosition {
             }
 
             @Override
-            public boolean addAll(Collection<? extends TrackRailsSection> c) {
+            public boolean addAll(Collection<? extends TrackRailsSingleNodeElement> c) {
                 return CollectionBasics.addAll(this, c);
             }
 

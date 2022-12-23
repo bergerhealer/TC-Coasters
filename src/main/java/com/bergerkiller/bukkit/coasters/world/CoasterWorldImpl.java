@@ -1,5 +1,8 @@
 package com.bergerkiller.bukkit.coasters.world;
 
+import java.util.Arrays;
+import java.util.List;
+
 import org.bukkit.World;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
@@ -20,6 +23,7 @@ public class CoasterWorldImpl implements CoasterWorld {
     private final TrackRailsWorld _rails;
     private final TrackAnimationWorld _animations;
     private final NamedPowerChannelRegistry _namedPowerRegistry;
+    private final List<CoasterWorldComponent> _components;
 
     public CoasterWorldImpl(TCCoasters plugin, World world) {
         this._plugin = plugin;
@@ -29,6 +33,7 @@ public class CoasterWorldImpl implements CoasterWorld {
         this._rails = new TrackRailsWorld(this);
         this._animations = new TrackAnimationWorld(this);
         this._namedPowerRegistry = new NamedPowerChannelRegistry(this);
+        this._components = Arrays.asList(_tracks, _particles, _rails, _animations, _namedPowerRegistry);
     }
 
     @Override
@@ -103,9 +108,8 @@ public class CoasterWorldImpl implements CoasterWorld {
     /**
      * Called every tick to update the underlying objects
      */
+    @Override
     public void updateAll() {
-        getAnimations().updateAll();
-        getTracks().updateAll();
-        getParticles().updateAll();
+        _components.forEach(CoasterWorldComponent::updateAll);
     }
 }

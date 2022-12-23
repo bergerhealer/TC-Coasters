@@ -20,7 +20,6 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
-import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
@@ -74,7 +73,7 @@ public class CoasterRailType extends RailType {
 
     @Override
     public Block findMinecartPos(Block trackBlock) {
-        List<TrackRailsSection> rails = getRails(trackBlock.getWorld()).findAtRails(trackBlock);
+        List<? extends TrackRailsSection> rails = getRailSections(trackBlock);
         if (!rails.isEmpty()) {
             RailPath.Point[] points = rails.get(0).path.getPoints();
             RailPath.Point mid = null;
@@ -93,7 +92,7 @@ public class CoasterRailType extends RailType {
 
     @Override
     public BlockFace[] getPossibleDirections(Block trackBlock) {
-        List<TrackRailsSection> rails = getRails(trackBlock.getWorld()).findAtRails(trackBlock);
+        List<? extends TrackRailsSection> rails = getRailSections(trackBlock);
         if (!rails.isEmpty()) {
             RailPath.Point[] points = rails.get(0).path.getPoints();
             if (points.length >= 2) {
@@ -111,39 +110,39 @@ public class CoasterRailType extends RailType {
 
     @Override
     public List<RailJunction> getJunctions(Block railBlock) {
-        List<TrackRailsSection> rails = getRails(railBlock.getWorld()).findAtRails(railBlock);
-        if (rails.isEmpty()) {
+        TrackNode junctionNode = getRails(railBlock.getWorld()).findJunctionNode(railBlock);
+        if (junctionNode == null) {
             return super.getJunctions(railBlock);
         } else {
-            return rails.get(0).node.getJunctions();
+            return junctionNode.getJunctions();
         }
     }
 
     @Override
     public void switchJunction(Block railBlock, RailJunction from, RailJunction to) {
-        List<TrackRailsSection> rails = getRails(railBlock.getWorld()).findAtRails(railBlock);
-        if (rails.isEmpty()) {
+        TrackNode junctionNode = getRails(railBlock.getWorld()).findJunctionNode(railBlock);
+        if (junctionNode == null) {
             return;
         }
+
         int fromIdx = (from == null) ? -1 : (ParseUtil.parseInt(from.name(), 0) - 1);
         int toIdx = (to == null) ? -1 : (ParseUtil.parseInt(to.name(), 0) - 1);
-        TrackNode node = rails.get(0).node;
-        List<TrackConnection> connections = node.getSortedConnections();
+        List<TrackConnection> connections = junctionNode.getSortedConnections();
         try {
             if (fromIdx >= 0 && fromIdx < connections.size()) {
-                node.switchJunction(connections.get(fromIdx));
+                junctionNode.switchJunction(connections.get(fromIdx));
             }
             if (toIdx >= 0 && toIdx < connections.size()) {
-                node.switchJunction(connections.get(toIdx));
+                junctionNode.switchJunction(connections.get(toIdx));
             }
         } finally {
-            node.getWorld().getTracks().updateAllWithPriority();
+            junctionNode.getWorld().getTracks().updateAllWithPriority();
         }
     }
 
     @Override
     public BlockFace getDirection(Block railsBlock) {
-        List<TrackRailsSection> rails = getRails(railsBlock.getWorld()).findAtRails(railsBlock);
+        List<? extends TrackRailsSection> rails = getRailSections(railsBlock);
         if (!rails.isEmpty()) {
             return rails.get(0).getMovementDirection();
         }
@@ -162,7 +161,7 @@ public class CoasterRailType extends RailType {
      * @return list of track nodes
      */
     public List<TrackNode> getNodes(Block railBlock) {
-        List<TrackRailsSection> sections = getRailSections(railBlock);
+        List<? extends TrackRailsSection> sections = getRailSections(railBlock);
         if (sections.isEmpty()) {
             return Collections.emptyList();
         } else {
@@ -189,16 +188,16 @@ public class CoasterRailType extends RailType {
      * @param railBlock
      * @return list of rail sections
      */
-    public List<TrackRailsSection> getRailSections(Block railBlock) {
+    public List<? extends TrackRailsSection> getRailSections(Block railBlock) {
         return getRails(railBlock.getWorld()).findAtRails(railBlock);
     }
 
     @Override
     public RailLogic getLogic(RailState state) {
-        final List<TrackRailsSection> rails = getRailSections(state.railBlock());
+        final List<? extends TrackRailsSection> rails = getRailSections(state.railBlock());
 
         // This iterator is only used once, eliminating need to use size()
-        final Iterator<TrackRailsSection> railsIter = rails.iterator();
+        final Iterator<? extends TrackRailsSection> railsIter = rails.iterator();
         if (!railsIter.hasNext()) {
             return RailLogicAir.INSTANCE;
         }
@@ -209,7 +208,7 @@ public class CoasterRailType extends RailType {
             // Only one to pick from, so pick it
             section = firstSection;
         } else {
-            final int serverTickThreshold = (CommonUtil.getServerTicks() - 1);
+            final int serverTickThreshold = TrackRailsSection.getPickServerTickThreshold();
 
             // If any of the rails in this list were picked last time as well,
             // we ignore all other rails sections bound to the same node.
@@ -228,7 +227,7 @@ public class CoasterRailType extends RailType {
                     // Check picked once before, and if so, consider it for picking
                     // Then, use comparator to decide whether it is a better pick than
                     // our previous pick, if we had one.
-                    if (state.member() != null && pick.isPickedBefore(serverTickThreshold)) {
+                    if (state.member() != null && pick.isPickedBefore(state.member(), serverTickThreshold)) {
                         if (preferredLast == null || isBetterSection(pick, preferredLast)) {
                             preferredLast = pick;
                         }
@@ -272,7 +271,7 @@ public class CoasterRailType extends RailType {
                     for (TrackRailsSection pick : rails) {
                         // Check if picked before, if so, we already filtered this earlier
                         // Check if below distance threshold of the preferred one
-                        if ((state.member() != null && pick.isPickedBefore(serverTickThreshold)) || pick.lastDistanceSquared > preferredDistSq) {
+                        if ((state.member() != null && pick.isPickedBefore(state.member(), serverTickThreshold)) || pick.lastDistanceSquared > preferredDistSq) {
                             continue;
                         }
 
@@ -296,13 +295,13 @@ public class CoasterRailType extends RailType {
 
     @Override
     public Location getSpawnLocation(Block railsBlock, BlockFace orientation) {
-        List<TrackRailsSection> rails = getRails(railsBlock.getWorld()).findAtRails(railsBlock);
+        List<? extends TrackRailsSection> rails = getRailSections(railsBlock);
         if (rails.isEmpty()) {
             return railsBlock.getLocation().add(0.5, 0.5, 0.5);
         } else {
             // Compute the spawn location when a single rails section exists
             Vector orientationVec = FaceUtil.faceToVector(orientation);
-            Iterator<TrackRailsSection> iter = rails.iterator();
+            Iterator<? extends TrackRailsSection> iter = rails.iterator();
             Location spawnLoc = iter.next().getSpawnLocation(railsBlock, orientationVec);
 
             // Pick the rails section spawn location that is nearest to the rails block

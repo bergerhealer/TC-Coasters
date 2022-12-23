@@ -28,4 +28,9 @@ public interface CoasterWorldComponent {
      * @return TC Coasters plugin
      */
     default TCCoasters getPlugin() { return getWorld().getPlugin(); }
+
+    /**
+     * Called every tick to perform background maintenance
+     */
+    default void updateAll() {}
 }
