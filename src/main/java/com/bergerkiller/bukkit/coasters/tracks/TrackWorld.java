@@ -390,7 +390,7 @@ public class TrackWorld implements CoasterWorldComponent {
         if (node.getBukkitWorld() != this.getBukkitWorld()) {
             throw new IllegalArgumentException("Input node is not on world " + this.getBukkitWorld().getName());
         }
-        TrackNode newNode = node.getCoaster().createNewNode(position, node.getOrientation());
+        TrackNode newNode = node.getCoaster().createNewNode(position, node.getOrientation().clone());
         this.addConnection(node, newNode);
         return newNode;
     }

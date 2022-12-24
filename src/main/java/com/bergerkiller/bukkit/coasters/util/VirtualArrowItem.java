@@ -19,7 +19,7 @@ import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlay
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityEquipmentHandle;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityMetadataHandle;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityTeleportHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityLivingHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.EntityHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.decoration.EntityArmorStandHandle;
 
@@ -29,6 +29,7 @@ import com.bergerkiller.generated.net.minecraft.world.entity.decoration.EntityAr
  * in a given orientation.
  */
 public class VirtualArrowItem {
+    private static final Vector UP_ARM_OFFSET = new Vector(0.05, -0.05, -0.56);
     private int entityId;
     private boolean glowing = false;
     private double posX, posY, posZ;
@@ -64,42 +65,28 @@ public class VirtualArrowItem {
     }
 
     public VirtualArrowItem position(DoubleOctree.Entry<?> position, Quaternion orientation) {
-        // Use direction for rotX/rotZ, and up vector for rotY rotation around it
-        // This creates an arrow that smoothly rotates around its center point using rotY
-        this.rotation = Util.getArmorStandPose(orientation);
-        this.rotation.setX(this.rotation.getX() - 90.0);
-
-        // Absolute position
-        this.posX = position.getX() + 0.315;
-        this.posY = position.getY() - 1.35;
-        this.posZ = position.getZ();
-
-        // Cancel relative positioning of the item itself
-        Vector upVector =  new Vector(0.05, -0.05, -0.56);
-        orientation.transformPoint(upVector);
-        this.posX += upVector.getX();
-        this.posY += upVector.getY();
-        this.posZ += upVector.getZ();
-        return this;
+        return position(position.getX(), position.getY(), position.getZ(), orientation);
     }
 
     public VirtualArrowItem position(Vector position, Quaternion orientation) {
+        return position(position.getX(), position.getY(), position.getZ(), orientation);
+    }
+
+    public VirtualArrowItem position(double posX, double posY, double posZ, Quaternion orientation) {
         // Use direction for rotX/rotZ, and up vector for rotY rotation around it
         // This creates an arrow that smoothly rotates around its center point using rotY
         this.rotation = Util.getArmorStandPose(orientation);
         this.rotation.setX(this.rotation.getX() - 90.0);
 
-        // Absolute position
-        this.posX = position.getX() + 0.315;
-        this.posY = position.getY() - 1.35;
-        this.posZ = position.getZ();
-
         // Cancel relative positioning of the item itself
-        Vector upVector =  new Vector(0.05, -0.05, -0.56);
-        orientation.transformPoint(upVector);
-        this.posX += upVector.getX();
-        this.posY += upVector.getY();
-        this.posZ += upVector.getZ();
+        Vector upOffset = UP_ARM_OFFSET.clone();
+        orientation.transformPoint(upOffset);
+
+        // Update
+        this.posX = posX + upOffset.getX() + 0.315;
+        this.posY = posY + upOffset.getY() - 1.35;
+        this.posZ = posZ + upOffset.getZ();
+
         return this;
     }
 
@@ -155,12 +142,7 @@ public class VirtualArrowItem {
     public VirtualArrowItem updateGlowing(Player viewer) {
         if (this.entityId != -1) {
             DataWatcher metadata = new DataWatcher();
-            metadata.setByte(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE);
-            metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_ON_FIRE, Common.evaluateMCVersion(">", "1.8"));
-            metadata.setByte(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, EntityArmorStandHandle.DATA_FLAG_HAS_ARMS | EntityArmorStandHandle.DATA_FLAG_SET_MARKER);
-            if (this.glowing) {
-                metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_GLOWING, true);
-            }
+            metadata.setByte(EntityHandle.DATA_FLAGS, computeFlags());
             PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
             PacketUtil.sendPacket(viewer, metaPacket);
         }
@@ -178,32 +160,38 @@ public class VirtualArrowItem {
         if (this.entityId == -1) {
             this.entityId = EntityUtil.getUniqueEntityId();
         }
-        PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.T.newHandleNull();
+        PacketPlayOutSpawnEntityLivingHandle spawnPacket = PacketPlayOutSpawnEntityLivingHandle.T.newHandleNull();
         spawnPacket.setEntityId(this.entityId);
         spawnPacket.setEntityUUID(UUID.randomUUID());
         spawnPacket.setEntityType(EntityType.ARMOR_STAND);
         spawnPacket.setPosX(posX);
         spawnPacket.setPosY(posY);
         spawnPacket.setPosZ(posZ);
-        PacketUtil.sendPacket(viewer, spawnPacket);
 
         DataWatcher metadata = new DataWatcher();
         metadata.set(EntityHandle.DATA_NO_GRAVITY, true);
-        metadata.setByte(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE);
-        metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_ON_FIRE, Common.evaluateMCVersion(">", "1.8"));
-        metadata.setByte(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, EntityArmorStandHandle.DATA_FLAG_HAS_ARMS | EntityArmorStandHandle.DATA_FLAG_SET_MARKER);
-        if (glowing) {
-            metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_GLOWING, true);
-        }
+        metadata.setByte(EntityHandle.DATA_FLAGS, computeFlags());
+        metadata.setByte(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, EntityArmorStandHandle.DATA_FLAG_SET_MARKER | EntityArmorStandHandle.DATA_FLAG_NO_BASEPLATE);
         metadata.set(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, rotation);
-        PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
-        PacketUtil.sendPacket(viewer, metaPacket);
+
+        PacketUtil.sendEntityLivingSpawnPacket(viewer, spawnPacket, metadata);
 
         PacketPlayOutEntityEquipmentHandle equipPacket = PacketPlayOutEntityEquipmentHandle.createNew(
                 this.entityId, EquipmentSlot.HAND, this.item);
         PacketUtil.sendPacket(viewer, equipPacket);
 
         return this.entityId;
+    }
+
+    private byte computeFlags() {
+        int flags = EntityHandle.DATA_FLAG_FLYING | EntityHandle.DATA_FLAG_INVISIBLE;
+        if (Common.evaluateMCVersion(">", "1.8")) {
+            flags |= EntityHandle.DATA_FLAG_ON_FIRE;
+        }
+        if (glowing) {
+            flags |= EntityHandle.DATA_FLAG_GLOWING;
+        }
+        return (byte) flags;
     }
 
     /**
@@ -216,5 +204,21 @@ public class VirtualArrowItem {
         if (this.entityId != -1) {
             PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.entityId));
         }
+    }
+
+    /**
+     * Calculates the distance an armorstand will move to correct for a change in arm
+     * rotation.
+     *
+     * @param oldRot
+     * @param newRot
+     * @return arm rotation distance (squared)
+     */
+    public static double getArmRotationDistanceSquared(Quaternion oldRot, Quaternion newRot) {
+        Vector oldArmPos = UP_ARM_OFFSET.clone();
+        oldRot.transformPoint(oldArmPos);
+        Vector newArmPos = UP_ARM_OFFSET.clone();
+        newRot.transformPoint(newArmPos);
+        return oldArmPos.distanceSquared(newArmPos);
     }
 }

@@ -15,6 +15,7 @@ import com.bergerkiller.bukkit.common.math.Quaternion;
 public class TrackParticleArrow extends TrackParticle {
     protected static final int FLAG_POSITION_CHANGED  = (1<<2);
     protected static final int FLAG_ITEM_CHANGED      = (1<<3);
+    protected static final int FLAG_RESPAWN_REQUIRED  = (1<<4);
     private TrackParticleItemType itemType = TrackParticleItemType.LEVER;
     private DoubleOctree.Entry<TrackParticle> position;
     private Quaternion orientation;
@@ -49,6 +50,18 @@ public class TrackParticleArrow extends TrackParticle {
 
     public void setOrientation(Quaternion orientation) {
         if (!orientation.equals(this.orientation)) {
+            // If orientation is too different, it causes the arrow particle to jolt around
+            // as the armor stand moves in position to correct for the arm.
+            // When this effect is too extreme, respawn the arrow entirely.
+            // This typically happens when creating new junctions as the stick rotation
+            // rapidly changes
+            if (!this.getViewers().isEmpty() &&
+                this.entityId != -1 &&
+                VirtualArrowItem.getArmRotationDistanceSquared(this.orientation, orientation) > (0.1 * 0.1)
+            ) {
+                this.setFlag(FLAG_RESPAWN_REQUIRED);
+            }
+
             this.orientation.setTo(orientation);
             this.setFlag(FLAG_POSITION_CHANGED);
             this.scheduleUpdateAppearance();
@@ -75,9 +88,21 @@ public class TrackParticleArrow extends TrackParticle {
     @Override
     public void updateAppearance() {
         if (this.clearFlag(FLAG_POSITION_CHANGED)) {
-            VirtualArrowItem.create(this.entityId)
-            .position(this.position, this.orientation)
-            .move(getViewers());
+            if (this.clearFlag(FLAG_RESPAWN_REQUIRED)) {
+                VirtualArrowItem arrow = VirtualArrowItem.create(this.entityId)
+                        .position(this.position, this.orientation);
+                for (Player viewer : getViewers()) {
+                    TrackParticleState state = getState(viewer);
+                    arrow.glowing(state == TrackParticleState.SELECTED && getWorld().getPlugin().getGlowingSelections());
+                    arrow.item(this.itemType.getItem(state));
+                    arrow.destroy(viewer);
+                    arrow.spawn(viewer);
+                }
+            } else {
+                VirtualArrowItem.create(this.entityId)
+                    .position(this.position, this.orientation)
+                    .move(getViewers());
+            }
         }
         if (this.clearFlag(FLAG_ITEM_CHANGED)) {
             for (Player viewer : this.getViewers()) {
