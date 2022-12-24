@@ -257,6 +257,7 @@ public class TrackRailsSectionMultipleLinked extends TrackRailsSection implement
         private RailPath pendingFirst = null;
         private RailPath.Point lastPoint = null;
         private boolean lastPointPending = false;
+        private int numPointsAdded = 0;
 
         @Override
         public void accept(TrackRailsSection t) {
@@ -341,9 +342,11 @@ public class TrackRailsSectionMultipleLinked extends TrackRailsSection implement
             // This also adds the first point of the first path added
             if (lastPointPending) {
                 lastPointPending = false;
+                numPointsAdded++;
                 builder.add(lastPoint);
             }
 
+            numPointsAdded += points.length - 1;
             if (orderReversed) {
                 // Reversed, skip first point
                 lastPoint = points[0];
@@ -360,7 +363,11 @@ public class TrackRailsSectionMultipleLinked extends TrackRailsSection implement
         }
 
         public RailPath join() {
-            return (pendingFirst != null) ? pendingFirst : builder.build();
+            if (numPointsAdded >= 2) {
+                return builder.build();
+            } else {
+                return (pendingFirst != null) ? pendingFirst : RailPath.EMPTY;
+            }
         }
 
         private static double getDistSq(RailPath.Point a, RailPath.Point b) {

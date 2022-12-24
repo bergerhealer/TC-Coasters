@@ -156,7 +156,8 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     public void setPosition(Vector position) {
-        if (!this._pos.equals(position)) {
+        Vector curr = this._pos;
+        if (curr.getX() != position.getX() || curr.getY() != position.getY() || curr.getZ() != position.getZ()) {
             this._pos = position.clone();
             //this._particle.setPosition(this._pos);
             this._upParticleArrow.setPosition(this._pos);
@@ -316,7 +317,8 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         double up_n = MathUtil.getNormalizationFactor(up);
         if (!Double.isInfinite(up_n)) {
             up = up.clone().multiply(up_n);
-            if (!this._up.equals(up)) {
+            Vector up_curr = this._up;
+            if (up_curr.getX() != up.getX() || up_curr.getY() != up.getY() || up_curr.getZ() != up.getZ()) {
                 this._up = up;
                 this.scheduleRefresh();
                 this.markChanged();
@@ -580,6 +582,18 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             }
         }
         return this;
+    }
+
+    /**
+     * Gets whether this node is a 'zero distance' orphan. This is a node at the same
+     * position as another node, but not connected to anything else. Orphans like that
+     * must be purged.
+     *
+     * @return True if this node is a zero-distance orphan
+     */
+    public boolean isZeroDistanceOrphan() {
+        TrackConnection[] conn = this._connections;
+        return conn.length == 1 && conn[0].isZeroLength();
     }
 
     public final List<RailJunction> getJunctions() {

@@ -970,7 +970,19 @@ public class PlayerEditState implements CoasterWorldComponent {
         for (TrackNode node : toDelete) {
             for (TrackNode neighbour : node.getNeighbours()) {
                 if (!toDelete.contains(neighbour)) {
-                    this.selectNode(neighbour);
+                    TrackNode zeroDist = neighbour.getZeroDistanceNeighbour();
+
+                    // If this node has a zero-distance orphan, purge it right away
+                    // Breaks history a little bit. Oh well.
+                    if (zeroDist != null && zeroDist.isZeroDistanceOrphan()) {
+                        zeroDist.remove();
+                        zeroDist = null;
+                    }
+
+                    // If neighbour has a non-orphan zero-distance neighbour, select that one too
+                    if (this.selectNode(neighbour) && zeroDist != null) {
+                        this.setEditing(zeroDist, true); // No select event this time
+                    }
                 }
             }
         }
@@ -1447,48 +1459,66 @@ public class PlayerEditState implements CoasterWorldComponent {
             return; // Weird.
         }
 
-        // Track all changes
+        // Work on all nodes and record changes
         HistoryChange changes = this.getHistory().addChangeGroup();
-
-        // Work on all nodes
         for (TrackNode node : nodes) {
-            TrackNode zero = node.getZeroDistanceNeighbour();
-            if (zero == null) {
-                continue; // Strange. Shouldn't happen.
+            makeNodeConnectionsCurved(changes, node);
+        }
+    }
+
+    private void makeNodeConnectionsCurved(HistoryChangeCollection changes, TrackNode node) throws ChangeCancelledException {
+        TrackNode zero = node.getZeroDistanceNeighbour();
+        if (zero == null) {
+            return;
+        }
+
+        // Disconnect all nodes connected to the zero node. Preserve objects!
+        List<TrackConnection> connections = zero.getConnections().stream()
+                .filter(c -> !c.isConnected(node))
+                .collect(Collectors.toList());
+        List<List<TrackObject>> objects = connections.stream()
+                .map(conn -> conn.getObjects())
+                .collect(Collectors.toList());
+
+        // Disconnect all previous connections
+        for (TrackConnection connection : connections) {
+            changes.addChangeBeforeDisconnect(this.player, connection);
+            connection.remove();
+        }
+
+        // Delete zero
+        changes.addChangeBeforeDeleteNode(this.player, zero);
+        zero.remove();
+
+        // Connect all nodes that were connected to zero with node instead
+        for (int i = 0; i < connections.size(); i++) {
+            TrackConnection connection = connections.get(i);
+            List<TrackObject> connObjects = objects.get(i);
+
+            TrackConnection newConnection;
+            if (connection.getNodeA() == zero) {
+                newConnection = getWorld().getTracks().connect(node, connection.getNodeB());
+            } else {
+                newConnection = getWorld().getTracks().connect(connection.getNodeA(), node);
             }
+            newConnection.addAllObjects(connObjects);
+            changes.addChangeAfterConnect(this.player, newConnection);
+        }
+    }
 
-            // Disconnect all nodes connected to the zero node. Preserve objects!
-            List<TrackConnection> connections = zero.getConnections().stream()
-                    .filter(c -> !c.isConnected(node))
-                    .collect(Collectors.toList());
-            List<List<TrackObject>> objects = connections.stream()
-                    .map(conn -> conn.getObjects())
-                    .collect(Collectors.toList());
-
-            // Disconnect all previous connections
-            for (TrackConnection connection : connections) {
-                changes.addChangeBeforeDisconnect(this.player, connection);
-                connection.remove();
-            }
-
-            // Delete zero
-            changes.addChangeBeforeDeleteNode(this.player, zero);
-            zero.remove();
-
-            // Connect all nodes that were connected to zero with node instead
-            for (int i = 0; i < connections.size(); i++) {
-                TrackConnection connection = connections.get(i);
-                List<TrackObject> connObjects = objects.get(i);
-
-                TrackConnection newConnection;
-                if (connection.getNodeA() == zero) {
-                    newConnection = getWorld().getTracks().connect(node, connection.getNodeB());
-                } else {
-                    newConnection = getWorld().getTracks().connect(connection.getNodeA(), node);
-                }
-                newConnection.addAllObjects(connObjects);
-                changes.addChangeAfterConnect(this.player, newConnection);
-            }
+    /**
+     * Gets whether a single node is being edited
+     *
+     * @return Takes into account zero-distance nodes
+     */
+    private boolean isEditingSingleNode() {
+        if (this.editedNodes.size() == 1) {
+            return true;
+        } else if (this.editedNodes.size() == 2) {
+            Iterator<TrackNode> iter = this.editedNodes.keySet().iterator();
+            return iter.next().getZeroDistanceNeighbour() == iter.next();
+        } else {
+            return false;
         }
     }
 
@@ -1557,15 +1587,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         } else {
             // Check whether the player is moving only a single node or not
             // Count two zero-connected nodes as one node
-            final boolean isSingleNode;
-            if (this.editedNodes.size() == 1) {
-                isSingleNode = true;
-            } else if (this.editedNodes.size() == 2) {
-                Iterator<TrackNode> iter = this.editedNodes.keySet().iterator();
-                isSingleNode = iter.next().getZeroDistanceNeighbour() == iter.next();
-            } else {
-                isSingleNode = false;
-            }
+            final boolean isSingleNode = isEditingSingleNode();
 
             Vector eyePos = this.player.getEyeLocation().toVector();
             for (PlayerEditNode editNode : this.editedNodes.values()) {
@@ -1591,7 +1613,7 @@ public class PlayerEditState implements CoasterWorldComponent {
                 if (!this.isSneaking() && (isSingleNode || editNode.node.getConnections().size() <= 1)) {
                     TCCoastersUtil.snapToBlock(getBukkitWorld(), eyePos, position, orientation);
 
-                    if (TCCoastersUtil.snapToCoasterRails(editNode.node, position, orientation)) {
+                    if (TCCoastersUtil.snapToCoasterRails(editNode.node, position, orientation, n -> !isEditing(n))) {
                         // Play particle effects to indicate we are snapping to the coaster rails
                         PlayerUtil.spawnDustParticles(this.player, position, Color.RED);
                     } else if (TCCoastersUtil.snapToRails(getBukkitWorld(), editNode.node.getRailBlock(true), position, direction, orientation)) {
@@ -1632,7 +1654,7 @@ public class PlayerEditState implements CoasterWorldComponent {
 
         // When drag-dropping a node onto a node, 'merge' the two
         // Do so by connecting all other neighbours of the dragged node to the node
-        if (this.getMode() == PlayerEditMode.POSITION && this.getEditedNodes().size() == 1) {
+        if (this.getMode() == PlayerEditMode.POSITION && isEditingSingleNode()) {
             TrackWorld tracks = getWorld().getTracks();
             PlayerEditNode draggedNode = this.editedNodes.values().iterator().next();
             TrackNode droppedNode = null;
@@ -1644,7 +1666,7 @@ public class PlayerEditState implements CoasterWorldComponent {
 
             // Get all nodes nearby the position, sorted from close to far
             final Vector pos = draggedNode.node.getPosition();
-            List<TrackNode> nearby = tracks.findNodesNear(new ArrayList<TrackNode>(), pos, 0.3);
+            List<TrackNode> nearby = tracks.findNodesNear(new ArrayList<TrackNode>(), pos, 1e-2);
             Collections.sort(nearby, new Comparator<TrackNode>() {
                 @Override
                 public int compare(TrackNode o1, TrackNode o2) {
@@ -1653,9 +1675,9 @@ public class PlayerEditState implements CoasterWorldComponent {
                 }
             });
 
-            // Pick first (closest) node that is not the node dragged
+            // Pick first (closest) node that is not the node(s) dragged
             for (TrackNode nearNode : nearby) {
-                if (nearNode != draggedNode.node) {
+                if (!isEditing(nearNode)) {
                     droppedNode = nearNode;
                     break;
                 }
@@ -1664,23 +1686,77 @@ public class PlayerEditState implements CoasterWorldComponent {
             // Merge if found
             if (droppedNode != null) {
                 try {
-                    List<TrackNode> connectedNodes = draggedNode.node.getNeighbours();
+                    List<TrackNode> connectedNodes = new ArrayList<>();
+                    for (PlayerEditNode edited : editedNodes.values()) {
+                        for (TrackNode neighbour : edited.node.getNeighbours()) {
+                            if (!isEditing(neighbour) && !connectedNodes.contains(neighbour)) {
+                                connectedNodes.add(neighbour);
+                            }
+                        }
 
-                    // Undo the changes to the node position as a result of the drag
-                    draggedNode.node.setState(draggedNode.startState);
+                        // Undo the changes to the node position as a result of the drag
+                        edited.node.setState(edited.startState);
+                    }
 
                     // Track all the changes we are doing down below.
                     // Delete the original node, and connections to the node, the player was dragging
                     HistoryChange changes = dragParent.addChangeBeforeDeleteNode(this.player, draggedNode.node);
-                    draggedNode.node.remove();
+                    for (TrackNode node : new ArrayList<>(getEditedNodes())) {
+                        node.remove();
+                    }
+
+                    // If the dropped node has a zero-distance neighbour, special care must be taken
+                    // If it or itself is an orphan, purge the right orphan node accordingly
+                    // If both nodes have connections already, it becomes a junction, so then
+                    // one of the two nodes must be removed and connections transferred over.
+                    TrackNode droppedZDNode = droppedNode.getZeroDistanceNeighbour();
+
+                    // Prefer connecting with a zero-distance orphan node
+                    if (droppedZDNode != null && droppedZDNode.isZeroDistanceOrphan()) {
+                        // If both are orphans, there is no way to resolve this through connecting later
+                        // Get rid of the duplicate orphan
+                        if (droppedNode.isZeroDistanceOrphan()) {
+                            connectedNodes.remove(droppedZDNode);
+                            droppedZDNode.remove();
+                            droppedZDNode = null;
+                        } else {
+                            TrackNode tmp = droppedNode;
+                            droppedNode = droppedZDNode;
+                            droppedZDNode = tmp;
+                        }
+                    }
+
+                    connectedNodes.remove(droppedNode);
+                    if (droppedZDNode != null) {
+                        connectedNodes.remove(droppedZDNode);
+
+                        // If node being dropped on is an orphan, and there's nothing to connect to
+                        // after, then just fix up the orphan situation
+                        if (droppedNode.isZeroDistanceOrphan() && connectedNodes.isEmpty()) {
+                            droppedNode.remove();
+                            selectNode(droppedZDNode);
+                            return; // Skip everything
+                        }
+
+                        // If there's connections and we got two non-orphaned straightened nodes,
+                        // then it would turn into a junction. Make sure to make it curved first.
+                        if (connectedNodes.size() > 1 || (!connectedNodes.isEmpty() && !droppedNode.isZeroDistanceOrphan())) {
+                            makeNodeConnectionsCurved(dragParent, droppedNode);
+                            droppedZDNode = null; // Removed
+                        }
+                    }
 
                     // Connect all that was connected to it, with the one dropped on
                     for (TrackNode connected : connectedNodes) {
-                        if (connected != droppedNode) {
-                            changes.addChangeAfterConnect(this.player, tracks.connect(droppedNode, connected));
-                            addConnectionForAnimationStates(droppedNode, connected);
-                            addConnectionForAnimationStates(connected, droppedNode);
-                        }
+                        changes.addChangeAfterConnect(this.player, tracks.connect(droppedNode, connected));
+                        addConnectionForAnimationStates(droppedNode, connected);
+                        addConnectionForAnimationStates(connected, droppedNode);
+                    }
+
+                    // Select the node it was dropped on
+                    selectNode(droppedNode);
+                    if (droppedZDNode != null) {
+                        selectNode(droppedZDNode);
                     }
 
                     // Do not do the standard position/orientation change saving down below

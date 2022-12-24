@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
 import org.bukkit.Location;
@@ -16,6 +17,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.Util;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
@@ -165,9 +167,12 @@ public class TCCoastersUtil {
     }
 
     public static boolean snapToCoasterRails(TrackNode selfNode, Vector position, Vector orientation) {
-        TrackNode zeroNode = selfNode.getZeroDistanceNeighbour();
+        return snapToCoasterRails(selfNode, position, orientation, LogicUtil.alwaysTruePredicate());
+    }
+
+    public static boolean snapToCoasterRails(TrackNode selfNode, Vector position, Vector orientation, Predicate<TrackNode> filter) {
         for (TrackNode nearby : selfNode.getWorld().getTracks().findNodesNear(new ArrayList<TrackNode>(0), position, 0.25)) {
-            if (nearby == selfNode || nearby == zeroNode) {
+            if (nearby == selfNode || !filter.test(nearby)) {
                 continue;
             }
 
