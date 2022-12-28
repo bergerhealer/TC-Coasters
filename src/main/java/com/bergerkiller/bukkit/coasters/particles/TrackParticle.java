@@ -133,6 +133,10 @@ public abstract class TrackParticle {
         return this.viewers;
     }
 
+    public boolean hasViewers() {
+        return !this.viewers.isEmpty();
+    }
+
     public void makeHiddenForAll() {
         for (Player viewer : this.viewers) {
             this.makeHiddenFor(viewer);

@@ -39,8 +39,10 @@ public class TrackParticleArrow extends TrackParticle {
     public void setPosition(Vector position) {
         if (!this.position.equalsCoord(position)) {
             this.position = updatePosition(this.position, position);
-            this.setFlag(FLAG_POSITION_CHANGED);
-            this.scheduleUpdateAppearance();
+            if (this.hasViewers()) {
+                this.setFlag(FLAG_POSITION_CHANGED);
+                this.scheduleUpdateAppearance();
+            }
         }
     }
 
@@ -49,14 +51,19 @@ public class TrackParticleArrow extends TrackParticle {
     }
 
     public void setOrientation(Quaternion orientation) {
+        // Without viewers this can be optimized. No need to check, just set it.
+        if (!this.hasViewers()) {
+            this.orientation.setTo(orientation);
+            return;
+        }
+
         if (!orientation.equals(this.orientation)) {
             // If orientation is too different, it causes the arrow particle to jolt around
             // as the armor stand moves in position to correct for the arm.
             // When this effect is too extreme, respawn the arrow entirely.
             // This typically happens when creating new junctions as the stick rotation
             // rapidly changes
-            if (!this.getViewers().isEmpty() &&
-                this.entityId != -1 &&
+            if (this.entityId != -1 &&
                 VirtualArrowItem.getArmRotationDistanceSquared(this.orientation, orientation) > (0.1 * 0.1)
             ) {
                 this.setFlag(FLAG_RESPAWN_REQUIRED);
@@ -75,8 +82,10 @@ public class TrackParticleArrow extends TrackParticle {
     public void setItemType(TrackParticleItemType itemType) {
         if (!this.itemType.equals(itemType)) {
             this.itemType = itemType;
-            this.setFlag(FLAG_ITEM_CHANGED);
-            this.scheduleUpdateAppearance();
+            if (this.hasViewers()) {
+                this.setFlag(FLAG_ITEM_CHANGED);
+                this.scheduleUpdateAppearance();
+            }
         }
     }
 

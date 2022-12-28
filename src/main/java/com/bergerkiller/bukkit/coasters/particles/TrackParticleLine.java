@@ -97,6 +97,12 @@ public class TrackParticleLine extends TrackParticle {
             this.p1 = DoubleOctree.Entry.create(p1, this);
             this.p2 = DoubleOctree.Entry.create(p2, this);
         } else if (!this.p1.equalsCoord(p1) || !this.p2.equalsCoord(p2)) {
+            if (!this.hasViewers()) {
+                this.p1 = updatePosition(this.p1, p1);
+                this.p2 = updatePosition(this.p2, p2);
+                return;
+            }
+
             // When p1 and p2 swap around, respawn everything to prevent visual glitches
             this.setFlag(FLAG_NEEDS_RESPAWN,
                     this.p1.distanceSquared(p1) > this.p2.distanceSquared(p1) &&
