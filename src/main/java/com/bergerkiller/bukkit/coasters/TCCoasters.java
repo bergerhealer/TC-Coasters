@@ -58,7 +58,8 @@ public class TCCoasters extends PluginBase {
     private static final double DEFAULT_SMOOTHNESS = 10000.0;
     private static final boolean DEFAULT_GLOWING_SELECTIONS = true;
     private static final int DEFAULT_PARTICLE_VIEW_RANGE = 64;
-    private static final int DEFAULT_MAXIMUM_PARTICLE_COUNT = 5000;
+    private static final int DEFAULT_MAXIMUM_PARTICLE_COUNT = 3000;
+    private static final boolean DEFAULT_MAXIMUM_PARTICLE_WARNING = false;
     private static final boolean DEFAULT_PLOTSQUARED_ENABLED = false;
     private static final boolean DEFAULT_LIGHTAPI_ENABLED = true;
     private static final boolean DEFAULT_LEASH_GLITCH_FIX = false;
@@ -77,6 +78,7 @@ public class TCCoasters extends PluginBase {
     private boolean glowingSelections = DEFAULT_GLOWING_SELECTIONS;
     private int particleViewRange = DEFAULT_PARTICLE_VIEW_RANGE;
     private int maximumParticleCount = DEFAULT_MAXIMUM_PARTICLE_COUNT;
+    private boolean maximumParticleWarning = DEFAULT_MAXIMUM_PARTICLE_WARNING;
     private boolean plotSquaredEnabled = DEFAULT_PLOTSQUARED_ENABLED;
     private boolean lightAPIEnabled = DEFAULT_LIGHTAPI_ENABLED;
     private boolean fixLeashGlitch = DEFAULT_LEASH_GLITCH_FIX;
@@ -325,6 +327,16 @@ public class TCCoasters extends PluginBase {
     }
 
     /**
+     * Gets whether a message is sent to the player when (first) exceeding the maximum
+     * particle limit
+     *
+     * @return show maximum particle warning
+     */
+    public boolean isMaximumParticleWarningEnabled() {
+        return maximumParticleWarning;
+    }
+
+    /**
      * Gets the folder where coasters csv files are exported to when using
      * the export command
      *
@@ -362,6 +374,8 @@ public class TCCoasters extends PluginBase {
         config.addHeader("maximumParticleCount", "When more particles are visible than this, the player sees a warning, and some particles are hidden");
         config.addHeader("maximumParticleCount", "This can be used to prevent a total lag-out of the client when accidentally creating a lot of track");
         this.maximumParticleCount = config.get("maximumParticleCount", DEFAULT_MAXIMUM_PARTICLE_COUNT);
+        config.setHeader("maximumParticleWarning", "\nWhether to send a warning message to the player when the maximum number of particles is exceeded");
+        this.maximumParticleWarning = config.get("maximumParticleWarning", DEFAULT_MAXIMUM_PARTICLE_WARNING);
         config.setHeader("plotSquaredEnabled", "\nWhether track editing permission integration with PlotSquared is enabled");
         config.addHeader("plotSquaredEnabled", "Players will be unable to edit coasters outside of their personal plot");
         config.addHeader("plotSquaredEnabled", "Give players the 'train.coasters.plotsquared.use' permission to use TCC in their plots");
