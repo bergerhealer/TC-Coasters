@@ -22,6 +22,7 @@ import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctreeIterator;
 import com.bergerkiller.bukkit.common.math.Quaternion;
+import com.bergerkiller.bukkit.common.wrappers.BlockData;
 
 /**
  * Tracks and updates all the particle items on a single world
