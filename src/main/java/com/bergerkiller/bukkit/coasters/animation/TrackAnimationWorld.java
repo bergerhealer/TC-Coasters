@@ -49,6 +49,7 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
         _animations.put(node, new TrackAnimation(node, target, connections, MathUtil.floor(duration * 20.0)));
     }
 
+    @Override
     public void updateAll() {
         if (_animations.isEmpty()) {
             return;

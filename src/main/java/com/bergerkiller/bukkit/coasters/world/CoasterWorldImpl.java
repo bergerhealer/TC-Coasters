@@ -36,7 +36,7 @@ public class CoasterWorldImpl implements CoasterWorld {
         this._rails = new TrackRailsWorld(this);
         this._animations = new TrackAnimationWorld(this);
         this._namedPowerRegistry = new NamedPowerChannelRegistry(this);
-        this._components = Arrays.asList(_tracks, _particles, _rails, _animations, _namedPowerRegistry);
+        this._components = Arrays.asList(_tracks, _particles, _animations, _rails, _namedPowerRegistry);
     }
 
     @Override
