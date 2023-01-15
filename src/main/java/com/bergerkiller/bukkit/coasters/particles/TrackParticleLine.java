@@ -85,8 +85,20 @@ public class TrackParticleLine extends TrackParticle {
     }
 
     public void setPositions(Vector p1, Vector p2) {
+        // If p1 and p2 y are closely similar in Y, swap around to make it line up
+        // with the points we already got.
+        // If they are not similar, swap to correct for correct upwards slope
+        boolean swap;
+        if (Math.abs(p1.getY() - p2.getY()) <= 1e-4) {
+            swap = this.p1 != null &&
+                    this.p1.distanceSquared(p2) < this.p1.distanceSquared(p1) &&
+                    this.p2.distanceSquared(p1) < this.p2.distanceSquared(p2);
+        } else {
+            swap = (p1.getY() > p2.getY());
+        }
+
         // Swap p1 and p2 sometimes, as it reduces hanging ellipsis effects
-        if (p1.getY() > p2.getY()) {
+        if (swap) {
             Vector c = p1;
             p1 = p2;
             p2 = c;
