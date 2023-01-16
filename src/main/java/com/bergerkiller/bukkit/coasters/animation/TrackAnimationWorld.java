@@ -195,6 +195,12 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
                 p_prev = p;
             }
         }
+
+        // After moving the nodes around again, also rebuild the track information
+        // This is basically done twice per tick when animations play, because it needs
+        // track information prior to calculate where members are, and after to make
+        // sure physics update correctly.
+        this.getWorld().getTracks().updateAll();
     }
 
     private void loadPoints(TrackConnection connection) {
