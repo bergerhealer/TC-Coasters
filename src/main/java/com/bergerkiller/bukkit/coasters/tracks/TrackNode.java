@@ -1055,7 +1055,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     /**
      * Sets the rail block, where signs are triggered
      * 
-     * @param railsBlock
+     * @param railBlock New rail block
      */
     public void setRailBlock(IntVector3 railBlock) {
         if (!LogicUtil.bothNullOrEqual(this._railBlock, railBlock)) {

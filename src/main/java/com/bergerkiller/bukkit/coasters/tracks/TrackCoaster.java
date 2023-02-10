@@ -148,8 +148,6 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
     /**
      * Called from all over the place to indicate that the coaster has been changed.
      * Autosave will kick in at a later time to save this coaster to file again.
-     * 
-     * @param changed
      */
     public void markChanged() {
         this._changed = true;
@@ -281,7 +279,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
     }
 
     /**
-     * Renames this coaster, renaming the save file and changing {@link #getname()}
+     * Renames this coaster, renaming the save file and changing {@link #getName()}
      *
      * @param newName New name
      */

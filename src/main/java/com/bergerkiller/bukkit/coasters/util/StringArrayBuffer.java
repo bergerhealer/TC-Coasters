@@ -130,7 +130,7 @@ public class StringArrayBuffer implements Iterator<String> {
     /**
      * Sets the next UUID value
      *
-     * @param uuid
+     * @param uuid The UUID value to set
      */
     public void putUUID(UUID uuid) {
         put(uuid.toString());
@@ -139,7 +139,7 @@ public class StringArrayBuffer implements Iterator<String> {
     /**
      * Sets the next ItemStack value
      * 
-     * @param item
+     * @param item The ItemStack value to set
      */
     public void putItemStack(ItemStack item) {
         put(jsonSerializer.itemStackToJson(item).replace(" ", "\\u0020"));
@@ -148,16 +148,16 @@ public class StringArrayBuffer implements Iterator<String> {
     /**
      * Sets the next BlockData value
      * 
-     * @param material
+     * @param blockData The BlockData value to set
      */
-    public void putBlockData(BlockData material) {
-        put(material.serializeToString());
+    public void putBlockData(BlockData blockData) {
+        put(blockData.serializeToString());
     }
 
     /**
      * Sets the next IntVector3 value
      * 
-     * @param value to set
+     * @param v The value to set
      */
     public void putIntVector3(IntVector3 v) {
         putInt(v.x);
@@ -168,7 +168,7 @@ public class StringArrayBuffer implements Iterator<String> {
     /**
      * Sets the next Vector value
      * 
-     * @param value to set
+     * @param v The value to set
      */
     public void putVector(Vector v) {
         putDouble(v.getX());
@@ -179,7 +179,7 @@ public class StringArrayBuffer implements Iterator<String> {
     /**
      * Sets the next Double value
      * 
-     * @param value to set
+     * @param value The value to set
      */
     public void putDouble(double value) {
         put(this.numberFormat.format(value));
@@ -188,7 +188,7 @@ public class StringArrayBuffer implements Iterator<String> {
     /**
      * Sets the next Integer value
      * 
-     * @param value to set
+     * @param value The value to set
      */
     public void putInt(int value) {
         put(Integer.toString(value));
@@ -197,7 +197,7 @@ public class StringArrayBuffer implements Iterator<String> {
     /**
      * Sets the next String value
      * 
-     * @param value to set
+     * @param value The value to set
      */
     public void put(String value) {
         set(this.index++, value);

@@ -15,7 +15,8 @@ import com.bergerkiller.bukkit.common.math.Matrix4x4;
 /**
  * The appearance and properties of an object. This type is immutable
  * and is assigned to Track Objects to setup their properties.
- * Implementations must implement the {@link #hashCode()} and {@link #equals(Object)}
+ * Implementations must implement the {@link Object#hashCode()} and
+ * {@link Object#equals(Object)}
  * methods for correct functioning inside maps.
  */
 public interface TrackObjectType<P extends TrackParticle> {

@@ -39,8 +39,7 @@ public class QueuedTask<T> {
 
     /**
      * Creates a new Queued Task function that runs without delay (next tick)
-     * 
-     * @param delay Delay in ticks until this function is run
+     *
      * @param precondition This function is called first, and the function is only executed if it returns True
      * @param function The function to execute
      */

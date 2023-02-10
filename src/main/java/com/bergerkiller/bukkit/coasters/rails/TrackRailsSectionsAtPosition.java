@@ -251,7 +251,6 @@ public interface TrackRailsSectionsAtPosition {
         /**
          * Wraps the values mapped at a block position as a collection of rail sections
          *
-         * @param map Map from block position to stored TrackRailsSectionsAtPosition
          * @param blockPos Block position
          * @return collection of rail sections at the block position
          */

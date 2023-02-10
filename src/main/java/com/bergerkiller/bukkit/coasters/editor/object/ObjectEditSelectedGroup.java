@@ -120,7 +120,7 @@ public class ObjectEditSelectedGroup {
 
     /**
      * Forces all currently selected track objects to be remembered. This causes future
-     * calls to {@link #nextSelection(ObjectEditSelectedGroup)} to keep these selections
+     * calls to {@link #nextSelection()} to keep these selections
      * unchanged while cycling through them.<br>
      * <br>
      * This is called when the player presses the sneak button.

@@ -169,7 +169,8 @@ public class NamedPowerChannel implements Cloneable {
     }
 
     /**
-     * Un-registers a recipient previously registered using {@link #addRecipient(Recipient)}.
+     * Un-registers a recipient previously registered using
+     * {@link #addRecipient(NamedPowerChannelRegistry, Recipient)}.
      * If this was the last recipient, then the power channel is globally
      * un-registered and the power state information is lost.
      *

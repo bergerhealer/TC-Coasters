@@ -396,11 +396,11 @@ public class TrackWorld implements CoasterWorldComponent {
     }
 
     /**
-     * Changes the connections a node has with other nodes. This removes all previous
+     * Resets the connections a node has with other nodes. This removes all previous
      * connections and creates new ones to all the connected nodes specified.
-     * 
-     * @param node
-     * @param connectedNodes
+     *
+     * @param node Node to reset connections of
+     * @param connections New connections of the node
      */
     public void resetConnections(TrackNode node, List<TrackConnectionState> connections) {
         //TODO: Some connections may not change, and this can be optimized!

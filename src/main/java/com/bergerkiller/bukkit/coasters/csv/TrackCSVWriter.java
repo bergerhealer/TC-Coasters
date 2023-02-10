@@ -177,8 +177,8 @@ public class TrackCSVWriter implements AutoCloseable {
     /**
      * Writes a new chain of CSV entries starting iteration from a start node.
      * 
-     * @param startNode
-     * @param rootsOnly whether to only write out nodes with one or less neighbours
+     * @param startNode Node to start a new chain from
+     * @param mode Mode of operation when writing out the nodes
      */
     public void writeFrom(TrackNode startNode, Mode mode) throws IOException {
         TrackNode previous = null;

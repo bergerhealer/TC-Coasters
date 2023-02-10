@@ -34,11 +34,12 @@ import com.bergerkiller.bukkit.common.utils.LogicUtil;
 public abstract class HistoryChangeCollection {
 
     /**
-     * Adds a change to be performed after this change is performed ({@link #redo()}).
+     * Adds a change to be performed after this change is performed.
      * When undoing, the child changes are performed in reverse order beforehand.
-     * 
+     *
      * @param change to add
      * @return change added
+     * @see com.bergerkiller.bukkit.coasters.editor.PlayerEditHistory PlayerEditHistory
      */
     public abstract HistoryChange addChange(HistoryChange change);
 

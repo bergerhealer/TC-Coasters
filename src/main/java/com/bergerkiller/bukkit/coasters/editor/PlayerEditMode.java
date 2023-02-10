@@ -74,7 +74,7 @@ public enum PlayerEditMode {
      * Creates the menu for an edit mode in the editor map
      * 
      * @param tab The tab view to fill with widgets
-     * @param state The edit state of the player
+     * @param stateSupplier Supplier for the edit state of the player
      */
     public void createView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
         this._createViewMethod.accept(tab, stateSupplier);

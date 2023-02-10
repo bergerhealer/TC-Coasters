@@ -13,9 +13,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.build.number>NO-CI</project.build.number>
-        <project.serverversion>1.15.2-R0.1-SNAPSHOT</project.serverversion>
-        <project.bkcversion>1.19.2-v1</project.bkcversion>
-        <project.tcversion>1.19.2-v1</project.tcversion>
+        <project.serverversion>1.19.3-R0.1-SNAPSHOT</project.serverversion>
+        <project.bkcversion>1.19.3-v2-SNAPSHOT</project.bkcversion>
+        <project.tcversion>1.19.3-v2-SNAPSHOT</project.tcversion>
         <junit.version>4.12</junit.version>
         <project.preloaderversion>1.6</project.preloaderversion>
         <project.cloud.version>1.8.0-SNAPSHOT</project.cloud.version>
@@ -36,37 +36,19 @@
     </profiles>
 
     <repositories>
-        <!-- Repo for access to Bukkit -->
-        <repository>
-            <id>spigot-repo</id>
-            <url>https://hub.spigotmc.org/nexus/content/groups/public/</url>
-        </repository>
-
-        <!-- Repo for access to BKCommonLib, TrainCarts -->
+        <!-- Repo for TeamBergerhealer plugins and several of it's (soft) dependencies. Also used for:
+             - PlotSquared v4
+             - PlotSquared v5
+        -->
         <repository>
             <id>MG-Dev Jenkins CI Maven Repository</id>
             <url>https://ci.mg-dev.eu/plugin/repository/everything</url>
         </repository>
 
-        <!-- PlotSquared v4 repository -->
+        <!-- Repo for access to Bukkit -->
         <repository>
-            <id>p2-repo</id>
-            <url>http://ci.athion.net/job/PlotSquared-Releases/ws/mvn/</url>
-        </repository>
-        <!-- PlotSquared v5 repository -->
-        <repository>
-            <id>IntellectualSites</id>
-            <url>https://mvn.intellectualsites.com/content/groups/public/</url>
-        </repository>
-        <!-- Jenkins4J -->
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-        <!-- WorldEdit -->
-        <repository>
-            <id>sk89q</id>
-            <url>http://maven.sk89q.com/repo/</url>
+            <id>spigot-repo</id>
+            <url>https://hub.spigotmc.org/nexus/content/groups/public/</url>
         </repository>
     </repositories>
 
@@ -75,18 +57,6 @@
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
             <version>${project.serverversion}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>3.8.1</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>21.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
@@ -120,6 +90,14 @@
                     <groupId>org.projectlombok</groupId>
                     <artifactId>lombok</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>com.github.Sauilitired</groupId>
+                    <artifactId>Jenkins4J</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.sk89q.worldedit</groupId>
+                    <artifactId>worldedit-core</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -133,6 +111,14 @@
                 <exclusion>
                     <groupId>org.projectlombok</groupId>
                     <artifactId>lombok</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.sk89q.worldedit</groupId>
+                    <artifactId>worldedit-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.khelekore</groupId>
+                    <artifactId>prtree</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -185,8 +171,8 @@
 
     <!-- Build -->
     <build>
-        <!-- Export artifact with name that includes the build number -->
-        <finalName>${project.name}-${project.version}-${project.build.number}</finalName>
+        <defaultGoal>clean install</defaultGoal>
+        <finalName>${project.name}-${project.version}-unshaded</finalName>
 
         <!-- Resources (the filtering allows us to use project properties in plugin.yml) -->
         <resources>
@@ -204,7 +190,6 @@
                 </includes>
             </resource>
         </resources>
-        <defaultGoal>clean install</defaultGoal>
 
         <!-- Plugins -->
         <plugins>
@@ -212,10 +197,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>2.4</version>
+                <version>3.2.3</version>
                 <configuration>
-                    <shadedArtifactAttached>false</shadedArtifactAttached>
                     <createDependencyReducedPom>false</createDependencyReducedPom>
+                    <shadedArtifactAttached>true</shadedArtifactAttached>
+                    <shadedClassifierName>all</shadedClassifierName>
+                    <finalName>${project.name}-${project.version}-${project.build.number}</finalName>
                     <relocations>
                         <relocation>
                             <pattern>com.bergerkiller.bukkit.preloader</pattern>
@@ -255,18 +242,26 @@
                             <include>com.bergerkiller.bukkit.preloader</include>
                         </includes>
                     </artifactSet>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/*.MF</exclude>
+                                <exclude>META-INF/LICENSE.txt</exclude>
+                                <exclude>META-INF/NOTICE.txt</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
                 </configuration>
                 <executions>
                     <execution>
                         <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
+                        <goals><goal>shade</goal></goals>
                     </execution>
                 </executions>
             </plugin>
 
-            <!-- Clean up original artifacts (this is to make testing easier) -->
+            <!-- Clean up original-prefixed leftovers (this is to make testing easier) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-clean-plugin</artifactId>
@@ -274,43 +269,17 @@
                 <executions>
                     <execution>
                         <id>auto-clean</id>
-                        <phase>install</phase>
-                        <goals>
-                            <goal>clean</goal>
-                        </goals>
+                        <phase>package</phase>
+                        <goals><goal>clean</goal></goals>
                         <configuration>
                             <excludeDefaultDirectories>true</excludeDefaultDirectories>
                             <filesets>
                                 <fileset>
                                     <directory>${project.build.directory}</directory>
-                                    <includes>
-                                        <include>original-*.jar</include>
-                                    </includes>
+                                    <includes><include>original-*.jar</include></includes>
                                     <followSymlinks>false</followSymlinks>
                                 </fileset>
                             </filesets>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- Copy the produced target to the static directory with just a base name -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>1.8</version>
-                <executions>
-                    <!-- Prepare the version-less output jar -->
-                    <execution>
-                        <id>version-less-jar</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                        <configuration>
-                            <target>
-                                <copy file="target/${project.name}-${project.version}-${project.build.number}.jar" tofile="target/static/${project.name}.jar"/>
-                            </target>
                         </configuration>
                     </execution>
                 </executions>
@@ -320,7 +289,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.6.1</version>
+                <version>3.10.1</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
@@ -328,6 +297,51 @@
                     <showDeprecation>true</showDeprecation>
                 </configuration>
             </plugin>
+
+            <!-- Generate a jar containing the source javadoc -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.4.1</version>
+                <configuration>
+                    <finalName>${project.name}-${project.version}</finalName>
+                    <failOnError>false</failOnError>
+                    <doclint>none</doclint>
+                    <quiet>true</quiet>
+                    <source>8</source>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals><goal>jar</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Generate a jar containing the java sources -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.2.1</version>
+                <configuration>
+                    <finalName>${project.name}-${project.version}</finalName>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals><goal>jar-no-fork</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
+
+    <!-- For deploying on https://ci.mg-dev.eu/plugin/repository/ -->
+    <distributionManagement>
+        <repository>
+            <id>mg-dev-repo</id>
+            <name>ci.mg-dev.eu repository</name>
+            <url>https://ci.mg-dev.eu/plugin/repository/everything</url>
+        </repository>
+    </distributionManagement>
 </project>

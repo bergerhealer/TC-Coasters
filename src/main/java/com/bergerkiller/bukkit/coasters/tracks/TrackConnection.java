@@ -354,11 +354,11 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
     /**
      * Calculates all the discrete path points required to build the smooth path from t0 to t1.
      * 
-     * @param builder
-     * @param railsPos
-     * @param smoothness
-     * @param t0
-     * @param t1
+     * @param points Points list to add points of the path to
+     * @param railsPos Rail block
+     * @param smoothness Configured smoothness value
+     * @param t0 Start theta [0 .. 1]
+     * @param t1 End theta [0 .. 1]
      */
     public void buildPath(List<RailPath.Point> points, IntVector3 railsPos, double smoothness, double t0, double t1) {
         // If this is a zero-length connection, only add a point at t1

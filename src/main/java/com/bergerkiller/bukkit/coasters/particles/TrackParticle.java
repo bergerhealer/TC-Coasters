@@ -62,8 +62,8 @@ public abstract class TrackParticle {
     /**
      * Updates whether a particle is visible or not to a player, spawning or de-spawning it
      * 
-     * @param viewer
-     * @param viewerPosition of the viewer, null to hide forcibly
+     * @param viewer Player viewer
+     * @param visible Whether the particle is visible
      */
     public final void changeVisibility(Player viewer, boolean visible) {
         ImmutablePlayerSet new_viewers = this.viewers.addOrRemove(viewer, visible);

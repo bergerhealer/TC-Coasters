@@ -61,7 +61,6 @@ public interface TrackRailsSectionsAtRail {
      *
      * @param builder String Builder to fill with debugging text
      * @param linePrefix Prefix (of spaces) to put at the start of every line outputted
-     * @return debug string
      */
     void writeDebugString(StringBuilder builder, String linePrefix);
 
