@@ -13,7 +13,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.build.number>NO-CI</project.build.number>
-        <project.serverversion>1.19.3-R0.1-SNAPSHOT</project.serverversion>
+        <project.serverVersion>1.19.3-R0.1-SNAPSHOT</project.serverVersion>
         <project.bkcversion>1.19.3-v2-SNAPSHOT</project.bkcversion>
         <project.tcversion>1.19.3-v2-SNAPSHOT</project.tcversion>
         <junit.version>4.12</junit.version>
@@ -56,21 +56,14 @@
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
-            <version>${project.serverversion}</version>
-            <scope>compile</scope>
+            <version>${project.serverVersion}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.bergerkiller.bukkit</groupId>
             <artifactId>BKCommonLib</artifactId>
             <version>${project.bkcversion}</version>
             <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.bergerkiller.bukkit.preloader</groupId>
-            <artifactId>PluginPreloader</artifactId>
-            <version>${project.preloaderversion}</version>
-            <scope>compile</scope>
-            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>com.bergerkiller.bukkit</groupId>
@@ -85,6 +78,7 @@
             <artifactId>PlotSquared-API</artifactId>
             <version>4.400</version>
             <scope>provided</scope>
+            <optional>true</optional>
             <exclusions>
                 <exclusion>
                     <groupId>org.projectlombok</groupId>
@@ -107,6 +101,7 @@
             <artifactId>PlotSquared-Core</artifactId>
             <version>5.12.0</version>
             <scope>provided</scope>
+            <optional>true</optional>
             <exclusions>
                 <exclusion>
                     <groupId>org.projectlombok</groupId>
@@ -123,6 +118,29 @@
             </exclusions>
         </dependency>
 
+        <!-- Cloud command framework - provided by BKCommonLib -->
+        <dependency>
+            <groupId>org.bergerhealer.cloud.commandframework</groupId>
+            <artifactId>cloud-paper</artifactId>
+            <version>${project.cloud.version}</version>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.bergerhealer.cloud.commandframework</groupId>
+            <artifactId>cloud-annotations</artifactId>
+            <version>${project.cloud.version}</version>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.bergerhealer.cloud.commandframework</groupId>
+            <artifactId>cloud-minecraft-extras</artifactId>
+            <version>${project.cloud.version}</version>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
+
         <!-- https://mvnrepository.com/artifact/com.opencsv/opencsv -->
         <dependency>
             <groupId>com.opencsv</groupId>
@@ -131,40 +149,26 @@
             <scope>compile</scope>
             <optional>true</optional>
         </dependency>
-
-        <!-- Cloud command framework - provided by BKCommonLib -->
         <dependency>
-            <groupId>org.bergerhealer.cloud.commandframework</groupId>
-            <artifactId>cloud-paper</artifactId>
-            <version>${project.cloud.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.bergerhealer.cloud.commandframework</groupId>
-            <artifactId>cloud-annotations</artifactId>
-            <version>${project.cloud.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.bergerhealer.cloud.commandframework</groupId>
-            <artifactId>cloud-minecraft-extras</artifactId>
-            <version>${project.cloud.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- Test engine -->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
+            <groupId>com.bergerkiller.bukkit.preloader</groupId>
+            <artifactId>PluginPreloader</artifactId>
+            <version>${project.preloaderversion}</version>
+            <scope>compile</scope>
+            <optional>true</optional>
         </dependency>
 
         <!-- The full server jar is only used during test; it should not be exposed as a dependency -->
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot</artifactId>
-            <version>${project.serverversion}</version>
+            <version>${project.serverVersion}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Test engine -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
