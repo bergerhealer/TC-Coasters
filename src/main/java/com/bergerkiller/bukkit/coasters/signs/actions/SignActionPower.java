@@ -107,25 +107,12 @@ public class SignActionPower extends TCCSignAction {
         }
     }
 
-    public static void init(final TCCoasters plugin) {
+    public void initPowerMeta() {
         TrainCarts.plugin.getOfflineSigns().registerHandler(TCCPowerSignMetadata.class, new OfflineSignMetadataHandler<TCCPowerSignMetadata>() {
 
             @Override
             public void onAdded(OfflineSignStore store, OfflineSign sign, TCCPowerSignMetadata metadata) {
-                String channelName = sign.getLine(2);
-                if (!channelName.isEmpty()) {
-                    Block signBlock = sign.getLoadedBlock();
-                    boolean inverted = SignActionHeader.parse(sign.getLine(0)).isInverted();
-
-                    TCCPowerSignRecipient recipient = new TCCPowerSignRecipient(plugin, signBlock, inverted,
-                            store, channelName, metadata.powered);
-                    metadata.recipient = recipient;
-
-                    // Refresh powered metadata if needed. Shouldn't be though...
-                    if (metadata.powered != recipient.channel.isPowered()) {
-                        recipient.refreshNextTick();
-                    }
-                }
+                metadata.recipient = makeRecipient(store, sign, metadata.powered);
             }
 
             @Override
@@ -134,6 +121,46 @@ public class SignActionPower extends TCCSignAction {
                     metadata.recipient.remove();
                     metadata.recipient = null;
                 }
+            }
+
+            @Override
+            public TCCPowerSignMetadata onSignChanged(OfflineSignStore store, OfflineSign oldSign, OfflineSign newSign, TCCPowerSignMetadata metadata) {
+                // Verify that the sign is still a tcc power sign after the changes
+                if (!SignActionHeader.parse(newSign.getLine(0)).isValid()) {
+                    return null;
+                }
+                if (!matchSecondLine(newSign.getLine(1))) {
+                    return null;
+                }
+
+                TCCPowerSignRecipient newRecipient = makeRecipient(store, newSign, metadata.powered);
+
+                // Remove previous recipient
+                if (metadata.recipient != null) {
+                    metadata.recipient.remove();
+                }
+
+                return new TCCPowerSignMetadata(metadata.powered, newRecipient);
+            }
+
+            private TCCPowerSignRecipient makeRecipient(OfflineSignStore store, OfflineSign sign, boolean wasPowered) {
+                String channelName = sign.getLine(2);
+                if (channelName.isEmpty()) {
+                    return null;
+                }
+
+                Block signBlock = sign.getLoadedBlock();
+                boolean inverted = SignActionHeader.parse(sign.getLine(0)).isInverted();
+
+                TCCPowerSignRecipient recipient = new TCCPowerSignRecipient(plugin, signBlock, inverted,
+                        store, channelName, wasPowered);
+
+                // Refresh powered metadata if needed. Shouldn't be though...
+                if (wasPowered != recipient.channel.isPowered()) {
+                    recipient.refreshNextTick();
+                }
+
+                return recipient;
             }
 
             @Override
@@ -153,7 +180,7 @@ public class SignActionPower extends TCCSignAction {
         });
     }
 
-    public static void deinit() {
+    public void deinitPowerMeta() {
         TrainCarts.plugin.getOfflineSigns().unregisterHandler(TCCPowerSignMetadata.class);
     }
 

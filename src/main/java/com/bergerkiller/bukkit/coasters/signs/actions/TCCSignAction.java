@@ -16,26 +16,30 @@ public abstract class TCCSignAction extends SignAction {
      */
     public abstract String getPrefix();
 
-    @Override
-    public boolean match(SignActionEvent event) {
-        String firstLine = event.getLine(1).toLowerCase(Locale.ENGLISH);
-        if (firstLine.length() <= 3
-                || firstLine.charAt(0) != 't'
-                || firstLine.charAt(1) != 'c'
-                || firstLine.charAt(2) != 'c')
+    protected boolean matchSecondLine(String line) {
+        line = line.toLowerCase(Locale.ENGLISH);
+        if (line.length() <= 3
+                || line.charAt(0) != 't'
+                || line.charAt(1) != 'c'
+                || line.charAt(2) != 'c')
         {
             return false;
         }
 
         int tOffset = 3;
-        while (tOffset < firstLine.length()) {
-            char c = firstLine.charAt(tOffset);
+        while (tOffset < line.length()) {
+            char c = line.charAt(tOffset);
             if (c == '-' || c == ' ' || c == '_' || c == '.') {
                 tOffset++;
             } else {
                 break;
             }
         }
-        return firstLine.startsWith(getPrefix(), tOffset);
+        return line.startsWith(getPrefix(), tOffset);
+    }
+
+    @Override
+    public final boolean match(SignActionEvent event) {
+        return matchSecondLine(event.getLine(1));
     }
 }

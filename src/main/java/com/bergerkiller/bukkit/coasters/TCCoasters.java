@@ -66,8 +66,9 @@ public class TCCoasters extends PluginBase {
     private Task worldUpdateTask, runQueuedTasksTask, updatePlayerEditStatesTask, autosaveTask;
     private TCCoastersCommands commands;
     private final CoasterRailType coasterRailType = new CoasterRailType(this);
+    private final SignActionPower powerSignAction = new SignActionPower(this);
     private final List<SignAction> registeredSignActions = Arrays.asList(
-            new SignActionPower(this), new SignActionTrackAnimate());
+            powerSignAction, new SignActionTrackAnimate());
     private final Hastebin hastebin = new Hastebin(this);
     private final TCCoastersListener listener = new TCCoastersListener(this);
     private final TCCoastersInteractionListener interactionListener = new TCCoastersInteractionListener(this);
@@ -396,7 +397,7 @@ public class TCCoasters extends PluginBase {
         registeredSignActions.forEach(SignAction::register);
 
         // Loads/activates the tcc-power signs
-        SignActionPower.init(this);
+        powerSignAction.initPowerMeta();
 
         // Before loading coasters, detect LightAPI
         // We don't know yet it has enabled, but we'll assume that it will.
@@ -468,7 +469,7 @@ public class TCCoasters extends PluginBase {
             }
 
             // Unregister ourselves
-            SignActionPower.deinit();
+            powerSignAction.deinitPowerMeta();
             registeredSignActions.forEach(SignAction::unregister);
             RailType.unregister(this.coasterRailType);
 
