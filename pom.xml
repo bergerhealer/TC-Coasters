@@ -17,7 +17,7 @@
         <project.bkcversion>1.19.3-v2-SNAPSHOT</project.bkcversion>
         <project.tcversion>1.19.3-v2-SNAPSHOT</project.tcversion>
         <junit.version>4.12</junit.version>
-        <project.preloaderversion>1.6</project.preloaderversion>
+        <project.preloaderversion>1.8</project.preloaderversion>
         <project.cloud.version>1.8.0-SNAPSHOT</project.cloud.version>
     </properties>
 
