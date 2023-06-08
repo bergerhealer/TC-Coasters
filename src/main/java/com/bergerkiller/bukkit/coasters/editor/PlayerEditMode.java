@@ -405,7 +405,7 @@ public enum PlayerEditMode {
                 }
             }
         });
-        removeButton.setBounds(62, 36, 43, 12);
+        removeButton.setBounds(62, 34, 43, 12);
 
         final MapWidgetSubmitText renameNodeAskText = tab.addWidget(new MapWidgetSubmitText() {
             @Override
