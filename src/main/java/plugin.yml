@@ -7,6 +7,10 @@ authors: [bergerkiller]
 api-version: 1.13
 softdepend: [BKCommonLib, Train_Carts, PlotSquared, LightAPI, ViaVersion]
 
+bstats:
+    enabled: true
+    plugin-id: 18765
+
 main: com.bergerkiller.bukkit.coasters.Preloader
 preloader:
     main: com.bergerkiller.bukkit.coasters.TCCoasters
