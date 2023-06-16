@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.objects;
 
 import java.util.function.Supplier;
 
+import com.bergerkiller.bukkit.coasters.editor.object.ui.TypePositionMenu;
 import org.bukkit.inventory.ItemStack;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
@@ -76,7 +77,7 @@ public interface TrackObjectType<P extends TrackParticle> {
     P createParticle(TrackConnection.PointOnPath point);
 
     /**
-     * Refreshes the particle previously spawned using {@link #createParticle(point)}.
+     * Refreshes the particle previously spawned using {@link #createParticle(TrackConnection.PointOnPath)}.
      * 
      * @param particle The particle to update
      * @param point The (new) position of the particle
@@ -108,6 +109,18 @@ public interface TrackObjectType<P extends TrackParticle> {
      * @param stateSupplier Supplier for the editing state of the player viewing this menu
      */
     void openMenu(MapWidget parent, Supplier<PlayerEditState> stateSupplier);
+
+    /**
+     * Opens the position menu where the position for this track object type
+     * can be configured. If additional position properties specific to this type
+     * are needed, override this method and configure them to be shown.
+     *
+     * @param parent Parent widget in which to display the menu
+     * @param stateSupplier Supplier for the editing state of the player viewing this menu
+     */
+    default void openPositionMenu(MapWidget parent, Supplier<PlayerEditState> stateSupplier) {
+        parent.addWidget(new TypePositionMenu(stateSupplier));
+    }
 
     /**
      * Modifies this track object type by setting an applicable property based on the item

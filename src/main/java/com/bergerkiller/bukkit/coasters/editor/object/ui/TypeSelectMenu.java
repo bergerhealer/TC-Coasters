@@ -59,6 +59,14 @@ public class TypeSelectMenu extends MapWidget {
         }
     }
 
+    public TrackObjectType<?> getSelectedType() {
+        // Set to valid value if unset
+        if (this._displayedType == null) {
+            this._displayedType = this._stateSupplier.get().getObjects().getSelectedType();
+        }
+        return this._displayedType;
+    }
+
     @Override
     public void onAttached() {
         this._displayedType = this._stateSupplier.get().getObjects().getSelectedType();
@@ -73,9 +81,7 @@ public class TypeSelectMenu extends MapWidget {
     @Override
     public void onDraw() {
         // Set to valid value if unset
-        if (this._displayedType == null) {
-            this._displayedType = this._stateSupplier.get().getObjects().getSelectedType();
-        }
+        getSelectedType();
 
         // Could be an expensive draw, so cache it
         if (this._displayedTypeTexture == null) {

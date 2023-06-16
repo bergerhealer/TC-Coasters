@@ -2,6 +2,10 @@ package com.bergerkiller.bukkit.coasters.editor.object.ui;
 
 import java.util.function.Supplier;
 
+import com.bergerkiller.bukkit.common.map.MapFont;
+import com.bergerkiller.bukkit.common.map.widgets.MapWidgetText;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
+import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetScroller;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
@@ -18,30 +22,79 @@ import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetNumberBox;
  * and its orientation.
  */
 public class TypePositionMenu extends MapWidgetMenu implements DragListener {
-    private final PlayerEditState state;
+    protected final PlayerEditState state;
+    protected final MapWidgetScroller scroller = new MapWidgetScroller();
+    protected int slider_width = 86;
     private MapWidgetNumberBox num_width;
     private MapWidgetNumberBox num_pos_x, num_pos_y, num_pos_z;
     private MapWidgetNumberBox num_rot_x, num_rot_y, num_rot_z;
-    private boolean isLoadingWidgets;
 
     public TypePositionMenu(Supplier<PlayerEditState> stateSupplier) {
         this.state = stateSupplier.get();
-        this.isLoadingWidgets = false;
         this.setBounds(0, 0, 118, 103);
         this.setBackgroundColor(MapColorPalette.COLOR_GREEN);
+        this.scroller.setBounds(5, 5, getWidth() - 7, getHeight() - 10);
+        this.scroller.setScrollPadding(20);
+        this.addWidget(this.scroller);
+    }
+
+    /**
+     * Adds a slider at the bottom of this position menu. Automatically calculates
+     * the position of the slider. Assumes 1 pixel of padding above.
+     *
+     * @param labelText Text to put left of the widget
+     * @param widget Widget to add
+     * @return Input widget
+     * @param <T> Widget type
+     */
+    protected <T extends MapWidget> T addSlider(String labelText, T widget) {
+        return addSlider(1, labelText, widget);
+    }
+
+    /**
+     * Adds a slider at the bottom of this position menu. Automatically calculates
+     * the position of the slider.
+     *
+     * @param topPadding Number of pixels between this widget and the one above
+     * @param labelText Text to put left of the widget
+     * @param widget Widget to add
+     * @return Input widget
+     * @param <T> Widget type
+     */
+    protected <T extends MapWidget> T addSlider(int topPadding, String labelText, T widget) {
+        int y;
+        if (this.scroller.getContainer().getWidgetCount() == 0) {
+            y = 0;
+        } else {
+            y = this.scroller.getContainer().getHeight();
+            for (MapWidget child : this.scroller.getContainer().getWidgets()) {
+                y = Math.max(y, child.getY() + child.getHeight());
+            }
+            y += topPadding;
+        }
+
+        // Position widget itself and add it
+        widget.setBounds(25, y, slider_width, 11);
+        scroller.addContainerWidget(widget);
+
+        // Create a label left of the widget
+        if (!LogicUtil.nullOrEmpty(labelText)) {
+            MapWidgetText label = new MapWidgetText();
+            label.setFont(MapFont.TINY);
+            label.setText(labelText);
+            label.setPosition(0, y + 3);
+            label.setColor(MapColorPalette.getSpecular(this.labelColor, 0.5f));
+            scroller.addContainerWidget(label);
+        }
+
+        return widget;
     }
 
     @Override
     public void onAttached() {
         super.onAttached();
 
-        isLoadingWidgets = true;
-
-        int slider_width = 86;
-        int y_offset = 8;
-        int y_step = 12;
-
-        num_width = this.addWidget(new MapWidgetNumberBox() { // Object width
+        num_width = addSlider("Width", new MapWidgetNumberBox() { // Object width
             @Override
             public String getAcceptedPropertyName() {
                 return "Object Width";
@@ -49,18 +102,13 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
 
             @Override
             public void onValueChanged() {
-                if (!isLoadingWidgets) {
-                    state.getObjects().transformSelectedType(type -> type.setWidth(getValue()));
-                }
+                state.getObjects().transformSelectedType(type -> type.setWidth(getValue()));
             }
         });
         num_width.setRange(0.0, Double.MAX_VALUE);
-        num_width.setValue(width());
-        num_width.setBounds(30, y_offset, slider_width, 11);
-        addLabel(5, y_offset + 3, "Width");
-        y_offset += y_step;
+        num_width.setInitialValue(width());
 
-        num_pos_x = this.addWidget(new MapWidgetNumberBox() { // Position X
+        num_pos_x = addSlider("Pos.X", new MapWidgetNumberBox() { // Position X
             @Override
             public String getAcceptedPropertyName() {
                 return "Position X-Coordinate";
@@ -71,12 +119,9 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
                 updateTransform();
             }
         });
-        num_pos_x.setValue(position().getX());
-        num_pos_x.setBounds(30, y_offset, slider_width, 11);
-        addLabel(5, y_offset + 3, "Pos.X");
-        y_offset += y_step;
+        num_pos_x.setInitialValue(position().getX());
 
-        num_pos_y = this.addWidget(new MapWidgetNumberBox() { // Position Y
+        num_pos_y = addSlider("Pos.Y", new MapWidgetNumberBox() { // Position Y
             @Override
             public String getAcceptedPropertyName() {
                 return "Position Y-Coordinate";
@@ -87,12 +132,9 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
                 updateTransform();
             }
         });
-        num_pos_y.setValue(position().getY());
-        num_pos_y.setBounds(30, y_offset, slider_width, 11);
-        addLabel(5, y_offset + 3, "Pos.Y");
-        y_offset += y_step;
+        num_pos_y.setInitialValue(position().getY());
 
-        num_pos_z = this.addWidget(new MapWidgetNumberBox() { // Position Z
+        num_pos_z = addSlider("Pos.Z", new MapWidgetNumberBox() { // Position Z
             @Override
             public String getAcceptedPropertyName() {
                 return "Position Z-Coordinate";
@@ -103,12 +145,9 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
                 updateTransform();
             }
         });
-        num_pos_z.setValue(position().getZ());
-        num_pos_z.setBounds(30, y_offset, slider_width, 11);
-        addLabel(5, y_offset + 3, "Pos.Z");
-        y_offset += y_step;
+        num_pos_z.setInitialValue(position().getZ());
 
-        num_rot_x = this.addWidget(new MapWidgetNumberBox() { // Rotation X (pitch)
+        num_rot_x = addSlider("Pitch", new MapWidgetNumberBox() { // Rotation X (pitch)
             @Override
             public String getAcceptedPropertyName() {
                 return "Rotation Pitch";
@@ -120,12 +159,9 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
             }
         });
         num_rot_x.setIncrement(0.1);
-        num_rot_x.setValue(rotation().getX());
-        num_rot_x.setBounds(30, y_offset, slider_width, 11);
-        addLabel(5, y_offset + 3, "Pitch");
-        y_offset += y_step;
+        num_rot_x.setInitialValue(rotation().getX());
 
-        num_rot_y = this.addWidget(new MapWidgetNumberBox() { // Rotation Y (yaw)
+        num_rot_y = addSlider("Yaw", new MapWidgetNumberBox() { // Rotation Y (yaw)
             @Override
             public String getAcceptedPropertyName() {
                 return "Rotation Yaw";
@@ -137,12 +173,9 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
             }
         });
         num_rot_y.setIncrement(0.1);
-        num_rot_y.setValue(rotation().getY());
-        num_rot_y.setBounds(30, y_offset, slider_width, 11);
-        addLabel(5, y_offset + 3, "Yaw");
-        y_offset += y_step;
+        num_rot_y.setInitialValue(rotation().getY());
 
-        num_rot_z = this.addWidget(new MapWidgetNumberBox() { // Rotation Z (roll)
+        num_rot_z = addSlider("Roll", new MapWidgetNumberBox() { // Rotation Z (roll)
             @Override
             public String getAcceptedPropertyName() {
                 return "Rotation Roll";
@@ -154,12 +187,7 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
             }
         });
         num_rot_z.setIncrement(0.1);
-        num_rot_z.setValue(rotation().getZ());
-        num_rot_z.setBounds(30, y_offset, slider_width, 11);
-        addLabel(5, y_offset + 3, "Roll");
-        y_offset += y_step;
-
-        isLoadingWidgets = false;
+        num_rot_z.setInitialValue(rotation().getZ());
 
         state.getObjects().addDragListener(this);
         display.playSound(SoundEffect.PISTON_EXTEND);
@@ -188,10 +216,6 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
     }
 
     private void updateTransform() {
-        if (this.isLoadingWidgets) {
-            return;
-        }
-
         Matrix4x4 transform;
         if (this.num_pos_x.getValue() == 0.0 &&
             this.num_pos_y.getValue() == 0.0 &&

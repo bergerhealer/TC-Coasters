@@ -523,12 +523,13 @@ public enum PlayerEditMode {
     }
 
     private static void createTrackObjectsView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
-        tab.addWidget(new TypeSelectMenu(stateSupplier)).setBounds(40, 0, 36, 36);
+        final TypeSelectMenu typeSelector = new TypeSelectMenu(stateSupplier);
+        tab.addWidget(typeSelector).setBounds(40, 0, 36, 36);
 
         tab.addWidget(new MapWidgetButton() {
             @Override
             public void onActivate() {
-                tab.addWidget(new TypePositionMenu(stateSupplier));
+                typeSelector.getSelectedType().openPositionMenu(tab, stateSupplier);
             }
         }).setText("Position").setBounds(26, 40, 64, 13);
 
