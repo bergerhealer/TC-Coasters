@@ -36,7 +36,7 @@ import com.bergerkiller.bukkit.coasters.events.CoasterSelectTrackObjectEvent;
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeFallingBlock;
-import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItemStack;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeArmorStandItem;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSearchPath;
@@ -1277,7 +1277,7 @@ public class ObjectEditState {
                 }
             }
         }
-        return TrackObjectTypeItemStack.createDefault();
+        return TrackObjectTypeArmorStandItem.createDefault();
     }
 
     private SortedSet<ObjectEditTrackObject> computeDraggedObjects(boolean initialDirection) {

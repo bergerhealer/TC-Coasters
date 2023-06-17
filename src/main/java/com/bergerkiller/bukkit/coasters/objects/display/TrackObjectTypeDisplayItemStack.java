@@ -6,6 +6,7 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.DisplayTypePositionMenu;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemSelectMenu;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItem;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticleDisplayItem;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
@@ -24,7 +25,7 @@ import java.util.function.Supplier;
 /**
  * Item stack displayed using a display item entity
  */
-public class TrackObjectTypeDisplayItemStack implements TrackObjectTypeDisplay<TrackParticleDisplayItem> {
+public class TrackObjectTypeDisplayItemStack implements TrackObjectTypeDisplay<TrackParticleDisplayItem>, TrackObjectTypeItem<TrackParticleDisplayItem> {
     private final double width;
     private final Matrix4x4 transform;
     private final ItemStack item;
@@ -76,21 +77,12 @@ public class TrackObjectTypeDisplayItemStack implements TrackObjectTypeDisplay<T
         return new TrackObjectTypeDisplayItemStack(this.width, transform, this.clip, this.size, this.item);
     }
 
-    /**
-     * Gets the item stack displayed
-     * 
-     * @return item stack
-     */
+    @Override
     public ItemStack getItem() {
         return this.item;
     }
 
-    /**
-     * Creates a copy of this type with the item stack changed
-     * 
-     * @param item The new item stack to set
-     * @return copy of this type with item stack changed
-     */
+    @Override
     public TrackObjectTypeDisplayItemStack setItem(ItemStack item) {
         return new TrackObjectTypeDisplayItemStack(this.width, this.transform, this.clip, this.size, item);
     }

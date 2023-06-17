@@ -22,12 +22,12 @@ import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 /**
  * Item stack displayed on an armorstand
  */
-public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleArmorStandItem> {
+public class TrackObjectTypeArmorStandItem implements TrackObjectTypeItem<TrackParticleArmorStandItem> {
     private final double width;
     private final Matrix4x4 transform;
     private final ItemStack item;
 
-    private TrackObjectTypeItemStack(double width, Matrix4x4 transform, ItemStack item) {
+    private TrackObjectTypeArmorStandItem(double width, Matrix4x4 transform, ItemStack item) {
         if (item == null) {
             throw new IllegalArgumentException("Item can not be null");
         }
@@ -36,11 +36,11 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
         this.item = item;
     }
 
-    public static TrackObjectTypeItemStack create(double width, ItemStack item) {
-        return new TrackObjectTypeItemStack(width, null, item);
+    public static TrackObjectTypeArmorStandItem create(double width, ItemStack item) {
+        return new TrackObjectTypeArmorStandItem(width, null, item);
     }
 
-    public static TrackObjectTypeItemStack createDefault() {
+    public static TrackObjectTypeArmorStandItem createDefault() {
         return create(0.0, new ItemStack(MaterialUtil.getFirst("OAK_PLANKS", "LEGACY_WOOD")));
     }
 
@@ -55,8 +55,8 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
     }
 
     @Override
-    public TrackObjectTypeItemStack setWidth(double width) {
-        return new TrackObjectTypeItemStack(width, this.transform, this.item);
+    public TrackObjectTypeArmorStandItem setWidth(double width) {
+        return new TrackObjectTypeArmorStandItem(width, this.transform, this.item);
     }
 
     @Override
@@ -66,26 +66,17 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
 
     @Override
     public TrackObjectType<TrackParticleArmorStandItem> setTransform(Matrix4x4 transform) {
-        return new TrackObjectTypeItemStack(this.width, transform, this.item);
+        return new TrackObjectTypeArmorStandItem(this.width, transform, this.item);
     }
 
-    /**
-     * Gets the item stack displayed
-     * 
-     * @return item stack
-     */
+    @Override
     public ItemStack getItem() {
         return this.item;
     }
 
-    /**
-     * Creates a copy of this type with the item stack changed
-     * 
-     * @param item The new item stack to set
-     * @return copy of this type with item stack changed
-     */
-    public TrackObjectTypeItemStack setItem(ItemStack item) {
-        return new TrackObjectTypeItemStack(this.width, this.transform, item);
+    @Override
+    public TrackObjectTypeArmorStandItem setItem(ItemStack item) {
+        return new TrackObjectTypeArmorStandItem(this.width, this.transform, item);
     }
 
     @Override
@@ -113,7 +104,7 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
 
     @Override
     public boolean isSameImage(TrackObjectType<?> type) {
-        return this.getItem().equals(((TrackObjectTypeItemStack) type).getItem());
+        return this.getItem().equals(((TrackObjectTypeArmorStandItem) type).getItem());
     }
 
     @Override
@@ -127,7 +118,7 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
     }
 
     @Override
-    public TrackObjectTypeItemStack acceptItem(ItemStack item) {
+    public TrackObjectTypeArmorStandItem acceptItem(ItemStack item) {
         return this.setItem(item);
     }
 
@@ -140,8 +131,8 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
     public boolean equals(Object o) {
         if (o == this) {
             return true;
-        } else if (o instanceof TrackObjectTypeItemStack) {
-            TrackObjectTypeItemStack other = (TrackObjectTypeItemStack) o;
+        } else if (o instanceof TrackObjectTypeArmorStandItem) {
+            TrackObjectTypeArmorStandItem other = (TrackObjectTypeArmorStandItem) o;
             return this.item.equals(other.item) &&
                    this.width == other.width &&
                    LogicUtil.bothNullOrEqual(this.transform, other.transform);
@@ -158,28 +149,28 @@ public class TrackObjectTypeItemStack implements TrackObjectType<TrackParticleAr
     /**
      * Stores the details of an ItemStack, which can later be referred to again by name
      */
-    public static final class CSVEntry extends TrackObjectTypeEntry<TrackObjectTypeItemStack> {
+    public static final class CSVEntry extends TrackObjectTypeEntry<TrackObjectTypeArmorStandItem> {
         @Override
         public String getType() {
             return "ITEMSTACK";
         }
 
         @Override
-        public TrackObjectTypeItemStack getDefaultType() {
-            return TrackObjectTypeItemStack.createDefault();
+        public TrackObjectTypeArmorStandItem getDefaultType() {
+            return TrackObjectTypeArmorStandItem.createDefault();
         }
 
         @Override
-        public TrackObjectTypeItemStack readDetails(StringArrayBuffer buffer) throws SyntaxException {
+        public TrackObjectTypeArmorStandItem readDetails(StringArrayBuffer buffer) throws SyntaxException {
             ItemStack itemStack = buffer.nextItemStack();
             if (itemStack == null) {
                 return null;
             }
-            return TrackObjectTypeItemStack.create(this.width, itemStack);
+            return TrackObjectTypeArmorStandItem.create(this.width, itemStack);
         }
 
         @Override
-        public void writeDetails(StringArrayBuffer buffer, TrackObjectTypeItemStack objectType) {
+        public void writeDetails(StringArrayBuffer buffer, TrackObjectTypeArmorStandItem objectType) {
             buffer.putItemStack(objectType.getItem());
         }
     }

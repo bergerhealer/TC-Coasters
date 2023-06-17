@@ -19,7 +19,7 @@ import org.bukkit.util.Vector;
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeFallingBlock;
-import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItemStack;
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeArmorStandItem;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeLeash;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
@@ -92,7 +92,7 @@ public class TrackCSV {
         registerEntry(NoLimits2Entry::new);
 
         // Object types
-        registerEntry(TrackObjectTypeItemStack.CSVEntry::new);
+        registerEntry(TrackObjectTypeArmorStandItem.CSVEntry::new);
         registerEntry(TrackObjectTypeFallingBlock.CSVEntry::new);
         if (CommonCapabilities.HAS_DISPLAY_ENTITY) {
             registerEntry(TrackObjectTypeDisplayItemStack.CSVEntry::new);
