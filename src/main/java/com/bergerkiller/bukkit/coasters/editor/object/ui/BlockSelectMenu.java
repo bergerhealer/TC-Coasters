@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.editor.object.ui;
 
 import java.util.function.Supplier;
 
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeBlock;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -10,7 +11,6 @@ import com.bergerkiller.bukkit.coasters.editor.object.ui.block.MapWidgetBlockGri
 import com.bergerkiller.bukkit.coasters.editor.object.ui.block.MapWidgetBlockStateList;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.block.MapWidgetBlockVariantList;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
-import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeFallingBlock;
 import com.bergerkiller.bukkit.common.events.map.MapKeyEvent;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.MapPlayerInput;
@@ -43,8 +43,8 @@ public class BlockSelectMenu extends MapWidgetMenu {
             public void onBlockChanged(BlockData block) {
                 blockStateList.setBlock(block);
                 if (!initializing) {
-                    stateSupplier.get().getObjects().transformSelectedType(TrackObjectTypeFallingBlock.class,
-                            type -> type.setMaterial(block));
+                    stateSupplier.get().getObjects().transformSelectedType(TrackObjectTypeBlock.class,
+                            type -> type.setBlockData(block));
                 }
             }
 
@@ -95,8 +95,8 @@ public class BlockSelectMenu extends MapWidgetMenu {
         this.blockSelector.setPosition(7, 30);
 
         TrackObjectType<?> type = stateSupplier.get().getObjects().getSelectedType();
-        if (type instanceof TrackObjectTypeFallingBlock) {
-            BlockData current = ((TrackObjectTypeFallingBlock) type).getMaterial();
+        if (type instanceof TrackObjectTypeBlock) {
+            BlockData current = ((TrackObjectTypeBlock<?>) type).getBlockData();
             this.variantList.setBlock(current);
             this.blockSelector.setSelectedBlock(current.getType());
         }

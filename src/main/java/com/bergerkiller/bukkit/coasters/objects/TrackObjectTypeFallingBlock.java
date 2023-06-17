@@ -22,24 +22,24 @@ import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 
 /**
- * Item stack displayed on an armorstand
+ * Falling block showing a block, can't rotate
  */
-public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticleFallingBlock> {
+public class TrackObjectTypeFallingBlock implements TrackObjectTypeBlock<TrackParticleFallingBlock> {
     private final double width;
     private final Matrix4x4 transform;
-    private final BlockData material;
+    private final BlockData blockData;
 
-    private TrackObjectTypeFallingBlock(double width, Matrix4x4 transform, BlockData material) {
-        if (material == null) {
-            throw new IllegalArgumentException("Material can not be null");
+    private TrackObjectTypeFallingBlock(double width, Matrix4x4 transform, BlockData blockData) {
+        if (blockData == null) {
+            throw new IllegalArgumentException("BlockData can not be null");
         }
         this.width = width;
         this.transform = transform;
-        this.material = material;
+        this.blockData = blockData;
     }
 
-    public static TrackObjectTypeFallingBlock create(double width, BlockData material) {
-        return new TrackObjectTypeFallingBlock(width, null, material);
+    public static TrackObjectTypeFallingBlock create(double width, BlockData blockData) {
+        return new TrackObjectTypeFallingBlock(width, null, blockData);
     }
 
     public static TrackObjectTypeFallingBlock createDefault() {
@@ -58,7 +58,7 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
 
     @Override
     public TrackObjectTypeFallingBlock setWidth(double width) {
-        return new TrackObjectTypeFallingBlock(width, this.transform, this.material);
+        return new TrackObjectTypeFallingBlock(width, this.transform, this.blockData);
     }
 
     @Override
@@ -68,36 +68,27 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
 
     @Override
     public TrackObjectType<TrackParticleFallingBlock> setTransform(Matrix4x4 transform) {
-        return new TrackObjectTypeFallingBlock(this.width, transform, this.material);
+        return new TrackObjectTypeFallingBlock(this.width, transform, this.blockData);
     }
 
-    /**
-     * Gets the material displayed
-     * 
-     * @return material
-     */
-    public BlockData getMaterial() {
-        return this.material;
+    @Override
+    public BlockData getBlockData() {
+        return this.blockData;
     }
 
-    /**
-     * Creates a copy of this type with the material changed
-     * 
-     * @param material The new material to set
-     * @return copy of this type with material changed
-     */
-    public TrackObjectTypeFallingBlock setMaterial(BlockData material) {
-        return new TrackObjectTypeFallingBlock(this.width, this.transform, material);
+    @Override
+    public TrackObjectTypeFallingBlock setBlockData(BlockData blockData) {
+        return new TrackObjectTypeFallingBlock(this.width, this.transform, blockData);
     }
 
     @Override
     public String generateName() {
-        return "B_" + material.getBlockName();
+        return "B_" + blockData.getBlockName();
     }
 
     @Override
     public TrackParticleFallingBlock createParticle(TrackConnection.PointOnPath point) {
-        TrackParticleFallingBlock particle = point.getWorld().getParticles().addParticleFallingBlock(point.position, point.orientation, this.material);
+        TrackParticleFallingBlock particle = point.getWorld().getParticles().addParticleFallingBlock(point.position, point.orientation, this.blockData);
         particle.setAlwaysVisible(true);
         return particle;
     }
@@ -105,17 +96,17 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
     @Override
     public void updateParticle(TrackParticleFallingBlock particle, TrackConnection.PointOnPath point) {
         particle.setPositionOrientation(point.position, point.orientation);
-        particle.setMaterial(this.material);
+        particle.setMaterial(this.blockData);
     }
 
     @Override
     public boolean isSameImage(TrackObjectType<?> type) {
-        return this.getMaterial().equals(((TrackObjectTypeFallingBlock) type).getMaterial());
+        return this.getBlockData().equals(((TrackObjectTypeFallingBlock) type).getBlockData());
     }
 
     @Override
     public void drawImage(TCCoasters plugin, MapCanvas canvas) {
-        Model model = plugin.getResourcePack().getBlockModel(this.material);
+        Model model = plugin.getResourcePack().getBlockModel(this.blockData);
         canvas.setLightOptions(0.0f, 1.0f, new Vector3(-1, 1, -1));
         canvas.drawModel(model, 1.0f, 27, 22, 225.0f, -45.0f);
     }
@@ -129,7 +120,7 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
     public TrackObjectTypeFallingBlock acceptItem(ItemStack item) {
         BlockData block = BlockData.fromItemStack(item);
         if (block != null) {
-            return this.setMaterial(block);
+            return this.setBlockData(block);
         } else {
             return this;
         }
@@ -137,7 +128,7 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
 
     @Override
     public int hashCode() {
-        return this.material.hashCode();
+        return this.blockData.hashCode();
     }
 
     @Override
@@ -146,7 +137,7 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
             return true;
         } else if (o instanceof TrackObjectTypeFallingBlock) {
             TrackObjectTypeFallingBlock other = (TrackObjectTypeFallingBlock) o;
-            return this.material == other.material &&
+            return this.blockData == other.blockData &&
                    this.width == other.width &&
                    LogicUtil.bothNullOrEqual(this.transform, other.transform);
         } else {
@@ -156,7 +147,7 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
 
     @Override
     public String toString() {
-        return "{TrackObjectType[FallingBlock] material=" + this.material.getBlockName() + "}";
+        return "{TrackObjectType[FallingBlock] material=" + this.blockData.getBlockName() + "}";
     }
 
     /**
@@ -181,7 +172,7 @@ public class TrackObjectTypeFallingBlock implements TrackObjectType<TrackParticl
 
         @Override
         public void writeDetails(StringArrayBuffer buffer, TrackObjectTypeFallingBlock objectType) {
-            buffer.putBlockData(objectType.getMaterial());
+            buffer.putBlockData(objectType.getBlockData());
         }
     }
 }

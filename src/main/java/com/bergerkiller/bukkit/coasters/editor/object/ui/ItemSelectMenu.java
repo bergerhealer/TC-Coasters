@@ -2,12 +2,12 @@ package com.bergerkiller.bukkit.coasters.editor.object.ui;
 
 import java.util.function.Supplier;
 
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeBlock;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
-import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeFallingBlock;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItemStack;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.resources.SoundEffect;
@@ -28,8 +28,8 @@ public class ItemSelectMenu extends MapWidgetMenu {
                 TrackObjectType<?> type = stateSupplier.get().getObjects().getSelectedType();
                 if (type instanceof TrackObjectTypeItemStack) {
                     this.setSelectedItem(((TrackObjectTypeItemStack) type).getItem());
-                } else if (type instanceof TrackObjectTypeFallingBlock) {
-                    this.setSelectedItem(((TrackObjectTypeFallingBlock) type).getMaterial().createItem(1));
+                } else if (type instanceof TrackObjectTypeBlock) {
+                    this.setSelectedItem(((TrackObjectTypeBlock<?>) type).getBlockData().createItem(1));
                 }
             }
 
