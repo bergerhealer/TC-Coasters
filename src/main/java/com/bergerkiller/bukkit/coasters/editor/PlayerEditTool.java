@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.editor;
 
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -25,7 +26,7 @@ public enum PlayerEditTool {
         }
 
         @Override
-        public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick) {
+        public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick, Block clickedBlock) {
             return false;
         }
     },
@@ -44,7 +45,10 @@ public enum PlayerEditTool {
         }
 
         @Override
-        public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick) {
+        public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick, Block clickedBlock) {
+            if (clickedBlock != null && state.onClickBlock(isLeftClick, isRightClick, clickedBlock)) {
+                return true;
+            }
             return (isLeftClick && state.onLeftClick()) || (isRightClick && state.onRightClick());
         }
     },
@@ -73,7 +77,7 @@ public enum PlayerEditTool {
         }
 
         @Override
-        public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick) {
+        public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick, Block clickedBlock) {
             return (isLeftClick && state.onLeftClick()) || (isRightClick && state.onRightClick());
         }
     },
@@ -93,7 +97,7 @@ public enum PlayerEditTool {
         }
 
         @Override
-        public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick) {
+        public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick, Block clickedBlock) {
             TrackNode lookingAt = state.findLookingAtIfUnobstructed(10.0);
             if (lookingAt != null) {
                 if (isLeftClick && state.getSigns().onSignLeftClick(lookingAt)) {
@@ -114,7 +118,7 @@ public enum PlayerEditTool {
         }
 
         @Override
-        public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick) {
+        public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick, Block clickedBlock) {
             TrackNode lookingAt = state.findLookingAtIfUnobstructed(10.0);
             if (lookingAt != null) {
                 if (isLeftClick && state.getSigns().onTorchLeftClick(lookingAt)) {
@@ -137,7 +141,7 @@ public enum PlayerEditTool {
         }
 
         @Override
-        public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick) {
+        public boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick, Block clickedBlock) {
             TrackNode lookingAt = state.findLookingAtIfUnobstructed(10.0);
             if (lookingAt != null) {
                 if (isLeftClick && state.getSigns().onLeverLeftClick(lookingAt)) {
@@ -182,8 +186,9 @@ public enum PlayerEditTool {
      * @param state PlayerEditState of the Player that clicked
      * @param isLeftClick Whether this is a left-click
      * @param isRightClick Whether this is a right-click
+     * @param clickedBlock Block that was clicked, if one was clicked, otherwise null
      * @return Whether the original click interaction should be cancelled, or in other words, that the
      *         click was handled. Return true to handle the click. False to ignore it.
      */
-    public abstract boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick);
+    public abstract boolean handleClick(PlayerEditState state, boolean isLeftClick, boolean isRightClick, Block clickedBlock);
 }

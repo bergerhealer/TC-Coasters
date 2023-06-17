@@ -97,11 +97,15 @@ public class BlockSelectMenu extends MapWidgetMenu {
         TrackObjectType<?> type = stateSupplier.get().getObjects().getSelectedType();
         if (type instanceof TrackObjectTypeBlock) {
             BlockData current = ((TrackObjectTypeBlock<?>) type).getBlockData();
-            this.variantList.setBlock(current);
-            this.blockSelector.setSelectedBlock(current.getType());
+            setSelectedBlock(((TrackObjectTypeBlock<?>) type).getBlockData());
         }
 
         this.initializing = false;
+    }
+
+    public void setSelectedBlock(BlockData blockData) {
+        this.variantList.setBlock(blockData);
+        this.blockSelector.setSelectedBlock(blockData.getType());
     }
 
     @Override

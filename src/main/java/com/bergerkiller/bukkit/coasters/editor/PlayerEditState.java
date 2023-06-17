@@ -14,6 +14,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.bergerkiller.bukkit.coasters.editor.object.ui.BlockSelectMenu;
+import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -860,6 +862,23 @@ public class PlayerEditState implements CoasterWorldComponent {
     public void setTargetedBlock(Block clickedBlock, BlockFace clickedFace) {
         this.targetedBlock = clickedBlock;
         this.targetedBlockFace = clickedFace;
+    }
+
+    public boolean onClickBlock(boolean isLeftClick, boolean isRightClick, Block clickedBlock) {
+        // When right clicking blocks select the block in the block select menu
+        if (isRightClick) {
+            TCCoastersDisplay display = MapDisplay.getHeldDisplay(player, TCCoastersDisplay.class);
+            if (display != null) {
+                for (MapWidget w = display.getActivatedWidget(); w != null; w = w.getParent()) {
+                    if (w instanceof BlockSelectMenu) {
+                        ((BlockSelectMenu) w).setSelectedBlock(WorldUtil.getBlockData(clickedBlock));
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     public boolean onRightClick() {

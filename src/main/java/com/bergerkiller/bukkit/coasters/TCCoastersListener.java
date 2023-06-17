@@ -55,7 +55,7 @@ public class TCCoastersListener implements Listener {
                 }
 
                 // Handle tool
-                if (tool.handleClick(state, isLeftClick, isRightClick)) {
+                if (tool.handleClick(state, isLeftClick, isRightClick, event.getClickedBlock())) {
                     event.setCancelled(true);
                 }
             }
