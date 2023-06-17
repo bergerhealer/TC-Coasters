@@ -1,7 +1,12 @@
 package com.bergerkiller.bukkit.coasters.editor.object.ui;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
+import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
 import com.bergerkiller.bukkit.common.map.MapFont;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetText;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
@@ -48,46 +53,18 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
      * @param <T> Widget type
      */
     protected <T extends MapWidget> T addSlider(String labelText, T widget) {
-        return addSlider(1, labelText, widget);
+        return slider(widget).label(labelText).create();
     }
 
     /**
-     * Adds a slider at the bottom of this position menu. Automatically calculates
-     * the position of the slider.
+     * Starts setting up the layout of a new slider. Call create() to add it.
      *
-     * @param topPadding Number of pixels between this widget and the one above
-     * @param labelText Text to put left of the widget
-     * @param widget Widget to add
-     * @return Input widget
+     * @param widget Widget
+     * @return builder
      * @param <T> Widget type
      */
-    protected <T extends MapWidget> T addSlider(int topPadding, String labelText, T widget) {
-        int y;
-        if (this.scroller.getContainer().getWidgetCount() == 0) {
-            y = 0;
-        } else {
-            y = this.scroller.getContainer().getHeight();
-            for (MapWidget child : this.scroller.getContainer().getWidgets()) {
-                y = Math.max(y, child.getY() + child.getHeight());
-            }
-            y += topPadding;
-        }
-
-        // Position widget itself and add it
-        widget.setBounds(25, y, slider_width, 11);
-        scroller.addContainerWidget(widget);
-
-        // Create a label left of the widget
-        if (!LogicUtil.nullOrEmpty(labelText)) {
-            MapWidgetText label = new MapWidgetText();
-            label.setFont(MapFont.TINY);
-            label.setText(labelText);
-            label.setPosition(0, y + 3);
-            label.setColor(MapColorPalette.getSpecular(this.labelColor, 0.5f));
-            scroller.addContainerWidget(label);
-        }
-
-        return widget;
+    protected <T extends MapWidget> SliderBuilder<T> slider(T widget) {
+        return new SliderBuilder<T>(widget);
     }
 
     @Override
@@ -215,6 +192,19 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
         return state.getObjects().getSelectedType().getWidth();
     }
 
+    protected <T extends TrackObjectType<?>, P> P getProperty(Class<T> type, Function<T, P> getter, P defaultValue) {
+        TrackObjectType<?> selected = state.getObjects().getSelectedType();
+        if (type.isInstance(selected)) {
+            return getter.apply(type.cast(selected));
+        } else {
+            return defaultValue;
+        }
+    }
+
+    protected <T extends TrackObjectType<?>, P> void setProperty(Class<T> type, BiFunction<T, P, T> setter, P value) {
+        state.getObjects().transformSelectedType(type, t -> setter.apply(t, value));
+    }
+
     private void updateTransform() {
         Matrix4x4 transform;
         if (this.num_pos_x.getValue() == 0.0 &&
@@ -243,6 +233,82 @@ public class TypePositionMenu extends MapWidgetMenu implements DragListener {
         if (focused instanceof MapWidgetNumberBox) {
             MapWidgetNumberBox num = (MapWidgetNumberBox) focused;
             num.setValue(num.getValue() + delta);
+        }
+    }
+
+    protected class SliderBuilder<T extends MapWidget> {
+        private final T widget;
+        private int topPadding = 1;
+        private final List<Label> labels = new ArrayList<>();
+
+        public SliderBuilder(T widget) {
+            this.widget = widget;
+            widget.setSize(slider_width, 11);
+        }
+
+        public SliderBuilder<T> topPadding(int topPadding) {
+            this.topPadding = topPadding;
+            return this;
+        }
+
+        public SliderBuilder<T> width(int width) {
+            widget.setSize(width, widget.getHeight());
+            return this;
+        }
+
+        public SliderBuilder<T> height(int height) {
+            widget.setSize(widget.getWidth(), height);
+            return this;
+        }
+
+        public SliderBuilder<T> label(String text) {
+            return label(3, text);
+        }
+
+        public SliderBuilder<T> label(int y, String text) {
+            if (!LogicUtil.nullOrEmpty(text)) {
+                labels.add(new Label(y, text));
+            }
+            return this;
+        }
+
+        public T create() {
+            int y;
+            if (scroller.getContainer().getWidgetCount() == 0) {
+                y = 0;
+            } else {
+                y = scroller.getContainer().getHeight();
+                for (MapWidget child : scroller.getContainer().getWidgets()) {
+                    y = Math.max(y, child.getY() + child.getHeight());
+                }
+                y += topPadding;
+            }
+
+            // Position widget itself and add it
+            widget.setPosition(25, y);
+            scroller.addContainerWidget(widget);
+
+            // Create labels left of the widget
+            for (Label labelCfg : labels) {
+                MapWidgetText label = new MapWidgetText();
+                label.setFont(MapFont.TINY);
+                label.setText(labelCfg.text);
+                label.setPosition(0, labelCfg.y + y);
+                label.setColor(MapColorPalette.getSpecular(labelColor, 0.5f));
+                scroller.addContainerWidget(label);
+            }
+
+            return widget;
+        }
+    }
+
+    private static class Label {
+        public final int y;
+        public final String text;
+
+        public Label(int y, String text) {
+            this.y = y;
+            this.text = text;
         }
     }
 }

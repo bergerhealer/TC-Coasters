@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayBlock;
+import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayItemStack;
+import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
 import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
 
@@ -91,6 +94,10 @@ public class TrackCSV {
         // Object types
         registerEntry(TrackObjectTypeItemStack.CSVEntry::new);
         registerEntry(TrackObjectTypeFallingBlock.CSVEntry::new);
+        if (CommonCapabilities.HAS_DISPLAY_ENTITY) {
+            registerEntry(TrackObjectTypeDisplayItemStack.CSVEntry::new);
+            registerEntry(TrackObjectTypeDisplayBlock.CSVEntry::new);
+        }
         registerEntry(TrackObjectTypeLeash.CSVEntry::new);
     }
 
@@ -268,7 +275,7 @@ public class TrackCSV {
          * Reads the data in the buffer into this entry
          * 
          * @param buffer to read from
-         * @throws EntrySyntaxException when the buffer stores data the entry cannot read
+         * @throws SyntaxException when the buffer stores data the entry cannot read
          */
         public abstract void read(StringArrayBuffer buffer) throws SyntaxException;
 
