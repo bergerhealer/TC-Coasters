@@ -16,7 +16,7 @@ public class TrackParticleArmorStandItem extends TrackParticle {
     protected static final int FLAG_POSITION_CHANGED  = (1<<2);
     protected static final int FLAG_POSE_CHANGED      = (1<<3);
     protected static final int FLAG_ITEM_CHANGED      = (1<<4);
-    protected static final int FLAG_SMALL_CHANGES     = (1<<5);
+    protected static final int FLAG_LARGE_CHANGES     = (1<<5);
 
     private static final QueuedTask<TrackParticleArmorStandItem> DESPAWN_HOLDER_TASK = QueuedTask.create(
             100, TrackParticle::isAdded, TrackParticleArmorStandItem::destroyHolderEntity);
@@ -40,12 +40,11 @@ public class TrackParticleArmorStandItem extends TrackParticle {
             this.scheduleUpdateAppearance();
         }
         if (!this.position.equalsCoord(position)) {
-            if (Math.abs(position.getX() - this.position.getX()) < 0.05 &&
-                Math.abs(position.getY() - this.position.getY()) < 0.05 &&
-                Math.abs(position.getZ() - this.position.getZ()) < 0.05 &&
-                setFlag(FLAG_SMALL_CHANGES))
+            if (Math.abs(position.getX() - this.position.getX()) > 0.02 ||
+                Math.abs(position.getY() - this.position.getY()) > 0.02 ||
+                Math.abs(position.getZ() - this.position.getZ()) > 0.02)
             {
-                DESPAWN_HOLDER_TASK.schedule(this);
+                setFlag(FLAG_LARGE_CHANGES);
             }
             this.position = updatePosition(this.position, position);
             this.setFlag(FLAG_POSITION_CHANGED);
@@ -105,17 +104,30 @@ public class TrackParticleArmorStandItem extends TrackParticle {
     @Override
     public void updateAppearance() {
         if (this.clearFlag(FLAG_POSITION_CHANGED)) {
-            VirtualArmorStandItem entity = VirtualArmorStandItem.create(this.holderEntityId, this.entityId)
-                    .position(this.position)
-                    .respawn(this.clearFlag(FLAG_SMALL_CHANGES));
+            boolean large_changes = this.clearFlag(FLAG_LARGE_CHANGES);
+            if (hasViewers()) {
+                VirtualArmorStandItem entity = VirtualArmorStandItem.create(this.holderEntityId, this.entityId)
+                        .position(this.position);
 
-            for (Player viewer : this.getViewers()) {
-                entity.glowing(this.getState(viewer) == TrackParticleState.SELECTED)
-                    .updatePosition(viewer);
+                if (large_changes) {
+                    for (Player viewer : this.getViewers()) {
+                        entity.glowing(this.getState(viewer) == TrackParticleState.SELECTED)
+                                .updatePosition(viewer);
+                    }
+                } else {
+                    // For small changes don't move the entity but destroy and re-spawn the holder
+                    // This disables interpolation so these changes are more accurate for positioning
+                    entity.destroyHolderKeepEntityId(getViewers());
+                    for (Player viewer : this.getViewers()) {
+                        entity.glowing(this.getState(viewer) == TrackParticleState.SELECTED)
+                                .spawnHolder(viewer);
+                    }
+                    DESPAWN_HOLDER_TASK.schedule(this);
+                }
+
+                this.holderEntityId = entity.holderEntityId();
+                this.entityId = entity.entityId();
             }
-
-            this.holderEntityId = entity.holderEntityId();
-            this.entityId = entity.entityId();
         }
         if (this.clearFlag(FLAG_POSE_CHANGED) && this.entityId != -1) {
             VirtualArmorStandItem.create(this.holderEntityId, this.entityId)

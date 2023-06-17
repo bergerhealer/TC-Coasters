@@ -45,7 +45,6 @@ public class VirtualArmorStandItem {
     private Quaternion orientation;
     private ItemStack item;
     private boolean glowing = false;
-    private boolean respawn = false;
 
     public VirtualArmorStandItem item(ItemStack item) {
         this.item = item;
@@ -73,11 +72,6 @@ public class VirtualArmorStandItem {
 
     public VirtualArmorStandItem glowing(boolean glowing) {
         this.glowing = glowing;
-        return this;
-    }
-
-    public VirtualArmorStandItem respawn(boolean respawn) {
-        this.respawn = respawn;
         return this;
     }
 
@@ -145,38 +139,25 @@ public class VirtualArmorStandItem {
     }
 
     public VirtualArmorStandItem updatePosition(Player viewer) {
-        if (this.respawn) {
-            if (this.holderEntityId == -1) {
-                // Spawn a holder for the armorstand and mount it in it
-                // This allows for super small movements
-                this.spawnHolder(viewer);
-            } else {
-                // Respawn the armorstand holder
-                PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId));
-                this.spawnHolder(viewer);
-            }
+        if (this.holderEntityId == -1) {
+            // Teleport the armorstand itself
+            PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+                    this.entityId,
+                    this.posX,
+                    this.posY - ARMORSTAND_HEAD_OFFSET,
+                    this.posZ,
+                    0.0f, 0.0f, false);
+            PacketUtil.sendPacket(viewer, tpPacket);
         } else {
-            if (this.holderEntityId == -1) {
-                // Teleport the armorstand itself
-                PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
-                        this.entityId,
-                        this.posX,
-                        this.posY - ARMORSTAND_HEAD_OFFSET,
-                        this.posZ,
-                        0.0f, 0.0f, false);
-                PacketUtil.sendPacket(viewer, tpPacket);
-            } else {
-                // Teleport the armorstand holder
-                PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
-                        this.holderEntityId,
-                        this.posX,
-                        this.posY - (this.glowing ? BAT_HOLDER_OFFSET_GLOWING : BAT_HOLDER_OFFSET),
-                        this.posZ,
-                        0.0f, 0.0f, false);
-                PacketUtil.sendPacket(viewer, tpPacket);
-            }
+            // Teleport the armorstand holder
+            PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+                    this.holderEntityId,
+                    this.posX,
+                    this.posY - (this.glowing ? BAT_HOLDER_OFFSET_GLOWING : BAT_HOLDER_OFFSET),
+                    this.posZ,
+                    0.0f, 0.0f, false);
+            PacketUtil.sendPacket(viewer, tpPacket);
         }
-
         return this;
     }
 
@@ -190,14 +171,19 @@ public class VirtualArmorStandItem {
         return this;
     }
 
-    public VirtualArmorStandItem destroyHolder(Iterable<Player> viewers) {
+    public VirtualArmorStandItem destroyHolderKeepEntityId(Iterable<Player> viewers) {
         if (this.holderEntityId != -1) {
             PacketPlayOutEntityDestroyHandle packet = PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId);
             for (Player viewer : viewers) {
                 PacketUtil.sendPacket(viewer, packet);
             }
-            this.holderEntityId = -1;
         }
+        return this;
+    }
+
+    public VirtualArmorStandItem destroyHolder(Iterable<Player> viewers) {
+        this.destroyHolderKeepEntityId(viewers);
+        this.holderEntityId = -1;
         return this;
     }
 
@@ -239,7 +225,7 @@ public class VirtualArmorStandItem {
         return this;
     }
 
-    private void spawnHolder(Player viewer) {
+    public VirtualArmorStandItem spawnHolder(Player viewer) {
         if (this.holderEntityId == -1) {
             this.holderEntityId = EntityUtil.getUniqueEntityId();
         }
@@ -267,5 +253,7 @@ public class VirtualArmorStandItem {
         } else {
             PacketUtil.sendPacket(viewer, PacketPlayOutAttachEntityHandle.createNewMount(this.entityId, this.holderEntityId));
         }
+
+        return this;
     }
 }
