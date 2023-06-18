@@ -93,14 +93,14 @@ public class TrackParticleDisplayItem extends TrackParticle {
 
     @Override
     public void makeHiddenFor(Player viewer) {
-        VirtualDisplayEntity.create(this.holderEntityId, this.entityId).destroy(viewer);
+        VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId).destroy(viewer);
     }
 
     @Override
     public void makeVisibleFor(Player viewer) {
         TrackParticleState state = getState(viewer);
 
-        VirtualDisplayEntity entity = VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+        VirtualDisplayEntity entity = VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId)
                 .position(this.position)
                 .orientation(this.orientation)
                 .clip(this.clip)
@@ -118,7 +118,7 @@ public class TrackParticleDisplayItem extends TrackParticle {
 
         TrackParticleState state = getState(viewer);
 
-        VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+        VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId)
             .glowing(state == TrackParticleState.SELECTED)
             .updateMetadata(viewer);
     }
@@ -128,7 +128,7 @@ public class TrackParticleDisplayItem extends TrackParticle {
         if (this.clearFlag(FLAG_POSITION_CHANGED)) {
             boolean large_changes = this.clearFlag(FLAG_LARGE_CHANGES);
             if (hasViewers()) {
-                VirtualDisplayEntity entity = VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+                VirtualDisplayEntity entity = VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId)
                         .position(this.position);
                 if (large_changes) {
                     entity.spawnHolder(getViewers());
@@ -142,18 +142,18 @@ public class TrackParticleDisplayItem extends TrackParticle {
             }
         }
         if (this.clearFlag(FLAG_TRANSFORM_CHANGED) && this.entityId != -1) {
-            VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+            VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId)
                 .orientation(this.orientation)
                 .scale(this.size)
                 .updateMetadata(this.getViewers());
         }
         if (this.clearFlag(FLAG_ITEM_CHANGED) && this.entityId != -1) {
-            VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+            VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId)
                 .item(this.item)
                 .updateMetadata(this.getViewers());
         }
         if (this.clearFlag(FLAG_CLIP_CHANGED) && this.entityId != -1) {
-            VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+            VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId)
                     .clip(this.clip)
                     .scale(this.size) // Needed for calculations
                     .updateMetadata(this.getViewers());
@@ -161,7 +161,7 @@ public class TrackParticleDisplayItem extends TrackParticle {
     }
 
     private void destroyHolderEntity() {
-        VirtualDisplayEntity entity = VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+        VirtualDisplayEntity entity = VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId)
                 .position(this.position)
                 .destroyHolder(getViewers());
         this.holderEntityId = entity.holderEntityId();

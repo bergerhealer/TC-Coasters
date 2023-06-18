@@ -36,7 +36,7 @@ public class VirtualDisplayEntity {
      * to correct for this. No per-player logic is needed as ViaVersion will flip yaw automatically
      * when 1.19.4 clients connect to a 1.20 server.
      */
-    private static final float INITIAL_ITEM_YAW = Common.evaluateMCVersion("<=", "1.19.4") ? 180.0f : 0.0f;
+    private static final boolean IS_ITEM_YAW_FLIPPED = Common.evaluateMCVersion("<=", "1.19.4");
 
     private int holderEntityId;
     private int entityId;
@@ -45,20 +45,27 @@ public class VirtualDisplayEntity {
     private double clip = Double.NaN;
     private Vector scale;
     private Boolean glowing = null;
-    private boolean centerBlock = false;
+    private final boolean isBlock;
+    private final boolean isItem;
 
     // For Item Display entities
     private ItemStack item;
     // For Block Display entities
     private BlockData blockData;
 
-    private VirtualDisplayEntity(int holderEntityId, int entityId) {
+    private VirtualDisplayEntity(int holderEntityId, int entityId, boolean isBlock, boolean isItem) {
         this.holderEntityId = holderEntityId;
         this.entityId = entityId;
+        this.isBlock = isBlock;
+        this.isItem = isItem;
     }
 
-    public static VirtualDisplayEntity create(int holderEntityId, int entityId) {
-        return new VirtualDisplayEntity(holderEntityId, entityId);
+    public static VirtualDisplayEntity createBlock(int holderEntityId, int entityId) {
+        return new VirtualDisplayEntity(holderEntityId, entityId, true, false);
+    }
+
+    public static VirtualDisplayEntity createItem(int holderEntityId, int entityId) {
+        return new VirtualDisplayEntity(holderEntityId, entityId, false, true);
     }
 
     public VirtualDisplayEntity position(DoubleOctree.Entry<?> position) {
@@ -92,11 +99,6 @@ public class VirtualDisplayEntity {
 
     public VirtualDisplayEntity glowing(boolean glowing) {
         this.glowing = glowing;
-        return this;
-    }
-
-    public VirtualDisplayEntity centerBlock() {
-        this.centerBlock = true;
         return this;
     }
 
@@ -198,10 +200,10 @@ public class VirtualDisplayEntity {
         if (scale != null && orientation != null) {
             // Add transform information and signal flag to start interpolation
             metadata.set(DisplayHandle.DATA_SCALE, this.scale);
-            metadata.set(DisplayHandle.DATA_LEFT_ROTATION, this.orientation);
+            metadata.set(DisplayHandle.DATA_LEFT_ROTATION, this.calcOrientation());
             metadata.set(DisplayHandle.DATA_INTERPOLATION_START_DELTA_TICKS, 0);
             // For blocks we got to center it
-            if (centerBlock) {
+            if (isBlock) {
                 Vector s = scale;
                 Vector v = new Vector(-0.5, 0.0, -0.5);
                 v.setX(v.getX() * s.getX());
@@ -210,6 +212,16 @@ public class VirtualDisplayEntity {
                 this.orientation.transformPoint(v);
                 metadata.set(DisplayHandle.DATA_TRANSLATION, v);
             }
+        }
+    }
+
+    private Quaternion calcOrientation() {
+        if (isItem && IS_ITEM_YAW_FLIPPED) {
+            Quaternion q = this.orientation.clone();
+            q.rotateYFlip();
+            return q;
+        } else {
+            return this.orientation;
         }
     }
 
@@ -241,9 +253,9 @@ public class VirtualDisplayEntity {
         metadata.set(DisplayHandle.DATA_INTERPOLATION_DURATION, 3);
         metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_GLOWING, this.glowing);
         applyProperties(metadata);
-        if (item != null) {
+        if (isItem) {
             spawnPacket.setEntityType(com.bergerkiller.bukkit.tc.attachments.VirtualDisplayEntity.ITEM_DISPLAY_ENTITY_TYPE);
-        } else if (blockData != null) {
+        } else if (isBlock) {
             spawnPacket.setEntityType(com.bergerkiller.bukkit.tc.attachments.VirtualDisplayEntity.BLOCK_DISPLAY_ENTITY_TYPE);
         } else {
             return this; // Wtf
@@ -258,7 +270,7 @@ public class VirtualDisplayEntity {
         spawnPacket.setPosX(this.posX);
         spawnPacket.setPosY(this.posY);
         spawnPacket.setPosZ(this.posZ);
-        spawnPacket.setYaw((item == null) ? 0.0f : INITIAL_ITEM_YAW);
+        spawnPacket.setYaw(0.0f);
         spawnPacket.setPitch(0.0f);
         PacketUtil.sendPacket(viewer, spawnPacket);
         PacketUtil.sendPacket(viewer, PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true));

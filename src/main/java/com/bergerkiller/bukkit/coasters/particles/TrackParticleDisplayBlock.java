@@ -7,7 +7,6 @@ import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 /**
@@ -94,20 +93,19 @@ public class TrackParticleDisplayBlock extends TrackParticle {
 
     @Override
     public void makeHiddenFor(Player viewer) {
-        VirtualDisplayEntity.create(this.holderEntityId, this.entityId).destroy(viewer);
+        VirtualDisplayEntity.createBlock(this.holderEntityId, this.entityId).destroy(viewer);
     }
 
     @Override
     public void makeVisibleFor(Player viewer) {
         TrackParticleState state = getState(viewer);
 
-        VirtualDisplayEntity entity = VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+        VirtualDisplayEntity entity = VirtualDisplayEntity.createBlock(this.holderEntityId, this.entityId)
                 .position(this.position)
                 .orientation(this.orientation)
                 .clip(this.clip)
                 .scale(this.size)
                 .block(this.blockData)
-                .centerBlock()
                 .glowing(state == TrackParticleState.SELECTED)
                 .spawn(viewer);
         this.holderEntityId = entity.holderEntityId();
@@ -120,7 +118,7 @@ public class TrackParticleDisplayBlock extends TrackParticle {
 
         TrackParticleState state = getState(viewer);
 
-        VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+        VirtualDisplayEntity.createBlock(this.holderEntityId, this.entityId)
             .glowing(state == TrackParticleState.SELECTED)
             .updateMetadata(viewer);
     }
@@ -130,7 +128,7 @@ public class TrackParticleDisplayBlock extends TrackParticle {
         if (this.clearFlag(FLAG_POSITION_CHANGED)) {
             boolean large_changes = this.clearFlag(FLAG_LARGE_CHANGES);
             if (hasViewers()) {
-                VirtualDisplayEntity entity = VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+                VirtualDisplayEntity entity = VirtualDisplayEntity.createBlock(this.holderEntityId, this.entityId)
                         .position(this.position);
                 if (large_changes) {
                     entity.spawnHolder(getViewers());
@@ -144,19 +142,18 @@ public class TrackParticleDisplayBlock extends TrackParticle {
             }
         }
         if (this.clearFlag(FLAG_TRANSFORM_CHANGED) && this.entityId != -1) {
-            VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+            VirtualDisplayEntity.createBlock(this.holderEntityId, this.entityId)
                 .orientation(this.orientation)
                 .scale(this.size)
-                .centerBlock()
                 .updateMetadata(this.getViewers());
         }
         if (this.clearFlag(FLAG_BLOCK_CHANGED) && this.entityId != -1) {
-            VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+            VirtualDisplayEntity.createBlock(this.holderEntityId, this.entityId)
                 .block(this.blockData)
                 .updateMetadata(this.getViewers());
         }
         if (this.clearFlag(FLAG_CLIP_CHANGED) && this.entityId != -1) {
-            VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+            VirtualDisplayEntity.createBlock(this.holderEntityId, this.entityId)
                     .clip(this.clip)
                     .scale(this.size) // Needed for calculations
                     .updateMetadata(this.getViewers());
@@ -164,7 +161,7 @@ public class TrackParticleDisplayBlock extends TrackParticle {
     }
 
     private void destroyHolderEntity() {
-        VirtualDisplayEntity entity = VirtualDisplayEntity.create(this.holderEntityId, this.entityId)
+        VirtualDisplayEntity entity = VirtualDisplayEntity.createBlock(this.holderEntityId, this.entityId)
                 .position(this.position)
                 .destroyHolder(getViewers());
         this.holderEntityId = entity.holderEntityId();
