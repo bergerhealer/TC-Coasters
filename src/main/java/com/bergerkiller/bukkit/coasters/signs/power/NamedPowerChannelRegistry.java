@@ -28,6 +28,7 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
     private final Map<String, SignRegisteredNamedPowerState> byName = new HashMap<>();
     private final TreeSet<String> names = new TreeSet<String>();
     private List<String> namesCopy = null; // More efficient
+    private List<ScheduledPowerTask> offlineScheduledTasks = Collections.emptyList();
 
     public NamedPowerChannelRegistry(CoasterWorld world) {
         this.world = world;
@@ -129,6 +130,28 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
     }
 
     /**
+     * Called after the plugin enables (or a World loads in while enabled) to start animating
+     * scheduled pulses.
+     */
+    public void enable() {
+        List<ScheduledPowerTask> tasks = offlineScheduledTasks;
+        offlineScheduledTasks = Collections.emptyList();
+        tasks.forEach(ScheduledPowerTask::offlineStart);
+    }
+
+    /**
+     * Schedules a task to be run at a delay once the plugin enables properly
+     *
+     * @param task Task
+     */
+    void scheduleOffline(ScheduledPowerTask task) {
+        if (offlineScheduledTasks.isEmpty()) {
+            offlineScheduledTasks = new ArrayList<>();
+        }
+        offlineScheduledTasks.add(task);
+    }
+
+    /**
      * Saves all currently pending power pulses to file, if any. Then aborts all the
      * pending tasks for them.
      */
@@ -172,7 +195,7 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
 
     private class SignRegisteredNamedPowerState extends NamedPowerChannel.NamedPowerState {
         private List<NamedPowerChannel.Recipient> recipients;
-        private Task pulseTask = null;
+        private ScheduledPowerTask pulseTask = null;
         private int pulseTaskDoneTime = -1;
 
         public SignRegisteredNamedPowerState(String name, boolean powered, NamedPowerChannel.Recipient recipient) {
@@ -208,7 +231,7 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
             // Must do this before changing powered state so the notifications work right
             boolean hadPulse = hasPulse();
             if (pulseTask == null) {
-                pulseTask = new Task(world.getPlugin()) {
+                pulseTask = new ScheduledPowerTask() {
                     @Override
                     public void run() {
                         pulseTaskDoneTime = -1;
@@ -216,7 +239,7 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
                     }
                 };
             }
-            pulseTask.stop().start(delay);
+            pulseTask.restart(delay);
             pulseTaskDoneTime = CommonUtil.getServerTicks() + delay;
 
             // Change powered state
@@ -347,6 +370,47 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
                 return new ScheduledPulse(name, powered.booleanValue(), delay.intValue());
             } else {
                 return null;
+            }
+        }
+    }
+
+    private abstract class ScheduledPowerTask implements Runnable {
+        private final Task task;
+        private long offlineDelay = -1; // If set to -1, not scheduled offline
+
+        public ScheduledPowerTask() {
+            this.task = new Task(NamedPowerChannelRegistry.this.getPlugin()) {
+                @Override
+                public void run() {
+                    ScheduledPowerTask.this.run();
+                }
+            };
+        }
+
+        public void restart(long delay) {
+            task.stop();
+            if (!task.getPlugin().isEnabled()) {
+                // Register for enabling later
+                boolean schedule = (offlineDelay == -1);
+                offlineDelay = delay;
+                if (schedule) {
+                    NamedPowerChannelRegistry.this.scheduleOffline(this);
+                }
+            } else {
+                task.start(delay);
+                offlineDelay = -1;
+            }
+        }
+
+        public void stop() {
+            task.stop();
+            offlineDelay = -1;
+        }
+
+        void offlineStart() {
+            if (offlineDelay != -1) {
+                task.start(offlineDelay);
+                offlineDelay = -1;
             }
         }
     }

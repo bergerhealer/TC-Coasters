@@ -99,11 +99,20 @@ public class CoasterWorldImpl implements CoasterWorld {
     }
 
     /**
-     * Performs all the logic required to load a World into memory
+     * Performs all the logic required to load a World into memory.
+     * Can be safely called during the onLoad() plugin stage.
      */
     public void load() {
         getTracks().load();
         getNamedPowerChannels().loadPulses();
+    }
+
+    /**
+     * Performs all the logic required to start animating a World.
+     * Must be called during or after the onEnable() plugin stage.
+     */
+    public void enable() {
+        getNamedPowerChannels().enable();
     }
 
     /**

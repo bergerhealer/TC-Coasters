@@ -115,6 +115,9 @@ public class TCCoasters extends PluginBase {
             coasterWorld = new CoasterWorldImpl(this, world);
             this.worlds.put(world, coasterWorld);
             coasterWorld.load();
+            if (isEnabled()) {
+                coasterWorld.enable();
+            }
         }
         return coasterWorld;
     }
@@ -429,6 +432,11 @@ public class TCCoasters extends PluginBase {
         // when there's no trains on the worlds.
         for (World world : Bukkit.getWorlds()) {
             this.getCoasterWorld(world);
+        }
+
+        // Start firing off any scheduled pulse changes
+        for (CoasterWorldImpl world : new ArrayList<>(worlds.values())) {
+            world.enable();
         }
 
         // Schedule some background tasks
