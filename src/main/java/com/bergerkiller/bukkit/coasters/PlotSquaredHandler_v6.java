@@ -28,6 +28,7 @@ public class PlotSquaredHandler_v6 implements Listener {
 
         {
             ClassResolver resolver = new ClassResolver();
+            resolver.setClassLoader(this.getClass().getClassLoader());
             resolver.setDeclaredClass(Location.class);
             MethodDeclaration mDec = new MethodDeclaration(resolver,
                     "public static Location at(String worldname, org.bukkit.util.Vector position) {\n" +
@@ -35,6 +36,7 @@ public class PlotSquaredHandler_v6 implements Listener {
                     "}");
             this.locationAt = new FastMethod<Location>();
             this.locationAt.init(mDec);
+            this.locationAt.forceInitialization();
         }
     }
 
