@@ -317,6 +317,9 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
         // Reset (is lazy initialized again if needed)
         this.fullDistance = Double.NaN;
 
+        // Ensure orientation of A and B have an aligned forward vector
+        this._endB.alignOrientationForward(this._endA.getOrientation());
+
         // Initialize the 4 points of the De Casteljau's algorithm inputs
         // d1 and d2 are the diff between p1-p3 and p2-p4
 
@@ -540,7 +543,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
      * @return orientation at t
      */
     public Vector getOrientation(double t) {
-        return Util.lerpOrientation(this._endA.node.getOrientation(), this._endB.node.getOrientation(), t);
+        return Quaternion.slerp(this._endA.getOrientation(), this._endB.getOrientation(), t).upVector();
     }
 
     /**
@@ -628,6 +631,11 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
         @Override
         public Vector getNodeDirection() {
             return this.node.getDirection();
+        }
+
+        @Override
+        public Vector getNodeUp() {
+            return this.node.getOrientation();
         }
 
         @Override

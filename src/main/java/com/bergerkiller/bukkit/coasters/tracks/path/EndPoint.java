@@ -11,11 +11,13 @@ import com.bergerkiller.bukkit.common.math.Quaternion;
  */
 public abstract class EndPoint {
     private Vector direction = new Vector();
+    private Quaternion orientation = new Quaternion();
     private double strength = 0.0;
 
     // These must be implemented as input for the algorithm
     public abstract Vector getNodePosition();
     public abstract Vector getNodeDirection();
+    public abstract Vector getNodeUp();
     public abstract Vector getOtherNodePosition();
     public abstract Vector getOtherNodeDirection();
 
@@ -46,6 +48,7 @@ public abstract class EndPoint {
 
     private final void computeStrength(double distance) {
         this.strength = 0.5 * distance;
+        this.orientation = Quaternion.fromLookDirection(this.direction, this.getNodeUp());
     }
 
     protected final void computeStrengthUsingPositions() {
@@ -58,6 +61,16 @@ public abstract class EndPoint {
 
     public final Vector getDirection() {
         return this.direction;
+    }
+
+    public Quaternion getOrientation() {
+        return this.orientation;
+    }
+
+    public void alignOrientationForward(Quaternion otherOrientation) {
+        if (this.orientation.forwardVector().dot(otherOrientation.forwardVector()) < 0.0) {
+            this.orientation.rotateYFlip();
+        }
     }
 
     /**
@@ -88,18 +101,24 @@ public abstract class EndPoint {
     }
 
     public static EndPoint create(Vector nodePosition, Vector nodeDirection, Vector otherPosition, Vector otherDirection) {
-        return new EndPointImpl(nodePosition, nodeDirection, otherPosition, otherDirection);
+        return new EndPointImpl(nodePosition, nodeDirection, new Vector(0.0, 1.0, 0.0), otherPosition, otherDirection);
+    }
+
+    public static EndPoint create(Vector nodePosition, Vector nodeDirection, Vector nodeUp, Vector otherPosition, Vector otherDirection) {
+        return new EndPointImpl(nodePosition, nodeDirection, nodeUp, otherPosition, otherDirection);
     }
 
     private static class EndPointImpl extends EndPoint {
         private final Vector _nodePosition;
         private final Vector _nodeDirection;
+        private final Vector _nodeUp;
         private final Vector _otherPosition;
         private final Vector _otherDirection;
 
-        public EndPointImpl(Vector nodePosition, Vector nodeDirection, Vector otherPosition, Vector otherDirection) {
+        public EndPointImpl(Vector nodePosition, Vector nodeDirection, Vector nodeUp, Vector otherPosition, Vector otherDirection) {
             this._nodePosition = nodePosition;
             this._nodeDirection = nodeDirection.clone().normalize();
+            this._nodeUp = nodeUp;
             this._otherPosition = otherPosition;
             this._otherDirection = otherDirection.clone().normalize();
             this.computeStrengthUsingPositions(); // Positions known, can now be called
@@ -113,6 +132,11 @@ public abstract class EndPoint {
         @Override
         public Vector getNodeDirection() {
             return _nodeDirection;
+        }
+
+        @Override
+        public Vector getNodeUp() {
+            return _nodeUp;
         }
 
         @Override
