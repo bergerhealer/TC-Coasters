@@ -5,6 +5,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
+import org.bukkit.util.Vector;
+
+import java.util.function.Predicate;
 
 /**
  * Base class for an event involving a connection between two nodes
@@ -30,6 +33,12 @@ public abstract class CoasterConnectionEvent extends CoasterEvent {
      */
     public TrackConnection getConnection() {
         return _connection;
+    }
+
+    @Override
+    public boolean testPositions(Predicate<Vector> positionFilter) {
+        return positionFilter.test(_connection.getNodeA().getPosition()) &&
+               positionFilter.test(_connection.getNodeB().getPosition());
     }
 
     @Override

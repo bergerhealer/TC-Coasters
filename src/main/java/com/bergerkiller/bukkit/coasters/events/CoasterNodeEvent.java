@@ -6,6 +6,9 @@ import org.bukkit.event.HandlerList;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import org.bukkit.util.Vector;
+
+import java.util.function.Predicate;
 
 /**
  * Base class for all coaster events that involve a single track node
@@ -35,6 +38,11 @@ public abstract class CoasterNodeEvent extends CoasterEvent {
      */
     public TrackCoaster getCoaster() {
         return _node.getCoaster();
+    }
+
+    @Override
+    public boolean testPositions(Predicate<Vector> positionFilter) {
+        return positionFilter.test(getNode().getPosition());
     }
 
     @Override

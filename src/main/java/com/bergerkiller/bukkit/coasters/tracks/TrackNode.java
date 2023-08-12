@@ -820,10 +820,22 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     /**
      * Adds or updates an animation state. If an animation state by the same name already exists,
      * it is updated to this state. Otherwise it is added.
-     * 
+     *
      * @param state The animation state to update
      */
     public void updateAnimationState(TrackNodeAnimationState state) {
+        updateAnimationState(state, null);
+    }
+
+    /**
+     * Adds or updates an animation state. If an animation state by the same name already exists,
+     * it is updated to this state. Otherwise it is added.
+     * 
+     * @param state The animation state to update
+     * @param filter A filter predicate that any animation state changes are sent to before they are
+     *               applied. Can return false to cancel the operation.
+     */
+    public void updateAnimationState(TrackNodeAnimationState state, UpdateAnimationStatePredicate filter) {
         // Important for saving!
         this.markChanged();
 
@@ -833,12 +845,21 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             if (old_state == state) {
                 return;
             } else if (old_state.name.equals(state.name)) {
+                if (filter != null && filter.canUpdateState(this, old_state, state)) {
+                    return;
+                }
+
                 old_state.destroyParticles();
                 this._animationStates[i] = state;
                 state.spawnParticles(this, i);
                 handleSignOwnerUpdates(old_state.state.signs, state.state.signs, true);
                 return;
             }
+        }
+
+        // Check before adding
+        if (filter != null && !filter.canUpdateState(this, null, state)) {
+            return;
         }
 
         // Add new
@@ -853,16 +874,39 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     /**
      * Updates all the animation states of this track node smartly by making use of a manipulator function to alter them.
      * When name is null, all animation states are updated, otherwise only the one matching the name is.
-     * 
+     *
      * @param name The name of the animation state to update, null to update all of them
      * @param manipulator Manipulator function to alter the original animation states
      */
-    public void updateAnimationStates(String name, Function<TrackNodeAnimationState, TrackNodeAnimationState> manipulator) {
+    public void updateAnimationStates(String name,
+                                      Function<TrackNodeAnimationState, TrackNodeAnimationState> manipulator
+    ) {
+        updateAnimationStates(name, manipulator, null);
+    }
+
+    /**
+     * Updates all the animation states of this track node smartly by making use of a manipulator function to alter them.
+     * When name is null, all animation states are updated, otherwise only the one matching the name is.
+     * A filter can be specified to filter what state changes are allowed through. Permission handling can be done
+     * this way.
+     * 
+     * @param name The name of the animation state to update, null to update all of them
+     * @param manipulator Manipulator function to alter the original animation states
+     * @param filter An animation state change filter predicate. If it returns false, the change is not made.
+     */
+    public void updateAnimationStates(String name,
+                                      Function<TrackNodeAnimationState, TrackNodeAnimationState> manipulator,
+                                      UpdateAnimationStatePredicate filter
+    ) {
         for (int i = 0; i < this._animationStates.length; i++) {
             TrackNodeAnimationState old_state = this._animationStates[i];
             if (name == null || name.equals(old_state.name)) {
                 TrackNodeAnimationState new_state = manipulator.apply(old_state);
                 if (new_state != old_state) {
+                    if (filter != null && !filter.canUpdateState(this, old_state, new_state)) {
+                        continue;
+                    }
+
                     old_state.destroyParticles();
                     this._animationStates[i] = new_state;
                     new_state.spawnParticles(this, i);
@@ -909,14 +953,28 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
      * Adds a connection with another node to an animation state, or to all of them if name is null.
      * If the connection already existed in an animation state, its information such as track objects
      * are updated.
-     * 
+     *
      * @param name The name of the animation state to add the connection to, null to add to all of them
      * @param connection The connection to add
      */
     public void addAnimationStateConnection(String name, TrackConnectionState connection) {
+        addAnimationStateConnection(name, connection, null);
+    }
+
+    /**
+     * Adds a connection with another node to an animation state, or to all of them if name is null.
+     * If the connection already existed in an animation state, its information such as track objects
+     * are updated.
+     * 
+     * @param name The name of the animation state to add the connection to, null to add to all of them
+     * @param connection The connection to add
+     * @param filter A filter to call before making an animation state change final. If it returns false, the
+     *               state is not updated
+     */
+    public void addAnimationStateConnection(String name, TrackConnectionState connection, UpdateAnimationStatePredicate filter) {
         if (this.hasAnimationStates() && connection.isConnected(this)) {
             final TrackConnectionState referenced_connection = connection.reference(this.getWorld().getTracks());
-            this.updateAnimationStates(name, state -> state.updateConnection(referenced_connection));
+            this.updateAnimationStates(name, state -> state.updateConnection(referenced_connection), filter);
         }
     }
 
@@ -1374,5 +1432,10 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     @FunctionalInterface
     public interface AddSignPredicate {
         boolean canAddSign(TrackNode node, TrackNodeSign sign);
+    }
+
+    @FunctionalInterface
+    public interface UpdateAnimationStatePredicate {
+        boolean canUpdateState(TrackNode node, TrackNodeAnimationState oldState, TrackNodeAnimationState newState);
     }
 }

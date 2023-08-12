@@ -32,13 +32,12 @@ public class PlotSquaredHandler_v4 implements Listener {
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onCoasterNodeEvent(CoasterNodeEvent event) {
-        event.setCancelled(!checkAllowed(event.getPlayer(), event.getNode().getPosition()));
+        event.setCancelledIfPositionInvalid(position -> checkAllowed(event.getPlayer(), position));
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onCoasterConnectionEvent(CoasterConnectionEvent event) {
-        event.setCancelled(!checkAllowed(event.getPlayer(), event.getConnection().getNodeA().getPosition()) ||
-                           !checkAllowed(event.getPlayer(), event.getConnection().getNodeB().getPosition()));
+        event.setCancelledIfPositionInvalid(position -> checkAllowed(event.getPlayer(), position));
     }
 
     // Checks whether the node at the position can be modified by the player

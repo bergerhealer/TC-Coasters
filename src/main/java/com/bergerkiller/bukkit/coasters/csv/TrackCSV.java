@@ -12,6 +12,7 @@ import java.util.function.Supplier;
 
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
+import com.bergerkiller.bukkit.coasters.events.CoasterBeforeUpdateAnimationStateEvent;
 import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayBlock;
 import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayItemStack;
 import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
@@ -198,6 +199,7 @@ public class TrackCSV {
         public HistoryChange changes = null; // If non-null, should track changes for a Player
         public TrackConnection.AddObjectPredicate addTrackObjectPredicate = (connection, object) -> true;
         public TrackNode.AddSignPredicate addNodeSignPredicate = null; // Supports null for no filter!
+        public TrackNode.UpdateAnimationStatePredicate updateAnimationStatePredicate = null; // Supports null for no filter!
 
         public void handleUsingPlayer(Player player) {
             this.player = player;
@@ -211,11 +213,17 @@ public class TrackCSV {
                 }
             };
             this.addNodeSignPredicate = (node, sign) -> sign.fireBuildEvent(player, false);
+            this.updateAnimationStatePredicate = (node, old_state, new_state) -> {
+                CoasterBeforeUpdateAnimationStateEvent event = new CoasterBeforeUpdateAnimationStateEvent(
+                        player, node, old_state, new_state);
+                CommonUtil.callEvent(event);
+                return !event.isCancelled();
+            };
         }
 
         public void addConnectionToAnimationStates(TrackConnectionState connection) {
             for (TrackNodeAnimationState state : this.prevNode.getAnimationStates()) {
-                this.prevNode.addAnimationStateConnection(state.name, connection);
+                this.prevNode.addAnimationStateConnection(state.name, connection, updateAnimationStatePredicate);
             }
         }
 
@@ -506,7 +514,12 @@ public class TrackCSV {
                 }
             }
             state.prevNodeAnimName = this.name;
-            state.prevNode.setAnimationState(this.name, state.transformState(this.toState()), connections);
+
+            state.prevNode.updateAnimationState(
+                    TrackNodeAnimationState.create(name,
+                                                   state.transformState(this.toState()),
+                                                   connections),
+                    state.updateAnimationStatePredicate);
         }
     }
 
@@ -579,8 +592,8 @@ public class TrackCSV {
                 }
                 TrackNodeAnimationState lastAddedState = states.get(states.size()-1);
                 TrackConnectionState new_link = TrackConnectionState.create(linkNodeA, linkNodeB, state.pendingTrackObjects);
-                state.prevNode.addAnimationStateConnection(lastAddedState.name, new_link);
                 state.pendingTrackObjects.clear();
+                state.prevNode.addAnimationStateConnection(lastAddedState.name, new_link, state.updateAnimationStatePredicate);
             }
         }
     }
