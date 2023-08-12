@@ -1787,7 +1787,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
 
         // For position/orientation, store the changes
-        if (this.isMode(PlayerEditMode.POSITION, PlayerEditMode.ORIENTATION)) {
+        if (this.isMode(PlayerEditMode.POSITION, PlayerEditMode.ORIENTATION, PlayerEditMode.ANIMATION)) {
             try {
                 // Before processing, fire an event for all nodes that changed. If any of them fail (permissions!),
                 // cancel the entire move operation for all other nodes, too.
