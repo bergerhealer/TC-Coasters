@@ -337,9 +337,20 @@ class EditStateCommands {
             PlayerEditState dlEditState = plugin.getEditState(player);
             TrackCoaster coaster = dlEditState.getWorld().getTracks().createNewEmpty(plugin.generateNewCoasterName());
             try {
-                coaster.loadFromStream(download.contentInputStream(), absolute ? null : PlayerOrigin.getForPlayer(player));
+                try {
+                    coaster.loadFromStream(download.contentInputStream(), player,
+                            absolute ? null : PlayerOrigin.getForPlayer(player));
+                } catch (ChangeCancelledException ex) {
+                    player.sendMessage(ChatColor.RED + "Not all coaster track nodes could be imported!");
+
+                    // Skip the 'failed to decode' message, makes no sense
+                    if (coaster.getNodes().isEmpty()) {
+                        coaster.remove();
+                        return;
+                    }
+                }
                 if (coaster.getNodes().isEmpty()) {
-                    player.sendMessage(ChatColor.RED + "Failed to decode any coaster nodes!");
+                    player.sendMessage(ChatColor.RED + "Failed to decode any coaster track nodes!");
                     coaster.remove();
                     return;
                 }

@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.UUID;
 import java.util.function.Predicate;
 
+import com.bergerkiller.bukkit.tc.rails.RailLookup;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
@@ -542,19 +543,18 @@ public class TrackNodeSign implements Cloneable {
     }
 
     /**
-     * Fires a sign build event. Displays the type of sign places to the player.
+     * Fires a sign build event. Displays the type of sign placed to the player.
      * If the player lacks permissions to place this type of sign, returns false.
      * This sign must have been added to a track node prior.
      *
-     * @param player
+     * @param player Player that built it
+     * @param interactive Whether a successful build message should be shown
      * @return True if building was/is permitted
      */
-    public boolean fireBuildEvent(Player player) {
+    public boolean fireBuildEvent(Player player, boolean interactive) {
         // Fire a sign build event with the sign's custom sign
         TrackedFakeSign trackedSign = getTrackedSign();
-        SignChangeActionEvent event = new SignChangeActionEvent(player, trackedSign);
-        SignAction.handleBuild(event);
-        return !event.isCancelled();
+        return nodeOwner.getPlugin().getSignBuildHandler().handleBuild(player, trackedSign, interactive);
     }
 
     /**
@@ -599,5 +599,22 @@ public class TrackNodeSign implements Cloneable {
         clone.inputPowerChannels = LogicUtil.cloneAll(this.inputPowerChannels, NamedPowerChannel::clone);
         clone.outputPowerChannels = LogicUtil.cloneAll(this.outputPowerChannels, NamedPowerChannel::clone);
         return clone;
+    }
+
+    /**
+     * Active handler for the building new signs. Permission checks happen here.
+     */
+    @FunctionalInterface
+    public interface SignBuildHandler {
+        /**
+         * Handles the building of the sign in an interactive fashion, showing a
+         *
+         * @param player Player that built the sign
+         * @param sign Sign placed by the player
+         * @param interactive Whether the build is interactive and positive build messages
+         *                    with information should be displayed
+         * @return True if the building was successful, False if not or permission issues occurred
+         */
+        boolean handleBuild(Player player, RailLookup.TrackedSign sign, boolean interactive);
     }
 }

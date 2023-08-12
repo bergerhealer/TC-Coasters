@@ -455,7 +455,7 @@ public class SignEditState {
             // Handle events/changes/perms
             if (!hasChanges) {
                 hasChanges = true;
-                if (!addedSign.fireBuildEvent(editState.getPlayer())) {
+                if (!addedSign.fireBuildEvent(editState.getPlayer(), true)) {
                     node.setSigns(old_signs);
                     throw new ChangeCancelledException();
                 }
@@ -486,16 +486,25 @@ public class SignEditState {
         }
     }
 
-    private void addSignToNode(HistoryChangeCollection changes, TrackNode node, TrackNodeSign sign, boolean fireBuildEvent) throws ChangeCancelledException {
+    /**
+     * Adds a sign to this node and checks for permissions for building this type of sign
+     *
+     * @param changes Historic changes to which a new entry is added
+     * @param node Node to which a sign is added
+     * @param sign Sign that was added
+     * @param interactive Whether this is an interactive build. If true, a successful build message is sent.
+     *                    If false, only permission/error related messages are sent.
+     * @throws ChangeCancelledException
+     */
+    private void addSignToNode(HistoryChangeCollection changes, TrackNode node, TrackNodeSign sign, boolean interactive) throws ChangeCancelledException {
         TrackNodeSign node_sign = sign.clone();
         TrackNodeSign[] old_signs = node.getSigns();
         setSignsForNode(changes, node, LogicUtil.appendArrayElement(node.getSigns(), node_sign));
-        if (fireBuildEvent) {
-            // Fire a sign build event with the sign's custom sign
-            if (!node_sign.fireBuildEvent(editState.getPlayer())) {
-                node.setSigns(old_signs);
-                throw new ChangeCancelledException();
-            }
+
+        // Fire a sign build event with the sign's custom sign
+        if (!node_sign.fireBuildEvent(editState.getPlayer(), interactive)) {
+            node.setSigns(old_signs);
+            throw new ChangeCancelledException();
         }
 
         // All successful, now add this sign to an animation state if one was set to be edited

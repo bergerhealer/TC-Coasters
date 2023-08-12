@@ -10,10 +10,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
+import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayBlock;
 import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayItemStack;
 import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
 import org.bukkit.block.BlockFace;
+import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
@@ -39,7 +42,6 @@ import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
-import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.opencsv.CSVReader;
 
@@ -192,6 +194,24 @@ public class TrackCSV {
         public Matrix4x4 transform = null;
         public CoasterWorld world;
         public TrackCoaster coaster;
+        public Player player = null; // If non-null, should check for perms with this Player
+        public HistoryChange changes = null; // If non-null, should track changes for a Player
+        public TrackConnection.AddObjectPredicate addTrackObjectPredicate = (connection, object) -> true;
+        public TrackNode.AddSignPredicate addNodeSignPredicate = null; // Supports null for no filter!
+
+        public void handleUsingPlayer(Player player) {
+            this.player = player;
+            this.changes = this.coaster.getPlugin().getEditState(player).getHistory().addChangeGroup();
+            this.addTrackObjectPredicate = (connection, object) -> {
+                try {
+                    changes.addChangeBeforeCreateTrackObject(player, connection, object);
+                    return true;
+                } catch (ChangeCancelledException ex) {
+                    return false;
+                }
+            };
+            this.addNodeSignPredicate = (node, sign) -> sign.fireBuildEvent(player, false);
+        }
 
         public void addConnectionToAnimationStates(TrackConnectionState connection) {
             for (TrackNodeAnimationState state : this.prevNode.getAnimationStates()) {
@@ -211,6 +231,31 @@ public class TrackCSV {
             return (this.transform == null) ? nodeState : nodeState.transform(this.transform);
         }
 
+        private void afterAddingConnection(TrackConnection connection) throws ChangeCancelledException {
+            // Permission and history handling
+            if (changes != null) {
+                changes.addChangeAfterConnect(player, connection);
+            }
+        }
+
+        public void processConnection(TrackConnectionState link) throws ChangeCancelledException {
+            TrackConnection connection = coaster.getWorld().getTracks().connect(link, false);
+            if (connection == null) {
+                return;
+            }
+
+            afterAddingConnection(connection);
+
+            // Only add objects if the connection didn't already exist with other objects
+            // This prevents duplicate objects when a link between coasters is created
+            if (!connection.hasObjects()) {
+                connection.addAllObjects(link, this.addTrackObjectPredicate);
+            }
+
+            // Ensure junction switching order is preserved
+            connection.getNodeA().pushBackJunction(connection);
+        }
+
         /**
          * Adds a node using node state information. If a transformation was set,
          * it is applied to the state prior to creating it.
@@ -218,19 +263,23 @@ public class TrackCSV {
          * @param nodeState
          * @param linkToPrevious
          */
-        public void addNode(TrackNodeState nodeState, boolean linkToPrevious) {
+        public void addNode(TrackNodeState nodeState, boolean linkToPrevious) throws ChangeCancelledException {
             // Reset all connections being added to the previous node
             this.prevNode_pendingLinks.clear();
 
-            // Create the new node
+            // Create the new node + optional perm checking
             TrackNode node = this.coaster.createNewNode(transformState(nodeState));
+            if (changes != null) {
+                changes.addChangeCreateNode(player, node);
+            }
 
             // Connect node to previous node
             if (linkToPrevious && this.prevNode != null) {
                 TrackConnection connection = this.world.getTracks().connect(this.prevNode, node);
+                afterAddingConnection(connection);
 
                 // Add all track objects
-                connection.addAllObjects(this.pendingTrackObjects);
+                connection.addAllObjects(this.pendingTrackObjects, this.addTrackObjectPredicate);
 
                 // Add connection to all animation states
                 TrackConnectionState link = TrackConnectionState.create(this.prevNode, node, this.pendingTrackObjects);
@@ -299,7 +348,7 @@ public class TrackCSV {
          * 
          * @param state State of the reader
          */
-        public abstract void processReader(CSVReaderState state);
+        public abstract void processReader(CSVReaderState state) throws ChangeCancelledException;
 
         /**
          * Called when this is the last entry read from a reader. Some types
@@ -308,7 +357,7 @@ public class TrackCSV {
          *
          * @param state State of the reader
          */
-        public void processReaderEnd(CSVReaderState state) {
+        public void processReaderEnd(CSVReaderState state) throws ChangeCancelledException {
         }
     }
 
@@ -396,7 +445,7 @@ public class TrackCSV {
         }
 
         @Override
-        public void processReader(CSVReaderState state) {
+        public void processReader(CSVReaderState state) throws ChangeCancelledException {
             state.addNode(this.toState(), false);
         }
     }
@@ -412,7 +461,7 @@ public class TrackCSV {
         }
 
         @Override
-        public void processReader(CSVReaderState state) {
+        public void processReader(CSVReaderState state) throws ChangeCancelledException {
             state.addNode(this.toState(), true);
         }
     }
@@ -849,15 +898,14 @@ public class TrackCSV {
         }
 
         @Override
-        public void processReader(CSVReaderState state) {
+        public void processReader(CSVReaderState state) throws ChangeCancelledException {
             if (state.prevNodeAnimName != null) {
-                // Add to this specific animation state
-                state.prevNode.updateAnimationStates(state.prevNodeAnimName, anim_state -> {
-                    return anim_state.updateSigns(LogicUtil.appendArrayElement(anim_state.state.signs, sign));
-                });
+                // Add to this specific animation state, optionally handles perms/filter
+                state.prevNode.addAnimationStateSign(state.prevNodeAnimName, sign, state.addNodeSignPredicate);
+                return;
             } else {
                 // Add to the node itself
-                state.prevNode.addSign(sign);
+                state.prevNode.addSign(sign, state.addNodeSignPredicate);
             }
         }
     }
@@ -953,12 +1001,12 @@ public class TrackCSV {
         }
 
         @Override
-        public void processReader(CSVReaderState state) {
+        public void processReader(CSVReaderState state) throws ChangeCancelledException {
             state.addNode(this.toState(), true);
         }
 
         @Override
-        public void processReaderEnd(CSVReaderState state) {
+        public void processReaderEnd(CSVReaderState state) throws ChangeCancelledException {
             // Connect first node to the previous node to create a loop, as all NoLimits2
             // coasters are loops. Only do this if the distance between the nodes is
             // acceptably low, perhaps it is not a loop? If that is at all possible.
@@ -966,7 +1014,10 @@ public class TrackCSV {
                 state.firstNode != state.prevNode &&
                 state.firstNode.getPosition().distance(state.prevNode.getPosition()) < 8.0
             ) {
-                state.world.getTracks().connect(state.prevNode, state.firstNode);
+                TrackConnection connection = state.world.getTracks().connect(state.prevNode, state.firstNode);
+                if (state.changes != null) {
+                    state.changes.addChangeAfterConnect(state.player, connection);
+                }
             }
         }
     }

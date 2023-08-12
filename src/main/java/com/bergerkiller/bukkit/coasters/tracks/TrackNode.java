@@ -7,6 +7,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 
+import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -873,6 +874,38 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     /**
+     * Adds a sign to an existing node animation state. The filter specifies permission handling to perform
+     * before the node is added, and can be null to ignore all that.
+     *
+     * @param name Animation state name
+     * @param sign Sign state to add
+     * @param filter Filter predicate to run before adding the sign. Pass null to skip.
+     */
+    public void addAnimationStateSign(String name, TrackNodeSign sign, AddSignPredicate filter) {
+        this.updateAnimationStates(name, anim_state -> {
+            if (filter != null) {
+                // Go to verify we can actually add it first. For this the sign must be bound to this sign.
+                TrackNode oldNode = sign.getNode();
+                boolean oldAddedAsAnimation = sign.isAddedAsAnimation();
+                try {
+                    // Must be addedAsAnimation=false otherwise errors occur (=not a sign)
+                    sign.updateOwner(this, false);
+
+                    // Check
+                    if (!filter.canAddSign(this, sign)) {
+                        return anim_state; // Unchanged
+                    }
+                } finally {
+                    // Restore
+                    sign.updateOwner(oldNode, oldAddedAsAnimation);
+                }
+            }
+
+            return anim_state.updateSigns(LogicUtil.appendArrayElement(anim_state.state.signs, sign));
+        });
+    }
+
+    /**
      * Adds a connection with another node to an animation state, or to all of them if name is null.
      * If the connection already existed in an animation state, its information such as track objects
      * are updated.
@@ -1095,8 +1128,31 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
      * @param sign
      */
     public void addSign(TrackNodeSign sign) {
+        addSign(sign, null);
+    }
+
+    /**
+     * Adds a single fake sign
+     *
+     * @param sign
+     * @param filter Optional predicate to check whether adding the sign is allowed.
+     *               Can be null to ignore.
+     */
+    public void addSign(TrackNodeSign sign, AddSignPredicate filter) {
+        // Remember old state to restore if adding is not allowed
+        TrackNodeSign[] oldSigns = this._signs;
+        TrackNode oldNode = sign.getNode();
+        boolean oldAsAnimation = sign.isAddedAsAnimation();
+
         this._signs = LogicUtil.appendArrayElement(this._signs, sign);
         sign.updateOwner(this, false);
+
+        if (filter != null && !filter.canAddSign(this, sign)) {
+            this._signs = oldSigns;
+            sign.updateOwner(oldNode, oldAsAnimation);
+            return;
+        }
+
         updateSignParticle();
         markChanged();
     }
@@ -1313,5 +1369,10 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             }
         }
         return this;
+    }
+
+    @FunctionalInterface
+    public interface AddSignPredicate {
+        boolean canAddSign(TrackNode node, TrackNodeSign sign);
     }
 }

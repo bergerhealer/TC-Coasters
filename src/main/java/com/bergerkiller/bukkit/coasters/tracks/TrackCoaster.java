@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 
+import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
+import org.bukkit.entity.Player;
 import org.bukkit.util.FileUtil;
 import org.bukkit.util.Vector;
 
@@ -253,21 +255,30 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
      * @param inputStream to read from
      */
     public void loadFromStream(InputStream inputStream) throws CoasterLoadException {
-        this.loadFromStream(inputStream, null);
+        try {
+            this.loadFromStream(inputStream, null, null);
+        } catch (ChangeCancelledException ex) {
+            // Never happens in practise
+            throw new CoasterLoadException("Unexpected ChangeCancelledException", ex);
+        }
     }
 
     /**
      * Loads this coaster by reading CSV data from a reader
      * 
      * @param inputStream to read from
+     * @param player Player that is loading/importing the coaster, for which permissions are checked.
+     *               Null to disable these checks.
      * @param origin relative to which to place the coaster
      */
-    public void loadFromStream(InputStream inputStream, PlayerOrigin origin) throws CoasterLoadException {
+    public void loadFromStream(InputStream inputStream, Player player, PlayerOrigin origin) throws CoasterLoadException, ChangeCancelledException {
         try (TrackCSVReader reader = new TrackCSVReader(inputStream)) {
             reader.setOrigin(origin);
-            reader.create(this);
+            reader.create(this, player);
 
             // Note: on failure not all nodes may be loaded, but at least some are.
+        } catch (ChangeCancelledException ex) {
+            throw ex;
         } catch (SyntaxException ex) {
             throw new CoasterLoadException("Syntax error while loading coaster " + this.getName() + " " + ex.getMessage());
         } catch (IOException ex) {

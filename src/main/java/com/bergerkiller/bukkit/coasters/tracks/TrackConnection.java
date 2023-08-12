@@ -3,6 +3,9 @@ package com.bergerkiller.bukkit.coasters.tracks;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.IntFunction;
+import java.util.function.Predicate;
 
 import org.bukkit.util.Vector;
 
@@ -216,7 +219,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
 
     /**
      * Adds multiple track objects at once
-     * 
+     *
      * @param objects
      */
     public void addAllObjects(Collection<TrackObject> objects) {
@@ -226,20 +229,53 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
     }
 
     /**
+     * Adds multiple track objects at once
+     * 
+     * @param objects
+     * @param filter Optional permission filter. Does not add the object if this predicate
+     *               returns false.
+     */
+    public void addAllObjects(Collection<TrackObject> objects, AddObjectPredicate filter) {
+        for (TrackObject object : objects) {
+            if (filter.canAddObject(this, object)) {
+                this.addObject(object);
+            }
+        }
+    }
+
+    /**
+     * Adds all the objects stored in a connection state. A clone of the objects is
+     * created to guarantee the immutability of the track connection state.
+     *
+     * @param connectionObjects
+     */
+    public void addAllObjects(TrackConnectionState connectionObjects) {
+        addAllObjects(connectionObjects, (connection, object) -> true);
+    }
+
+    /**
      * Adds all the objects stored in a connection state. A clone of the objects is
      * created to guarantee the immutability of the track connection state.
      * 
      * @param connectionObjects
+     * @param filter Optional permission filter. Does not add the object if this predicate
+     *               returns false.
      */
-    public void addAllObjects(TrackConnectionState connectionObjects) {
+    public void addAllObjects(TrackConnectionState connectionObjects, AddObjectPredicate filter) {
         if (connectionObjects.hasObjects()) {
             if (connectionObjects.isSameFlipped(this)) {
                 for (TrackObject object : connectionObjects.getObjects()) {
-                    this.addObject(object.cloneFlipEnds(this));
+                    TrackObject clone = object.cloneFlipEnds(this);
+                    if (filter.canAddObject(this, clone)) {
+                        this.addObject(clone);
+                    }
                 }
             } else {
                 for (TrackObject object : connectionObjects.getObjects()) {
-                    this.addObject(object.clone());
+                    TrackObject clone = object.clone();
+                    if (filter.canAddObject(this, clone)) {
+                        this.addObject(clone);
+                    }
                 }
             }
         }
@@ -694,5 +730,10 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
         public String toString() {
             return "{x=" + position.getX() + ", y=" + position.getY() + ", z=" + position.getZ() + ", distance=" + distance + "}";
         }
+    }
+
+    @FunctionalInterface
+    public interface AddObjectPredicate {
+        boolean canAddObject(TrackConnection connection, TrackObject object);
     }
 }

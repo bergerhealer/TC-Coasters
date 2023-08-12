@@ -5,8 +5,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
+import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
-import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.util.CSVFormatDetectorStream;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
@@ -17,6 +17,7 @@ import com.opencsv.CSVParser;
 import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
+import org.bukkit.entity.Player;
 
 /**
  * Helper class for building a coaster from a csv file
@@ -74,21 +75,53 @@ public class TrackCSVReader implements AutoCloseable {
     }
 
     /**
-     * Reads the full CSV file and creates the coaster described in it
-     * 
-     * @param coaster to fill with nodes and connections
+     * Reads the full CSV file and creates the coaster described in it. Fires all the
+     * appropriate events for building this coaster as the Player specified, checking
+     * for build permissions of the nodes, connections and node signs.
+     *
+     * @param coaster Coaster to fill with nodes and connections
+     * @param player Player that is creating (importing) the coaster
+     * @throws IOException
+     * @throws SyntaxException
+     * @throws ChangeCancelledException
+     */
+    public void create(TrackCoaster coaster, Player player) throws IOException, SyntaxException, ChangeCancelledException {
+        createImpl(coaster, player);
+    }
+
+    /**
+     * Reads the full CSV file and creates the coaster described in it. Does not perform any
+     * permission checking, so this should only be used when loading in coasters from a secure
+     * source such as disk.
+     *
+     * @param coaster Coaster to fill with nodes and connections
      * @throws IOException
      * @throws SyntaxException
      */
-    public void create(TrackCoaster coaster) throws IOException, SyntaxException {
+    public void create(TrackCoaster coaster) throws IOException, SyntaxException, ChangeCancelledException {
+        try {
+            createImpl(coaster, null);
+        } catch (ChangeCancelledException ex) {
+            // This never happend in practise but handle it anyway
+            throw new RuntimeException("Unexpected Change Cancelled Exception", ex);
+        }
+    }
+
+    private void createImpl(TrackCoaster coaster, Player player) throws IOException, SyntaxException, ChangeCancelledException {
         TrackCSV.CSVReaderState state = new TrackCSV.CSVReaderState();
         state.coaster = coaster;
         state.world = coaster.getWorld();
 
-        // By default not locked
+        // If player is specified, track that player's historic changes and permission handling
+        if (player != null) {
+            state.handleUsingPlayer(player);
+        }
+
+        // Not locked by default
         state.coaster.setLocked(false);
 
         // Read all the entries we can from the CSV reader
+        boolean hasChangeCancelledException = false;
         TrackCSV.CSVEntry lastEntry = null;
         TrackCSV.CSVEntry entry;
         while ((entry = readNextEntry()) != null) {
@@ -99,13 +132,25 @@ public class TrackCSVReader implements AutoCloseable {
             }
 
             // Let the entry refresh the reader state
-            entry.processReader(state);
+            // If a permission issue occurs, abort, but do continue with creating the connections
+            // as it would be very ugly to just have a bunch of disconnected nodes imported in
+            try {
+                entry.processReader(state);
+            } catch (ChangeCancelledException ex) {
+                hasChangeCancelledException = true;
+                lastEntry = null; // Don't run this logic
+                break;
+            }
             lastEntry = entry;
         }
 
         // Closing logic, like connecting first node with last node
         if (lastEntry != null) {
-            lastEntry.processReaderEnd(state);
+            try {
+                lastEntry.processReaderEnd(state);
+            } catch (ChangeCancelledException ex) {
+                hasChangeCancelledException = true;
+            }
         }
 
         // Go by all created nodes and initialize animation state connections up-front
@@ -113,18 +158,16 @@ public class TrackCSVReader implements AutoCloseable {
 
         // Create all pending connections
         for (TrackConnectionState link : state.pendingLinks) {
-            TrackConnection connection = state.coaster.getWorld().getTracks().connect(link, false);
-
-            // Only add objects if the connection didn't already exist with other objects
-            // This prevents duplicate objects when a link between coasters is created
-            if (connection != null && !connection.hasObjects()) {
-                connection.addAllObjects(link);
+            try {
+                state.processConnection(link);
+            } catch (ChangeCancelledException ex) {
+                hasChangeCancelledException = true;
             }
+        }
 
-            if (connection != null) {
-                // Ensure junction switching order is preserved
-                connection.getNodeA().pushBackJunction(connection);
-            }
+        // If we had trouble at all, throw to indicate this
+        if (hasChangeCancelledException) {
+            throw new ChangeCancelledException();
         }
     }
 
