@@ -1788,21 +1788,42 @@ public class PlayerEditState implements CoasterWorldComponent {
 
         // For position/orientation, store the changes
         if (this.isMode(PlayerEditMode.POSITION, PlayerEditMode.ORIENTATION)) {
-            HistoryChange changes = null;
             try {
-                for (PlayerEditNode editNode : this.editedNodes.values()) {
-                    if (editNode.hasMoveBegun()) {
-                        if (changes == null) {
-                            changes = dragParent.addChangeGroup();
+                // Before processing, fire an event for all nodes that changed. If any of them fail (permissions!),
+                // cancel the entire move operation for all other nodes, too.
+                {
+                    HistoryChange changes = null;
+                    for (PlayerEditNode editNode : this.editedNodes.values()) {
+                        if (editNode.hasMoveBegun()) {
+                            try {
+                                if (changes == null) {
+                                    changes = getHistory().addChangeGroup();
+                                }
+                                changes.addChangeAfterChangingNode(this.player, editNode.node, editNode.startState);
+                            } catch (ChangeCancelledException ex) {
+                                // Undo all changes that were already executed or are going to be executed for other nodes
+                                // Ignore the one that was already cancelled
+                                for (PlayerEditNode prevModifiedNode : this.editedNodes.values()) {
+                                    if (prevModifiedNode != editNode) {
+                                        prevModifiedNode.node.setState(prevModifiedNode.startState);
+                                    }
+                                }
+                                throw ex;
+                            }
                         }
-                        changes.addChangeAfterChangingNode(this.player, editNode.node, editNode.startState);
+                    }
+                }
 
-                        // Update position and orientation of animation state, if one is selected
-                        TrackNodeAnimationState animState = editNode.node.findAnimationState(this.selectedAnimation);
-                        if (animState != null) {
-                            editNode.node.setAnimationState(animState.name,
-                                                            editNode.node.getState().changeRail(animState.state.railBlock),
-                                                            animState.connections);
+                // Update position and orientation of animation state, if one is selected
+                if (this.selectedAnimation != null) {
+                    for (PlayerEditNode editNode : this.editedNodes.values()) {
+                        if (editNode.hasMoveBegun()) {
+                            TrackNodeAnimationState animState = editNode.node.findAnimationState(this.selectedAnimation);
+                            if (animState != null) {
+                                editNode.node.setAnimationState(animState.name,
+                                        editNode.node.getState().changeRail(animState.state.railBlock),
+                                        animState.connections);
+                            }
                         }
                     }
                 }
