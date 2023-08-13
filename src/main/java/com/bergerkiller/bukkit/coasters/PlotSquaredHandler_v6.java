@@ -26,6 +26,10 @@ public class PlotSquaredHandler_v6 implements Listener {
     public PlotSquaredHandler_v6(TCCoasters plugin) {
         this.plugin = plugin;
 
+        // Load this one up-front as it must be loaded for the first time, otherwise internal types like
+        // World don't get resolved for some reason...
+        Location.class.getDeclaredFields();
+
         {
             ClassResolver resolver = new ClassResolver();
             resolver.setClassLoader(this.getClass().getClassLoader());
