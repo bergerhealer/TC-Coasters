@@ -28,7 +28,7 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
     private final Map<String, SignRegisteredNamedPowerState> byName = new HashMap<>();
     private final TreeSet<String> names = new TreeSet<String>();
     private List<String> namesCopy = null; // More efficient
-    private List<ScheduledPowerTask> offlineScheduledTasks = Collections.emptyList();
+    private List<ScheduledTask> offlineScheduledTasks = Collections.emptyList();
 
     public NamedPowerChannelRegistry(CoasterWorld world) {
         this.world = world;
@@ -134,9 +134,9 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
      * scheduled pulses.
      */
     public void enable() {
-        List<ScheduledPowerTask> tasks = offlineScheduledTasks;
+        List<ScheduledTask> tasks = offlineScheduledTasks;
         offlineScheduledTasks = Collections.emptyList();
-        tasks.forEach(ScheduledPowerTask::offlineStart);
+        tasks.forEach(ScheduledTask::offlineStart);
     }
 
     /**
@@ -144,11 +144,23 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
      *
      * @param task Task
      */
-    void scheduleOffline(ScheduledPowerTask task) {
+    void scheduleOffline(ScheduledTask task) {
         if (offlineScheduledTasks.isEmpty()) {
             offlineScheduledTasks = new ArrayList<>();
         }
         offlineScheduledTasks.add(task);
+    }
+
+    /**
+     * Creates a TC-Coasters scheduled task. Returned task can be scheduled
+     * or stopped. If TC-Coasters is not yet enabled, schedules this task once
+     * the plugin enables, unless the task was cancelled before that point.
+     *
+     * @param task Task to run
+     * @return ScheduledTask
+     */
+    public ScheduledTask createTask(Runnable task) {
+        return new ScheduledTask(task);
     }
 
     /**
@@ -195,7 +207,7 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
 
     private class SignRegisteredNamedPowerState extends NamedPowerChannel.NamedPowerState {
         private List<NamedPowerChannel.Recipient> recipients;
-        private ScheduledPowerTask pulseTask = null;
+        private ScheduledTask pulseTask = null;
         private int pulseTaskDoneTime = -1;
 
         public SignRegisteredNamedPowerState(String name, boolean powered, NamedPowerChannel.Recipient recipient) {
@@ -231,13 +243,10 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
             // Must do this before changing powered state so the notifications work right
             boolean hadPulse = hasPulse();
             if (pulseTask == null) {
-                pulseTask = new ScheduledPowerTask() {
-                    @Override
-                    public void run() {
-                        pulseTaskDoneTime = -1;
-                        changePowered(!isPowered());
-                    }
-                };
+                pulseTask = createTask(() -> {
+                    pulseTaskDoneTime = -1;
+                    changePowered(!isPowered());
+                });
             }
             pulseTask.restart(delay);
             pulseTaskDoneTime = CommonUtil.getServerTicks() + delay;
@@ -374,17 +383,25 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
         }
     }
 
-    private abstract class ScheduledPowerTask implements Runnable {
+    /**
+     * Schedules a Runnable to run. Also works if the plugin is not yet enabled,
+     * in which case the task is queued up for later.
+     */
+    public final class ScheduledTask {
         private final Task task;
         private long offlineDelay = -1; // If set to -1, not scheduled offline
 
-        public ScheduledPowerTask() {
+        private ScheduledTask(Runnable runnable) {
             this.task = new Task(NamedPowerChannelRegistry.this.getPlugin()) {
                 @Override
                 public void run() {
-                    ScheduledPowerTask.this.run();
+                    runnable.run();
                 }
             };
+        }
+
+        public void restart() {
+            restart(0L);
         }
 
         public void restart(long delay) {

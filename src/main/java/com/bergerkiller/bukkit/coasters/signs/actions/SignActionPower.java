@@ -196,7 +196,7 @@ public class SignActionPower extends TCCSignAction {
 
     private static class TCCPowerSignRecipient implements NamedPowerChannel.Recipient {
         private int lastTickChanged = -1;
-        private Task nextTickTask = null;
+        private NamedPowerChannelRegistry.ScheduledTask nextTickTask = null;
         private final TCCoasters plugin;
         private final Block signBlock;
         private final boolean inverted;
@@ -264,18 +264,11 @@ public class SignActionPower extends TCCSignAction {
 
         private void refreshNextTick() {
             if (nextTickTask == null) {
-                nextTickTask = new Task(plugin) {
-                    @Override
-                    public void run() {
-                        if (nextTickTask != null) {
-                            nextTickTask = null;
-                            onPostChange(channel.isPowered());
-                        }
-                    }
-                }.start(1);
+                nextTickTask = channelRegistry.createTask(() -> onPostChange(channel.isPowered()));
             }
+            nextTickTask.restart();
         }
-        
+
         @Override
         public void onChanged() {
         }
