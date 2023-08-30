@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.commands;
 
 import java.util.logging.Level;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
@@ -79,6 +80,26 @@ class DebugCommands {
         } else {
             sender.sendMessage(ChatColor.RED + "No rail information stored for rail at " +
                 x + " / " + y + " / " + z);
+        }
+    }
+
+    @CommandRequiresTCCPermission
+    @CommandMethod("visibletoeveryone <visible>")
+    @CommandDescription("Makes track visible to all players, also those not editing track")
+    public void commandVisibleToEveryone(
+            final PlayerEditState state,
+            final CommandSender sender,
+            final @Argument("visible") boolean visible
+    ) {
+        if (!TCCoastersPermissions.VISIBLE_TO_EVERYONE.has(sender)) {
+            sender.sendMessage(ChatColor.RED + "You do not have permission to change this option");
+        } else {
+            state.getWorld().getParticles().setVisibleToEveryone(visible);
+            if (visible) {
+                sender.sendMessage(ChatColor.GREEN + "Coasters are now visible to all players");
+            } else {
+                sender.sendMessage(ChatColor.YELLOW + "Coasters are no longer visible to all players");
+            }
         }
     }
 }

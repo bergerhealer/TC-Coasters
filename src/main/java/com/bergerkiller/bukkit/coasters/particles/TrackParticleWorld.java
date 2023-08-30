@@ -35,6 +35,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
     private final ArrayList<ParticleWithBlockDistance> particlesSortedList = new ArrayList<>();
     private int updateCtr = 0;
     private boolean forceViewerUpdate = false;
+    private boolean visibleToEveryone = false;
 
     public TrackParticleWorld(CoasterWorld world) {
         this._world = world;
@@ -176,6 +177,18 @@ public class TrackParticleWorld implements CoasterWorldComponent {
     }
 
     /**
+     * Sets whether all particles are visible to everyone. This makes it so that players
+     * that do not have edit permissions or have not activated their TCC editor map ('disabled')
+     * can still see all particles such as wires and levers.
+     *
+     * @param set Whether visible to everyone
+     */
+    public void setVisibleToEveryone(boolean set) {
+        this.visibleToEveryone = set;
+        this.forceViewerUpdate = true;
+    }
+
+    /**
      * Forces a search for new particles around a player.
      * Normally this search only happens when a player moves.
      * 
@@ -210,6 +223,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         if (viewer.getWorld() == this.getBukkitWorld()) {
             // Get whether view is in edit mode or not
             boolean isInEditMode = this.getPlugin().getEditState(viewer).getMode() != PlayerEditMode.DISABLED;
+            boolean canViewAllParticles = isInEditMode || this.visibleToEveryone;
 
             // Get state
             ViewerParticleList viewed = this.viewers.computeIfAbsent(viewer, ViewerParticleList::new);
@@ -236,7 +250,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
             if (!reachedLimitRecently) {
                 int numParticles = 0;
                 for (TrackParticle particle : this.particles.cuboid(range_min, range_max)) {
-                    if ((!isInEditMode && !particle.isAlwaysVisible()) || !particle.isVisible(viewer)) {
+                    if ((!canViewAllParticles && !particle.isAlwaysVisible()) || !particle.isVisible(viewer)) {
                         continue;
                     }
 
