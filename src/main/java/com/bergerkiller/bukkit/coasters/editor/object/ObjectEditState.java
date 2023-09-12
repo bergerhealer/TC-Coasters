@@ -652,14 +652,17 @@ public class ObjectEditState {
 
         // Create new objects when none are selected
         if (this.editedTrackObjects.isEmpty()) {
-            // Compare orientation with the direction the player is looking
-            // If inverted, then flip the object
-            boolean flipped = (point.orientation.rightVector().dot(rightDirection) < 0.0);
-            TrackObject object = new TrackObject(this.getSelectedType(), point.distance, flipped);
-            this.editState.getHistory().addChangeBeforeCreateTrackObject(this.getPlayer(), point.connection, object);
+            // Only do this after the first click
+            if (this.editState.getHeldDownTicks() == 0) {
+                // Compare orientation with the direction the player is looking
+                // If inverted, then flip the object
+                boolean flipped = (point.orientation.rightVector().dot(rightDirection) < 0.0);
+                TrackObject object = new TrackObject(this.getSelectedType(), point.distance, flipped);
+                this.editState.getHistory().addChangeBeforeCreateTrackObject(this.getPlayer(), point.connection, object);
 
-            point.connection.addObject(object);
-            point.connection.saveObjectsToAnimationStates(this.editState.getSelectedAnimation());
+                point.connection.addObject(object);
+                point.connection.saveObjectsToAnimationStates(this.editState.getSelectedAnimation());
+            }
             return;
         }
 
