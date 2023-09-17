@@ -225,15 +225,6 @@ public class TrackCSVReader implements AutoCloseable {
         // Go by all created nodes and initialize animation state connections up-front
         state.coaster.refreshConnections();
 
-        // Create all pending connections
-        for (TrackConnectionState link : state.pendingLinks) {
-            try {
-                state.processConnection(link);
-            } catch (ChangeCancelledException ex) {
-                hasChangeCancelledException = true;
-            }
-        }
-
         // If we had trouble at all, throw to indicate this
         if (hasChangeCancelledException) {
             throw new ChangeCancelledException();
