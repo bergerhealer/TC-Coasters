@@ -201,6 +201,20 @@ public class TrackCSV {
         public TrackNode.AddSignPredicate addNodeSignPredicate = null; // Supports null for no filter!
         public TrackNode.UpdateAnimationStatePredicate updateAnimationStatePredicate = null; // Supports null for no filter!
 
+        public CSVReaderState(TrackCoaster coaster, Player player) {
+            this(coaster);
+
+            // If player is specified, track that player's historic changes and permission handling
+            if (player != null) {
+                this.handleUsingPlayer(player);
+            }
+        }
+
+        public CSVReaderState(TrackCoaster coaster) {
+            this.coaster = coaster;
+            this.world = coaster.getWorld();
+        }
+
         public void handleUsingPlayer(Player player) {
             this.player = player;
             this.changes = this.coaster.getPlugin().getEditState(player).getHistory().addChangeGroup();
@@ -261,7 +275,14 @@ public class TrackCSV {
             }
 
             // Ensure junction switching order is preserved
-            connection.getNodeA().pushBackJunction(connection);
+            // Note: the input link node A is the one that contains the junction, and whose junction
+            //       selection order must be preserved. However, if the connection already existed,
+            //       node A and node B might be swapped, so that must be accounted for.
+            if (link.node_a.isReference(connection.getNodeA())) {
+                connection.getNodeA().pushBackJunction(connection);
+            } else {
+                connection.getNodeB().pushBackJunction(connection);
+            }
         }
 
         /**

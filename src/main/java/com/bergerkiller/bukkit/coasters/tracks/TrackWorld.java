@@ -591,12 +591,16 @@ public class TrackWorld implements CoasterWorldComponent {
             }
         }
 
-        // Build and load all coasters
+        // Build and load the base of all coasters
+        List<TrackCoaster.CoasterLoadFinalizeAction> finalizeActions = new ArrayList<>(coasterNames.size());
         for (String name : coasterNames) {
             TrackCoaster coaster = new TrackCoaster(this.getWorld(), name);
             this._coasters.add(coaster);
-            coaster.load();
+            finalizeActions.add(coaster.loadBase());
         }
+
+        // Now all coasters are loaded in, create all the inter-coaster and junction connections
+        finalizeActions.forEach(TrackCoaster.CoasterLoadFinalizeAction::finishCoaster);
 
         // Mark all coasters as unchanged
         for (TrackCoaster coaster : this._coasters) {

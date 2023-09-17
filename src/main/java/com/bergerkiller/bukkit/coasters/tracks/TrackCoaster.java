@@ -20,7 +20,6 @@ import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
 import com.bergerkiller.bukkit.coasters.csv.TrackCSVReader;
 import com.bergerkiller.bukkit.coasters.csv.TrackCSVWriter;
 import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
-import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 
@@ -201,9 +200,23 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
     }
 
     /**
-     * Loads this coaster's nodes from file and makes all connections contained therein
+     * Loads this coaster's nodes from file and makes all connections contained therein.
      */
     public void load() {
+        loadBase().finishCoaster();
+    }
+
+    /**
+     * Loads this coaster's nodes from file and makes all connections contained therein.
+     * Does not yet load in all the LINK entries, which should be loaded in after all
+     * other coasters are loaded in as well. The returned CoasterLoadFinalizeAction should
+     * be used for that purpose.
+     *
+     * @return CoasterLoadFinalizeAction Action to be run once all coasters are loaded in
+     */
+    public CoasterLoadFinalizeAction loadBase() {
+        CoasterLoadFinalizeAction finalizeAction = () -> {};
+
         // Load the save file. If the save file is not found, but a .tmp file version of it does exist,
         // this indicates saving failed previously inbetween deleting and renaming the .tmp to .csv.
         // We must load the .tmp file instead, then, but also log a warning about this!
@@ -219,13 +232,21 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
             } else {
                 this.getPlugin().getLogger().log(Level.SEVERE,
                         "Coaster " + this.getName() + " could not be loaded: missing file");
-                return;
+                return finalizeAction;
             }
         }
 
         // Load from file
         try {
-            this.loadFromStream(new FileInputStream(realFile));
+            try (TrackCSVReader reader = new TrackCSVReader(new FileInputStream(realFile))) {
+                finalizeAction = reader.getFinalizeAction();
+                reader.createBaseOnly(this);
+            } catch (FileNotFoundException e) {
+                this.getPlugin().getLogger().log(Level.SEVERE,
+                        "Failed to find file trying to load coaster " + this.getName());
+            } catch (IOException ex) {
+                throw new CoasterLoadException("An I/O Error occurred while loading coaster " + this.getName(), ex);
+            }
         } catch (CoasterLoadException e) {
             // Log the message
             this.getPlugin().getLogger().log(Level.SEVERE, e.getMessage());
@@ -240,13 +261,12 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
                 // Re-save the coaster right away, to make sure details are still there
                 this.save(false);
             }
-        } catch (FileNotFoundException e) {
-            this.getPlugin().getLogger().log(Level.SEVERE,
-                    "Failed to find file trying to load coaster " + this.getName());
         }
 
         // Coaster loaded. Any post-ops?
         this.markUnchanged();
+
+        return finalizeAction;
     }
 
     /**
@@ -275,17 +295,13 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
         try (TrackCSVReader reader = new TrackCSVReader(inputStream)) {
             reader.setOrigin(origin);
             reader.create(this, player);
-
-            // Note: on failure not all nodes may be loaded, but at least some are.
-        } catch (ChangeCancelledException ex) {
+        } catch (CoasterLoadException | ChangeCancelledException ex) {
             throw ex;
-        } catch (SyntaxException ex) {
-            throw new CoasterLoadException("Syntax error while loading coaster " + this.getName() + " " + ex.getMessage());
         } catch (IOException ex) {
             throw new CoasterLoadException("An I/O Error occurred while loading coaster " + this.getName(), ex);
         } catch (Throwable t) {
-            getPlugin().getLogger().log(Level.SEVERE, "An unexpected error occurred while loading coaster " + this.getName(), t);
-            throw new CoasterLoadException("An unexpected error occurred while loading coaster " + this.getName(), t);
+            // Just in case the TrackCSVReader constructor somehow throws randomly
+            throw new CoasterLoadException("Unexpected exception occurred loading coaster " + this.getName(), t);
         }
     }
 
@@ -371,5 +387,19 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
         public CoasterLoadException(String message, Throwable cause) {
             super(message, cause);
         }
+    }
+
+    /**
+     * Finishes the creation of a coaster by creating all the connections stored
+     * under LINK entries. This action must run as late as possible so that connections
+     * with other coasters can be facilitated.
+     */
+    @FunctionalInterface
+    public interface CoasterLoadFinalizeAction {
+        /**
+         * Finishes initializing the coaster's links. Is guaranteed to never throw,
+         * but may log problems.
+         */
+        void finishCoaster();
     }
 }

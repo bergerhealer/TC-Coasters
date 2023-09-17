@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
@@ -13,6 +14,7 @@ import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.PlayerOriginHolder;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.SyntaxException;
+import com.bergerkiller.bukkit.common.bases.CheckedRunnable;
 import com.opencsv.CSVParser;
 import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReader;
@@ -26,6 +28,7 @@ public class TrackCSVReader implements AutoCloseable {
     private final CSVReader reader;
     private final StringArrayBuffer buffer;
     private PlayerOrigin origin = null;
+    private TrackCSV.CSVReaderState state = null;
 
     public TrackCSVReader(InputStream inputStream) throws IOException {
         CSVFormatDetectorStream detectorInput = new CSVFormatDetectorStream(inputStream);
@@ -63,6 +66,27 @@ public class TrackCSVReader implements AutoCloseable {
     }
 
     /**
+     * Gets an action that can be run later on to finish building all the connections
+     * stored in pending LINK entries. This method can safely be called before
+     * actual creating has been done, and when called, will create the links
+     * that were loaded before an error occurred if any.
+     *
+     * @return Coaster finalize action
+     */
+    public TrackCoaster.CoasterLoadFinalizeAction getFinalizeAction() {
+        return () -> {
+            try {
+                createPendingLinksImpl();
+            } catch (Throwable t) {
+                if (state != null) {
+                    state.coaster.getPlugin().getLogger().log(Level.SEVERE,
+                            "An error occurred finalizing coaster " + state.coaster.getName(), t);
+                }
+            }
+        };
+    }
+
+    /**
      * Reads the next entry in the CSV file, decoding it into a CSVEntry.
      * If the end of the file was reached, null is returned.
      * 
@@ -81,12 +105,12 @@ public class TrackCSVReader implements AutoCloseable {
      *
      * @param coaster Coaster to fill with nodes and connections
      * @param player Player that is creating (importing) the coaster
-     * @throws IOException
-     * @throws SyntaxException
+     * @throws TrackCoaster.CoasterLoadException
      * @throws ChangeCancelledException
      */
-    public void create(TrackCoaster coaster, Player player) throws IOException, SyntaxException, ChangeCancelledException {
-        createImpl(coaster, player);
+    public void create(TrackCoaster coaster, Player player) throws TrackCoaster.CoasterLoadException, ChangeCancelledException {
+        this.state = new TrackCSV.CSVReaderState(coaster, player);
+        wrapErrors(this::createImpl);
     }
 
     /**
@@ -95,27 +119,72 @@ public class TrackCSVReader implements AutoCloseable {
      * source such as disk.
      *
      * @param coaster Coaster to fill with nodes and connections
-     * @throws IOException
-     * @throws SyntaxException
+     * @throws TrackCoaster.CoasterLoadException
      */
-    public void create(TrackCoaster coaster) throws IOException, SyntaxException, ChangeCancelledException {
+    public void create(TrackCoaster coaster) throws TrackCoaster.CoasterLoadException {
         try {
-            createImpl(coaster, null);
+            this.state = new TrackCSV.CSVReaderState(coaster);
+            wrapErrors(this::createImpl);
         } catch (ChangeCancelledException ex) {
-            // This never happend in practise but handle it anyway
-            throw new RuntimeException("Unexpected Change Cancelled Exception", ex);
+            // This never happens in practise but handle it anyway
+            throw new TrackCoaster.CoasterLoadException("Unexpected Change Cancelled Exception", ex);
         }
     }
 
-    private void createImpl(TrackCoaster coaster, Player player) throws IOException, SyntaxException, ChangeCancelledException {
-        TrackCSV.CSVReaderState state = new TrackCSV.CSVReaderState();
-        state.coaster = coaster;
-        state.world = coaster.getWorld();
-
-        // If player is specified, track that player's historic changes and permission handling
-        if (player != null) {
-            state.handleUsingPlayer(player);
+    /**
+     * Loads in the coaster's main ROOT and NODE link entries, but does not yet load in
+     * all the LINK entries. When loading all coasters in a world this first step
+     * makes sure all nodes available. You should call {@link #getFinalizeAction()}
+     * to get a task to run after all coasters are loaded in to finish initializing
+     * the junction connections.
+     *
+     * @param coaster Coaster to create
+     * @throws TrackCoaster.CoasterLoadException
+     */
+    public void createBaseOnly(TrackCoaster coaster) throws TrackCoaster.CoasterLoadException {
+        try {
+            this.state = new TrackCSV.CSVReaderState(coaster);
+            wrapErrors(this::createBaseImpl);
+        } catch (ChangeCancelledException ex) {
+            // This never happens in practise but handle it anyway
+            throw new TrackCoaster.CoasterLoadException("Unexpected Change Cancelled Exception", ex);
         }
+    }
+
+    private void wrapErrors(CheckedRunnable action) throws TrackCoaster.CoasterLoadException, ChangeCancelledException {
+        try {
+            action.run();
+        } catch (ChangeCancelledException ex) {
+            throw ex;
+        } catch (SyntaxException ex) {
+            throw new TrackCoaster.CoasterLoadException("Syntax error while loading coaster " + state.coaster.getName() + " " + ex.getMessage());
+        } catch (IOException ex) {
+            throw new TrackCoaster.CoasterLoadException("An I/O Error occurred while loading coaster " + state.coaster.getName(), ex);
+        } catch (Throwable t) {
+            state.coaster.getPlugin().getLogger().log(Level.SEVERE, "An unexpected error occurred while loading coaster " + state.coaster.getName(), t);
+            throw new TrackCoaster.CoasterLoadException("An unexpected error occurred while loading coaster " + state.coaster.getName(), t);
+        }
+    }
+
+    private void createImpl() throws IOException, SyntaxException, ChangeCancelledException {
+        boolean hasChangeCancelledException = false;
+        try {
+            createBaseImpl();
+        } catch (ChangeCancelledException ex) {
+            hasChangeCancelledException = true;
+        }
+        try {
+            createPendingLinksImpl();
+        } catch (ChangeCancelledException ex) {
+            hasChangeCancelledException = true;
+        }
+        if (hasChangeCancelledException) {
+            throw new ChangeCancelledException();
+        }
+    }
+
+    private void createBaseImpl() throws IOException, SyntaxException, ChangeCancelledException {
+        TrackCSV.CSVReaderState state = this.state;
 
         // Not locked by default
         state.coaster.setLocked(false);
@@ -171,4 +240,25 @@ public class TrackCSVReader implements AutoCloseable {
         }
     }
 
+    private void createPendingLinksImpl() throws ChangeCancelledException {
+        TrackCSV.CSVReaderState state = this.state;
+
+        // Maybe loading failed
+        if (state == null) {
+            return;
+        }
+
+        // Create all pending connections
+        boolean hasChangeCancelledException = false;
+        for (TrackConnectionState link : state.pendingLinks) {
+            try {
+                state.processConnection(link);
+            } catch (ChangeCancelledException ex) {
+                hasChangeCancelledException = true;
+            }
+        }
+        if (hasChangeCancelledException) {
+            throw new ChangeCancelledException();
+        }
+    }
 }
