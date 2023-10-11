@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 
 import com.bergerkiller.bukkit.coasters.editor.object.ui.BlockSelectMenu;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
+import com.bergerkiller.bukkit.tc.attachments.config.AttachmentConfig;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -596,18 +597,19 @@ public class PlayerEditState implements CoasterWorldComponent {
             // Can be caused by the node being removed, handle that here
             if (!node.isRemoved()) {
                 node.onStateUpdated(this.player);
-            }
-            for (TrackNodeAnimationState state : node.getAnimationStates()) {
-                Set<TrackNode> values = this.editedNodesByAnimationName.get(state.name);
-                if (editing && values.add(node)) {
-                    this.editedAnimationNamesChanged |= (values.size() == 1);
-                } else if (!editing && values.remove(node)) {
-                    this.editedAnimationNamesChanged |= values.isEmpty();
+                for (TrackNodeAnimationState state : node.getAnimationStates()) {
+                    Set<TrackNode> values = this.editedNodesByAnimationName.get(state.name);
+                    if (editing && values.add(node)) {
+                        this.editedAnimationNamesChanged |= (values.size() == 1);
+                    } else if (!editing && values.remove(node)) {
+                        this.editedAnimationNamesChanged |= values.isEmpty();
+                    }
                 }
+                this.lastEdited = node;
+                this.lastEditTime = System.currentTimeMillis();
+            } else if (this.lastEdited == node) {
+                this.lastEdited = null;
             }
-
-            this.lastEdited = node;
-            this.lastEditTime = System.currentTimeMillis();
             this.onEditedNodesChanged();
         }
     }
@@ -1465,14 +1467,7 @@ public class PlayerEditState implements CoasterWorldComponent {
             .collect(Collectors.toCollection(HashSet::new));
 
         // Make sure to erase nodes whose neighbour is also in this set (the one we're removing)
-        {
-            Iterator<TrackNode> iter = nodes.iterator();
-            while (iter.hasNext()) {
-                if (nodes.contains(iter.next().getZeroDistanceNeighbour())) {
-                    iter.remove();
-                }
-            }
-        }
+        nodes.removeIf(n -> nodes.contains(n.getZeroDistanceNeighbour()));
 
         if (nodes.isEmpty()) {
             return; // Weird.
@@ -1523,6 +1518,9 @@ public class PlayerEditState implements CoasterWorldComponent {
             newConnection.addAllObjects(connObjects);
             changes.addChangeAfterConnect(this.player, newConnection);
         }
+
+        // Fire again to refresh selected nodes AFTER we've changed connections around
+        onEditedNodesChanged();
     }
 
     /**
