@@ -47,7 +47,8 @@ public interface TrackNodeReference {
     TrackNodeReference reference(TrackWorld world);
 
     /**
-     * Gets whether this track node reference references the same node as another reference
+     * Gets whether this track node reference references the same node as another reference.
+     * This compares the node positions.
      * 
      * @param reference
      * @return True if this reference and the one specified reference the same track node

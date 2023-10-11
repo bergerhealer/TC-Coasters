@@ -3,9 +3,6 @@ package com.bergerkiller.bukkit.coasters.tracks;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.function.BiFunction;
-import java.util.function.IntFunction;
-import java.util.function.Predicate;
 
 import org.bukkit.util.Vector;
 
@@ -152,7 +149,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
      * Removes this connection, disconnecting the two nodes
      */
     public void remove() {
-        this.getNodeA().getWorld().getTracks().disconnect(this.getNodeA(), this.getNodeB());
+        this.getNodeA().getWorld().getTracks().disconnect(this);
     }
 
     /**

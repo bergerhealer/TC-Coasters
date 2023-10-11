@@ -473,26 +473,64 @@ public class TrackWorld implements CoasterWorldComponent {
 
     /**
      * Disconnects two track nodes, removing any existing connection between them
+     *
+     * @param state TrackConnectionState describing the connection between two nodes
+     * @return True if removed, False if the connection could not be found and
+     *         was not removed
+     */
+    public boolean disconnect(TrackConnectionState state) {
+        TrackConnection connection = state.findOnWorld(this);
+        return connection != null && disconnect(connection);
+    }
+
+    /**
+     * Disconnects two track nodes, removing any existing connection between them
      * 
      * @param nodeA
      * @param nodeB
+     * @return True if removed, False if the connection could not be found and
+     *         was not removed
      */
-    public void disconnect(TrackNode nodeA, TrackNode nodeB) {
+    public boolean disconnect(TrackNode nodeA, TrackNode nodeB) {
         if (nodeA == nodeB) {
-            return; // Ignore
+            return false; // Ignore
         }
 
         // Find the connection in nodeA
         for (TrackConnection connection : nodeA._connections) {
             if (connection.isConnected(nodeB)) {
-                removeConnectionFromNode(nodeA, connection);
-                removeConnectionFromNode(nodeB, connection);
-                scheduleNodeRefresh(nodeA);
-                scheduleNodeRefresh(nodeB);
-                connection.onRemoved();
-                connection.markChanged();
-                return; // Done
+                disconnect(connection);
+                return true; // Done
             }
+        }
+
+        // Not found
+        return false;
+    }
+
+    /**
+     * Disconnects a connection that was previously created
+     *
+     * @param connection
+     * @return True if the connection was broken. False if the connection didn't exist.
+     * @see TrackConnection#remove()
+     */
+    public boolean disconnect(TrackConnection connection) {
+        if (connection.getWorld() != _world) {
+            throw new IllegalArgumentException("Connection is not on this world");
+        }
+        TrackNode nodeA = connection.getNodeA();
+        TrackNode nodeB = connection.getNodeB();
+        boolean disconnectedNodeA = removeConnectionFromNode(nodeA, connection);
+        boolean disconnectedNodeB = removeConnectionFromNode(nodeB, connection);
+        if (disconnectedNodeA || disconnectedNodeB) {
+            scheduleNodeRefresh(nodeA);
+            scheduleNodeRefresh(nodeB);
+            connection.onRemoved();
+            connection.markChanged();
+            return true;
+        } else {
+            return false;
         }
     }
 
@@ -741,7 +779,7 @@ public class TrackWorld implements CoasterWorldComponent {
         node._connections = LogicUtil.appendArray(node._connections, connection);
     }
 
-    private static void removeConnectionFromNode(TrackNode node, TrackConnection connection) {
+    private static boolean removeConnectionFromNode(TrackNode node, TrackConnection connection) {
         if (node._connections.length != 1) {
             for (int i = 0; i < node._connections.length; i++) {
                 if (node._connections[i] == connection) {
@@ -749,12 +787,16 @@ public class TrackWorld implements CoasterWorldComponent {
                     System.arraycopy(node._connections, 0, new_connections, 0, i);
                     System.arraycopy(node._connections, i+1, new_connections, i, node._connections.length-i-1);
                     node._connections = new_connections;
-                    break;
+                    return true;
                 }
             }
         } else if (node._connections[0] == connection) {
             node._connections = TrackConnection.EMPTY_ARR;
+            return true;
         }
+
+        /* Connection not found */
+        return false;
     }
 
     private static final class NodeUpdateList {

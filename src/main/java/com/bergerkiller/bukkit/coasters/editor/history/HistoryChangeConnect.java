@@ -21,11 +21,7 @@ public class HistoryChangeConnect extends HistoryChange {
     @Override
     protected void run(boolean undo) throws TrackLockedException {
         if (undo) {
-            TrackNode nodeA = state.node_a.findOnWorld(this.world.getTracks());
-            TrackNode nodeB = state.node_b.findOnWorld(this.world.getTracks());
-            if (nodeA != null && nodeB != null) {
-                this.world.getTracks().disconnect(nodeA, nodeB);
-            }
+            this.world.getTracks().disconnect(this.state);
         } else {
             this.world.getTracks().connect(this.state, true);
         }
