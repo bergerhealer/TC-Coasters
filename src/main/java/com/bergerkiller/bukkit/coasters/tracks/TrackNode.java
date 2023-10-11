@@ -7,7 +7,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 
-import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -140,7 +139,10 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     public void markChanged() {
-        this._coaster.markChanged();
+        TrackCoaster coaster = this._coaster;
+        if (coaster != null) {
+            coaster.markChanged();
+        }
     }
 
     public final void remove() {
@@ -566,6 +568,20 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     /**
+     * Returns a List of unique TrackNodes that occupy the position of this node. If this
+     * node has a {@link #getZeroDistanceNeighbour() zero distance neighbour} it returns
+     * a list containing this node and that neighbour. Otherwise, it returns a singleton
+     * list of just this node.
+     *
+     * @return List of this node, or this node and a zero-distance neighbour
+     * @see #getZeroDistanceNeighbour()
+     */
+    public List<TrackNode> getNodesAtPosition() {
+        TrackNode zero = getZeroDistanceNeighbour();
+        return zero == null ? Collections.singletonList(this) : Arrays.asList(this, zero);
+    }
+
+    /**
      * Same as {@link #getZeroDistanceNeighbour()} but only returns the zero-distance
      * neighbour if it has no connections other than with this node. Instead of null
      * it returns this node if those conditions aren't met.
@@ -688,14 +704,31 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     /**
-     * Checks the connections to this node for a connection with another node
+     * Checks the connections of this node for a connection with another node.
+     * Only node position must match.
      * 
      * @param nodeReference The node (reference) of the node to find a connection with
      * @return Track connection found, null if no such connection exists
      */
-    public final TrackConnection findConnectionWith(TrackNodeReference nodeReference) {
+    public final TrackConnection findConnectionWithReference(TrackNodeReference nodeReference) {
         for (TrackConnection connection : this._connections) {
             if (connection.getOtherNode(this).isReference(nodeReference)) {
+                return connection;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Checks the connections of this node for a connection with another node.
+     * Node must match exactly.
+     *
+     * @param node The node of the node to find a connection with
+     * @return Track connection found, null if no such connection exists
+     */
+    public final TrackConnection findConnectionWithNode(TrackNode node) {
+        for (TrackConnection connection : this._connections) {
+            if (connection.getOtherNode(this) == node) {
                 return connection;
             }
         }
@@ -1407,10 +1440,19 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
      * at the position of this node.
      * 
      * @param world The world to look the node up on
+     * @param excludedNode If multiple track nodes exist at a position, makes sure to
+     *                     exclude this node. Ignored if null. If the excluded node
+     *                     is equal to this node, looks for another node at the same
+     *                     position.
      */
     @Override
-    public TrackNode findOnWorld(TrackWorld world) {
-        return (this._coaster != null) ? this : world.findNodeExact(this._pos);
+    public TrackNode findOnWorld(TrackWorld world, TrackNode excludedNode) {
+        return (this._coaster != null && this != excludedNode) ? this : world.findNodeExact(this._pos, excludedNode);
+    }
+
+    @Override
+    public boolean isExistingNode() {
+        return !isRemoved();
     }
 
     @Override

@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
 
 import org.bukkit.Location;
 import org.bukkit.util.Vector;
@@ -260,12 +261,29 @@ public class TrackWorld implements CoasterWorldComponent {
      * This makes sure that when creating links, the 'straightened' effect of the
      * node is preferred instead of creating random broken junctions.
      *
-     * @param position
+     * @param position Node position
      * @return node at the position, null if not found
      */
     public TrackNode findNodeExact(Vector position) {
+        return findNodeExact(position, null);
+    }
+
+    /**
+     * Finds the track node that exists precisely at a particular 3d position.<br>
+     * <br>
+     * If multiple nodes exist at the same position (=zero distance neighbours),
+     * then it will select the orphan node if i has zero connections to other nodes.
+     * This makes sure that when creating links, the 'straightened' effect of the
+     * node is preferred instead of creating random broken junctions.
+     *
+     * @param position Node position
+     * @param excludedNode If multiple track nodes exist at a position, makes sure to
+     *                     exclude this node. Ignored if null.
+     * @return node at the position, null if not found
+     */
+    public TrackNode findNodeExact(Vector position, TrackNode excludedNode) {
         for (TrackCoaster coaster : this._coasters) {
-            TrackNode node = coaster.findNodeExact(position);
+            TrackNode node = coaster.findNodeExact(position, excludedNode);
             if (node != null) {
                 return node;
             }
@@ -422,25 +440,72 @@ public class TrackWorld implements CoasterWorldComponent {
      * @return created connection, null on failure
      */
     public TrackConnection connect(TrackConnectionState state, boolean addObjects) {
-        TrackNode nodeA = state.node_a.findOnWorld(this);
-        TrackNode nodeB = state.node_b.findOnWorld(this);
-        if (nodeA == null || nodeB == null || nodeA == nodeB) {
-            return null;
-        } else {
-            TrackConnection connection = this.connect(nodeA, nodeB);
-            if (addObjects) {
-                connection.addAllObjects(state);
+        TrackNode nodeA, nodeB;
+        if (state.node_a.isExistingNode()) {
+            // If both are specified as an existing node, then do the normal connect() logic
+            if (state.node_b.isExistingNode()) {
+                return connect((TrackNode) state.node_a, (TrackNode) state.node_b);
             }
-            return connection;
+
+            // Try to find an existing connection with node_b reference
+            nodeA = (TrackNode) state.node_a;
+            TrackConnection existing = nodeA.findConnectionWithReference(state.node_b);
+            if (existing != null) {
+                return existing;
+            }
+
+            // Find node_b, if not found, fail
+            if ((nodeB = state.node_b.findOnWorld(this, nodeA)) == null) {
+                return null;
+            }
+        } else if (state.node_b.isExistingNode()) {
+            // Try to find an existing connection with node_a reference
+            nodeB = (TrackNode) state.node_b;
+            TrackConnection existing = nodeB.findConnectionWithReference(state.node_a);
+            if (existing != null) {
+                return existing;
+            }
+
+            // Find node_a, if not found, fail
+            if ((nodeA = state.node_a.findOnWorld(this, nodeB)) == null) {
+                return null;
+            }
+        } else {
+            nodeA = state.node_a.findOnWorld(this, null);
+            nodeB = state.node_b.findOnWorld(this, nodeA);
+
+            // Either node not found, fail
+            if (nodeA == null || nodeB == null) {
+                return null;
+            }
+
+            // Before proceeding, check whether there is a zero-distance neighbour of the nodes
+            // that connects with the other nodes/zero-distance neighbour of that node
+            // This avoids a bunch of weird situations where junctions come into existence.
+            for (TrackNode nodeAZ : nodeA.getNodesAtPosition()) {
+                for (TrackNode nodeBZ : nodeB.getNodesAtPosition()) {
+                    TrackConnection existing = nodeAZ.findConnectionWithNode(nodeBZ);
+                    if (existing != null) {
+                        return existing;
+                    }
+                }
+            }
         }
+
+        // Create a new connection
+        TrackConnection connection = this.addConnection(nodeA, nodeB);
+        if (addObjects) {
+            connection.addAllObjects(state);
+        }
+        return connection;
     }
 
     /**
-     * Connects two track nodes together
+     * Connects two track nodes together, unless the two nodes are already connected together
      * 
-     * @param nodeA
-     * @param nodeB
-     * @return connection
+     * @param nodeA Node A
+     * @param nodeB Node B
+     * @return connection that was found or created
      */
     public TrackConnection connect(TrackNode nodeA, TrackNode nodeB) {
         // Let's not do this
@@ -455,9 +520,10 @@ public class TrackWorld implements CoasterWorldComponent {
             throw new IllegalArgumentException("Input nodeB was deleted and does not exist");
         }
         // Verify no such connection exists yet
-        for (TrackConnection connection : nodeA._connections) {
-            if (connection.isConnected(nodeB)) {
-                return connection;
+        {
+            TrackConnection existing = nodeA.findConnectionWithNode(nodeB);
+            if (existing != null) {
+                return existing;
             }
         }
         // Safety!
@@ -681,11 +747,24 @@ public class TrackWorld implements CoasterWorldComponent {
                     continue;
                 }
 
-                changedNode.onShapeUpdated();
+                try {
+                    changedNode.onShapeUpdated();
+                } catch (Throwable t) {
+                    getPlugin().getLogger().log(Level.SEVERE, "An error occurred updating shape of node " +
+                            changedNode.getPosition(), t);
+                }
+
                 changedConnections.addAll(changedNode.getConnections());
             }
+
             for (TrackConnection changedConnection : changedConnections) {
-                changedConnection.onShapeUpdated();
+                try {
+                    changedConnection.onShapeUpdated();
+                } catch (Throwable t) {
+                    getPlugin().getLogger().log(Level.SEVERE, "An error occurred updating shape of connection [" +
+                            changedConnection.getNodeA().getPosition() + " TO " +
+                            changedConnection.getNodeB().getPosition() + "]", t);
+                }
             }
 
             // Purge all cached rail information for the changed nodes

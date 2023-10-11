@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.util.Arrays;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -47,7 +48,7 @@ public final class TrackNodeState {
             return false;
         }
         TrackNodeState other = (TrackNodeState) o;
-        return this.position.equals(other.position) &&
+        return TCCoastersUtil.isPositionSame(position, other.position) &&
                this.orientation.equals(other.orientation) &&
                LogicUtil.bothNullOrEqual(this.railBlock, other.railBlock);
     }

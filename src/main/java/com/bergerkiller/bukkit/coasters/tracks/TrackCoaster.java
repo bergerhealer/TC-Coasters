@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import org.bukkit.entity.Player;
 import org.bukkit.util.FileUtil;
@@ -54,18 +55,16 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
      * This makes sure that when creating links, the 'straightened' effect of the
      * node is preferred instead of creating random broken junctions.
      * 
-     * @param position
+     * @param position Node position
+     * @param excludedNode If multiple track nodes exist at a position, makes sure to
+     *                     exclude this node. Ignored if null.
      * @return node at the position, null if not found
      */
-    public TrackNode findNodeExact(Vector position) {
-        final double MAX_DIFF = 1e-6;
+    public TrackNode findNodeExact(Vector position, TrackNode excludedNode) {
         for (TrackNode node : this._nodes) {
-            Vector npos = node.getPosition();
-            double dx = Math.abs(npos.getX() - position.getX());
-            double dy = Math.abs(npos.getY() - position.getY());
-            double dz = Math.abs(npos.getZ() - position.getZ());
-            if (dx < MAX_DIFF && dy < MAX_DIFF && dz < MAX_DIFF) {
-                return node.selectZeroDistanceOrphan();
+            if (TCCoastersUtil.isPositionSame(node.getPosition(), position) && node != excludedNode) {
+                TrackNode orphan = node.selectZeroDistanceOrphan();
+                return (orphan != excludedNode) ? orphan : node;
             }
         }
         return null;

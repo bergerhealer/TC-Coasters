@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.util.TrackNodePositionReference;
@@ -16,9 +17,20 @@ public interface TrackNodeReference {
      * on the World specified.
      * 
      * @param world The world to find the node on
+     * @param excludedNode If multiple track nodes exist at a position, makes sure to
+     *                     exclude this node. Ignored if null.
      * @return track node found, null if not found
      */
-    TrackNode findOnWorld(TrackWorld world);
+    TrackNode findOnWorld(TrackWorld world, TrackNode excludedNode);
+
+    /**
+     * Gets whether this reference instance is an existing, non-removed Node.
+     * In that case no further searching by position is required to find it.
+     *
+     * @return True if this instance is an existing, non-removed node. In that case
+     *         this instance can be cast to {@link TrackNode}
+     */
+    boolean isExistingNode();
 
     /**
      * Gets the exact coordinates of this node
@@ -54,7 +66,7 @@ public interface TrackNodeReference {
      * @return True if this reference and the one specified reference the same track node
      */
     default boolean isReference(TrackNodeReference reference) {
-        return this == reference || this.getPosition().equals(reference.getPosition());
+        return this == reference || TCCoastersUtil.isPositionSame(getPosition(), reference.getPosition());
     }
 
     /**
@@ -72,10 +84,11 @@ public interface TrackNodeReference {
     /**
      * Creates a track node reference that references a node at the given x/y/z position
      * 
-     * @param position The x/y/z coordinates of the node
+     * @param position The x/y/z coordinates of the node. Input Vector can be modified
+     *                 afterwards without breaking things.
      * @return Track node reference
      */
     public static TrackNodeReference at(Vector position) {
-        return new TrackNodePositionReference(position.getX(), position.getY(), position.getZ());
+        return new TrackNodePositionReference(position);
     }
 }

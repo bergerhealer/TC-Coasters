@@ -42,6 +42,9 @@ public class TCCoastersUtil {
     private static final int[] BLOCK_DELTAS_ZER = new int[] {0};
     public static final double OFFSET_TO_SIDE = RailLogicHorizontal.Y_POS_OFFSET;
 
+    /** Threshold for Position vector equals() */
+    private static final double POSITION_EPSILON = 1e-6;
+
     public static int[] getBlockDeltas(double value) {
         if (value > 1e-10) {
             return BLOCK_DELTAS_POS;
@@ -350,5 +353,20 @@ public class TCCoastersUtil {
             }
             return copy;
         }
+    }
+
+    /**
+     * Checks whether two node positions occupy the exact same position, with an epsilon.
+     * That makes this check fuzzy. <b>It differs from Vector equals which will not
+     * work with custom types</b>
+     *
+     * @param a Position A
+     * @param b Position B
+     * @return True if position A and B are very closely similar (1e-6)
+     */
+    public static boolean isPositionSame(Vector a, Vector b) {
+        return Math.abs(a.getX() - b.getX()) < POSITION_EPSILON &&
+               Math.abs(a.getY() - b.getY()) < POSITION_EPSILON &&
+               Math.abs(a.getZ() - b.getZ()) < POSITION_EPSILON;
     }
 }

@@ -29,6 +29,11 @@ public final class TrackNodePositionReference implements TrackNodeReference {
     }
 
     @Override
+    public boolean isExistingNode() {
+        return false;
+    }
+
+    @Override
     public Vector getPosition() {
         return position;
     }

@@ -73,11 +73,7 @@ public final class TrackConnectionState implements TrackObjectHolder {
      * @return True if connected
      */
     public boolean isConnected(TrackNodeReference nodeReference) {
-        if (this.node_a == nodeReference || this.node_b == nodeReference) {
-            return true;
-        }
-        Vector position = nodeReference.getPosition();
-        return position.equals(this.node_a.getPosition()) || position.equals(this.node_b.getPosition());
+        return this.node_a.isReference(nodeReference) || this.node_b.isReference(nodeReference);
     }
 
     /**
@@ -118,8 +114,9 @@ public final class TrackConnectionState implements TrackObjectHolder {
      * @return found connection, null if not found
      */
     public TrackConnection findOnWorld(TrackWorld world) {
-        TrackNode node_a = this.node_a.findOnWorld(world);
-        return (node_a == null) ? null : node_a.findConnectionWith(this.node_b.reference(world));
+        TrackNode not_node_a = node_b.isExistingNode() ? (TrackNode) this.node_b : null;
+        TrackNode node_a = this.node_a.findOnWorld(world, not_node_a);
+        return (node_a == null) ? null : node_a.findConnectionWithReference(this.node_b.reference(world));
     }
 
     /**
