@@ -240,7 +240,7 @@ class EditStateSignCommands {
     public void commandRemoveInputPowerChannel(
             final PlayerEditState state,
             final CommandSender sender,
-            final @Argument(value="channel", suggestions="power_channels") String channel_name,
+            final @Argument(value="channel", suggestions="selected_input_power_channels") String channel_name,
             final @Flag(value="face",
                         parserName="sign_block_face",
                         description="Removes a specific face instead of any with the channel name") BlockFace face
@@ -327,7 +327,7 @@ class EditStateSignCommands {
     public void commandRotateInputNamedPowerChannels(
             final PlayerEditState state,
             final CommandSender sender,
-            final @Argument(value="channel", suggestions="power_channels") String channel_name
+            final @Argument(value="channel", suggestions="selected_input_power_channels") String channel_name
     ) {
         try {
             final AtomicBoolean changed = new AtomicBoolean(false);
@@ -393,7 +393,7 @@ class EditStateSignCommands {
     public void commandRemoveOutputPowerChannel(
             final PlayerEditState state,
             final CommandSender sender,
-            final @Argument(value="channel", suggestions="power_channels") String channel_name
+            final @Argument(value="channel", suggestions="selected_output_power_channels") String channel_name
     ) {
         final AtomicInteger numNodesChanged = new AtomicInteger(0);
         try {

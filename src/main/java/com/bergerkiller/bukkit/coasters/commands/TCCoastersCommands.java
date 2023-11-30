@@ -6,6 +6,8 @@ import java.util.Collections;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import com.bergerkiller.bukkit.coasters.commands.suggestions.SelectedSignsInputPowerChannelSuggestionProvider;
+import com.bergerkiller.bukkit.coasters.commands.suggestions.SelectedSignsOutputPowerChannelSuggestionProvider;
 import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
@@ -58,6 +60,8 @@ public class TCCoastersCommands {
         // Power channel name suggestions (for use assigning a sign to a channel)
         final NamedPowerChannelParser namedPowerChannelParser = new NamedPowerChannelParser(plugin);
         cloud.suggest("power_channels", namedPowerChannelParser::suggestions);
+        cloud.suggest("selected_input_power_channels", new SelectedSignsInputPowerChannelSuggestionProvider());
+        cloud.suggest("selected_output_power_channels", new SelectedSignsOutputPowerChannelSuggestionProvider());
         cloud.parse("sign_block_face", p -> new SignBlockFaceParser());
         cloud.parse("time_duration_ticks", p -> new TimeTicksParser());
 
