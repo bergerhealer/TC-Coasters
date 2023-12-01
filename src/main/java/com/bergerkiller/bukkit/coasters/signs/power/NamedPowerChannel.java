@@ -13,6 +13,7 @@ import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.tc.signactions.SignActionType;
+import org.bukkit.util.Vector;
 
 /**
  * Power state of a sign, mapped to a name so that power state
@@ -347,6 +348,14 @@ public class NamedPowerChannel implements Cloneable {
         @Override
         public boolean equals(Object o) {
             return o instanceof TrackNodeSignRecipientOutput && ((TrackNodeSignRecipientOutput) o).sign == this.sign;
+        }
+
+        @Override
+        public String toString() {
+            TrackNode node = sign.getNode();
+            Vector pos = node.getPosition();
+            return "TCC Sign at Node {world=" + node.getBukkitWorld().getName() +
+                    " x=" + pos.getX() + " y=" + pos.getY() + " z=" + pos.getZ() + "}";
         }
     }
 

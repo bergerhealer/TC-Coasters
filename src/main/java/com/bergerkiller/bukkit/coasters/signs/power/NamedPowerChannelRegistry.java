@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import org.bukkit.block.BlockFace;
@@ -209,6 +210,8 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
         private List<NamedPowerChannel.Recipient> recipients;
         private ScheduledTask pulseTask = null;
         private int pulseTaskDoneTime = -1;
+        private int powerChangesThisTick = 0;
+        private int powerChangesTickNum = 0;
 
         public SignRegisteredNamedPowerState(String name, boolean powered, NamedPowerChannel.Recipient recipient) {
             super(name, powered);
@@ -260,6 +263,27 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
         }
 
         public void changePowered(boolean powered) {
+            // Avoid excessive power change counts in a single tick (server crash)
+            {
+                int currTick = CommonUtil.getServerTicks();
+                if (currTick != powerChangesTickNum) {
+                    powerChangesTickNum = currTick;
+                    powerChangesThisTick = 1;
+                } else if (++powerChangesThisTick >= 100) {
+                    // Silent change
+                    super.setPowered(powered);
+                    // Notify this was ignored. With stack the first time
+                    if (powerChangesThisTick == 100) {
+                        getPlugin().getLogger().log(Level.WARNING, "Excessive number of powered state changes of channel " +
+                                        "'" + getName() + "' (infinite loop?)", new RuntimeException("Stack"));
+                    }
+                    for (NamedPowerChannel.Recipient recipient : this.recipients) {
+                        getPlugin().getLogger().warning("Skipped notifying power channel change to recipient " + recipient);
+                    }
+                    return;
+                }
+            }
+
             // Store previous 'is powered' state
             List<NamedPowerChannel.Recipient> recipients = this.recipients;
             recipients.forEach(NamedPowerChannel.Recipient::onPreChange);

@@ -277,5 +277,13 @@ public class SignActionPower extends TCCSignAction {
         public boolean equals(Object o) {
             return o instanceof TCCPowerSignRecipient && ((TCCPowerSignRecipient) o).signBlock.equals(this.signBlock);
         }
+
+        @Override
+        public String toString() {
+            return "Power Sign {world=" + signBlock.getWorld().getName() +
+                    " x=" + signBlock.getX() +
+                    " y=" + signBlock.getY() +
+                    " z=" + signBlock.getZ() + "}";
+        }
     }
 }
