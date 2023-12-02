@@ -414,11 +414,13 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
     public final class ScheduledTask {
         private final Task task;
         private long offlineDelay = -1; // If set to -1, not scheduled offline
+        private boolean started = false;
 
         private ScheduledTask(Runnable runnable) {
             this.task = new Task(NamedPowerChannelRegistry.this.getPlugin()) {
                 @Override
                 public void run() {
+                    started = false;
                     runnable.run();
                 }
             };
@@ -429,7 +431,6 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
         }
 
         public void restart(long delay) {
-            task.stop();
             if (!task.getPlugin().isEnabled()) {
                 // Register for enabling later
                 boolean schedule = (offlineDelay == -1);
@@ -438,13 +439,17 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
                     NamedPowerChannelRegistry.this.scheduleOffline(this);
                 }
             } else {
+                stop();
                 task.start(delay);
-                offlineDelay = -1;
+                started = true;
             }
         }
 
         public void stop() {
-            task.stop();
+            if (started) {
+                task.stop();
+                started = false;
+            }
             offlineDelay = -1;
         }
 
@@ -452,6 +457,7 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
             if (offlineDelay != -1) {
                 task.start(offlineDelay);
                 offlineDelay = -1;
+                started = true;
             }
         }
     }
