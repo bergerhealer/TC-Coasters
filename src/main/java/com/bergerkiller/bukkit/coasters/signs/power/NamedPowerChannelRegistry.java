@@ -440,7 +440,7 @@ public class NamedPowerChannelRegistry implements CoasterWorldComponent {
                 }
             } else {
                 stop();
-                task.start(delay);
+                task.start(Math.max(1, delay));
                 started = true;
             }
         }
