@@ -107,6 +107,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         });
 
         this._signTextParticle = null;
+        this.setSignsWithoutMarkChanged(LogicUtil.cloneAll(state.signs, TrackNodeSign::clone));
     }
 
     @Override
@@ -1206,11 +1207,15 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
      * @param new_signs
      */
     public void setSigns(TrackNodeSign[] new_signs) {
+        setSignsWithoutMarkChanged(new_signs);
+        markChanged();
+    }
+
+    private void setSignsWithoutMarkChanged(TrackNodeSign[] new_signs) {
         TrackNodeSign[] prev_signs = this._signs;
         this._signs = new_signs;
         handleSignOwnerUpdates(prev_signs, new_signs, false);
         updateSignParticle();
-        markChanged();
     }
 
     /**

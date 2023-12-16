@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.editor.history;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import org.bukkit.entity.Player;
 
@@ -145,6 +146,21 @@ public abstract class HistoryChangeCollection {
     public final HistoryChange addChangeCreateNode(Player who, TrackNode node) throws ChangeCancelledException {
         try {
             handleEvent(new CoasterCreateNodeEvent(who, node));
+
+            // Also check permission to create signs
+            if (node.getSigns().length > 0) {
+                if (!TCCoastersPermissions.MAKE_SIGNS.has(who)) {
+                    TCCoastersLocalization.SIGNS_NO_PERMISSION.message(who);
+                    node.setSigns(TrackNodeSign.EMPTY_ARR);
+                } else {
+                    TrackNodeSign[] filtered = Stream.of(node.getSigns())
+                            .filter(s -> s.fireBuildEvent(who, false))
+                            .toArray(TrackNodeSign[]::new);
+                    if (filtered.length != node.getSigns().length) {
+                        node.setSigns(filtered);
+                    }
+                }
+            }
         } catch (ChangeCancelledException ex) {
             node.remove();
             throw ex;
