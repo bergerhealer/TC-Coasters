@@ -88,7 +88,9 @@ public class TrackNodeSign implements Cloneable {
 
     /**
      * Gets a unique key associated with this sign. This is used to preserve linkage
-     * when signs transfer between animations.
+     * when signs transfer between animations. This is also important for persisting
+     * the sign within TrainCarts own tracking system, to know what signs have
+     * already been activated by trains.
      *
      * @return key
      */
