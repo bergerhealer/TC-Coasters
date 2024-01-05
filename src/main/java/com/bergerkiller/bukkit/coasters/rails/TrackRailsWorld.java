@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import org.bukkit.block.Block;
 
 import com.bergerkiller.bukkit.coasters.rails.multiple.TrackRailsSectionMultipleList;
@@ -83,18 +84,6 @@ public class TrackRailsWorld implements CoasterWorldComponent {
                 if (iter.next().cleanupPickedBefore(serverTickThreshold)) {
                     iter.remove();
                 }
-            }
-        }
-    }
-
-    /**
-     * Rebuilds all the rail information
-     */
-    public void rebuild() {
-        clear();
-        for (TrackCoaster coaster : getWorld().getTracks().getCoasters()) {
-            for (TrackNode node : coaster.getNodes()) {
-                store(node);
             }
         }
     }

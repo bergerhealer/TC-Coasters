@@ -126,7 +126,7 @@ class GlobalCommands {
     ) {
         plugin.setSmoothness(value);
         sender.sendMessage("Set smoothness to " + plugin.getSmoothness() + ", rebuilding tracks");
-        plugin.buildAll();
+        plugin.rebuildAll();
     }
 
     @CommandRequiresTCCPermission

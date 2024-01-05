@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 
+import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import org.bukkit.Location;
 import org.bukkit.util.Vector;
 
@@ -671,8 +672,7 @@ public class TrackWorld implements CoasterWorldComponent {
         this._coasters.clear();
         this._changedNodes.clear();
         this._changedNodesPriority.clear();
-
-        this.getWorld().getRails().clear();
+        this.rebuild();
     }
 
     /**
@@ -711,6 +711,30 @@ public class TrackWorld implements CoasterWorldComponent {
             coaster.refreshConnections();
             coaster.markUnchanged();
         }
+
+        // Apply pending node changes and rebuild all track-rail information
+        rebuild();
+    }
+
+    /**
+     * Updates all nodes that have changed and rebuilds all track information
+     * of {@link TrackRailsWorld}
+     */
+    public void rebuild() {
+        // Ensure all updates have been notified/completed
+        this._changedNodesPriority.clear(); // At this stage this shouldn't even contain elements
+        runAllUpdates(this._changedNodes, false);
+
+        // Rebuild all rail-tracked information of all nodes on this world
+        {
+            TrackRailsWorld rails = getWorld().getRails();
+            rails.clear();
+            for (TrackCoaster coaster : getCoasters()) {
+                for (TrackNode node : coaster.getNodes()) {
+                    rails.store(node);
+                }
+            }
+        }
     }
 
     /**
@@ -719,7 +743,7 @@ public class TrackWorld implements CoasterWorldComponent {
     @Override
     public void updateAll() {
         this._changedNodesPriority.clear(); // At this stage this shouldn't even contain elements
-        runAllUpdates(this._changedNodes);
+        runAllUpdates(this._changedNodes, true);
     }
 
     /**
@@ -728,10 +752,10 @@ public class TrackWorld implements CoasterWorldComponent {
      */
     public void updateAllWithPriority() {
         this._changedNodes.removeAll(this._changedNodesPriority); // No need for these next tick
-        runAllUpdates(this._changedNodesPriority);
+        runAllUpdates(this._changedNodesPriority, true);
     }
 
-    private void runAllUpdates(NodeUpdateList updates) {
+    private void runAllUpdates(NodeUpdateList updates, boolean updateRails) {
         Set<TrackNode> nodesToUpdate = updates.getAllNodesToUpdate();
         if (!nodesToUpdate.isEmpty()) {
             // Connections of changedNodes
@@ -767,12 +791,14 @@ public class TrackWorld implements CoasterWorldComponent {
                 }
             }
 
-            // Purge all cached rail information for the changed nodes
-            this.getWorld().getRails().purge(nodesToUpdate);
+            if (updateRails) {
+                // Purge all cached rail information for the changed nodes
+                this.getWorld().getRails().purge(nodesToUpdate);
 
-            // Re-create all the cached rail information for the changed nodes
-            for (TrackNode changedNode : nodesToUpdate) {
-                this.getWorld().getRails().store(changedNode);
+                // Re-create all the cached rail information for the changed nodes
+                for (TrackNode changedNode : nodesToUpdate) {
+                    this.getWorld().getRails().store(changedNode);
+                }
             }
             updates.clear();
         }

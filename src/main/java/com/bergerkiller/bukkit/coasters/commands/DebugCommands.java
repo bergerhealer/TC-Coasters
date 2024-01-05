@@ -27,7 +27,7 @@ class DebugCommands {
             final TCCoasters plugin
     ) {
         sender.sendMessage("Rebuilding tracks...");
-        plugin.buildAll();
+        plugin.rebuildAll();
         sender.sendMessage("Rebuilding done!");
     }
 

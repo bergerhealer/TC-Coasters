@@ -572,9 +572,9 @@ public class TCCoasters extends PluginBase {
         this.loadLocales(TCCoastersLocalization.class);
     }
 
-    public void buildAll() {
+    public void rebuildAll() {
         for (CoasterWorld coasterWorld : this.getCoasterWorlds()) {
-            coasterWorld.getRails().rebuild();
+            coasterWorld.getTracks().rebuild();
         }
     }
 
