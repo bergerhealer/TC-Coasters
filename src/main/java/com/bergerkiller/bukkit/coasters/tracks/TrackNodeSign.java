@@ -2,7 +2,6 @@ package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.util.Arrays;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.Predicate;
 
 import com.bergerkiller.bukkit.tc.rails.RailLookup;
@@ -21,7 +20,6 @@ import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.tc.PowerState;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import com.bergerkiller.bukkit.tc.events.SignActionEvent;
-import com.bergerkiller.bukkit.tc.events.SignChangeActionEvent;
 import com.bergerkiller.bukkit.tc.rails.RailLookup.TrackedFakeSign;
 import com.bergerkiller.bukkit.tc.signactions.SignAction;
 import com.bergerkiller.bukkit.tc.signactions.SignActionType;
@@ -32,7 +30,7 @@ import com.bergerkiller.bukkit.tc.signactions.SignActionType;
 public class TrackNodeSign implements Cloneable {
     public static final TrackNodeSign[] EMPTY_ARR = new TrackNodeSign[0];
 
-    private UUID key;
+    private TrackNodeSignKey key;
     private String[] lines;
     private NamedPowerChannel[] inputPowerChannels = NamedPowerChannel.NO_POWER_STATES;
     private NamedPowerChannel[] outputPowerChannels = NamedPowerChannel.NO_POWER_STATES;
@@ -43,16 +41,16 @@ public class TrackNodeSign implements Cloneable {
     private boolean addedAsAnimation;
 
     public TrackNodeSign() {
-        this(UUID.randomUUID());
+        this(TrackNodeSignKey.random());
     }
 
-    private TrackNodeSign(UUID key) {
+    private TrackNodeSign(TrackNodeSignKey key) {
         this.key = key;
         this.lines = new String[] { "", "", "", "" };
     }
 
     public TrackNodeSign(String[] lines) {
-        this.key = UUID.randomUUID();
+        this.key = TrackNodeSignKey.random();
         setLines(lines);
     }
 
@@ -95,7 +93,7 @@ public class TrackNodeSign implements Cloneable {
      *
      * @return key
      */
-    public UUID getKey() {
+    public TrackNodeSignKey getKey() {
         return this.key;
     }
 
@@ -105,19 +103,19 @@ public class TrackNodeSign implements Cloneable {
      * @param key
      * @see #getKey()
      */
-    public void setKey(UUID key) {
+    public void setKey(TrackNodeSignKey key) {
         this.key = key;
     }
 
     /**
      * Randomizes the sign key of this sign, making use of a key mapping
-     * to make sure that the original UUIDs of signs have the same random
-     * new UUID.
+     * to make sure that the original keys of signs have the same random
+     * new key.
      *
-     * @param keyMapping Old to new UUID mapping
+     * @param keyMapping Old to new key mapping
      */
-    public void randomizeKey(Map<UUID, UUID> keyMapping) {
-        setKey(keyMapping.computeIfAbsent(getKey(), u -> UUID.randomUUID()));
+    public void randomizeKey(Map<TrackNodeSignKey, TrackNodeSignKey> keyMapping) {
+        setKey(keyMapping.computeIfAbsent(getKey(), u -> TrackNodeSignKey.random()));
     }
 
     /**

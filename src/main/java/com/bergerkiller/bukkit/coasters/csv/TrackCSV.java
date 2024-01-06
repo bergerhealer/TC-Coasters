@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
@@ -16,6 +15,7 @@ import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.events.CoasterBeforeUpdateAnimationStateEvent;
 import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayBlock;
 import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayItemStack;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSignKey;
 import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
@@ -189,7 +189,7 @@ public class TrackCSV {
         public List<TrackConnectionState> prevNode_pendingLinks = new ArrayList<TrackConnectionState>();
         public Map<String, TrackObjectType<?>> trackObjectTypesByName = new HashMap<>();
         public List<TrackObject> pendingTrackObjects = new ArrayList<TrackObject>();
-        public Map<UUID, UUID> signKeyRemapping = new HashMap<>();
+        public Map<TrackNodeSignKey, TrackNodeSignKey> signKeyRemapping = new HashMap<>();
         public boolean prevNode_hasDefaultAnimationLinks = true;
         public TrackNode firstNode = null;
         public TrackNode prevNode = null;
@@ -882,7 +882,7 @@ public class TrackCSV {
                 } else if (option.equals("OUTPUT_OFF")) {
                     sign.addOutputPowerChannel(buffer.next(), false);
                 } else if (option.equals("KEY")) {
-                    sign.setKey(buffer.nextUUID());
+                    sign.setKey(TrackNodeSignKey.of(buffer.nextUUID()));
                     writeKeys = true;
                 } else {
                     throw buffer.createSyntaxException("Unknown sign option: " + option);
@@ -911,7 +911,7 @@ public class TrackCSV {
             buffer.put("SIGN");
             if (writeKeys) {
                 buffer.put("KEY");
-                buffer.putUUID(sign.getKey());
+                buffer.putUUID(sign.getKey().getUniqueId());
             }
             for (NamedPowerChannel channel : sign.getInputPowerChannels()) {
                 if (channel.isPowered()) {

@@ -6,8 +6,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSignKey;
 import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
@@ -106,7 +106,7 @@ public class PlayerEditClipboard {
 
         // Before pasting, randomize the UUID keys of all signs included
         {
-            Map<UUID, UUID> signKeyRemapping = new HashMap<>();
+            Map<TrackNodeSignKey, TrackNodeSignKey> signKeyRemapping = new HashMap<>();
             for (TrackNodeState node_state : this._nodes) {
                 TrackNodeAnimationState[] animations = this._animations.get(node_state);
                 node_state.randomizeSignKeys(signKeyRemapping);

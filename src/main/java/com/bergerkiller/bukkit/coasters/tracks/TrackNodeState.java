@@ -2,7 +2,6 @@ package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.util.Arrays;
 import java.util.Map;
-import java.util.UUID;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import org.bukkit.util.Vector;
@@ -126,12 +125,12 @@ public final class TrackNodeState {
 
     /**
      * Randomizes the sign key of the signs in this state, making use of a key mapping
-     * to make sure that the original UUIDs of signs have the same random
-     * new UUID.
+     * to make sure that the original keys of signs have the same random
+     * new key.
      *
-     * @param keyMapping Old to new UUID mapping
+     * @param keyMapping Old to new key mapping
      */
-    public void randomizeSignKeys(Map<UUID, UUID> keyMapping) {
+    public void randomizeSignKeys(Map<TrackNodeSignKey, TrackNodeSignKey> keyMapping) {
         for (TrackNodeSign sign : signs) {
             sign.randomizeKey(keyMapping);
         }
