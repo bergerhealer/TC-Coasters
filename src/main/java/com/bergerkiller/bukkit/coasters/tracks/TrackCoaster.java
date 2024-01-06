@@ -335,6 +335,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
         File tmpFile = new File(folder, baseName + ".csv.tmp");
         File realFile = new File(folder, baseName + ".csv");
         try (TrackCSVWriter writer = new TrackCSVWriter(new FileOutputStream(tmpFile, false))) {
+            writer.setWriteSignKeys(true);
             if (this.isLocked()) {
                 writer.write(new TrackCSV.LockCoasterEntry());
             }

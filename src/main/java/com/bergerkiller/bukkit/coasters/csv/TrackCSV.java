@@ -197,6 +197,7 @@ public class TrackCSV {
         public TrackCoaster coaster;
         public Player player = null; // If non-null, should check for perms with this Player
         public HistoryChange changes = null; // If non-null, should track changes for a Player
+        public boolean preserveSignKeys = false; // If true, will preserve the KEY entries of signs read from CSV
         public TrackConnection.AddObjectPredicate addTrackObjectPredicate = (connection, object) -> true;
         public TrackNode.AddSignPredicate addNodeSignPredicate = null; // Supports null for no filter!
         public TrackNode.UpdateAnimationStatePredicate updateAnimationStatePredicate = null; // Supports null for no filter!
@@ -850,6 +851,7 @@ public class TrackCSV {
      */
     public static final class SignEntry extends CSVEntry {
         public TrackNodeSign sign;
+        public boolean writeKeys = false;
 
         @Override
         public boolean detect(StringArrayBuffer buffer) {
@@ -861,6 +863,7 @@ public class TrackCSV {
             buffer.next();
 
             sign = new TrackNodeSign();
+            writeKeys = false;
 
             // Options might be expanded in the future
             while (buffer.hasNext()) {
@@ -877,6 +880,7 @@ public class TrackCSV {
                     sign.addOutputPowerChannel(buffer.next(), false);
                 } else if (option.equals("KEY")) {
                     sign.setKey(buffer.nextUUID());
+                    writeKeys = true;
                 } else {
                     throw buffer.createSyntaxException("Unknown sign option: " + option);
                 }
@@ -902,8 +906,10 @@ public class TrackCSV {
         @Override
         public void write(StringArrayBuffer buffer) {
             buffer.put("SIGN");
-            buffer.put("KEY");
-            buffer.putUUID(sign.getKey());
+            if (writeKeys) {
+                buffer.put("KEY");
+                buffer.putUUID(sign.getKey());
+            }
             for (NamedPowerChannel channel : sign.getInputPowerChannels()) {
                 if (channel.isPowered()) {
                     buffer.put("POWER_ON_" + channel.getFace().name());
