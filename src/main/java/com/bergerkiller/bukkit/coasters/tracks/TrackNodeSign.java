@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Predicate;
 
+import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.tc.rails.RailLookup;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -54,9 +55,10 @@ public class TrackNodeSign implements Cloneable {
         setLines(lines);
     }
 
-    void updateOwner(TrackNode node, boolean addedAsAnimation) {
+    void updateOwner(TCCoasters plugin, TrackNode node, boolean addedAsAnimation) {
         if (node == null || addedAsAnimation) {
             this.cachedFakeSign = null; // Forces re-validation
+            plugin.getSignLookup().remove(this); // Remove from lookup
         }
 
         // Register/un-register the power states of this sign
@@ -83,6 +85,11 @@ public class TrackNodeSign implements Cloneable {
 
         this.nodeOwner = node;
         this.addedAsAnimation = addedAsAnimation;
+
+        // Store in by-key mapping
+        if (node != null && !addedAsAnimation) {
+            plugin.getSignLookup().store(this);
+        }
     }
 
     /**
@@ -437,6 +444,17 @@ public class TrackNodeSign implements Cloneable {
             this.nodeOwner.updateSignParticle();
             this.nodeOwner.markChanged();
         }
+    }
+
+    /**
+     * Gets whether this node sign has a tracked sign. If this sign is not added to a node,
+     * or is only stored as an animation state, returns false.
+     *
+     * @return True if this node sign has a tracked sign
+     */
+    public boolean hasTrackedSign() {
+        final TrackNode node = this.getNode();
+        return node != null && !addedAsAnimation;
     }
 
     /**

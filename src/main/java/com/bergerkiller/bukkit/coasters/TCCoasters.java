@@ -18,6 +18,7 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSignLookup;
 import com.bergerkiller.bukkit.tc.events.SignBuildEvent;
 import com.bergerkiller.bukkit.tc.events.SignChangeActionEvent;
 import com.bergerkiller.bukkit.tc.rails.RailLookup;
@@ -75,6 +76,7 @@ public class TCCoasters extends PluginBase {
             powerSignAction, new SignActionTrackAnimate());
     private final Hastebin hastebin = new Hastebin(this);
     private final TrackNodeSign.SignBuildHandler signBuildHandler = detectSignBuildHandler();
+    private final TrackNodeSignLookup signLookup = new TrackNodeSignLookup();
     private final TCCoastersListener listener = new TCCoastersListener(this);
     private final TCCoastersInteractionListener interactionListener = new TCCoastersInteractionListener(this);
     private final Map<Player, PlayerEditState> editStates = new HashMap<Player, PlayerEditState>();
@@ -103,6 +105,16 @@ public class TCCoasters extends PluginBase {
 
     public CoasterRailType getRailType() {
         return this.coasterRailType;
+    }
+
+    /**
+     * Gets the by-node-sign-key sign lookup. All TCC signs are registered here, mapped to
+     * their unique key.
+     *
+     * @return TCC Sign Lookup
+     */
+    public TrackNodeSignLookup getSignLookup() {
+        return signLookup;
     }
 
     /**
@@ -408,6 +420,9 @@ public class TCCoasters extends PluginBase {
         // Might be important if in the future some rogue plugin management plugin re-uses the constructed class or something
         isDisabled = false;
 
+        // Signs must be made available by their unique key as soon as possible
+        signLookup.register();
+
         // Magic! Done early before trains are initialized that need this rails.
         RailType.register(this.coasterRailType, priority);
 
@@ -495,6 +510,7 @@ public class TCCoasters extends PluginBase {
             powerSignAction.deinitPowerMeta();
             registeredSignActions.forEach(SignAction::unregister);
             RailType.unregister(this.coasterRailType);
+            signLookup.unregister();
 
             // Clean up when disabling (save dirty coasters + despawn particles)
             for (World world : Bukkit.getWorlds()) {
