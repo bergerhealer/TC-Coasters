@@ -238,6 +238,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
         // Load from file
         try {
             try (TrackCSVReader reader = new TrackCSVReader(new FileInputStream(realFile))) {
+                reader.setPreserveSignKeys(true);
                 finalizeAction = reader.getFinalizeAction();
                 reader.createBaseOnly(this);
             } catch (FileNotFoundException e) {

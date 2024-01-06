@@ -29,6 +29,7 @@ public class TrackCSVReader implements AutoCloseable {
     private final StringArrayBuffer buffer;
     private PlayerOrigin origin = null;
     private TrackCSV.CSVReaderState state = null;
+    private boolean preserveSignKeys = false;
 
     public TrackCSVReader(InputStream inputStream) throws IOException {
         CSVFormatDetectorStream detectorInput = new CSVFormatDetectorStream(inputStream);
@@ -51,6 +52,18 @@ public class TrackCSVReader implements AutoCloseable {
     @Override
     public void close() throws IOException {
         this.reader.close();
+    }
+
+    /**
+     * Sets whether to preserve the UUID sign keys read from CSV exactly. By default, this
+     * is false, re-generating unique UUIDs to prevent clashes with existing coasters.
+     * Should be set to true for reading existing coasters where preserving this UUID
+     * is important to remember sign identities.
+     *
+     * @param preserve Whether to preserve sign key UUIDs
+     */
+    public void setPreserveSignKeys(boolean preserve) {
+        this.preserveSignKeys = preserve;
     }
 
     /**
@@ -109,7 +122,7 @@ public class TrackCSVReader implements AutoCloseable {
      * @throws ChangeCancelledException
      */
     public void create(TrackCoaster coaster, Player player) throws TrackCoaster.CoasterLoadException, ChangeCancelledException {
-        this.state = new TrackCSV.CSVReaderState(coaster, player);
+        this.state = new TrackCSV.CSVReaderState(coaster, player, preserveSignKeys);
         wrapErrors(this::createImpl);
     }
 
@@ -123,7 +136,7 @@ public class TrackCSVReader implements AutoCloseable {
      */
     public void create(TrackCoaster coaster) throws TrackCoaster.CoasterLoadException {
         try {
-            this.state = new TrackCSV.CSVReaderState(coaster);
+            this.state = new TrackCSV.CSVReaderState(coaster, preserveSignKeys);
             wrapErrors(this::createImpl);
         } catch (ChangeCancelledException ex) {
             // This never happens in practise but handle it anyway
@@ -143,7 +156,7 @@ public class TrackCSVReader implements AutoCloseable {
      */
     public void createBaseOnly(TrackCoaster coaster) throws TrackCoaster.CoasterLoadException {
         try {
-            this.state = new TrackCSV.CSVReaderState(coaster);
+            this.state = new TrackCSV.CSVReaderState(coaster, preserveSignKeys);
             wrapErrors(this::createBaseImpl);
         } catch (ChangeCancelledException ex) {
             // This never happens in practise but handle it anyway

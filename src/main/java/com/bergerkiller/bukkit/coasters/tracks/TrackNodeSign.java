@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.util.Arrays;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Predicate;
 
@@ -106,6 +107,17 @@ public class TrackNodeSign implements Cloneable {
      */
     public void setKey(UUID key) {
         this.key = key;
+    }
+
+    /**
+     * Randomizes the sign key of this sign, making use of a key mapping
+     * to make sure that the original UUIDs of signs have the same random
+     * new UUID.
+     *
+     * @param keyMapping Old to new UUID mapping
+     */
+    public void randomizeKey(Map<UUID, UUID> keyMapping) {
+        setKey(keyMapping.computeIfAbsent(getKey(), u -> UUID.randomUUID()));
     }
 
     /**

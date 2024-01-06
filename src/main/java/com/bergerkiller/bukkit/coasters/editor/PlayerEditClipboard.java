@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import org.bukkit.entity.Player;
 
@@ -101,6 +102,20 @@ public class PlayerEditClipboard {
     public void paste() throws ChangeCancelledException {
         if (!this.isFilled()) {
             return;
+        }
+
+        // Before pasting, randomize the UUID keys of all signs included
+        {
+            Map<UUID, UUID> signKeyRemapping = new HashMap<>();
+            for (TrackNodeState node_state : this._nodes) {
+                TrackNodeAnimationState[] animations = this._animations.get(node_state);
+                node_state.randomizeSignKeys(signKeyRemapping);
+                if (animations != null) {
+                    for (TrackNodeAnimationState anim : animations) {
+                        anim.state.randomizeSignKeys(signKeyRemapping);
+                    }
+                }
+            }
         }
 
         // Get origin transformation to apply

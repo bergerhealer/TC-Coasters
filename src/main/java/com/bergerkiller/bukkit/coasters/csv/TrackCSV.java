@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
@@ -188,6 +189,7 @@ public class TrackCSV {
         public List<TrackConnectionState> prevNode_pendingLinks = new ArrayList<TrackConnectionState>();
         public Map<String, TrackObjectType<?>> trackObjectTypesByName = new HashMap<>();
         public List<TrackObject> pendingTrackObjects = new ArrayList<TrackObject>();
+        public Map<UUID, UUID> signKeyRemapping = new HashMap<>();
         public boolean prevNode_hasDefaultAnimationLinks = true;
         public TrackNode firstNode = null;
         public TrackNode prevNode = null;
@@ -197,13 +199,13 @@ public class TrackCSV {
         public TrackCoaster coaster;
         public Player player = null; // If non-null, should check for perms with this Player
         public HistoryChange changes = null; // If non-null, should track changes for a Player
-        public boolean preserveSignKeys = false; // If true, will preserve the KEY entries of signs read from CSV
+        public final boolean preserveSignKeys; // If true, will preserve the KEY entries of signs read from CSV
         public TrackConnection.AddObjectPredicate addTrackObjectPredicate = (connection, object) -> true;
         public TrackNode.AddSignPredicate addNodeSignPredicate = null; // Supports null for no filter!
         public TrackNode.UpdateAnimationStatePredicate updateAnimationStatePredicate = null; // Supports null for no filter!
 
-        public CSVReaderState(TrackCoaster coaster, Player player) {
-            this(coaster);
+        public CSVReaderState(TrackCoaster coaster, Player player, boolean preserveSignKeys) {
+            this(coaster, preserveSignKeys);
 
             // If player is specified, track that player's historic changes and permission handling
             if (player != null) {
@@ -211,7 +213,8 @@ public class TrackCSV {
             }
         }
 
-        public CSVReaderState(TrackCoaster coaster) {
+        public CSVReaderState(TrackCoaster coaster, boolean preserveSignKeys) {
+            this.preserveSignKeys = preserveSignKeys;
             this.coaster = coaster;
             this.world = coaster.getWorld();
         }
@@ -934,6 +937,11 @@ public class TrackCSV {
 
         @Override
         public void processReader(CSVReaderState state) throws ChangeCancelledException {
+            // Randomize the sign key if they should not be preserved
+            if (writeKeys && !state.preserveSignKeys) {
+                sign.randomizeKey(state.signKeyRemapping);
+            }
+
             if (state.prevNodeAnimName != null) {
                 // Add to this specific animation state, optionally handles perms/filter
                 state.prevNode.addAnimationStateSign(state.prevNodeAnimName, sign, state.addNodeSignPredicate);
