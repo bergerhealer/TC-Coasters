@@ -14,6 +14,8 @@ import com.bergerkiller.mountiplex.reflection.util.FastMethod;
 import com.plotsquared.core.location.Location;
 import com.plotsquared.core.plot.Plot;
 
+import java.util.logging.Level;
+
 /**
  * Handles node editing events using PlotSquared version 6 permissions.<br>
  * <br>
@@ -29,6 +31,11 @@ public class PlotSquaredHandler_v6 implements Listener {
         // Load this one up-front as it must be loaded for the first time, otherwise internal types like
         // World don't get resolved for some reason...
         Location.class.getDeclaredFields();
+        try {
+            Class.forName("com.plotsquared.core.location.World", true, PlotSquaredHandler_v6.class.getClassLoader());
+        } catch (Throwable t) {
+            plugin.getLogger().log(Level.WARNING, "Failed to load plotsquared location World class", t);
+        }
 
         {
             ClassResolver resolver = new ClassResolver();
