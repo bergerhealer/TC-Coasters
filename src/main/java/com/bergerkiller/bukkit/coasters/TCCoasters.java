@@ -253,6 +253,17 @@ public class TCCoasters extends PluginBase {
      * @return Found sign named power channel, or null if not found
      */
     public NamedPowerChannel findGlobalPowerState(String name) {
+        // First see if the name starts with a world name prefix of one of the worlds
+        // If so, find a state on that world specifically.
+        CoasterWorld matchedWorld = findCoasterWorldByPrefix(name);
+        if (matchedWorld != null) {
+            NamedPowerChannel state = matchedWorld.getNamedPowerChannels().findIfExists(
+                    name.substring(matchedWorld.getBukkitWorld().getName().length() + 1));
+            if (state != null) {
+                return state;
+            }
+        }
+
         List<NamedPowerChannel> results = new ArrayList<>();
         for (CoasterWorld world : this.worlds.values()) {
             NamedPowerChannel state = world.getNamedPowerChannels().findIfExists(name);
@@ -261,6 +272,31 @@ public class TCCoasters extends PluginBase {
             }
         }
         return NamedPowerChannel.multiple(results);
+    }
+
+    /**
+     * Looks for a CoasterWorld that is loaded and where the input text starts
+     * with this world's name (case sensitive) followed by a '.'
+     *
+     * @param text Input text
+     * @return Matched CoasterWorld, or <i>null</i> if none match
+     */
+    public CoasterWorld findCoasterWorldByPrefix(String text) {
+        for (CoasterWorld world : this.worlds.values()) {
+            World loadedWorld = world.getBukkitWorld();
+            if (loadedWorld == null) {
+                continue;
+            }
+            String worldName = loadedWorld.getName();
+            if (text.length() > worldName.length()
+                    && text.startsWith(worldName)
+                    && text.charAt(worldName.length()) == '.'
+            ) {
+                return world;
+            }
+        }
+
+        return null;
     }
 
     /**

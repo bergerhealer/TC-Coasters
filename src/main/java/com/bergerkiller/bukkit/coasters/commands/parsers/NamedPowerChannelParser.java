@@ -78,6 +78,23 @@ public class NamedPowerChannelParser implements ArgumentParser<CommandSender, Na
                 }
             }
             if (!result.isEmpty()) {
+                includeWorldPrefixes(result, input);
+                return result;
+            }
+        }
+
+        // See if the current input starts with a world name prefix
+        // If so, return results for that world only
+        CoasterWorld matchedWorld = plugin.findCoasterWorldByPrefix(input);
+        if (matchedWorld != null) {
+            String worldPrefix = matchedWorld.getBukkitWorld().getName() + ".";
+            String inputWithoutWorld = input.substring(worldPrefix.length());
+            for (String name : matchedWorld.getNamedPowerChannels().getNames()) {
+                if (name.startsWith(inputWithoutWorld)) {
+                    result.add(worldPrefix + name);
+                }
+            }
+            if (!result.isEmpty()) {
                 return result;
             }
         }
@@ -92,8 +109,21 @@ public class NamedPowerChannelParser implements ArgumentParser<CommandSender, Na
                 }
             }
         }
+        includeWorldPrefixes(result, input);
 
         return result;
+    }
+
+    private void includeWorldPrefixes(List<String> result, String input) {
+        for (CoasterWorld world : plugin.getCoasterWorlds()) {
+            World loadedWorld = world.getBukkitWorld();
+            if (loadedWorld != null && !world.getNamedPowerChannels().getNames().isEmpty()) {
+                String prefix = loadedWorld.getName() + ".";
+                if (prefix.startsWith(input)) {
+                    result.add(prefix);
+                }
+            }
+        }
     }
 
     private NamedPowerChannelRegistry findDefaultRegistry(CommandContext<CommandSender> context) {
