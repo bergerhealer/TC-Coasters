@@ -5,6 +5,8 @@ import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import com.bergerkiller.bukkit.common.block.InputDialogSubmitText;
+import com.bergerkiller.bukkit.common.inventory.CommonItemStack;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -14,7 +16,6 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
-import com.bergerkiller.bukkit.coasters.editor.signs.ui.InputDialogSubmitText;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
@@ -23,7 +24,6 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 import com.bergerkiller.bukkit.common.block.SignEditDialog;
 import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
-import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.wrappers.ChatText;
 import com.bergerkiller.bukkit.tc.Util;
@@ -304,12 +304,16 @@ public class SignEditState {
     }
 
     private static String[] findInitialLines(ItemStack signItem) {
-        if (signItem != null) {
+        return findInitialLines(CommonItemStack.of(signItem));
+    }
+
+    private static String[] findInitialLines(CommonItemStack signItem) {
+        if (!signItem.isEmpty() && signItem.hasCustomData()) {
             try {
-                CommonTagCompound nbt = ItemUtil.getMetaTag(signItem, false);
-                if (nbt != null && nbt.containsKey("BlockEntityTag")) {
-                    CommonTagCompound blockTag = nbt.createCompound("BlockEntityTag");
-                    if (blockTag != null && "minecraft:sign".equals(blockTag.getValue("id", String.class))) {
+                CommonTagCompound nbt = signItem.getCustomData();
+                if (nbt.containsKey("BlockEntityTag")) {
+                    CommonTagCompound blockTag = nbt.getCompoundOrEmpty("BlockEntityTag");
+                    if ("minecraft:sign".equals(blockTag.getValue("id", String.class))) {
                         return new String[] {
                                 ChatText.fromJson(blockTag.getValue("Text1", "")).getMessage(),
                                 ChatText.fromJson(blockTag.getValue("Text2", "")).getMessage(),

@@ -7,6 +7,7 @@ import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.MapFont;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
+import com.bergerkiller.bukkit.common.wrappers.BlockDataStateKey;
 import com.bergerkiller.bukkit.common.wrappers.BlockState;
 
 public class MapWidgetBlockStateList extends MapWidget {
@@ -40,7 +41,7 @@ public class MapWidgetBlockStateList extends MapWidget {
         // Block name
         drawText(y, this.block.getBlockName());
         y += ROW_HEIGHT + NAME_STATE_GAP;
-        for (Map.Entry<BlockState<?>, Comparable<?>> entry : this.block.getStates().entrySet()) {
+        for (Map.Entry<BlockDataStateKey<?>, Comparable<?>> entry : this.block.getStates().entrySet()) {
             String text = entry.getKey().name() + " = " + entry.getKey().valueName(entry.getValue());
             drawText(y, text);
             y += ROW_HEIGHT;

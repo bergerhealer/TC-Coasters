@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.editor;
 
+import com.bergerkiller.bukkit.common.inventory.CommonItemStack;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -9,7 +10,6 @@ import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
-import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
 import com.bergerkiller.bukkit.common.utils.ItemUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
@@ -66,14 +66,14 @@ public enum PlayerEditTool {
         }
 
         private boolean isStickItem(TCCoasters plugin, ItemStack item) {
-            if (ItemUtil.isEmpty(item)) {
-                return false;
-            } else {
-                CommonTagCompound metadata = ItemUtil.getMetaTag(item, false);
-                return metadata != null &&
-                        metadata.containsKey("editorStick") &&
-                        plugin.getName().equals(metadata.getValue("plugin", String.class));
-            }
+            return isStickItem(plugin, CommonItemStack.of(item));
+        }
+
+        private boolean isStickItem(TCCoasters plugin, CommonItemStack item) {
+            return !item.isEmpty()
+                    && item.hasCustomData()
+                    && item.getCustomData().containsKey("editorStick")
+                    && plugin.getName().equals(item.getCustomData().getValue("plugin", String.class));
         }
 
         @Override
