@@ -30,6 +30,14 @@ import com.bergerkiller.generated.net.minecraft.world.entity.decoration.EntityAr
  */
 public class VirtualArrowItem {
     private static final Vector UP_ARM_OFFSET = new Vector(0.05, -0.05, -0.56);
+
+    private static final DataWatcher.Prototype SPAWN_METADATA = DataWatcher.Prototype.build()
+            .set(EntityHandle.DATA_NO_GRAVITY, true)
+            .setClientByteDefault(EntityHandle.DATA_FLAGS, 0)
+            .setByte(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, EntityArmorStandHandle.DATA_FLAG_SET_MARKER | EntityArmorStandHandle.DATA_FLAG_NO_BASEPLATE)
+            .setClientDefault(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, new Vector(15.0, 0.0, 10.0))
+            .create();
+
     private int entityId;
     private boolean glowing = false;
     private double posX, posY, posZ;
@@ -168,10 +176,8 @@ public class VirtualArrowItem {
         spawnPacket.setPosY(posY);
         spawnPacket.setPosZ(posZ);
 
-        DataWatcher metadata = new DataWatcher();
-        metadata.set(EntityHandle.DATA_NO_GRAVITY, true);
+        DataWatcher metadata = SPAWN_METADATA.create();
         metadata.setByte(EntityHandle.DATA_FLAGS, computeFlags());
-        metadata.setByte(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, EntityArmorStandHandle.DATA_FLAG_SET_MARKER | EntityArmorStandHandle.DATA_FLAG_NO_BASEPLATE);
         metadata.set(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, rotation);
 
         PacketUtil.sendEntityLivingSpawnPacket(viewer, spawnPacket, metadata);

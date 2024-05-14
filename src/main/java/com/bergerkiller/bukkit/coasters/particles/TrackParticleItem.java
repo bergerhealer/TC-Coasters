@@ -29,6 +29,14 @@ public class TrackParticleItem extends TrackParticle {
     private int entityId = -1;
     private UUID entityUUID = null;
 
+    private static final DataWatcher.Prototype ITEM_METADATA = DataWatcher.Prototype.build()
+            .setClientDefault(EntityItemHandle.DATA_ITEM, null)
+            .create();
+    private static final DataWatcher.Prototype ITEM_SPAWN_METADATA = ITEM_METADATA.modify()
+            .set(EntityHandle.DATA_NO_GRAVITY, true)
+            .set(EntityHandle.DATA_FLAGS, (byte) EntityHandle.DATA_FLAG_FLYING)
+            .create();
+
     public TrackParticleItem(Vector position) {
         this.position = DoubleOctree.Entry.create(position, this);
     }
@@ -89,7 +97,7 @@ public class TrackParticleItem extends TrackParticle {
     public void onStateUpdated(Player viewer) {
         super.onStateUpdated(viewer);
 
-        DataWatcher metadata = new DataWatcher();
+        DataWatcher metadata = ITEM_METADATA.create();
         metadata.set(EntityItemHandle.DATA_ITEM, this.itemType.getItem(this.getState(viewer)));
         PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
         PacketUtil.sendPacket(viewer, metaPacket);
@@ -116,10 +124,8 @@ public class TrackParticleItem extends TrackParticle {
         spawnPacket.setYaw(0.0f);
         PacketUtil.sendPacket(viewer, spawnPacket);
 
-        DataWatcher metadata = new DataWatcher();
+        DataWatcher metadata = ITEM_SPAWN_METADATA.create();
         metadata.set(EntityItemHandle.DATA_ITEM, this.itemType.getItem(this.getState(viewer)));
-        metadata.set(EntityHandle.DATA_NO_GRAVITY, true);
-        metadata.set(EntityHandle.DATA_FLAGS, (byte) EntityHandle.DATA_FLAG_FLYING);
         PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
         PacketUtil.sendPacket(viewer, metaPacket);
     }

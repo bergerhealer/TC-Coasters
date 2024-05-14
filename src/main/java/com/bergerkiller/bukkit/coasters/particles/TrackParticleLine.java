@@ -53,6 +53,22 @@ public class TrackParticleLine extends TrackParticle {
     private static final float UNGITCH_AS_YAW = 20.0f;
     private static final ItemStack UNGLITCH_AS_ITEM = ItemUtil.createItem(new ItemStack(MaterialUtil.getFirst("OAK_BUTTON", "LEGACY_WOOD_BUTTON")));
 
+    private static final DataWatcher.Prototype BAT_MOUNT_METADATA = DataWatcher.Prototype.build()
+            .setByte(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING)
+            .set(EntityHandle.DATA_SILENT, true)
+            .setByte(EntityInsentientHandle.DATA_INSENTIENT_FLAGS, EntityInsentientHandle.DATA_INSENTIENT_FLAG_NOAI)
+            .set(EntityLivingHandle.DATA_NO_GRAVITY, true)
+            .setByte(EntityBatHandle.DATA_BAT_FLAGS, 0)
+            .create();
+
+    private static final DataWatcher.Prototype LEASH_FIX_ARMORSTAND_METADATA = DataWatcher.Prototype.build()
+            .setByte(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING)
+            .set(EntityHandle.DATA_SILENT, true)
+            .set(EntityLivingHandle.DATA_NO_GRAVITY, true)
+            .setByte(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, EntityArmorStandHandle.DATA_FLAG_NO_BASEPLATE)
+            .set(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, UNGLITCH_AS_POSE)
+            .create();
+
     private DoubleOctree.Entry<TrackParticle> p1, p2;
     private int e1 = -1, e2 = -1, e3 = -1;
 
@@ -206,36 +222,26 @@ public class TrackParticleLine extends TrackParticle {
         }
 
         PacketPlayOutSpawnEntityLivingHandle p1 = PacketPlayOutSpawnEntityLivingHandle.createNew();
-        DataWatcher p1_meta = new DataWatcher();
+        DataWatcher p1_meta = BAT_MOUNT_METADATA.create();
         p1.setEntityId(this.e1);
         p1.setEntityUUID(UUID.randomUUID());
         p1.setPosX(this.p1.getX() + offsets.p1x);
         p1.setPosY(this.p1.getY() + offsets.p1y);
         p1.setPosZ(this.p1.getZ() + offsets.p1z);
         p1.setEntityType(EntityType.BAT);
-        p1_meta.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
-        p1_meta.set(EntityHandle.DATA_SILENT, true);
-        p1_meta.set(EntityInsentientHandle.DATA_INSENTIENT_FLAGS, (byte) EntityInsentientHandle.DATA_INSENTIENT_FLAG_NOAI);
-        p1_meta.set(EntityLivingHandle.DATA_NO_GRAVITY, true);
-        p1_meta.set(EntityBatHandle.DATA_BAT_FLAGS, (byte) 0);
 
         PacketPlayOutSpawnEntityLivingHandle p2 = PacketPlayOutSpawnEntityLivingHandle.createNew();
-        DataWatcher p2_meta = new DataWatcher();
+        DataWatcher p2_meta = p1_meta; // Identical...
         p2.setEntityId(this.e2);
         p2.setEntityUUID(UUID.randomUUID());
         p2.setPosX(this.p2.getX() + offsets.p2x);
         p2.setPosY(this.p2.getY() + offsets.p2y);
         p2.setPosZ(this.p2.getZ() + offsets.p2z);
         p2.setEntityType(EntityType.BAT);
-        p2_meta.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
-        p2_meta.set(EntityHandle.DATA_SILENT, true);
-        p2_meta.set(EntityInsentientHandle.DATA_INSENTIENT_FLAGS, (byte) EntityInsentientHandle.DATA_INSENTIENT_FLAG_NOAI);
-        p2_meta.set(EntityLivingHandle.DATA_NO_GRAVITY, true);
-        p2_meta.set(EntityBatHandle.DATA_BAT_FLAGS, (byte) 0);
 
         if (fixLeashGlitch) {
             PacketPlayOutSpawnEntityLivingHandle p3 = PacketPlayOutSpawnEntityLivingHandle.createNew();
-            DataWatcher p3_meta = new DataWatcher();
+            DataWatcher p3_meta = LEASH_FIX_ARMORSTAND_METADATA.create();
             p3.setEntityId(this.e3);
             p3.setEntityUUID(UUID.randomUUID());
             p3.setPosX(this.p2.getX() + UNGLITCH_AS_OFFSETS.getX());
@@ -243,11 +249,6 @@ public class TrackParticleLine extends TrackParticle {
             p3.setPosZ(this.p2.getZ() + UNGLITCH_AS_OFFSETS.getZ());
             p3.setYaw(UNGITCH_AS_YAW);
             p3.setEntityType(EntityType.ARMOR_STAND);
-            p3_meta.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
-            p3_meta.set(EntityHandle.DATA_SILENT, true);
-            p3_meta.set(EntityLivingHandle.DATA_NO_GRAVITY, true);
-            p3_meta.set(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, (byte) (EntityArmorStandHandle.DATA_FLAG_NO_BASEPLATE));
-            p3_meta.set(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, UNGLITCH_AS_POSE);
             PacketUtil.sendEntityLivingSpawnPacket(viewer, p3, p3_meta);
             PacketUtil.sendPacket(viewer, PacketPlayOutEntityEquipmentHandle.createNew(this.e3, EquipmentSlot.HAND, UNGLITCH_AS_ITEM));
         }
