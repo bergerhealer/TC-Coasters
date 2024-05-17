@@ -1,53 +1,44 @@
 package com.bergerkiller.bukkit.coasters.commands.parsers;
 
 import java.util.Arrays;
-import java.util.List;
-import java.util.Queue;
 
+import com.bergerkiller.bukkit.common.cloud.CloudLocalizedException;
 import org.bukkit.command.CommandSender;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.commands.arguments.CommandInputPowerState;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 
-import cloud.commandframework.arguments.parser.ArgumentParseResult;
-import cloud.commandframework.arguments.parser.ArgumentParser;
-import cloud.commandframework.context.CommandContext;
-import cloud.commandframework.exceptions.parsing.NoInputProvidedException;
+import org.incendo.cloud.context.CommandInput;
+import org.incendo.cloud.parser.ArgumentParseResult;
+import org.incendo.cloud.parser.ArgumentParser;
+import org.incendo.cloud.context.CommandContext;
+import org.incendo.cloud.suggestion.BlockingSuggestionProvider;
 
-public class CommandInputPowerStateParser implements ArgumentParser<CommandSender, CommandInputPowerState> {
+public class CommandInputPowerStateParser implements ArgumentParser<CommandSender, CommandInputPowerState>, BlockingSuggestionProvider.Strings<CommandSender> {
 
     @Override
     public ArgumentParseResult<CommandInputPowerState> parse(
             final CommandContext<CommandSender> commandContext,
-            final Queue<String> inputQueue
+            final CommandInput commandInput
     ) {
-        if (inputQueue.isEmpty()) {
-            return ArgumentParseResult.failure(new NoInputProvidedException(
-                    this.getClass(),
-                    commandContext
-            ));
-        }
-
-        String name = inputQueue.peek();
+        String name = commandInput.readString();
         if (name.equalsIgnoreCase("toggle") || name.equalsIgnoreCase("invert") || name.equalsIgnoreCase("opposite")) {
-            inputQueue.poll();
             return ArgumentParseResult.success(CommandInputPowerState.TOGGLE);
         }
         if (ParseUtil.isBool(name)) {
-            inputQueue.poll();
             return ArgumentParseResult.success(ParseUtil.parseBool(name) ? CommandInputPowerState.ON : CommandInputPowerState.OFF);
         }
 
         // Not found
-        return ArgumentParseResult.failure(new LocalizedParserException(commandContext,
+        return ArgumentParseResult.failure(new CloudLocalizedException(commandContext,
                 TCCoastersLocalization.INVALID_POWER_STATE, name));
     }
 
     @Override
-    public List<String> suggestions(
+    public Iterable<String> stringSuggestions(
             final CommandContext<CommandSender> commandContext,
-            final String input
+            final CommandInput commandInput
     ) {
         return Arrays.asList("on", "off", "toggle");
     }

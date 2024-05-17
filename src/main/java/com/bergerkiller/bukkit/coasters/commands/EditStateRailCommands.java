@@ -10,19 +10,19 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 
-import cloud.commandframework.annotations.Argument;
-import cloud.commandframework.annotations.CommandDescription;
-import cloud.commandframework.annotations.CommandMethod;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Command;
 
 /**
  * All commands for modifying the rail block
  */
-@CommandMethod("tccoasters|tcc rail")
+@Command("tccoasters|tcc rail")
 class EditStateRailCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("")
+    @Command("")
     @CommandDescription("Shows the current rail block coordinates of the last-selected node")
     public void commandGetPosition(
             final PlayerEditState state,
@@ -33,7 +33,7 @@ class EditStateRailCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("reset")
+    @Command("reset")
     @CommandDescription("Resets the rail block to where the nodes are positioned")
     public void commandReset(
             final PlayerEditState state,
@@ -49,7 +49,7 @@ class EditStateRailCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("set at <x> <y> <z>")
+    @Command("set at <x> <y> <z>")
     @CommandDescription("Sets the rail block to the specified coordinates")
     public void commandSetTo(
             final PlayerEditState state,
@@ -68,7 +68,7 @@ class EditStateRailCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("set <axis> <value>")
+    @Command("set <axis> <value>")
     @CommandDescription("Sets a single rail block coordinate of the selected nodes")
     public void commandSetAxisTo(
             final PlayerEditState state,
@@ -86,7 +86,7 @@ class EditStateRailCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("move")
+    @Command("move")
     @CommandDescription("Moves the rail block one block along the direction the player looks")
     public void commandMoveOne(
             final PlayerEditState state,
@@ -97,7 +97,7 @@ class EditStateRailCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("move <axis>")
+    @Command("move <axis>")
     @CommandDescription("Moves the rail block along an axis a single block")
     public void commandMoveOne(
             final PlayerEditState state,
@@ -109,7 +109,7 @@ class EditStateRailCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("move <axis> <amount>")
+    @Command("move <axis> <amount>")
     @CommandDescription("Moves the rail block along an axis a number of blocks")
     public void commandMove(
             final PlayerEditState state,

@@ -8,6 +8,8 @@ import java.util.stream.IntStream;
 
 import com.bergerkiller.bukkit.coasters.commands.suggestions.SelectedSignsInputPowerChannelSuggestionProvider;
 import com.bergerkiller.bukkit.coasters.commands.suggestions.SelectedSignsOutputPowerChannelSuggestionProvider;
+import com.bergerkiller.bukkit.common.cloud.CloudLocalizedException;
+
 import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
@@ -17,7 +19,6 @@ import com.bergerkiller.bukkit.coasters.commands.annotations.CommandRequiresTCCP
 import com.bergerkiller.bukkit.coasters.commands.arguments.CommandInputPowerState;
 import com.bergerkiller.bukkit.coasters.commands.arguments.TrackPositionAxis;
 import com.bergerkiller.bukkit.coasters.commands.parsers.CommandInputPowerStateParser;
-import com.bergerkiller.bukkit.coasters.commands.parsers.LocalizedParserException;
 import com.bergerkiller.bukkit.coasters.commands.parsers.NamedPowerChannelParser;
 import com.bergerkiller.bukkit.coasters.commands.parsers.SignBlockFaceParser;
 import com.bergerkiller.bukkit.coasters.commands.parsers.TimeTicksParser;
@@ -25,6 +26,8 @@ import com.bergerkiller.bukkit.coasters.commands.parsers.TrackPositionAxisParser
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.common.cloud.CloudSimpleHandler;
+import org.incendo.cloud.permission.Permission;
+import org.incendo.cloud.permission.PermissionResult;
 
 /**
  * All TC-Coasters command logic
@@ -40,13 +43,10 @@ public class TCCoastersCommands {
         cloud.enable(plugin);
 
         // TCC Use permission handling
+        final PermissionResult PERM_USE_ALLOWED = PermissionResult.allowed(Permission.of("train.coasters.use"));
+        final PermissionResult PERM_USE_DENIED = PermissionResult.denied(Permission.of("train.coasters.use"));
         cloud.getParser().registerBuilderModifier(CommandRequiresTCCPermission.class,
-                (perm, builder) -> builder.permission(plugin::hasUsePermission));
-
-        // Exception -> Message logic
-        cloud.handle(LocalizedParserException.class, (sender, ex) -> {
-            sender.sendMessage(ex.getMessage());
-        });
+                (perm, builder) -> builder.permission(p -> plugin.hasUsePermission(p) ? PERM_USE_ALLOWED : PERM_USE_DENIED));
 
         // Animation name suggestions
         cloud.suggest("animation_names", (context, input) -> {
@@ -59,14 +59,15 @@ public class TCCoastersCommands {
 
         // Power channel name suggestions (for use assigning a sign to a channel)
         final NamedPowerChannelParser namedPowerChannelParser = new NamedPowerChannelParser(plugin);
-        cloud.suggest("power_channels", namedPowerChannelParser::suggestions);
+        cloud.suggest("power_channels", namedPowerChannelParser);
         cloud.suggest("selected_input_power_channels", new SelectedSignsInputPowerChannelSuggestionProvider());
         cloud.suggest("selected_output_power_channels", new SelectedSignsOutputPowerChannelSuggestionProvider());
         cloud.parse("sign_block_face", p -> new SignBlockFaceParser());
         cloud.parse("time_duration_ticks", p -> new TimeTicksParser());
 
         // Undo/redo count. Is quiet for the first argument except for a select few.
-        cloud.suggest("history_count", (context, input) -> {
+        cloud.suggest("history_count", (context, commandInput) -> {
+            String input = commandInput.input();
             if (input.isEmpty()) {
                 return Arrays.asList("1", "4", "8");
             } else if (Character.isDigit(input.charAt(0))) {
@@ -78,11 +79,11 @@ public class TCCoastersCommands {
 
         // Makes PlayerEditState available as a command argument
         cloud.injector(PlayerEditState.class, (context, annotations) -> {
-            if (context.getSender() instanceof Player) {
-                Player p = (Player) context.getSender();
+            if (context.sender() instanceof Player) {
+                Player p = (Player) context.sender();
                 return plugin.getEditState(p);
             } else {
-                throw new LocalizedParserException(context, TCCoastersLocalization.PLAYER_ONLY);
+                throw new CloudLocalizedException(context, TCCoastersLocalization.PLAYER_ONLY);
             }
         });
         cloud.getParser().registerBuilderModifier(CommandRequiresSelectedNodes.class, (annot, builder) -> {
@@ -90,7 +91,7 @@ public class TCCoastersCommands {
                 PlayerEditState state = context.inject(PlayerEditState.class).get();
                 state.deselectLockedNodes();
                 if (!state.hasEditedNodes()) {
-                    throw new LocalizedParserException(context, TCCoastersLocalization.NO_NODES_SELECTED);
+                    throw new CloudLocalizedException(context, TCCoastersLocalization.NO_NODES_SELECTED);
                 }
             });
         });
@@ -108,7 +109,7 @@ public class TCCoastersCommands {
         cloud.annotations(new EditStateCommands());
         cloud.annotations(new EditStateHistoryCommands());
         cloud.annotations(new EditStatePositionCommands());
-        cloud.annotations(new EditStateOrientationCommands());
+        cloud.annotations(new EditStateOrientationCommands(cloud.getManager()));
         cloud.annotations(new EditStateRailCommands());
         cloud.annotations(new EditStateAnimationCommands());
         cloud.annotations(new EditStateSignCommands());

@@ -1,23 +1,26 @@
 package com.bergerkiller.bukkit.coasters.commands.suggestions;
 
-import cloud.commandframework.context.CommandContext;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import org.bukkit.command.CommandSender;
+import org.incendo.cloud.context.CommandContext;
+import org.incendo.cloud.context.CommandInput;
+import org.incendo.cloud.suggestion.BlockingSuggestionProvider;
 
-import java.util.List;
-import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
  * Suggests the names of power channels used by signs assigned to nodes a player has selected
  */
-public final class SelectedSignsOutputPowerChannelSuggestionProvider implements BiFunction<CommandContext<CommandSender>, String, List<String>> {
+public final class SelectedSignsOutputPowerChannelSuggestionProvider implements BlockingSuggestionProvider.Strings<CommandSender> {
 
     @Override
-    public List<String> apply(CommandContext<CommandSender> context, String input) {
-        final PlayerEditState state = context.inject(PlayerEditState.class).get();
+    public Iterable<String> stringSuggestions(
+            final CommandContext<CommandSender> commandContext,
+            final CommandInput input
+    ) {
+        final PlayerEditState state = commandContext.inject(PlayerEditState.class).get();
         return state.getEditedNodes().stream()
                 .flatMap(n -> Stream.of(n.getSigns()))
                 .flatMap(n -> Stream.of(n.getOutputPowerChannels()))

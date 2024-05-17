@@ -7,16 +7,16 @@ import com.bergerkiller.bukkit.coasters.commands.annotations.CommandRequiresTCCP
 import com.bergerkiller.bukkit.coasters.commands.arguments.CommandInputPowerState;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 
-import cloud.commandframework.annotations.Argument;
-import cloud.commandframework.annotations.CommandDescription;
-import cloud.commandframework.annotations.CommandMethod;
-import cloud.commandframework.annotations.Flag;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.Flag;
 
-@CommandMethod("tccoasters|tcc power")
+@Command("tccoasters|tcc power")
 class EditStatePowerCommands {
 
     @CommandRequiresTCCPermission
-    @CommandMethod("<channel>")
+    @Command("<channel>")
     @CommandDescription("Reads the current power state of a named sign power channel")
     public void commandReadChannelPower(
             final CommandSender sender,
@@ -33,7 +33,7 @@ class EditStatePowerCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("<channel> <state>")
+    @Command("<channel> <state>")
     @CommandDescription("Updates the power state of a named sign power channel")
     public void commandWriteChannelPower(
             final CommandSender sender,
@@ -61,7 +61,7 @@ class EditStatePowerCommands {
 
     // Just an alias. Easier typing to quickly trigger a sign.
     @CommandRequiresTCCPermission
-    @CommandMethod("<channel> pulse [delay]")
+    @Command("<channel> pulse [delay]")
     @CommandDescription("Updates the power state of a named sign power channel")
     public void commandWriteChannelPulsePower(
             final CommandSender sender,

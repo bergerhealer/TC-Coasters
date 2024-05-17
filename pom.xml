@@ -130,19 +130,19 @@
 
         <!-- Cloud command framework - provided by BKCommonLib -->
         <dependency>
-            <groupId>org.bergerhealer.cloud.commandframework</groupId>
+            <groupId>org.incendo</groupId>
             <artifactId>cloud-paper</artifactId>
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>org.bergerhealer.cloud.commandframework</groupId>
+            <groupId>org.incendo</groupId>
             <artifactId>cloud-annotations</artifactId>
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>org.bergerhealer.cloud.commandframework</groupId>
+            <groupId>org.incendo</groupId>
             <artifactId>cloud-minecraft-extras</artifactId>
             <scope>provided</scope>
             <optional>true</optional>
@@ -230,7 +230,7 @@
 
                         <!-- BKCommonLib relocations of Cloud command framework -->
                         <relocation>
-                            <pattern>cloud.commandframework</pattern>
+                            <pattern>org.incendo.cloud</pattern>
                             <shadedPattern>com.bergerkiller.bukkit.common.dep.cloud</shadedPattern>
                         </relocation>
                         <relocation>

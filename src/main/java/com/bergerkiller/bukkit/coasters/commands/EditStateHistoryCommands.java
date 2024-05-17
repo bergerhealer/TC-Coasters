@@ -8,15 +8,15 @@ import com.bergerkiller.bukkit.coasters.commands.annotations.CommandRequiresTCCP
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 
-import cloud.commandframework.annotations.Argument;
-import cloud.commandframework.annotations.CommandDescription;
-import cloud.commandframework.annotations.CommandMethod;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Command;
 
-@CommandMethod("tccoasters|tcc")
+@Command("tccoasters|tcc")
 class EditStateHistoryCommands {
 
     @CommandRequiresTCCPermission
-    @CommandMethod("undo")
+    @Command("undo")
     @CommandDescription("Undoes the last action")
     public void commandUndo(
             final PlayerEditState state,
@@ -34,7 +34,7 @@ class EditStateHistoryCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("redo")
+    @Command("redo")
     @CommandDescription("Redoes the last action that was undone using undo")
     public void commandRedo(
             final PlayerEditState state,
@@ -52,7 +52,7 @@ class EditStateHistoryCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("undo since <seconds_ago>")
+    @Command("undo since <seconds_ago>")
     @CommandDescription("Undoes the last group of actions since a short time ago")
     public void commandUndoSince(
             final PlayerEditState state,
@@ -65,7 +65,7 @@ class EditStateHistoryCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("undo <count>")
+    @Command("undo <count>")
     @CommandDescription("Undoes a number of actions last performed")
     public void commandUndoMany(
             final PlayerEditState state,
@@ -99,7 +99,7 @@ class EditStateHistoryCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("redo all")
+    @Command("redo all")
     @CommandDescription("Redoes all changes that were last undone")
     public void commandRedoAll(
             final PlayerEditState state,
@@ -110,7 +110,7 @@ class EditStateHistoryCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("redo <count>")
+    @Command("redo <count>")
     @CommandDescription("Redoes a number of actions previously undone")
     public void commandRedoMany(
             final PlayerEditState state,

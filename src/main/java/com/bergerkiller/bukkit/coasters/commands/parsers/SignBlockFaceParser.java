@@ -5,8 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Queue;
 
+import com.bergerkiller.bukkit.common.cloud.CloudLocalizedException;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -14,15 +14,16 @@ import org.bukkit.entity.Player;
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 
-import cloud.commandframework.arguments.parser.ArgumentParseResult;
-import cloud.commandframework.arguments.parser.ArgumentParser;
-import cloud.commandframework.context.CommandContext;
-import cloud.commandframework.exceptions.parsing.NoInputProvidedException;
+import org.incendo.cloud.context.CommandInput;
+import org.incendo.cloud.parser.ArgumentParseResult;
+import org.incendo.cloud.parser.ArgumentParser;
+import org.incendo.cloud.context.CommandContext;
+import org.incendo.cloud.suggestion.BlockingSuggestionProvider;
 
 /**
  * Parses a BlockFace of a Sign. Only supports the block faces and SELF
  */
-public class SignBlockFaceParser implements ArgumentParser<CommandSender, BlockFace> {
+public class SignBlockFaceParser implements ArgumentParser<CommandSender, BlockFace>, BlockingSuggestionProvider.Strings<CommandSender> {
     private final Map<String, BlockFace> byName = new HashMap<>();
     private final Map<String, Integer> byRelativeRotation = new HashMap<>();
     private final List<String> namesPlayer = new ArrayList<>();
@@ -46,43 +47,34 @@ public class SignBlockFaceParser implements ArgumentParser<CommandSender, BlockF
     @Override
     public ArgumentParseResult<BlockFace> parse(
             final CommandContext<CommandSender> commandContext,
-            final Queue<String> inputQueue
+            final CommandInput commandInput
     ) {
-        if (inputQueue.isEmpty()) {
-            return ArgumentParseResult.failure(new NoInputProvidedException(
-                    this.getClass(),
-                    commandContext
-            ));
-        }
-
-        String faceName = inputQueue.peek().toLowerCase(Locale.ENGLISH);
+        String faceName = commandInput.readString().toLowerCase(Locale.ENGLISH);
         BlockFace face = byName.get(faceName);
         if (face != null) {
-            inputQueue.poll();
             return ArgumentParseResult.success(face);
         }
 
         // Try relative directions
         Integer relative = byRelativeRotation.get(faceName);
-        if (relative != null && commandContext.getSender() instanceof Player) {
-            Player player = (Player) commandContext.getSender();
+        if (relative != null && commandContext.sender() instanceof Player) {
+            Player player = (Player) commandContext.sender();
             face = FaceUtil.yawToFace(player.getEyeLocation().getYaw() - 90.0f, false);
             face = FaceUtil.rotate(face, relative.intValue());
-            inputQueue.poll();
             return ArgumentParseResult.success(face);
         }
 
         // Not found
-        return ArgumentParseResult.failure(new LocalizedParserException(commandContext,
+        return ArgumentParseResult.failure(new CloudLocalizedException(commandContext,
                 TCCoastersLocalization.INVALID_SIGN_FACE, faceName));
     }
 
     @Override
-    public List<String> suggestions(
+    public Iterable<String> stringSuggestions(
             final CommandContext<CommandSender> commandContext,
-            final String input
+            final CommandInput commandInput
     ) {
-        return (commandContext.getSender() instanceof Player)
+        return (commandContext.sender() instanceof Player)
                 ? namesPlayer : namesNonPlayer;
     }
 }

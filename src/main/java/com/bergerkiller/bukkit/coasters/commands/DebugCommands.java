@@ -13,14 +13,14 @@ import com.bergerkiller.bukkit.coasters.rails.TrackRailsSectionsAtRail;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 
-import cloud.commandframework.annotations.Argument;
-import cloud.commandframework.annotations.CommandDescription;
-import cloud.commandframework.annotations.CommandMethod;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Command;
 
-@CommandMethod("tccoasters|tcc debug")
+@Command("tccoasters|tcc debug")
 class DebugCommands {
     @CommandRequiresTCCPermission
-    @CommandMethod("rebuild")
+    @Command("rebuild")
     @CommandDescription("Rebuilds the track data, might sometimes fix things")
     public void commandBuild(
             final CommandSender sender,
@@ -32,7 +32,7 @@ class DebugCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("path")
+    @Command("path")
     @CommandDescription("Logs the path segments of the selected nodes to system log")
     public void commandDebugPath(
             final PlayerEditState state,
@@ -49,7 +49,7 @@ class DebugCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("rail")
+    @Command("rail")
     @CommandDescription("Shows built rail information tied to certain rail block coordinates")
     public void commandRail(
             final PlayerEditState state,
@@ -64,7 +64,7 @@ class DebugCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("rail <x> <y> <z>")
+    @Command("rail <x> <y> <z>")
     @CommandDescription("Shows built rail information tied to certain rail block coordinates")
     public void commandRail(
             final PlayerEditState state,
@@ -84,7 +84,7 @@ class DebugCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("visibletoeveryone <visible>")
+    @Command("visibletoeveryone <visible>")
     @CommandDescription("Makes track visible to all players, also those not editing track")
     public void commandVisibleToEveryone(
             final PlayerEditState state,

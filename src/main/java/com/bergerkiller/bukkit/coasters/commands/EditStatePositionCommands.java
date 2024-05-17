@@ -10,18 +10,18 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 
-import cloud.commandframework.annotations.Argument;
-import cloud.commandframework.annotations.CommandDescription;
-import cloud.commandframework.annotations.CommandMethod;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Command;
 
 /**
  * Commands that edit the position of selected track nodes
  */
-@CommandMethod("tccoasters|tcc position|pos")
+@Command("tccoasters|tcc position|pos")
 class EditStatePositionCommands {
 
     @CommandRequiresTCCPermission
-    @CommandMethod("<axis>")
+    @Command("<axis>")
     @CommandDescription("Shows short help and gets the average position of the selected nodes")
     public void commandGetPosition(
             final PlayerEditState state,
@@ -49,7 +49,7 @@ class EditStatePositionCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("<axis> <value>")
+    @Command("<axis> <value>")
     @CommandDescription("Sets an axis of the position of the selected nodes to a specified value")
     public void commandSetPosition(
             final PlayerEditState state,
@@ -68,7 +68,7 @@ class EditStatePositionCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("<axis> set <value>")
+    @Command("<axis> set <value>")
     @CommandDescription("Sets an axis of the position of the selected nodes to a specified value")
     public void commandSetPositionAlias(
             final PlayerEditState state,
@@ -81,7 +81,7 @@ class EditStatePositionCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("<axis> add <value>")
+    @Command("<axis> add <value>")
     @CommandDescription("Adds a value to an axis of the position of all selected nodes")
     public void commandSetAddPosition(
             final PlayerEditState state,
@@ -100,7 +100,7 @@ class EditStatePositionCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("<axis> subtract <value>")
+    @Command("<axis> subtract <value>")
     @CommandDescription("Subtracts a value from an axis of the position of all selected nodes")
     public void commandSetSubtractPosition(
             final PlayerEditState state,
@@ -119,7 +119,7 @@ class EditStatePositionCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("<axis> align <block_relative_value>")
+    @Command("<axis> align <block_relative_value>")
     @CommandDescription("Aligns all nodes relative to their block coordinates for an axis")
     public void commandSetAlignPosition(
             final PlayerEditState state,
@@ -139,7 +139,7 @@ class EditStatePositionCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("<axis> average")
+    @Command("<axis> average")
     @CommandDescription("Computes the average position of all selected nodes, and sets an axis to that")
     public void commandSetAveragePosition(
             final PlayerEditState state,

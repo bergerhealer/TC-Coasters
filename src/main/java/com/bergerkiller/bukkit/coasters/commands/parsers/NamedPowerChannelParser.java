@@ -2,8 +2,8 @@ package com.bergerkiller.bukkit.coasters.commands.parsers;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Queue;
 
+import com.bergerkiller.bukkit.common.cloud.CloudLocalizedException;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 
@@ -14,16 +14,17 @@ import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.tc.utils.BoundingRange;
 
-import cloud.commandframework.arguments.parser.ArgumentParseResult;
-import cloud.commandframework.arguments.parser.ArgumentParser;
-import cloud.commandframework.context.CommandContext;
-import cloud.commandframework.exceptions.parsing.NoInputProvidedException;
+import org.incendo.cloud.context.CommandInput;
+import org.incendo.cloud.parser.ArgumentParseResult;
+import org.incendo.cloud.parser.ArgumentParser;
+import org.incendo.cloud.context.CommandContext;
+import org.incendo.cloud.suggestion.BlockingSuggestionProvider;
 
 /**
  * Looks up a {@link NamedPowerChannel} by name. Suggestions only show those on the player/command block's
  * current world, but if none match, also resolves globally.
  */
-public class NamedPowerChannelParser implements ArgumentParser<CommandSender, NamedPowerChannel> {
+public class NamedPowerChannelParser implements ArgumentParser<CommandSender, NamedPowerChannel>, BlockingSuggestionProvider.Strings<CommandSender> {
     private final TCCoasters plugin;
 
     public NamedPowerChannelParser(TCCoasters plugin) {
@@ -33,44 +34,36 @@ public class NamedPowerChannelParser implements ArgumentParser<CommandSender, Na
     @Override
     public ArgumentParseResult<NamedPowerChannel> parse(
             final CommandContext<CommandSender> commandContext,
-            final Queue<String> inputQueue
+            final CommandInput commandInput
     ) {
-        if (inputQueue.isEmpty()) {
-            return ArgumentParseResult.failure(new NoInputProvidedException(
-                    this.getClass(),
-                    commandContext
-            ));
-        }
-
         // First find for the world the sender is on, if applicable
-        String name = inputQueue.peek();
+        String name = commandInput.readString();
         NamedPowerChannel powerState;
         NamedPowerChannelRegistry registry = findDefaultRegistry(commandContext);
         if (registry != null && (powerState = registry.findIfExists(name)) != null) {
-            inputQueue.poll();
             return ArgumentParseResult.success(powerState);
         }
 
         // Try global
         if ((powerState = plugin.findGlobalPowerState(name)) != null) {
-            inputQueue.poll();
             return ArgumentParseResult.success(powerState);
         }
 
         // Not found
-        return ArgumentParseResult.failure(new LocalizedParserException(commandContext,
+        return ArgumentParseResult.failure(new CloudLocalizedException(commandContext,
                 TCCoastersLocalization.INVALID_POWER_CHANNEL, name));
     }
 
     @Override
-    public List<String> suggestions(
+    public Iterable<String> stringSuggestions(
             final CommandContext<CommandSender> commandContext,
-            final String input
+            final CommandInput commandInput
     ) {
         List<String> result = new ArrayList<>();
 
         // First list all names that match for the world the sender is on, if applicable
         NamedPowerChannelRegistry registry = findDefaultRegistry(commandContext);
+        String input = commandInput.lastRemainingToken();
         if (registry != null) {
             for (String name : registry.getNames()) {
                 if (name.startsWith(input)) {
@@ -127,7 +120,7 @@ public class NamedPowerChannelParser implements ArgumentParser<CommandSender, Na
     }
 
     private NamedPowerChannelRegistry findDefaultRegistry(CommandContext<CommandSender> context) {
-        World world = BoundingRange.Axis.forSender(context.getSender()).world;
+        World world = BoundingRange.Axis.forSender(context.sender()).world;
         return (world == null) ? null : plugin.getCoasterWorld(world).getNamedPowerChannels();
     }
 }
