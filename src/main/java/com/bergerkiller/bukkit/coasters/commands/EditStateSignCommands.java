@@ -19,17 +19,17 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.common.block.SignEditDialog;
 
-import cloud.commandframework.annotations.Argument;
-import cloud.commandframework.annotations.CommandDescription;
-import cloud.commandframework.annotations.CommandMethod;
-import cloud.commandframework.annotations.Flag;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.Flag;
 
-@CommandMethod("tccoasters|tcc sign|signs")
+@Command("tccoasters|tcc sign|signs")
 class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("add")
+    @Command("add")
     @CommandDescription("Shows a sign dialog and puts the inputed text as a sign to the currently selected nodes")
     public void commandAddWithDialog(
             final PlayerEditState state,
@@ -45,7 +45,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("add <lines>")
+    @Command("add <lines>")
     @CommandDescription("Adds a new sign to the currently selected nodes")
     public void commandAddWithLines(
             final PlayerEditState state,
@@ -68,7 +68,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("edit")
+    @Command("edit")
     @CommandDescription("Shows a sign dialog and replaces the sign text with the inputed text for all signs of the currently selected nodes")
     public void commandEditWithDialog(
             final PlayerEditState state,
@@ -87,7 +87,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("edit <lines>")
+    @Command("edit <lines>")
     @CommandDescription("Adds a new sign to the currently selected nodes")
     public void commandEditWithLines(
             final PlayerEditState state,
@@ -146,7 +146,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("remove")
+    @Command("remove")
     @CommandDescription("Removes the last-added sign from all selected nodes")
     public void commandRemove(
             final PlayerEditState state,
@@ -165,7 +165,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("clear")
+    @Command("clear")
     @CommandDescription("Clears all signs set for the currently selected nodes")
     public void commandClear(
             final PlayerEditState state,
@@ -181,7 +181,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("scroll|next")
+    @Command("scroll|next")
     @CommandDescription("Scrolls all signs one down, so a different sign can be edited")
     public void commandScroll(
             final PlayerEditState state,
@@ -197,7 +197,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("power add <channel>")
+    @Command("power add <channel>")
     @CommandDescription("Assigns a power channel to the last-added sign of the selected nodes")
     public void commandAddInputPowerChannel(
             final PlayerEditState state,
@@ -235,7 +235,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("power remove <channel>")
+    @Command("power remove <channel>")
     @CommandDescription("Removes a power channel from the last-added sign of the selected nodes")
     public void commandRemoveInputPowerChannel(
             final PlayerEditState state,
@@ -275,7 +275,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("power clear")
+    @Command("power clear")
     @CommandDescription("Clears all power channels from last-added sign of the selected nodes")
     public void commandClearInputPowerChannels(
             final PlayerEditState state,
@@ -293,7 +293,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("power rotate")
+    @Command("power rotate")
     @CommandDescription("Rotates all power channels from last-added sign of the selected nodes by 90 degrees")
     public void commandRotateInputPowerChannels(
             final PlayerEditState state,
@@ -322,7 +322,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("power rotate <channel>")
+    @Command("power rotate <channel>")
     @CommandDescription("Rotates a power channel from last-added sign of the selected nodes by 90 degrees")
     public void commandRotateInputNamedPowerChannels(
             final PlayerEditState state,
@@ -352,7 +352,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("output add <channel>")
+    @Command("output add <channel>")
     @CommandDescription("Assigns a power output channel to the last-added sign of the selected nodes")
     public void commandAddOutputPowerChannel(
             final PlayerEditState state,
@@ -388,7 +388,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("output remove <channel>")
+    @Command("output remove <channel>")
     @CommandDescription("Removes a power output channel from the last-added sign of the selected nodes")
     public void commandRemoveOutputPowerChannel(
             final PlayerEditState state,
@@ -420,7 +420,7 @@ class EditStateSignCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("output clear")
+    @Command("output clear")
     @CommandDescription("Clears all power output channels from last-added sign of the selected nodes")
     public void commandClearOutputPowerChannels(
             final PlayerEditState state,

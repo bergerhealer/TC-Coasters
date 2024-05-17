@@ -10,16 +10,16 @@ import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 
-import cloud.commandframework.annotations.CommandDescription;
-import cloud.commandframework.annotations.CommandMethod;
-import cloud.commandframework.annotations.Flag;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.Flag;
 import org.bukkit.inventory.ItemFlag;
 
-@CommandMethod("tccoasters|tcc")
+@Command("tccoasters|tcc")
 class PlayerCommands {
 
     @CommandRequiresTCCPermission
-    @CommandMethod("give")
+    @Command("give")
     @CommandDescription("Gives the player the TCCoasters editor map")
     public void commandGiveEditorMap(
             final Player player,

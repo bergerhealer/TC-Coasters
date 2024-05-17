@@ -16,15 +16,15 @@ import com.bergerkiller.bukkit.common.internal.CommonPlugin;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.tc.TrainCarts;
 
-import cloud.commandframework.annotations.Argument;
-import cloud.commandframework.annotations.CommandDescription;
-import cloud.commandframework.annotations.CommandMethod;
-import cloud.commandframework.annotations.CommandPermission;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.Permission;
 
-@CommandMethod("tccoasters|tcc")
+@Command("tccoasters|tcc")
 class GlobalCommands {
 
-    @CommandMethod("")
+    @Command("")
     @CommandDescription("Shows help")
     public void commandRootHelp(
             final CommandSender sender,
@@ -40,7 +40,7 @@ class GlobalCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("version")
+    @Command("version")
     @CommandDescription("Shows installed version of TCCoasters, TrainCarts and BKCommonLib")
     private void commandShowVersion(
             final CommandSender sender,
@@ -52,9 +52,9 @@ class GlobalCommands {
         sender.sendMessage(ChatColor.GREEN + "Server: " + Bukkit.getServer().getVersion());
     }
 
-    @CommandMethod("startuplog")
+    @Command("startuplog")
     @CommandDescription("Views everything logged during startup of TC-Coasters")
-    @CommandPermission("bkcommonlib.command.startuplog")
+    @Permission("bkcommonlib.command.startuplog")
     private void commandShowStartupLog(
             final CommandSender sender,
             final TCCoasters plugin
@@ -63,7 +63,7 @@ class GlobalCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("reload|load")
+    @Command("reload|load")
     @CommandDescription("Reloads all (new) coasters from the csv files on disk")
     public void commandReload(
             final CommandSender sender,
@@ -94,7 +94,7 @@ class GlobalCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("save")
+    @Command("save")
     @CommandDescription("Forces a save to disk of all coasters")
     public void commandSave(
             final CommandSender sender,
@@ -107,7 +107,7 @@ class GlobalCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("smoothness")
+    @Command("smoothness")
     @CommandDescription("Gets the track smoothness value")
     public void commandGetSmoothness(
             final CommandSender sender,
@@ -117,7 +117,7 @@ class GlobalCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("smoothness <value>")
+    @Command("smoothness <value>")
     @CommandDescription("Sets the track smoothness value")
     public void commandSetSmoothness(
             final CommandSender sender,
@@ -130,7 +130,7 @@ class GlobalCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("glow")
+    @Command("glow")
     @CommandDescription("Gets whether glowing selections are enabled")
     public void commandGetGlowingSelections(
             final CommandSender sender,
@@ -140,7 +140,7 @@ class GlobalCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("glow <enabled>")
+    @Command("glow <enabled>")
     @CommandDescription("Sets whether glowing selections are enabled")
     public void commandSetGlowingSelections(
             final CommandSender sender,

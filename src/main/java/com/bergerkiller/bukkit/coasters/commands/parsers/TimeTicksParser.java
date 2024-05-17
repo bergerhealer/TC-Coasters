@@ -2,22 +2,22 @@ package com.bergerkiller.bukkit.coasters.commands.parsers;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
-import java.util.Queue;
 import java.util.stream.Collectors;
 
+import com.bergerkiller.bukkit.common.cloud.CloudLocalizedException;
 import org.bukkit.command.CommandSender;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.tc.Util;
 
-import cloud.commandframework.arguments.parser.ArgumentParseResult;
-import cloud.commandframework.arguments.parser.ArgumentParser;
-import cloud.commandframework.context.CommandContext;
-import cloud.commandframework.exceptions.parsing.NoInputProvidedException;
+import org.incendo.cloud.context.CommandInput;
+import org.incendo.cloud.parser.ArgumentParseResult;
+import org.incendo.cloud.parser.ArgumentParser;
+import org.incendo.cloud.context.CommandContext;
+import org.incendo.cloud.suggestion.BlockingSuggestionProvider;
 
-public class TimeTicksParser implements ArgumentParser<CommandSender, Integer> {
+public class TimeTicksParser implements ArgumentParser<CommandSender, Integer>, BlockingSuggestionProvider.Strings<CommandSender> {
 
     // Returns -1 on fail
     public static int parse(String text) {
@@ -31,31 +31,25 @@ public class TimeTicksParser implements ArgumentParser<CommandSender, Integer> {
     @Override
     public ArgumentParseResult<Integer> parse(
             final CommandContext<CommandSender> commandContext,
-            final Queue<String> inputQueue
+            final CommandInput commandInput
     ) {
-        if (inputQueue.isEmpty()) {
-            return ArgumentParseResult.failure(new NoInputProvidedException(
-                    this.getClass(),
-                    commandContext
-            ));
-        }
-
-        String peek = inputQueue.peek();
+        String peek = commandInput.peekString();
         int result = parse(peek);
         if (result < 0) {
-            return ArgumentParseResult.failure(new LocalizedParserException(commandContext,
+            return ArgumentParseResult.failure(new CloudLocalizedException(commandContext,
                     TCCoastersLocalization.INVALID_TIME, peek));
         }
 
-        inputQueue.poll();
+        commandInput.readString();
         return ArgumentParseResult.success(result);
     }
 
     @Override
-    public List<String> suggestions(
+    public Iterable<String> stringSuggestions(
             final CommandContext<CommandSender> commandContext,
-            final String input
+            final CommandInput commandInput
     ) {
+        String input = commandInput.lastRemainingToken();
         char last = input.isEmpty() ? '.' : input.charAt(input.length() - 1);
         if (last == '.' || last == ',') {
             return Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9").stream()

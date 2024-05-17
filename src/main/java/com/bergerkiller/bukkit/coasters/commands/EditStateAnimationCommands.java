@@ -11,19 +11,19 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 
-import cloud.commandframework.annotations.Argument;
-import cloud.commandframework.annotations.CommandDescription;
-import cloud.commandframework.annotations.CommandMethod;
-import cloud.commandframework.annotations.specifier.Quoted;
+import org.incendo.cloud.annotation.specifier.Quoted;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Command;
 
 /**
  * Commands that alter or play track animations
  */
-@CommandMethod("tccoasters|tcc animation")
+@Command("tccoasters|tcc animation")
 class EditStateAnimationCommands {
 
     @CommandRequiresTCCPermission
-    @CommandMethod("")
+    @Command("")
     @CommandDescription("Shows short command help and what animations are available and selected")
     public void commandShowAnimationDetails(
             final PlayerEditState state,
@@ -56,7 +56,7 @@ class EditStateAnimationCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("add <name>")
+    @Command("add <name>")
     @CommandDescription("Adds an animation state of the current positions to all selected nodes")
     public void commandAddAnimation(
             final PlayerEditState state,
@@ -71,7 +71,7 @@ class EditStateAnimationCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("remove <name>")
+    @Command("remove <name>")
     @CommandDescription("Removes an animation state from all selected nodes")
     public void commandRemoveAnimation(
             final PlayerEditState state,
@@ -93,7 +93,7 @@ class EditStateAnimationCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("clear")
+    @Command("clear")
     @CommandDescription("Clears all animation state from all selected nodes")
     public void commandRemoveAnimation(
             final PlayerEditState state,
@@ -109,7 +109,7 @@ class EditStateAnimationCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("select <name>")
+    @Command("select <name>")
     @CommandDescription("Selects an animation state for editing")
     public void commandSelectAnimation(
             final PlayerEditState state,
@@ -125,7 +125,7 @@ class EditStateAnimationCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("play <name>")
+    @Command("play <name>")
     @CommandDescription("Activates an animation state instantly")
     public void commandPlayAnimation(
             final PlayerEditState state,
@@ -137,7 +137,7 @@ class EditStateAnimationCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("play <name> <duration>")
+    @Command("play <name> <duration>")
     @CommandDescription("Activates an animation state over a duration in seconds")
     public void commandPlayAnimation(
             final PlayerEditState state,

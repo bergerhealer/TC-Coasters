@@ -32,17 +32,17 @@ import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.common.wrappers.ChatText;
 
-import cloud.commandframework.annotations.Argument;
-import cloud.commandframework.annotations.CommandDescription;
-import cloud.commandframework.annotations.CommandMethod;
-import cloud.commandframework.annotations.Flag;
-import cloud.commandframework.annotations.specifier.Quoted;
+import org.incendo.cloud.annotation.specifier.Quoted;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.Flag;
 
-@CommandMethod("tccoasters|tcc")
+@Command("tccoasters|tcc")
 class EditStateCommands {
 
     @CommandRequiresTCCPermission
-    @CommandMethod("create")
+    @Command("create")
     @CommandDescription("Creates new track nodes, objects or connects selected nodes together")
     public void commandCreate(
             final PlayerEditState state,
@@ -58,7 +58,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("delete")
+    @Command("delete")
     @CommandDescription("Disconnects selected nodes and deletes unconnected nodes and track objects")
     public void commandDelete(
             final PlayerEditState state,
@@ -97,7 +97,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("deselect")
+    @Command("deselect")
     @CommandDescription("Deselects all nodes currently selected")
     public void commandDeselect(
             final PlayerEditState state,
@@ -113,7 +113,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("copy")
+    @Command("copy")
     @CommandDescription("Copies all currently selected nodes to the clipboard")
     public void commandCopy(
             final PlayerEditState state,
@@ -129,7 +129,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("cut")
+    @Command("cut")
     @CommandDescription("Copies all currently selected nodes to the clipboard and deletes them")
     public void commandCut(
             final PlayerEditState state,
@@ -150,7 +150,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("paste")
+    @Command("paste")
     @CommandDescription("Pastes the current contents of the clipboard at the current position")
     public void commandPaste(
             final PlayerEditState state,
@@ -170,7 +170,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("lock")
+    @Command("lock")
     @CommandDescription("Locks the selected coaster so that nobody can change it anymore, until it is unlocked")
     public void commandLock(
             final PlayerEditState state,
@@ -188,7 +188,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("unlock")
+    @Command("unlock")
     @CommandDescription("Unlocks the selected coaster so that it can be changed again after locking")
     public void commandUnlock(
             final PlayerEditState state,
@@ -206,7 +206,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("rename")
+    @Command("rename")
     @CommandDescription("Shows help about renaming, and what coasters exist")
     public void commandRenameHelp(
             final PlayerEditState state,
@@ -225,7 +225,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("rename <new_coaster_name>")
+    @Command("rename <new_coaster_name>")
     @CommandDescription("Renames the selected coaster to a new name, so that the csv file of it can be identified")
     public void commandRename(
             final PlayerEditState state,
@@ -250,7 +250,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("rename <new_coaster_name> <old_coaster_name>")
+    @Command("rename <new_coaster_name> <old_coaster_name>")
     @CommandDescription("Renames a coaster by an old name to a new name, so that the csv file of it can be identified")
     public void commandRename(
             final PlayerEditState state,
@@ -279,7 +279,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("straight")
+    @Command("straight")
     @CommandDescription("Makes connections between selected nodes straight")
     public void commandStraight(
             final PlayerEditState state,
@@ -299,7 +299,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("curved")
+    @Command("curved")
     @CommandDescription("Makes connections between selected nodes curved")
     public void commandCurved(
             final PlayerEditState state,
@@ -319,7 +319,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("import <url_or_file>")
+    @Command("import <url_or_file>")
     @CommandDescription("Imports a coaster by (down)loading a csv file")
     public void commandImport(
             final Player player,
@@ -407,7 +407,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("export")
+    @Command("export")
     @CommandDescription("Exports a coaster to a haste bin server or local file")
     public void commandExport(
             final PlayerEditState state,
@@ -476,7 +476,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("info")
+    @Command("info")
     @CommandDescription("Shows meta information about the selected nodes")
     public void commandInfo(
             final PlayerEditState state,
@@ -500,7 +500,7 @@ class EditStateCommands {
     }
 
     @CommandRequiresTCCPermission
-    @CommandMethod("option dragcontrol <enabled>")
+    @Command("option dragcontrol <enabled>")
     @CommandDescription("Sets whether position sliders can be controlled by right-click dragging ingame")
     public void commandOptionDragControl(
             final PlayerEditState state,

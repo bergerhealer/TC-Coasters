@@ -17,23 +17,20 @@ import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
 
-import cloud.commandframework.ArgumentDescription;
-import cloud.commandframework.CommandManager;
-import cloud.commandframework.annotations.Argument;
-import cloud.commandframework.annotations.CommandDescription;
-import cloud.commandframework.annotations.CommandMethod;
-import cloud.commandframework.annotations.Flag;
-import cloud.commandframework.annotations.InitializationMethod;
-import cloud.commandframework.meta.CommandMeta;
+import org.incendo.cloud.CommandManager;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.Flag;
+import org.incendo.cloud.description.Description;
 
 /**
  * Commands that change the orientation of selected track nodes
  */
-@CommandMethod("tccoasters|tcc orientation|ori")
+@Command("tccoasters|tcc orientation|ori")
 class EditStateOrientationCommands {
 
-    @InitializationMethod
-    private void init(CommandManager<CommandSender> manager) {
+    public EditStateOrientationCommands(CommandManager<CommandSender> manager) {
         // Register all block faces as literals
         for (BlockFace face : LogicUtil.appendArray(FaceUtil.RADIAL, BlockFace.UP, BlockFace.DOWN)) {
             final Vector up_vector = FaceUtil.faceToVector(face).normalize();
@@ -41,19 +38,20 @@ class EditStateOrientationCommands {
             manager.command(manager.commandBuilder("tccoasters", "tcc")
                 .literal("orientation", "ori")
                 .literal(face.name().toLowerCase(Locale.ENGLISH),
-                        ArgumentDescription.of("Block face to align the node towards"))
+                        Description.of("Block face to align the node towards"))
                 .handler(context -> {
                     commandSetOrientationUpVector(
-                            context.inject(PlayerEditState.class).get(), context.getSender(),
+                            context.inject(PlayerEditState.class).get(), context.sender(),
                             up_vector.getX(), up_vector.getY(), up_vector.getZ());
                 })
-                .meta(CommandMeta.DESCRIPTION, "Sets the orientation of the selected nodes to a Block Face direction"));
+                .commandDescription(Description.of("Sets the orientation of the selected nodes to a Block Face direction"))
+            );
         }
     }
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("")
+    @Command("")
     @CommandDescription("Shows the current orientation of the selected track nodes")
     public void commandShowOrientation(
             final PlayerEditState state,
@@ -64,7 +62,7 @@ class EditStateOrientationCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("set <up_x> <up_y> <up_z>")
+    @Command("set <up_x> <up_y> <up_z>")
     @CommandDescription("Sets the orientation of the selected nodes by specifying the up-vector")
     public void commandSetOrientationUpVector(
             final PlayerEditState state,
@@ -84,7 +82,7 @@ class EditStateOrientationCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("roll <roll>")
+    @Command("roll <roll>")
     @CommandDescription("Sets the orientation of the selected nodes by specifying a roll angle around the track")
     public void commandSetOrientationRollAngle(
             final PlayerEditState state,
@@ -127,7 +125,7 @@ class EditStateOrientationCommands {
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes
-    @CommandMethod("flip|invert")
+    @Command("flip|invert")
     @CommandDescription("Flips the orientation of the selected nodes 180 degrees")
     public void commandFlipOrientation(
             final PlayerEditState state,
