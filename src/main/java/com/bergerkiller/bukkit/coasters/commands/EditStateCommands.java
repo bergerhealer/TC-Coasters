@@ -32,6 +32,8 @@ import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.common.wrappers.ChatText;
 
+import org.incendo.cloud.annotation.specifier.FlagYielding;
+import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.CommandDescription;
@@ -324,7 +326,7 @@ class EditStateCommands {
     public void commandImport(
             final Player player,
             final TCCoasters plugin,
-            final @Quoted @Argument("url_or_file") String urlOrFile,
+            final @FlagYielding @Greedy @Argument("url_or_file") String urlOrFile,
             final @Flag("absolute") boolean absolute
     ) {
         TCCoastersPermissions.IMPORT.handle(player);
