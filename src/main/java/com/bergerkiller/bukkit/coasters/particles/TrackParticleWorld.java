@@ -212,7 +212,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         {
             Iterator<Player> iter = viewers.keySet().iterator();
             while (iter.hasNext()) {
-                if (!iter.next().isOnline()) {
+                if (!iter.next().isValid()) {
                     iter.remove();
                 }
             }

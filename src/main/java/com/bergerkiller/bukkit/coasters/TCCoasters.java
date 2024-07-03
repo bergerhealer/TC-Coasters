@@ -768,7 +768,7 @@ public class TCCoasters extends PluginBase {
                 while (iter.hasNext()) {
                     PlayerEditState state = iter.next();
                     state.save();
-                    if (!state.getPlayer().isOnline()) {
+                    if (!state.getPlayer().isValid()) {
                         iter.remove();
                     }
                 }
@@ -852,7 +852,7 @@ public class TCCoasters extends PluginBase {
                 Iterator<PlayerEditState> iter = editStates.values().iterator();
                 while (iter.hasNext()) {
                     PlayerEditState state = iter.next();
-                    if (!state.getPlayer().isOnline()) {
+                    if (!state.getPlayer().isValid()) {
                         iter.remove();
                     } else {
                         state.update();
