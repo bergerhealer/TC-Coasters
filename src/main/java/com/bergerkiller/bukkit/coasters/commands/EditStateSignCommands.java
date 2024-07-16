@@ -4,6 +4,7 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.bergerkiller.bukkit.coasters.commands.parsers.QuotedLinesParser;
 import org.bukkit.ChatColor;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
@@ -19,6 +20,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.common.block.SignEditDialog;
 
+import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.CommandDescription;
 import org.incendo.cloud.annotations.Command;
@@ -38,7 +40,7 @@ class EditStateSignCommands {
         new SignEditDialog() {
             @Override
             public void onClosed(Player player, String[] lines) {
-                commandAddWithLines(state, player, lines);
+                handleCommandAddWithLines(state, player, QuotedLinesParser.create().addLines(lines));
             }
         }.open(sender);
     }
@@ -50,14 +52,22 @@ class EditStateSignCommands {
     public void commandAddWithLines(
             final PlayerEditState state,
             final Player sender,
-            final @Argument("lines") String[] lines
+            final @Greedy @Argument("lines") String linesText
     ) {
-        if (lines == null || lines.length == 0) {
+        handleCommandAddWithLines(state, sender, QuotedLinesParser.create().parse(linesText));
+    }
+
+    public void handleCommandAddWithLines(
+            final PlayerEditState state,
+            final Player sender,
+            final QuotedLinesParser lines
+    ) {
+        if (!lines.hasLines()) {
             commandAddWithDialog(state, sender);
             return;
         }
 
-        TrackNodeSign sign = new TrackNodeSign(lines);
+        TrackNodeSign sign = new TrackNodeSign(lines.getLinesArray());
         try {
             state.getSigns().addSign(sign);
             TCCoastersLocalization.SIGN_ADD_MANY_SUCCESS.message(sender);
@@ -92,16 +102,17 @@ class EditStateSignCommands {
     public void commandEditWithLines(
             final PlayerEditState state,
             final Player sender,
-            final @Argument("lines") String[] lines
+            final @Greedy @Argument("lines") String linesText
     ) {
-        if (lines == null || lines.length == 0) {
+        QuotedLinesParser parser = QuotedLinesParser.create().parse(linesText);
+        if (!parser.hasLines()) {
             commandEditWithDialog(state, sender);
             return;
         }
 
         TrackNodeSign toEdit = findSignToEdit(state);
         if (toEdit != null) {
-            commandEditWithLines(state, sender, toEdit, lines);
+            commandEditWithLines(state, sender, toEdit, parser.getLinesArray());
         }
     }
 
