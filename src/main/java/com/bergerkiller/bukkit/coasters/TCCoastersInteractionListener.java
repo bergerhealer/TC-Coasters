@@ -3,7 +3,9 @@ package com.bergerkiller.bukkit.coasters;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.function.BiConsumer;
 
+import com.bergerkiller.bukkit.common.Common;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -266,6 +268,15 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
         return meta;
     }
 
+    // Since 1.21 yaw/pitch must be set, but bkcl might not support that api
+    private static final BiConsumer<Player, PacketPlayInBlockPlaceHandle> APPLY_ROTATION_TO_BLOCK_PLACE_PACKET =
+            Common.hasCapability("Common:PacketPlayInBlockPlace:RotationApi")
+            ? (player, packet) -> {
+                Location eye = player.getEyeLocation();
+                packet.setYaw(eye.getYaw());
+                packet.setPitch(eye.getPitch());
+            } : (player, packet) -> {};
+
     private void fakeItemPlacement(Player player, TargetedBlockInfo clickInfo, HumanHand hand) {
         boolean ignoreInteractPacket_old = this.ignoreInteractPacket;
         try {
@@ -276,6 +287,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
                 PacketPlayInBlockPlaceHandle packet = PacketPlayInBlockPlaceHandle.T.newHandleNull();
                 packet.setTimestamp(System.currentTimeMillis());
                 packet.setHand(player, fixHand(player, hand));
+                APPLY_ROTATION_TO_BLOCK_PLACE_PACKET.accept(player, packet);
                 PacketUtil.receivePacket(player, packet);
             } else {
                 createMeta(player).blockPlaceTime = Long.valueOf(System.currentTimeMillis());
