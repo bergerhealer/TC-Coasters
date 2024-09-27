@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -368,5 +369,17 @@ public class TCCoastersUtil {
         return Math.abs(a.getX() - b.getX()) < POSITION_EPSILON &&
                Math.abs(a.getY() - b.getY()) < POSITION_EPSILON &&
                Math.abs(a.getZ() - b.getZ()) < POSITION_EPSILON;
+    }
+
+    /**
+     * Gets whether a Player is still connected to the server, and has joined it.
+     * This will also return True if the player is still connected but on the respawn screen
+     *
+     * @param player Player
+     * @return True if still connected
+     */
+    public static boolean isPlayerConnected(Player player) {
+        //TODO: Use BKCommonLib PlayerInstancePhase API instead
+        return player.isValid() || Bukkit.getPlayer(player.getUniqueId()) == player;
     }
 }

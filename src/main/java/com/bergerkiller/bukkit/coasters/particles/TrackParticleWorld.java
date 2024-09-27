@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -212,7 +213,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         {
             Iterator<Player> iter = viewers.keySet().iterator();
             while (iter.hasNext()) {
-                if (!iter.next().isValid()) {
+                if (!TCCoastersUtil.isPlayerConnected(iter.next())) {
                     iter.remove();
                 }
             }
