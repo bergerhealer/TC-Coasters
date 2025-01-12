@@ -151,6 +151,8 @@ public class TrackRailsSectionMultipleLinked extends TrackRailsSection implement
             return appendToChain((TrackRailsSectionSingleNode) element);
         } else if (element instanceof TrackRailsJunction) {
             return ((TrackRailsJunction) element).merge(this.sections);
+        } else if (element instanceof TrackRailsSectionMultipleLinked) {
+            return appendToChain(((TrackRailsSectionMultipleLinked) element).sections);
         } else {
             return null;
         }
