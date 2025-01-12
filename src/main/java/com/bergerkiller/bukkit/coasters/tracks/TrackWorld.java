@@ -2,11 +2,14 @@ package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
 import org.bukkit.Location;
@@ -729,12 +732,32 @@ public class TrackWorld implements CoasterWorldComponent {
         {
             TrackRailsWorld rails = getWorld().getRails();
             rails.clear();
-            for (TrackCoaster coaster : getCoasters()) {
-                for (TrackNode node : coaster.getNodes()) {
-                    rails.store(node);
+
+            // For debug: randomize the order of the nodes before rebuilding
+            // This can be used to find and reproduce track rails section bugs that
+            // are caused by specific orders of merging.
+            if (isRandomizeRebuildEnabled()) {
+                List<TrackNode> allNodes = getCoasters().stream()
+                        .flatMap(c -> c.getNodes().stream())
+                        .collect(Collectors.toCollection(ArrayList::new));
+
+                long seed = new Random().nextLong();
+                // seed = 123L;
+                System.out.println("== Rebuilding with " + seed + " ==");
+                Collections.shuffle(allNodes, new Random(seed));
+                allNodes.forEach(rails::store);
+            } else {
+                for (TrackCoaster coaster : getCoasters()) {
+                    for (TrackNode node : coaster.getNodes()) {
+                        rails.store(node);
+                    }
                 }
             }
         }
+    }
+
+    private boolean isRandomizeRebuildEnabled() {
+        return false;
     }
 
     /**
