@@ -416,7 +416,8 @@ class EditStateCommands {
             final CommandSender sender,
             final TCCoasters plugin,
             final @Flag(value="file", description="Whether to export to a file in the plugin export folder") boolean exportToFile,
-            final @Flag(value="nl2", description="Whether to export in the NoLimits2 fileformat") boolean nolimits2Format
+            final @Flag(value="nl2", description="Whether to export in the NoLimits2 fileformat") boolean nolimits2Format,
+            final @Flag(value="origin", description="Whether to write the NoLimits2 positions relative to the player") boolean nolimits2Origin
     ) {
         TCCoastersPermissions.EXPORT.handle(sender);
         if (!state.hasEditedNodes()) {
@@ -436,7 +437,7 @@ class EditStateCommands {
             try (TrackCSVWriter writer = new TrackCSVWriter(stream, nolimits2Format ? '\t' : ',')) {
                 if (nolimits2Format) {
                     // NoLimits2 format
-                    writer.writeAllNoLimits2(exportedNodes);
+                    writer.writeAllNoLimits2(exportedNodes, nolimits2Origin ? PlayerOrigin.getForPlayer(state.getPlayer()) : null);
                 } else {
                     // Normal TCC format
                     writer.setWriteLinksToForeignNodes(false);

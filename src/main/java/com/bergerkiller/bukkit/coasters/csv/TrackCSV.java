@@ -1063,5 +1063,41 @@ public class TrackCSV {
                 }
             }
         }
+
+        /**
+         * Helper class for writing the nolimits2 csv format. Has an optional mechanism
+         * to transform the node positions relative to the player origin.
+         */
+        public static class Transformer {
+            private final NoLimits2Entry entry = new NoLimits2Entry();
+            private final Matrix4x4 transform;
+            private final Quaternion transformRot;
+
+            public Transformer(PlayerOrigin origin) {
+                entry.no = 0;
+                if (origin != null) {
+                    this.transform = origin.getTransform();
+                    this.transform.invert();
+                    this.transformRot = this.transform.getRotation();
+                } else {
+                    this.transform = null;
+                    this.transformRot = null;
+                }
+            }
+
+            public NoLimits2Entry next(Vector position, Vector direction, Vector up) {
+                Quaternion orientation = Quaternion.fromLookDirection(direction, up);
+                if (this.transform != null) {
+                    position = position.clone();
+                    this.transform.transformPoint(position);
+                    orientation.multiply(this.transformRot);
+                }
+
+                entry.no++;
+                entry.pos = position;
+                entry.setOrientation(orientation);
+                return entry;
+            }
+        }
     }
 }

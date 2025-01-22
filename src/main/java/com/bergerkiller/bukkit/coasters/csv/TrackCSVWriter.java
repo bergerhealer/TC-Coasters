@@ -22,6 +22,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
+import com.bergerkiller.bukkit.coasters.util.PlayerOrigin;
 import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
 import com.bergerkiller.bukkit.coasters.util.TrailingNewLineTrimmingWriter;
 import com.bergerkiller.mountiplex.reflection.util.UniqueHash;
@@ -86,12 +87,25 @@ public class TrackCSVWriter implements AutoCloseable {
     /**
      * Writes all nodes specified to the CSV Output Stream in NoLimits2's CSV format.
      * Junctions cannot be represented in this format. For this reason, the longest chain
-     * is selected in the source.
-     * 
+     * is selected in the source. Writes positions absolute.
+     *
      * @param nodes to write
      * @throws IOException
      */
     public void writeAllNoLimits2(Collection<TrackNode> nodes) throws IOException {
+        writeAllNoLimits2(nodes, null);
+    }
+
+    /**
+     * Writes all nodes specified to the CSV Output Stream in NoLimits2's CSV format.
+     * Junctions cannot be represented in this format. For this reason, the longest chain
+     * is selected in the source.
+     * 
+     * @param nodes to write
+     * @param origin Player origin relative to which to transform the positions. Null for absolute.
+     * @throws IOException
+     */
+    public void writeAllNoLimits2(Collection<TrackNode> nodes, PlayerOrigin origin) throws IOException {
         // Write header
         this.writer.writeNextThrow(new String[] {"No.","PosX","PosY","PosZ","FrontX","FrontY","FrontZ","LeftX","LeftY","LeftZ","UpX","UpY","UpZ"}, true);
 
@@ -108,38 +122,25 @@ public class TrackCSVWriter implements AutoCloseable {
         }
         TrackNode node = chain.startNode;
 
-        // Write the first node
-        TrackCSV.NoLimits2Entry entry = new TrackCSV.NoLimits2Entry();
+        // Helper for transforming positions into entries for writing
+        TrackCSV.NoLimits2Entry.Transformer nl2Transformer = new TrackCSV.NoLimits2Entry.Transformer(origin);
 
         // If there are no links we write only one node, and there's no real way to figure out the orientation
         if (chain.links.isEmpty()) {
-            entry.no = 1;
-            entry.pos = node.getPosition();
-            entry.setOrientation(node.getDirection(), node.getOrientation());
-            this.write(entry);
+            this.write(nl2Transformer.next(node.getPosition(), node.getDirection(), node.getOrientation()));
         } else {
             // Go from node to node using the chain links until we reach the end
-            entry.no = 0;
             TrackNode current = node;
             for (TrackConnection link : chain.links) {
                 TrackNode next = link.getOtherNode(current);
-
-                entry.no++;
-                entry.pos = current.getPosition();
-                entry.setOrientation(current.getDirectionTo(next), current.getOrientation());
-                this.write(entry);
-
+                this.write(nl2Transformer.next(current.getPosition(), current.getDirectionTo(next), current.getOrientation()));
                 current = next;
             }
 
             // The last node's direction must be done using getDirectionFrom() instead
             {
                 TrackNode previous = chain.links.get(chain.links.size() - 1).getOtherNode(current);
-
-                entry.no++;
-                entry.pos = current.getPosition();
-                entry.setOrientation(current.getDirectionFrom(previous), current.getOrientation());
-                this.write(entry);
+                this.write(nl2Transformer.next(current.getPosition(), current.getDirectionFrom(previous), current.getOrientation()));
             }
         }
     }
