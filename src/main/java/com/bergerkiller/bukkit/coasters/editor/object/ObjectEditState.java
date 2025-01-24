@@ -92,6 +92,7 @@ public class ObjectEditState {
         this.editState.markChanged();
 
         Iterator<ObjectEditTrackObject> iter = this.editedTrackObjects.values().iterator();
+        Set<TrackConnection> updatedConnections = new HashSet<>();
         while (iter.hasNext()) {
             ObjectEditTrackObject editObject = iter.next();
             if (CommonUtil.callEvent(new CoasterBeforeChangeTrackObjectEvent(getPlayer(), editObject.connection, editObject.object)).isCancelled()) {
@@ -104,7 +105,9 @@ public class ObjectEditState {
                 continue;
             }
             editObject.object.setType(editObject.connection, type);
+            updatedConnections.add(editObject.connection);
         }
+        updatedConnections.forEach(c -> c.saveObjectsToAnimationStates(this.editState.getSelectedAnimation()));
     }
 
     /**
