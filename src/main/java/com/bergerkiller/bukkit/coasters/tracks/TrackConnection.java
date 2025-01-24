@@ -1,7 +1,9 @@
 package com.bergerkiller.bukkit.coasters.tracks;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 
 import org.bukkit.util.Vector;
@@ -224,8 +226,69 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
      * @param connectionObjects TrackConnectionState with objects to set
      */
     public void setAllObjects(TrackConnectionState connectionObjects) {
-        this.clearObjects();
-        this.addAllObjects(connectionObjects);
+        if (!connectionObjects.hasObjects()) {
+            this.clearObjects();
+            return;
+        }
+
+        int numExpectedObjects = connectionObjects.getObjects().size();
+        List<TrackObject> expectedObjects = new ArrayList<>(numExpectedObjects);
+        List<TrackObject> updatedObjects = new ArrayList<>(numExpectedObjects);
+        List<TrackObject> removedObjects = new ArrayList<>(Arrays.asList(this.objects));
+
+        // Identify the track objects that must exist as part of the connection state
+        if (connectionObjects.isSameFlipped(this)) {
+            for (TrackObject object : connectionObjects.getObjects()) {
+                expectedObjects.add(object.cloneFlipEnds(this));
+            }
+        } else {
+            for (TrackObject object : connectionObjects.getObjects()) {
+                expectedObjects.add(object.clone());
+            }
+        }
+
+        // Go by previous track objects. If they are 100% identical with one of the expected objects,
+        // undo removal and keep it as an updated unchanged object.
+        for (Iterator<TrackObject> remIter = removedObjects.iterator(); remIter.hasNext();) {
+            TrackObject removed = remIter.next();
+            for (Iterator<TrackObject> expectedIter = expectedObjects.iterator(); expectedIter.hasNext();) {
+                TrackObject expected = expectedIter.next();
+                if (Math.abs(removed.getDistance() - expected.getDistance()) < 1e-8 && removed.getType().equals(expected.getType())) {
+                    updatedObjects.add(removed);
+                    remIter.remove();
+                    expectedIter.remove();
+                    break;
+                }
+            }
+        }
+
+        // Go by previous track objects. If they are positioned at the exact same position, update the type in place
+        // This causes a 'swap' of the represented object display
+        for (Iterator<TrackObject> remIter = removedObjects.iterator(); remIter.hasNext();) {
+            TrackObject removed = remIter.next();
+            for (Iterator<TrackObject> expectedIter = expectedObjects.iterator(); expectedIter.hasNext();) {
+                TrackObject expected = expectedIter.next();
+                if (Math.abs(removed.getDistance() - expected.getDistance()) < 1e-8) {
+                    removed.setType(this, expected.getType());
+                    updatedObjects.add(removed);
+                    remIter.remove();
+                    expectedIter.remove();
+                    break;
+                }
+            }
+        }
+
+        // For all remaining removed objects, remove them officially
+        removedObjects.forEach(o -> o.onRemoved(this));
+
+        // For all remaining expected objects, add them as they are
+        updatedObjects.addAll(expectedObjects);
+
+        // Update objects array, then fire onAdded for newly added objects
+        // Fire markChanged() all the time, this stuff is too dynamic to safely test for changes
+        this.objects = updatedObjects.toArray(TrackObject.EMPTY);
+        this.markChanged();
+        expectedObjects.forEach(newlyAdded -> newlyAdded.onAdded(this));
     }
 
     /**
