@@ -215,6 +215,20 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
     }
 
     /**
+     * Updates, removes and/or adds track objects to synchronize it with the objects
+     * stored in a connection state. A clone of the objects is
+     * created to guarantee the immutability of the track connection state.
+     * If the track object occupies the exact same position and width, an attempt
+     * is made to update the existing object instead of deleting and re-adding it.
+     *
+     * @param connectionObjects TrackConnectionState with objects to set
+     */
+    public void setAllObjects(TrackConnectionState connectionObjects) {
+        this.clearObjects();
+        this.addAllObjects(connectionObjects);
+    }
+
+    /**
      * Adds multiple track objects at once
      *
      * @param objects
@@ -295,6 +309,20 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
             }
         }
         return false;
+    }
+
+    /**
+     * Removes all objects that exist for this connection
+     */
+    public void clearObjects() {
+        TrackObject[] objects = this.objects;
+        if (objects.length > 0) {
+            this.objects = TrackObject.EMPTY;
+            this.markChanged();
+            for (TrackObject object : objects) {
+                object.onRemoved(this);
+            }
+        }
     }
 
     /**

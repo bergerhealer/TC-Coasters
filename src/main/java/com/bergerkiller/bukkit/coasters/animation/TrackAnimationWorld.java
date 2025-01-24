@@ -98,9 +98,13 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
                 // Set to target
                 anim.node.setState(anim.target);
 
-                // Delete all connections that have existed for this node
+                // Delete all connections that have existed for this node that no longer exist
                 if (anim.connections != null) {
-                    getWorld().getTracks().disconnectAll(anim.node, false);
+                    for (TrackConnection connection : anim.node.getConnections()) {
+                        if (!anim.shouldKeepConnection(connection)) {
+                            connection.remove();
+                        }
+                    }
                 }
             } else {
                 // Update using lerp
@@ -147,7 +151,7 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
         try {
             for (Map.Entry<TrackConnection, TrackConnectionState> addedConnection : _finishedConnections.entrySet()) {
                 addedConnection.getKey().onShapeUpdated();
-                addedConnection.getKey().addAllObjects(addedConnection.getValue());
+                addedConnection.getKey().setAllObjects(addedConnection.getValue());
             }
         } finally {
             _finishedConnections.clear();
