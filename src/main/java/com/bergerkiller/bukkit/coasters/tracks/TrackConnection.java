@@ -253,7 +253,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
             TrackObject removed = remIter.next();
             for (Iterator<TrackObject> expectedIter = expectedObjects.iterator(); expectedIter.hasNext();) {
                 TrackObject expected = expectedIter.next();
-                if (Math.abs(removed.getDistance() - expected.getDistance()) < 1e-8 && removed.getType().equals(expected.getType())) {
+                if (removed.isSamePositionAs(expected) && removed.getType().equals(expected.getType())) {
                     updatedObjects.add(removed);
                     remIter.remove();
                     expectedIter.remove();
@@ -268,7 +268,7 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
             TrackObject removed = remIter.next();
             for (Iterator<TrackObject> expectedIter = expectedObjects.iterator(); expectedIter.hasNext();) {
                 TrackObject expected = expectedIter.next();
-                if (Math.abs(removed.getDistance() - expected.getDistance()) < 1e-8) {
+                if (removed.isSamePositionAs(expected)) {
                     removed.setType(this, expected.getType());
                     updatedObjects.add(removed);
                     remIter.remove();
