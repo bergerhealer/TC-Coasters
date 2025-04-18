@@ -9,6 +9,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -62,6 +63,7 @@ import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import com.bergerkiller.bukkit.tc.controller.components.RailState;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
+import com.bergerkiller.bukkit.tc.Util;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.TreeMultimap;
 
@@ -95,7 +97,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     private BlockFace targetedBlockFace = BlockFace.UP;
     private String selectedAnimation = null;
     private HistoryChange draggingCreateNewNodeChange = null; // used when player left-clicks while dragging a node
-    private double particleViewRange = TCCoasters.DEFAULT_PARTICLE_VIEW_RANGE; // Default particle view range
+    private Optional<Integer> particleViewRangeOverride = Optional.empty(); 
 
     public PlayerEditState(TCCoasters plugin, Player player) {
         this.plugin = plugin;
@@ -105,7 +107,6 @@ public class PlayerEditState implements CoasterWorldComponent {
         this.clipboard = new PlayerEditClipboard(this);
         this.objectState = new ObjectEditState(this);
         this.signState = new SignEditState(this);
-        this.particleViewRange = plugin.getParticleViewRange();
     }
 
     /**
@@ -129,7 +130,7 @@ public class PlayerEditState implements CoasterWorldComponent {
 
             this.editMode = config.get("mode", PlayerEditMode.DISABLED);
             this.selectedAnimation = config.get("selectedAnimation", String.class, null);
-            this.particleViewRange = config.get("particleViewRange", plugin.getParticleViewRange());
+            this.particleViewRangeOverride = Util.getConfigOptional(config, "particleViewRange", Integer.class);
             this.getObjects().load(config);
             this.editedNodes.clear();
             this.editedNodesByAnimationName.clear();
@@ -182,7 +183,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         } else {
             config.set("selectedAnimation", this.selectedAnimation);
         }
-        config.set("particleViewRange", this.particleViewRange);
+        Util.setConfigOptional(config, "particleViewRange", this.particleViewRangeOverride);
         this.getObjects().save(config);
         config.save();
     }
@@ -1867,18 +1868,19 @@ public class PlayerEditState implements CoasterWorldComponent {
      * 
      * @return particle view range for this player
      */
-    public double getParticleViewRange() {
-        return this.particleViewRange;
+    public int getParticleViewRange() {
+        return particleViewRangeOverride.isPresent() ? particleViewRangeOverride.get() : plugin.getParticleViewRange();
     }
 
     /**
-     * Sets the player-specific particle view range
+     * Sets the player-specific particle view range override
      * 
-     * @param range particle view range to set
+     * @param range particle view range to set, or null to use the global default
      */
-    public void setParticleViewRange(double range) {
-        if (this.particleViewRange != range) {
-            this.particleViewRange = range;
+    public void setParticleViewRangeOverride(Integer range) {
+        Optional<Integer> newValue = Optional.ofNullable(range);
+        if (!this.particleViewRangeOverride.equals(newValue)) {
+            this.particleViewRangeOverride = newValue;
             this.markChanged();
             
             // Update particles for this player
