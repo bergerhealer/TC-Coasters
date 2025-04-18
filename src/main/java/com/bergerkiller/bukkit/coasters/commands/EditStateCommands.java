@@ -526,14 +526,14 @@ class EditStateCommands {
             final PlayerEditState state,
             final CommandSender sender,
             final TCCoasters plugin,
-            final @Argument("range") double range
+            final @Argument("range") int range
     ) {
         if (range < 0) {
             sender.sendMessage(ChatColor.RED + "Particle view range must be greater than or equal to 0");
             return;
         }
-        double oldRange = state.getParticleViewRange();
-        state.setParticleViewRange(range);
+        int oldRange = state.getParticleViewRange();
+        state.setParticleViewRangeOverride(range);
         sender.sendMessage(ChatColor.YELLOW + "Particle view range set to " + ChatColor.WHITE + range + 
                            ChatColor.YELLOW + " (was " + ChatColor.WHITE + oldRange + ChatColor.YELLOW + ")");
     }
@@ -546,8 +546,8 @@ class EditStateCommands {
             final CommandSender sender,
             final TCCoasters plugin
     ) {
-        double oldRange = state.getParticleViewRange();
-        state.setParticleViewRange(plugin.getParticleViewRange());
+        int oldRange = state.getParticleViewRange();
+        state.setParticleViewRangeOverride(null);
         sender.sendMessage(ChatColor.YELLOW + "Particle view range reset to default " + ChatColor.WHITE + plugin.getParticleViewRange() +
                            ChatColor.YELLOW + " (was " + ChatColor.WHITE + oldRange + ChatColor.YELLOW + ")");
     }
