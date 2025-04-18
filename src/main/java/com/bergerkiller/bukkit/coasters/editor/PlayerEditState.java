@@ -95,6 +95,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     private BlockFace targetedBlockFace = BlockFace.UP;
     private String selectedAnimation = null;
     private HistoryChange draggingCreateNewNodeChange = null; // used when player left-clicks while dragging a node
+    private double particleViewRange = TCCoasters.DEFAULT_PARTICLE_VIEW_RANGE; // Default particle view range
 
     public PlayerEditState(TCCoasters plugin, Player player) {
         this.plugin = plugin;
@@ -104,6 +105,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         this.clipboard = new PlayerEditClipboard(this);
         this.objectState = new ObjectEditState(this);
         this.signState = new SignEditState(this);
+        this.particleViewRange = plugin.getParticleViewRange();
     }
 
     /**
@@ -127,6 +129,7 @@ public class PlayerEditState implements CoasterWorldComponent {
 
             this.editMode = config.get("mode", PlayerEditMode.DISABLED);
             this.selectedAnimation = config.get("selectedAnimation", String.class, null);
+            this.particleViewRange = config.get("particleViewRange", plugin.getParticleViewRange());
             this.getObjects().load(config);
             this.editedNodes.clear();
             this.editedNodesByAnimationName.clear();
@@ -179,6 +182,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         } else {
             config.set("selectedAnimation", this.selectedAnimation);
         }
+        config.set("particleViewRange", this.particleViewRange);
         this.getObjects().save(config);
         config.save();
     }
@@ -1856,6 +1860,30 @@ public class PlayerEditState implements CoasterWorldComponent {
      */
     private void removeConnectionForAnimationStates(TrackNode node, TrackNodeReference target) {
         node.removeAnimationStateConnection(this.selectedAnimation, target);
+    }
+
+    /**
+     * Gets the player-specific particle view range
+     * 
+     * @return particle view range for this player
+     */
+    public double getParticleViewRange() {
+        return this.particleViewRange;
+    }
+
+    /**
+     * Sets the player-specific particle view range
+     * 
+     * @param range particle view range to set
+     */
+    public void setParticleViewRange(double range) {
+        if (this.particleViewRange != range) {
+            this.particleViewRange = range;
+            this.markChanged();
+            
+            // Update particles for this player
+            getWorld().getParticles().scheduleViewerUpdate(this.player);
+        }
     }
 
     /**
