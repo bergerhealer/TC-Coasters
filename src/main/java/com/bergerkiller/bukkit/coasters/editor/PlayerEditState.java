@@ -1869,7 +1869,7 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @return particle view range for this player
      */
     public int getParticleViewRange() {
-        return particleViewRangeOverride.isPresent() ? particleViewRangeOverride.get() : plugin.getParticleViewRange();
+        return particleViewRangeOverride.orElse(plugin.getParticleViewRange());
     }
 
     /**
