@@ -239,7 +239,10 @@ public class TrackParticleWorld implements CoasterWorldComponent {
             // This uses the octree to do so efficiently
             Integer updateObject = Integer.valueOf(this.updateCtr++);
             viewed.block = viewerBlock;
-            int cuboid_range = this.getPlugin().getParticleViewRange();
+            int cuboid_range = this.getPlugin().getEditState(viewer).getParticleViewRange();
+            if (cuboid_range < 0) {
+                cuboid_range = this.getPlugin().getParticleViewRange();
+            }
             int maxParticles = this.getPlugin().getMaximumParticleCount();
             IntVector3 range_min = viewerBlock.subtract(cuboid_range, cuboid_range, cuboid_range);
             IntVector3 range_max = viewerBlock.add(cuboid_range, cuboid_range, cuboid_range);

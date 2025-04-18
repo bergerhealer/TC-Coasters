@@ -518,4 +518,37 @@ class EditStateCommands {
             sender.sendMessage(ChatColor.YELLOW + "Right-click drag menu control is now " + ChatColor.RED + "DISABLED");
         }
     }
+
+    @CommandRequiresTCCPermission
+    @Command("option particleviewrange <range>")
+    @CommandDescription("Sets the particle view range for yourself")
+    public void commandOptionViewRange(
+            final PlayerEditState state,
+            final CommandSender sender,
+            final TCCoasters plugin,
+            final @Argument("range") double range
+    ) {
+        if (range < 0) {
+            sender.sendMessage(ChatColor.RED + "Particle view range must be greater than or equal to 0");
+            return;
+        }
+        double oldRange = state.getParticleViewRange();
+        state.setParticleViewRange(range);
+        sender.sendMessage(ChatColor.YELLOW + "Particle view range set to " + ChatColor.WHITE + range + 
+                           ChatColor.YELLOW + " (was " + ChatColor.WHITE + oldRange + ChatColor.YELLOW + ")");
+    }
+
+    @CommandRequiresTCCPermission
+    @Command("option particleviewrange reset")
+    @CommandDescription("Resets your particle view range to the default")
+    public void commandOptionViewRangeReset(
+            final PlayerEditState state,
+            final CommandSender sender,
+            final TCCoasters plugin
+    ) {
+        double oldRange = state.getParticleViewRange();
+        state.setParticleViewRange(plugin.getParticleViewRange());
+        sender.sendMessage(ChatColor.YELLOW + "Particle view range reset to default " + ChatColor.WHITE + plugin.getParticleViewRange() +
+                           ChatColor.YELLOW + " (was " + ChatColor.WHITE + oldRange + ChatColor.YELLOW + ")");
+    }
 }
