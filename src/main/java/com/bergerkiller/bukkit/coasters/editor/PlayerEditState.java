@@ -17,7 +17,6 @@ import java.util.stream.Collectors;
 
 import com.bergerkiller.bukkit.coasters.editor.object.ui.BlockSelectMenu;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
-import com.bergerkiller.bukkit.tc.attachments.config.AttachmentConfig;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -1870,6 +1869,16 @@ public class PlayerEditState implements CoasterWorldComponent {
      */
     public int getParticleViewRange() {
         return particleViewRangeOverride.orElse(plugin.getParticleViewRange());
+    }
+
+    /**
+     * Gets whether a custom particle view range is set
+     *
+     * @return True if set
+     * @see #setParticleViewRangeOverride(Integer) 
+     */
+    public boolean isParticleViewRangeOverridden() {
+        return particleViewRangeOverride.isPresent();
     }
 
     /**

@@ -519,10 +519,32 @@ class EditStateCommands {
         }
     }
 
-    @CommandRequiresTCCPermission
+    @org.incendo.cloud.annotations.Permission("train.coasters.customviewrange")
+    @Command("option particleviewrange")
+    @CommandDescription("Gets the particle view range set for yourself")
+    public void commandOptionViewRangeGet(
+            final PlayerEditState state,
+            final CommandSender sender,
+            final TCCoasters plugin
+    ) {
+        if (state.isParticleViewRangeOverridden()) {
+            sender.sendMessage(ChatColor.YELLOW + "Particle view range is set to " +
+                    ChatColor.WHITE + state.getParticleViewRange());
+        } else {
+            sender.sendMessage(ChatColor.YELLOW + "Particle view range is set to the default " +
+                    ChatColor.WHITE + state.getParticleViewRange());
+        }
+        ChatText.fromMessage(ChatColor.YELLOW + "Use ")
+                .append(ChatText.fromMessage(ChatColor.WHITE + "/tcc option particleviewrange <value>")
+                        .setClickableSuggestedCommand("/tcc option particleviewrange "))
+                .append(ChatColor.YELLOW + " to change it")
+                .sendTo(sender);
+    }
+
+    @org.incendo.cloud.annotations.Permission("train.coasters.customviewrange")
     @Command("option particleviewrange <range>")
     @CommandDescription("Sets the particle view range for yourself")
-    public void commandOptionViewRange(
+    public void commandOptionViewRangeSet(
             final PlayerEditState state,
             final CommandSender sender,
             final TCCoasters plugin,
@@ -532,13 +554,20 @@ class EditStateCommands {
             sender.sendMessage(ChatColor.RED + "Particle view range must be greater than or equal to 0");
             return;
         }
+
+        int safeRange = range;
+        if (safeRange > plugin.getMaximumParticleViewRange()) {
+            safeRange = plugin.getMaximumParticleViewRange();
+            sender.sendMessage(ChatColor.RED + "Range of " + range + " is too high and has been limited " +
+                    "(maximum: " + plugin.getMaximumParticleViewRange() + ")");
+        }
         int oldRange = state.getParticleViewRange();
-        state.setParticleViewRangeOverride(range);
-        sender.sendMessage(ChatColor.YELLOW + "Particle view range set to " + ChatColor.WHITE + range + 
+        state.setParticleViewRangeOverride(safeRange);
+        sender.sendMessage(ChatColor.YELLOW + "Particle view range set to " + ChatColor.WHITE + safeRange +
                            ChatColor.YELLOW + " (was " + ChatColor.WHITE + oldRange + ChatColor.YELLOW + ")");
     }
 
-    @CommandRequiresTCCPermission
+    @org.incendo.cloud.annotations.Permission("train.coasters.customviewrange")
     @Command("option particleviewrange reset")
     @CommandDescription("Resets your particle view range to the default")
     public void commandOptionViewRangeReset(

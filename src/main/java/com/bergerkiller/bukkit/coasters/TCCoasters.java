@@ -85,6 +85,7 @@ public class TCCoasters extends PluginBase {
     private double smoothness = DEFAULT_SMOOTHNESS;
     private boolean glowingSelections = DEFAULT_GLOWING_SELECTIONS;
     private int particleViewRange = DEFAULT_PARTICLE_VIEW_RANGE;
+    private int maximumParticleViewRange = DEFAULT_PARTICLE_VIEW_RANGE;
     private int maximumParticleCount = DEFAULT_MAXIMUM_PARTICLE_COUNT;
     private boolean maximumParticleWarning = DEFAULT_MAXIMUM_PARTICLE_WARNING;
     private boolean plotSquaredEnabled = DEFAULT_PLOTSQUARED_ENABLED;
@@ -365,13 +366,24 @@ public class TCCoasters extends PluginBase {
     }
 
     /**
-     * Gets the particle view range. Players can see particles when
-     * below this distance away from a particle.
+     * Gets the default particle view range. Players can see particles when
+     * below this distance away from a particle. Players can set a different
+     * view range for themselves too, so this is a default/initial value.
      * 
      * @return particle view range
      */
     public int getParticleViewRange() {
         return this.particleViewRange;
+    }
+
+    /**
+     * Gets the maximum particle view range players can set for themselves.
+     *
+     * @return maximum particle view range
+     * @see #getParticleViewRange()
+     */
+    public int getMaximumParticleViewRange() {
+        return this.maximumParticleViewRange;
     }
 
     /**
@@ -434,9 +446,12 @@ public class TCCoasters extends PluginBase {
         config.setHeader("hastebinServer", "\nThe hastebin server which is used to upload coaster tracks");
         config.addHeader("hastebinServer", "This will be used when using the /tcc export command");
         this.hastebin.setServer(config.get("hastebinServer", "https://paste.traincarts.net"));
-        config.setHeader("particleViewRange", "\nMaximum block distance away from particles where players can see them");
+        config.setHeader("particleViewRange", "\nMaximum block distance away from particles where players can see them by default");
         config.addHeader("particleViewRange", "Lowering this range may help reduce lag in the client if a lot of particles are displayed");
+        config.addHeader("particleViewRange", "Players can change this default value for themselves using /tcc option particleviewrange");
         this.particleViewRange = config.get("particleViewRange", DEFAULT_PARTICLE_VIEW_RANGE);
+        config.setHeader("maximumParticleViewRange", "\nMaximum value for particleViewRange players can set using /tcc option particleviewrange");
+        this.maximumParticleViewRange = config.get("maximumParticleViewRange", this.particleViewRange);
         config.setHeader("maximumParticleCount", "\nMaximum number of particles that can be visible to a player at one time");
         config.addHeader("maximumParticleCount", "When more particles are visible than this, the player sees a warning, and some particles are hidden");
         config.addHeader("maximumParticleCount", "This can be used to prevent a total lag-out of the client when accidentally creating a lot of track");
