@@ -5,6 +5,7 @@ import com.bergerkiller.bukkit.coasters.util.VirtualDisplayEntity;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
+import com.bergerkiller.bukkit.common.wrappers.Brightness;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
@@ -17,7 +18,8 @@ public class TrackParticleDisplayItem extends TrackParticle {
     protected static final int FLAG_TRANSFORM_CHANGED = (1<<3);
     protected static final int FLAG_ITEM_CHANGED      = (1<<4);
     protected static final int FLAG_CLIP_CHANGED      = (1<<5);
-    protected static final int FLAG_LARGE_CHANGES     = (1<<6);
+    protected static final int FLAG_BRIGHTNESS_CHANGED = (1<<6);
+    protected static final int FLAG_LARGE_CHANGES     = (1<<7);
 
     private static final QueuedTask<TrackParticleDisplayItem> DESPAWN_HOLDER_TASK = QueuedTask.create(
             100, TrackParticle::isAdded, TrackParticleDisplayItem::destroyHolderEntity);
@@ -25,15 +27,17 @@ public class TrackParticleDisplayItem extends TrackParticle {
     private DoubleOctree.Entry<TrackParticle> position;
     private final Quaternion orientation;
     private double clip;
+    private Brightness brightness;
     private final Vector size;
     private ItemStack item;
     private int holderEntityId = -1;
     private int entityId = -1;
 
-    protected TrackParticleDisplayItem(Vector position, Quaternion orientation, double clip, Vector size, ItemStack item) {
+    protected TrackParticleDisplayItem(Vector position, Quaternion orientation, double clip, Brightness brightness, Vector size, ItemStack item) {
         this.position = DoubleOctree.Entry.create(position, this);
         this.orientation = orientation.clone();
         this.clip = clip;
+        this.brightness = brightness;
         this.size = size.clone();
         this.item = item;
     }
@@ -61,6 +65,14 @@ public class TrackParticleDisplayItem extends TrackParticle {
         if (this.clip != clip) {
             this.clip = clip;
             this.setFlag(FLAG_CLIP_CHANGED);
+            this.scheduleUpdateAppearance();
+        }
+    }
+
+    public void setBrightness(Brightness brightness) {
+        if (this.brightness != brightness) {
+            this.brightness = brightness;
+            this.setFlag(FLAG_BRIGHTNESS_CHANGED);
             this.scheduleUpdateAppearance();
         }
     }
@@ -105,6 +117,7 @@ public class TrackParticleDisplayItem extends TrackParticle {
                 .orientation(this.orientation)
                 .clip(this.clip)
                 .scale(this.size)
+                .brightness(this.brightness)
                 .item(this.item)
                 .glowing(state == TrackParticleState.SELECTED)
                 .spawn(viewer);
@@ -156,6 +169,11 @@ public class TrackParticleDisplayItem extends TrackParticle {
             VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId)
                     .clip(this.clip)
                     .scale(this.size) // Needed for calculations
+                    .updateMetadata(this.getViewers());
+        }
+        if (this.clearFlag(FLAG_BRIGHTNESS_CHANGED) && this.entityId != -1) {
+            VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId)
+                    .brightness(this.brightness)
                     .updateMetadata(this.getViewers());
         }
     }

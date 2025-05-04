@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
+import com.bergerkiller.bukkit.common.wrappers.Brightness;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -63,12 +64,12 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         return addParticle(new TrackParticleArmorStandItem(position, orientation, item));
     }
 
-    public TrackParticleDisplayItem addParticleDisplayItem(Vector position, Quaternion orientation, double clip, Vector size, ItemStack item) {
-        return addParticle(new TrackParticleDisplayItem(position, orientation, clip, size, item));
+    public TrackParticleDisplayItem addParticleDisplayItem(Vector position, Quaternion orientation, double clip, Brightness brightness, Vector size, ItemStack item) {
+        return addParticle(new TrackParticleDisplayItem(position, orientation, clip, brightness, size, item));
     }
 
-    public TrackParticleDisplayBlock addParticleDisplayBlock(Vector position, Quaternion orientation, double clip, Vector size, BlockData blockData) {
-        return addParticle(new TrackParticleDisplayBlock(position, orientation, clip, size, blockData));
+    public TrackParticleDisplayBlock addParticleDisplayBlock(Vector position, Quaternion orientation, double clip, Brightness brightness, Vector size, BlockData blockData) {
+        return addParticle(new TrackParticleDisplayBlock(position, orientation, clip, brightness, size, blockData));
     }
 
     public TrackParticleText addParticleTextNoItem(Vector position, String text) {

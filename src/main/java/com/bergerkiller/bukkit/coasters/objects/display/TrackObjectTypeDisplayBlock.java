@@ -19,6 +19,7 @@ import com.bergerkiller.bukkit.common.math.Vector3;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
+import com.bergerkiller.bukkit.common.wrappers.Brightness;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
@@ -32,25 +33,27 @@ public class TrackObjectTypeDisplayBlock implements TrackObjectTypeDisplay<Track
     private final Matrix4x4 transform;
     private final BlockData blockData;
     private final double clip;
+    private final Brightness brightness;
     private final Vector size;
 
-    private TrackObjectTypeDisplayBlock(double width, Matrix4x4 transform, double clip, Vector size, BlockData blockData) {
+    private TrackObjectTypeDisplayBlock(double width, Matrix4x4 transform, double clip, Brightness brightness, Vector size, BlockData blockData) {
         if (blockData == null) {
             throw new IllegalArgumentException("Block can not be null");
         }
         this.width = width;
         this.transform = transform;
         this.clip = clip;
+        this.brightness = brightness;
         this.size = size;
         this.blockData = blockData;
     }
 
-    public static TrackObjectTypeDisplayBlock create(double width, double clip, Vector size, BlockData blockData) {
-        return new TrackObjectTypeDisplayBlock(width, null, clip, size, blockData);
+    public static TrackObjectTypeDisplayBlock create(double width, double clip, Brightness brightness, Vector size, BlockData blockData) {
+        return new TrackObjectTypeDisplayBlock(width, null, clip, brightness, size, blockData);
     }
 
     public static TrackObjectTypeDisplayBlock createDefault() {
-        return create(0.0, 0.0, new Vector(1.0, 1.0, 1.0),
+        return create(0.0, 0.0, Brightness.UNSET, new Vector(1.0, 1.0, 1.0),
                 BlockData.fromMaterial(MaterialUtil.getFirst("OAK_PLANKS", "LEGACY_WOOD")));
     }
 
@@ -66,7 +69,7 @@ public class TrackObjectTypeDisplayBlock implements TrackObjectTypeDisplay<Track
 
     @Override
     public TrackObjectTypeDisplayBlock setWidth(double width) {
-        return new TrackObjectTypeDisplayBlock(width, this.transform, this.clip, this.size, this.blockData);
+        return new TrackObjectTypeDisplayBlock(width, this.transform, this.clip, this.brightness, this.size, this.blockData);
     }
 
     @Override
@@ -76,7 +79,7 @@ public class TrackObjectTypeDisplayBlock implements TrackObjectTypeDisplay<Track
 
     @Override
     public TrackObjectTypeDisplayBlock setTransform(Matrix4x4 transform) {
-        return new TrackObjectTypeDisplayBlock(this.width, transform, this.clip, this.size, this.blockData);
+        return new TrackObjectTypeDisplayBlock(this.width, transform, this.clip, this.brightness, this.size, this.blockData);
     }
 
     @Override
@@ -86,7 +89,7 @@ public class TrackObjectTypeDisplayBlock implements TrackObjectTypeDisplay<Track
 
     @Override
     public TrackObjectTypeDisplayBlock setBlockData(BlockData blockData) {
-        return new TrackObjectTypeDisplayBlock(this.width, this.transform, this.clip, this.size, blockData);
+        return new TrackObjectTypeDisplayBlock(this.width, this.transform, this.clip, this.brightness, this.size, blockData);
     }
 
     @Override
@@ -96,7 +99,17 @@ public class TrackObjectTypeDisplayBlock implements TrackObjectTypeDisplay<Track
 
     @Override
     public TrackObjectTypeDisplayBlock setClip(double clip) {
-        return new TrackObjectTypeDisplayBlock(this.width, this.transform, clip, this.size, this.blockData);
+        return new TrackObjectTypeDisplayBlock(this.width, this.transform, clip, this.brightness, this.size, this.blockData);
+    }
+
+    @Override
+    public Brightness getBrightness() {
+        return brightness;
+    }
+
+    @Override
+    public TrackObjectTypeDisplayBlock setBrightness(Brightness brightness) {
+        return new TrackObjectTypeDisplayBlock(this.width, this.transform, this.clip, brightness, this.size, this.blockData);
     }
 
     @Override
@@ -106,7 +119,7 @@ public class TrackObjectTypeDisplayBlock implements TrackObjectTypeDisplay<Track
 
     @Override
     public TrackObjectTypeDisplayBlock setSize(Vector size) {
-        return new TrackObjectTypeDisplayBlock(this.width, this.transform, this.clip, size, this.blockData);
+        return new TrackObjectTypeDisplayBlock(this.width, this.transform, this.clip, this.brightness, size, this.blockData);
     }
 
     @Override
@@ -117,7 +130,7 @@ public class TrackObjectTypeDisplayBlock implements TrackObjectTypeDisplay<Track
     @Override
     public TrackParticleDisplayBlock createParticle(TrackConnection.PointOnPath point) {
         TrackParticleDisplayBlock particle = point.getWorld().getParticles().addParticleDisplayBlock(
-                point.position, point.orientation, this.clip, this.size, this.blockData);
+                point.position, point.orientation, this.clip, this.brightness, this.size, this.blockData);
         particle.setAlwaysVisible(true);
         return particle;
     }
@@ -126,6 +139,7 @@ public class TrackObjectTypeDisplayBlock implements TrackObjectTypeDisplay<Track
     public void updateParticle(TrackParticleDisplayBlock particle, TrackConnection.PointOnPath point) {
         particle.setPositionOrientation(point.position, point.orientation);
         particle.setClip(this.clip);
+        particle.setBrightness(this.brightness);
         particle.setSize(this.size);
         particle.setBlockData(this.blockData);
     }
@@ -176,6 +190,7 @@ public class TrackObjectTypeDisplayBlock implements TrackObjectTypeDisplay<Track
             return this.blockData == other.blockData &&
                    this.width == other.width &&
                    this.clip == other.clip &&
+                   this.brightness == other.brightness &&
                    this.size.equals(other.size) &&
                    LogicUtil.bothNullOrEqual(this.transform, other.transform);
         } else {
@@ -211,6 +226,7 @@ public class TrackObjectTypeDisplayBlock implements TrackObjectTypeDisplay<Track
 
             // Read additional display properties, keyed by name
             double clip = 0.0;
+            Brightness brightness = Brightness.UNSET;
             Vector size = new Vector(1.0, 1.0, 1.0);
             while (buffer.hasNext()) {
                 String propKey = buffer.next();
@@ -218,10 +234,12 @@ public class TrackObjectTypeDisplayBlock implements TrackObjectTypeDisplay<Track
                     clip = buffer.nextDouble();
                 } else if (propKey.equals("SIZE")) {
                     size = buffer.nextVector();
+                } else if (propKey.equals("BRIGHTNESS")) {
+                    brightness = buffer.nextBrightness();
                 }
             }
 
-            return TrackObjectTypeDisplayBlock.create(this.width, clip, size, blockData);
+            return TrackObjectTypeDisplayBlock.create(this.width, clip, brightness, size, blockData);
         }
 
         @Override
@@ -237,6 +255,10 @@ public class TrackObjectTypeDisplayBlock implements TrackObjectTypeDisplay<Track
             ) {
                 buffer.put("SIZE");
                 buffer.putVector(objectType.getSize());
+            }
+            if (objectType.getBrightness() != Brightness.UNSET) {
+                buffer.put("BRIGHTNESS");
+                buffer.putBrightness(objectType.getBrightness());
             }
         }
     }

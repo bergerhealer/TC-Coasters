@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
+import com.bergerkiller.bukkit.common.wrappers.Brightness;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
@@ -125,6 +126,24 @@ public class StringArrayBuffer implements Iterator<String> {
      */
     public void skipNext(int numberOfValues) {
         this.index += numberOfValues;
+    }
+
+    /**
+     * Sets the next Brightness value. Encodes it as string "UNSET" if unset, or as
+     * two hexadecimal values for blocklight and skylight.
+     *
+     * @param brightness Brightness value
+     * @see #nextBrightness()
+     */
+    public void putBrightness(Brightness brightness) {
+        if (brightness == Brightness.UNSET) {
+            put("UNSET");
+        } else {
+            StringBuilder str = new StringBuilder(2);
+            str.append(Character.forDigit(brightness.blockLight(), 16));
+            str.append(Character.forDigit(brightness.skyLight(), 16));
+            put(str.toString());
+        }
     }
 
     /**
@@ -318,6 +337,33 @@ public class StringArrayBuffer implements Iterator<String> {
         } catch (NumberFormatException ex) {
             throw createSyntaxException("Value is not a number: " + value);
         }
+    }
+
+    /**
+     * Gets the next brightness value. This is a combination of two hexadecimal
+     * numbers for blocklight and skylight respectively. If unset, stores string
+     * "UNSET".
+     *
+     * @return Brightness value
+     * @throws SyntaxException
+     */
+    public Brightness nextBrightness() throws SyntaxException {
+        String value = next();
+        if (value.isEmpty()) {
+            throw createSyntaxException("Empty value, brightness expected");
+        } else if (value.equals("-1") || value.equalsIgnoreCase("unset")) {
+            return Brightness.UNSET;
+        } else if (value.length() != 2) {
+            throw createSyntaxException("Invalid brightness value: " + value);
+        }
+
+        int blockLight = Character.digit(value.charAt(0), 16);
+        int skyLight = Character.digit(value.charAt(1), 16);
+        if (blockLight == -1 || skyLight == -1) {
+            throw createSyntaxException("Invalid brightness value: " + value);
+        }
+
+        return Brightness.blockAndSkyLight(blockLight, skyLight);
     }
 
     /**

@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.objects.display;
 
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
+import com.bergerkiller.bukkit.common.wrappers.Brightness;
 import org.bukkit.util.Vector;
 
 /**
@@ -24,6 +25,23 @@ public interface TrackObjectTypeDisplay<P extends TrackParticle> extends TrackOb
      * @return copy of this type with the clip changed
      */
     TrackObjectTypeDisplay<P> setClip(double clip);
+
+    /**
+     * Gets the amount of brightness this display entity has. This adds a 'glow' kind of effect.
+     * If unset, uses the light level where the entity is at.
+     *
+     * @return Brightness
+     */
+    Brightness getBrightness();
+
+    /**
+     * Creates a copy of this type with brightness updated. This adds a 'glow' kind of effect.
+     * If unset, uses the light level where the entity is at.
+     *
+     * @param brightness Brightness value
+     * @return copy of this type with the brightness changed
+     */
+    TrackObjectTypeDisplay<P> setBrightness(Brightness brightness);
 
     /**
      * Gets the configured Display size

@@ -6,6 +6,7 @@ import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
+import com.bergerkiller.bukkit.common.wrappers.Brightness;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
 import com.bergerkiller.bukkit.common.wrappers.ItemDisplayMode;
 import com.bergerkiller.bukkit.tc.Util;
@@ -43,6 +44,7 @@ public class VirtualDisplayEntity {
     private double posX, posY, posZ;
     private Quaternion orientation;
     private double clip = Double.NaN;
+    private Brightness brightness = null;
     private Vector scale;
     private Boolean glowing = null;
     private final boolean isBlock;
@@ -89,6 +91,11 @@ public class VirtualDisplayEntity {
 
     public VirtualDisplayEntity clip(double clip) {
         this.clip = clip;
+        return this;
+    }
+
+    public VirtualDisplayEntity brightness(Brightness brightness) {
+        this.brightness = brightness;
         return this;
     }
 
@@ -212,6 +219,9 @@ public class VirtualDisplayEntity {
                 this.orientation.transformPoint(v);
                 metadata.set(DisplayHandle.DATA_TRANSLATION, v);
             }
+        }
+        if (brightness != null) {
+            metadata.set(DisplayHandle.DATA_BRIGHTNESS_OVERRIDE, this.brightness);
         }
     }
 
