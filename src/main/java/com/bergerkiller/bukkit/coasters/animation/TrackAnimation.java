@@ -6,6 +6,8 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 
 public class TrackAnimation {
+    /** Name of the animation being played. Can be empty String if omitted. */
+    public final String name;
     public final TrackNode node;
     public final TrackNodeState start;
     public final TrackNodeState target;
@@ -13,7 +15,8 @@ public class TrackAnimation {
     public final int ticks_total;
     public int ticks;
 
-    public TrackAnimation(TrackNode node, TrackNodeState target, TrackConnectionState[] connections, int ticks_total) {
+    public TrackAnimation(String name, TrackNode node, TrackNodeState target, TrackConnectionState[] connections, int ticks_total) {
+        this.name = name;
         this.node = node;
         this.start = node.getState();
         this.target = target;

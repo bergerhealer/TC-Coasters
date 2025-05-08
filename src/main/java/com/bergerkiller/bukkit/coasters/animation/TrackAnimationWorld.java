@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.animation;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -11,6 +12,11 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.bergerkiller.bukkit.coasters.signs.actions.TrackAnimationListener;
+import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
+import com.bergerkiller.bukkit.tc.events.SignActionEvent;
+import com.bergerkiller.bukkit.tc.signactions.SignAction;
+import com.bergerkiller.bukkit.tc.signactions.SignActionType;
 import org.bukkit.util.Vector;
 
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
@@ -48,7 +54,11 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
     }
 
     public void animate(TrackNode node, TrackNodeState target, TrackConnectionState[] connections, double duration) {
-        _animations.put(node, new TrackAnimation(node, target, connections, MathUtil.floor(duration * 20.0)));
+        animate("", node, target, connections, duration);
+    }
+
+    public void animate(String animationName, TrackNode node, TrackNodeState target, TrackConnectionState[] connections, double duration) {
+        _animations.put(node, new TrackAnimation(animationName, node, target, connections, MathUtil.floor(duration * 20.0)));
     }
 
     @Override
@@ -71,6 +81,22 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
                     });
                 }
             }
+        }
+
+        // Toggle up all the levers on all tcc animate signs at the current rail blocks being animated
+        // In case the animation changes these signs later, doing this now avoids stuck-up levers
+        {
+            Map<IntVector3, RailAnimationChangeTracker> railAnimationsStarted = new HashMap<>();
+            for (TrackAnimation anim : _animations.values()) {
+                if (anim.isAtStart()) {
+                    RailAnimationChangeTracker tracker = railAnimationsStarted.computeIfAbsent(
+                            anim.node.getRailBlock(true),
+                            this::initRailAnimationChangeTracker);
+
+                    tracker.add(anim);
+                }
+            }
+            railAnimationsStarted.values().forEach(RailAnimationChangeTracker::fireStarted);
         }
 
         // Run the animations
@@ -120,12 +146,17 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
             }
         }
 
+        // Track finished animations, they can toggle levers on animate signs back down
+        List<TrackAnimation> endedAnimations = new ArrayList<>();
+
         // Create connections at the end of the animations
         Iterator<TrackAnimation> anim_iter;
         anim_iter = _animations.values().iterator();
         while (anim_iter.hasNext()) {
             TrackAnimation anim = anim_iter.next();
             if (anim.isAtEnd()) {
+                endedAnimations.add(anim);
+
                 if (anim.connections != null) {
                     for (TrackConnectionState connection : anim.connections) {
                         //TODO: Why is this even happening?
@@ -222,6 +253,37 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
                 remaining_distance -= dist;
                 p_prev = p;
             }
+        }
+
+        // Fire off sign events after the animations have concluded
+        // Must be done at the very end, because the active signs may have changed after the animation
+        if (!endedAnimations.isEmpty()) {
+            Map<IntVector3, RailAnimationChangeTracker> railAnimationsEnded = new HashMap<>();
+            for (TrackAnimation anim : endedAnimations) {
+                RailAnimationChangeTracker tracker = railAnimationsEnded.computeIfAbsent(
+                        anim.node.getRailBlock(true),
+                        this::initRailAnimationChangeTracker);
+                tracker.add(anim);
+            }
+            railAnimationsEnded.values().forEach(RailAnimationChangeTracker::fireEnded);
+        }
+    }
+
+    private RailAnimationChangeTracker initRailAnimationChangeTracker(IntVector3 rail) {
+        RailPiece railPiece = RailPiece.create(getPlugin().getRailType(), rail.toBlock(getBukkitWorld()));
+        List<RailLookup.TrackedSign> signsWithListeners = Collections.emptyList();
+        for (RailLookup.TrackedSign sign : railPiece.signs()) {
+            if (sign.getAction() instanceof TrackAnimationListener) {
+                if (signsWithListeners.isEmpty()) {
+                    signsWithListeners = new ArrayList<>();
+                }
+                signsWithListeners.add(sign);
+            }
+        }
+        if (signsWithListeners.isEmpty()) {
+            return RailAnimationChangeTracker.INACTIVE;
+        } else {
+            return new RailAnimationChangeTrackerActive(signsWithListeners);
         }
     }
 
@@ -425,6 +487,114 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
             this.dz = curr.z - prev.z;
             this.len_sq = (dx * dx + dy * dy + dz * dz);
             this.len = Math.sqrt(this.len_sq);
+        }
+    }
+
+    private interface RailAnimationChangeTracker {
+        /** Used when the rails do not have any sign actions on it that are informed of animation changes */
+        RailAnimationChangeTracker INACTIVE = new RailAnimationChangeTracker() {
+            @Override
+            public void add(TrackAnimation animation) {
+                //No-op
+            }
+
+            @Override
+            public void fireStarted() {
+                //No-op
+            }
+
+            @Override
+            public void fireEnded() {
+                //No-op
+            }
+        };
+
+        /**
+         * Notify of the initial or another animation on this same track that was started or finished.
+         *
+         * @param animation TrackAnimation
+         */
+        void add(TrackAnimation animation);
+
+        /**
+         * Fires off the animation-start event for all animations added
+         */
+        void fireStarted();
+
+        /**
+         * Fires off the animation-end event for all animations added
+         */
+        void fireEnded();
+    }
+
+    private static class RailAnimationChangeTrackerActive implements RailAnimationChangeTracker {
+        public final List<RailLookup.TrackedSign> signs;
+        public List<AnimationChangeList> changes = new ArrayList<>();
+
+        public RailAnimationChangeTrackerActive(List<RailLookup.TrackedSign> signs) {
+            this.signs = signs;
+        }
+
+        @Override
+        public void add(TrackAnimation animation) {
+            for (AnimationChangeList list : changes) {
+                if (list.tryMerge(animation)) {
+                    return;
+                }
+            }
+
+            changes.add(new AnimationChangeList(animation));
+        }
+
+        @Override
+        public void fireStarted() {
+            for (RailLookup.TrackedSign sign : signs) {
+                SignAction action = sign.getAction();
+                if (action instanceof TrackAnimationListener) {
+                    SignActionEvent event = sign.createEvent(SignActionType.NONE);
+                    for (AnimationChangeList list : changes) {
+                        ((TrackAnimationListener) action).onTrackAnimationBegin(
+                                event,
+                                list.name,
+                                list.animationStates);
+                    }
+                }
+            }
+        }
+
+        @Override
+        public void fireEnded() {
+            for (RailLookup.TrackedSign sign : signs) {
+                SignAction action = sign.getAction();
+                if (action instanceof TrackAnimationListener) {
+                    SignActionEvent event = sign.createEvent(SignActionType.NONE);
+                    for (AnimationChangeList list : changes) {
+                        ((TrackAnimationListener) action).onTrackAnimationEnd(
+                                event,
+                                list.name,
+                                list.animationStates);
+                    }
+                }
+            }
+        }
+    }
+
+    private static class AnimationChangeList {
+        public final String name;
+        public final List<TrackAnimation> animationStates = new ArrayList<>();
+
+        public AnimationChangeList(TrackAnimation animation) {
+            this.name = animation.name;
+            this.animationStates.add(animation);
+        }
+
+        public boolean tryMerge(TrackAnimation animation) {
+            if (this.name.equals(animation.name)) {
+                this.animationStates.add(animation);
+                return true;
+            } else {
+                return false;
+            }
         }
     }
 }

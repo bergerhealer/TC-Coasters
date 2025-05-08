@@ -7,7 +7,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 
+import com.bergerkiller.bukkit.coasters.CoasterRailType;
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -756,9 +758,9 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         for (TrackNodeAnimationState animState : this._animationStates) {
             if (animState.name.equals(name)) {
                 if (this.doAnimationStatesChangeConnections()) {
-                    getWorld().getAnimations().animate(this, animState.state, animState.connections, duration);
+                    getWorld().getAnimations().animate(name, this, animState.state, animState.connections, duration);
                 } else {
-                    getWorld().getAnimations().animate(this, animState.state, null, duration);
+                    getWorld().getAnimations().animate(name, this, animState.state, null, duration);
                 }
                 return true;
             }
@@ -1166,6 +1168,17 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             this._signTextParticle.remove();
             this._signTextParticle = null;
         }
+    }
+
+    /**
+     * Gets the TrainCarts-managed RailPiece that this node is part of.
+     *
+     * @return RailPiece
+     */
+    public RailPiece getRailPiece() {
+        return RailPiece.create(
+                getPlugin().getRailType(),
+                this.getRailBlock(true).toBlock(this.getBukkitWorld()));
     }
 
     /**
