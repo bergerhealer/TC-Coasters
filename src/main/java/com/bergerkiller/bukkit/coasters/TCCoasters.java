@@ -206,6 +206,11 @@ public class TCCoasters extends PluginBase {
             state.save();
             editStates.remove(player);
         }
+
+        // Ensure particle state is reset, otherwise when player rejoins the player can't
+        // see particles spawn in anymore
+        CoasterWorld world = this.getCoasterWorld(player.getWorld());
+        world.getParticles().hideAllFor(player);
     }
 
     public FileConfiguration getPlayerConfig(Player player) {
