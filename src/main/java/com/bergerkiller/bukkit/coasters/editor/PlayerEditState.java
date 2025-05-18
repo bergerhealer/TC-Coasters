@@ -9,6 +9,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -16,6 +17,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.bergerkiller.bukkit.coasters.editor.object.ui.BlockSelectMenu;
+import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -96,7 +98,8 @@ public class PlayerEditState implements CoasterWorldComponent {
     private BlockFace targetedBlockFace = BlockFace.UP;
     private String selectedAnimation = null;
     private HistoryChange draggingCreateNewNodeChange = null; // used when player left-clicks while dragging a node
-    private Optional<Integer> particleViewRangeOverride = Optional.empty(); 
+    private Integer particleViewRangeOverride = null; // Player initiated override
+    private Integer particleViewRangeMaximum = null; // WorldGuard Region max view tracking
 
     public PlayerEditState(TCCoasters plugin, Player player) {
         this.plugin = plugin;
@@ -106,6 +109,14 @@ public class PlayerEditState implements CoasterWorldComponent {
         this.clipboard = new PlayerEditClipboard(this);
         this.objectState = new ObjectEditState(this);
         this.signState = new SignEditState(this);
+
+        if (Common.hasCapability("Module:RegionFlagTracker")) {
+            enableRegionMaxViewTracking();
+        }
+    }
+
+    private void enableRegionMaxViewTracking() {
+        this.particleViewRangeMaximum = PlayerRegionViewRange.track(this);
     }
 
     /**
@@ -129,7 +140,7 @@ public class PlayerEditState implements CoasterWorldComponent {
 
             this.editMode = config.get("mode", PlayerEditMode.DISABLED);
             this.selectedAnimation = config.get("selectedAnimation", String.class, null);
-            this.particleViewRangeOverride = Util.getConfigOptional(config, "particleViewRange", Integer.class);
+            this.particleViewRangeOverride = Util.getConfigOptional(config, "particleViewRange", Integer.class).orElse(null);
             this.getObjects().load(config);
             this.editedNodes.clear();
             this.editedNodesByAnimationName.clear();
@@ -182,7 +193,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         } else {
             config.set("selectedAnimation", this.selectedAnimation);
         }
-        Util.setConfigOptional(config, "particleViewRange", this.particleViewRangeOverride);
+        Util.setConfigOptional(config, "particleViewRange", Optional.ofNullable(this.particleViewRangeOverride));
         this.getObjects().save(config);
         config.save();
     }
@@ -1868,7 +1879,15 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @return particle view range for this player
      */
     public int getParticleViewRange() {
-        return particleViewRangeOverride.orElse(plugin.getParticleViewRange());
+        Integer viewRange = particleViewRangeOverride;
+        if (viewRange == null) {
+            viewRange = plugin.getParticleViewRange();
+        }
+        Integer max = particleViewRangeMaximum;
+        if (max != null && viewRange > max) {
+            viewRange = max;
+        }
+        return viewRange;
     }
 
     /**
@@ -1878,7 +1897,7 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @see #setParticleViewRangeOverride(Integer) 
      */
     public boolean isParticleViewRangeOverridden() {
-        return particleViewRangeOverride.isPresent();
+        return particleViewRangeOverride != null;
     }
 
     /**
@@ -1887,13 +1906,32 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @param range particle view range to set, or null to use the global default
      */
     public void setParticleViewRangeOverride(Integer range) {
-        Optional<Integer> newValue = Optional.ofNullable(range);
-        if (!this.particleViewRangeOverride.equals(newValue)) {
-            this.particleViewRangeOverride = newValue;
+        if (!Objects.equals(range, particleViewRangeOverride)) {
+            int oldRange = this.getParticleViewRange();
+            this.particleViewRangeOverride = range;
             this.markChanged();
-            
-            // Update particles for this player
-            getWorld().getParticles().scheduleViewerUpdate(this.player);
+
+            // Update particles for this player when range changes
+            if (this.getParticleViewRange() != oldRange) {
+                getWorld().getParticles().scheduleViewerUpdate(this.player);
+            }
+        }
+    }
+
+    /**
+     * Called from the region-flag based maximum tracking, to apply a maximum
+     *
+     * @param maximum Maximum, or null if not set
+     */
+    void updateParticleViewRangeMaximum(Integer maximum) {
+        if (!Objects.equals(this.particleViewRangeMaximum, maximum)) {
+            int oldRange = this.getParticleViewRange();
+            this.particleViewRangeMaximum = maximum;
+
+            // Update particles for this player when range changes
+            if (this.getParticleViewRange() != oldRange) {
+                getWorld().getParticles().scheduleViewerUpdate(this.player);
+            }
         }
     }
 

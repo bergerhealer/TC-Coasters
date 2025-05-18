@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 
+import com.bergerkiller.bukkit.coasters.editor.PlayerRegionViewRange;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSignLookup;
 import com.bergerkiller.bukkit.tc.events.SignBuildEvent;
@@ -492,6 +493,15 @@ public class TCCoasters extends PluginBase {
                 this.updateDependency(plugin, plugin.getName(), true);
             }
         }
+
+        // When API is supported, make the tcc-max-view available
+        if (Common.hasCapability("Module:RegionFlagTracker")) {
+            enableTCCMaxViewRegionFlagTracker();
+        }
+    }
+
+    private void enableTCCMaxViewRegionFlagTracker() {
+        PlayerRegionViewRange.register(this);
     }
 
     @Override
