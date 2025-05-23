@@ -7,9 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
+import com.bergerkiller.bukkit.common.collections.ImmutablePlayerSet;
 import com.bergerkiller.bukkit.common.wrappers.Brightness;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -133,9 +135,14 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         if (particle.world == this) {
             if (particle.isUsingViewers()) {
                 try {
-                    particle.makeHiddenForAll();
+                    for (Player viewer : particle.clearAllViewers()) {
+                        ViewerParticleList viewed = this.viewers.get(viewer);
+                        if (viewed != null) {
+                            viewed.makeHidden(particle, viewer);
+                        }
+                    }
                 } catch (Throwable t) {
-                    getPlugin().getLogger().log(Level.SEVERE, "TrackParticle.makeHiddenForAll() failed for "
+                    getPlugin().getLogger().log(Level.SEVERE, "TrackParticle.makeHidden() failed for "
                             + particle.getClass().getName(), t);
                 }
                 try {
@@ -203,6 +210,61 @@ public class TrackParticleWorld implements CoasterWorldComponent {
         }
     }
 
+    /**
+     * Re-spawns a particle for all viewers of a particle. This method ensures the
+     * correct LOD (level-of-detail) is used in this respawning operation.
+     *
+     * @param particle TrackParticle to hide and then show again
+     */
+    public void hideAndDisplayParticle(TrackParticle particle) {
+        for (Player viewer : particle.getViewers()) {
+            hideAndDisplayParticle(particle, viewer);
+        }
+    }
+
+    /**
+     * Re-spawns a particle for all viewers of that particle. This method ensures the
+     * correct LOD (level-of-detail) is used in this respawning operation.
+     *
+     * @param particle TrackParticle to hide and then show again
+     * @param action An action to perform between when the particle is hidden and when it is
+     *               shown again to the viewer
+     */
+    public <P extends TrackParticle> void hideAndDisplayParticle(P particle, Consumer<P> action) {
+        ImmutablePlayerSet viewers = particle.getViewers();
+        if (viewers.isEmpty()) {
+            action.accept(particle);
+            return;
+        }
+
+        // Collect all active lifecycles for this particle
+        List<ViewerParticleList.ActiveLifecycle> lifecycles = new ArrayList<>(viewers.size());
+        for (Player viewer : viewers) {
+            ViewerParticleList viewed = this.viewers.get(viewer);
+            if (viewed != null) {
+                viewed.addLifecycle(particle, viewer, lifecycles);
+            }
+        }
+
+        lifecycles.forEach(ViewerParticleList.ActiveLifecycle::makeHidden);
+        action.accept(particle);
+        lifecycles.forEach(ViewerParticleList.ActiveLifecycle::makeVisible);
+    }
+
+    /**
+     * Re-spawns a particle for a viewer of that particle. This method ensures the
+     * correct LOD (level-of-detail) is used in this respawning operation.
+     *
+     * @param particle TrackParticle to hide and then show again
+     * @param viewer Player viewer
+     */
+    public void hideAndDisplayParticle(TrackParticle particle, Player viewer) {
+        ViewerParticleList viewed = this.viewers.get(viewer);
+        if (viewed != null) {
+            viewed.hideAndDisplay(particle, viewer);
+        }
+    }
+
     public void updateAll() {
         // Refresh for all players that are online
         for (Player viewer : Bukkit.getOnlinePlayers()) {
@@ -238,7 +300,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
 
             // Detect all the particles currently in range of the viewer
             // This uses the octree to do so efficiently
-            Integer updateObject = Integer.valueOf(this.updateCtr++);
+            ViewerLifecycleState lifecycleState = new ViewerLifecycleState(viewer, viewerBlock, this.updateCtr++);
             viewed.block = viewerBlock;
             int cuboid_range = this.getPlugin().getEditState(viewer).getParticleViewRange();
             int maxParticles = this.getPlugin().getMaximumParticleCount();
@@ -251,7 +313,10 @@ public class TrackParticleWorld implements CoasterWorldComponent {
             // This runs for the first time, or if we haven't hit a particle limit in a while
             if (!reachedLimitRecently) {
                 int numParticles = 0;
-                for (TrackParticle particle : this.particles.cuboid(range_min, range_max)) {
+                DoubleOctreeIterator<TrackParticle> iter = this.particles.cuboid(range_min, range_max).iterator();
+                lifecycleState.cuboidIterator = iter; // For access to x/y/z
+                while (iter.hasNext()) {
+                    TrackParticle particle = (TrackParticle) iter.next();
                     if ((!canViewAllParticles && !particle.isAlwaysVisible()) || !particle.isVisible(viewer)) {
                         continue;
                     }
@@ -262,13 +327,14 @@ public class TrackParticleWorld implements CoasterWorldComponent {
                         reachedLimit = true;
 
                         // Reset state, try again
-                        // Changing the updateObject causes it to de-spawn particles we spawned before
-                        updateObject = Integer.valueOf(this.updateCtr++);
+                        // Changing the updateCounter causes it to de-spawn particles we spawned before
+                        lifecycleState = new ViewerLifecycleState(viewer, viewerBlock, this.updateCtr++);
                         numParticles = 0;
                         break;
                     }
 
-                    viewed.makeVIsible(viewer, updateObject, particle);
+                    lifecycleState.resetViewDistance();
+                    viewed.spawnOrRefresh(particle, lifecycleState);
                 }
             }
 
@@ -278,17 +344,14 @@ public class TrackParticleWorld implements CoasterWorldComponent {
                 ArrayList<ParticleWithBlockDistance> particlesSortedList = this.particlesSortedList;
                 try {
                     DoubleOctreeIterator<TrackParticle> iter = this.particles.cuboid(range_min, range_max).iterator();
+                    lifecycleState.cuboidIterator = iter; // For access to x/y/z
                     while (iter.hasNext()) {
                         TrackParticle particle = iter.next();
                         if ((!isInEditMode && !particle.isAlwaysVisible()) || !particle.isVisible(viewer)) {
                             continue;
                         }
 
-                        int dx = Math.abs(viewerBlock.x - iter.getBlockX());
-                        int dy = Math.abs(viewerBlock.y - iter.getBlockY());
-                        int dz = Math.abs(viewerBlock.z - iter.getBlockZ());
-                        int manhattanDistance = dx + dy + dz;
-
+                        int manhattanDistance = lifecycleState.calcViewDistance();
                         particlesSortedList.add(new ParticleWithBlockDistance(particle, manhattanDistance));
                     }
 
@@ -302,7 +365,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
                             reachedLimit = true;
                             break;
                         } else {
-                            viewed.makeVIsible(viewer, updateObject, p.particle);
+                            viewed.spawnOrRefresh(p.particle, lifecycleState);
                         }
                     }
                 } finally {
@@ -321,17 +384,9 @@ public class TrackParticleWorld implements CoasterWorldComponent {
             }
             viewed.reachedLimit = reachedLimit;
 
-            // Particles that are no longer in view have an outdated Integer update object
-            {
-                Iterator<Map.Entry<TrackParticle, Integer>> iter = viewed.particles.entrySet().iterator();
-                while (iter.hasNext()) {
-                    Map.Entry<TrackParticle, Integer> entry = iter.next();
-                    if (entry.getValue() != updateObject) {
-                        entry.getKey().changeVisibility(viewer, false);
-                        iter.remove();
-                    }
-                }
-            }
+            // Particles that are no longer in view have an outdated update counter value
+            // De-spawn all these
+            viewed.despawnOutdated(lifecycleState);
         } else {
             hideAllFor(viewer);
         }
@@ -358,9 +413,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
     public void hideAllFor(Player viewer) {
         ViewerParticleList viewed = this.viewers.remove(viewer);
         if (viewed != null) {
-            for (TrackParticle particle : viewed.particles.keySet()) {
-                particle.changeVisibility(viewer, false);
-            }
+            viewed.despawnAll(viewer);
         }
     }
 
@@ -400,17 +453,196 @@ public class TrackParticleWorld implements CoasterWorldComponent {
 
     private static class ViewerParticleList {
         public IntVector3 block = null;
-        public final Map<TrackParticle, Integer> particles = new ConcurrentHashMap<>(16, 0.75f, 1);
+        public final Map<TrackParticle, DisplayedState> particles = new ConcurrentHashMap<>(16, 0.75f, 1);
         public boolean reachedLimit = false;
         public long reachedLimitAt = 0;
 
         public ViewerParticleList(Player viewer) {
         }
 
-        public void makeVIsible(Player viewer, Integer updateObject, TrackParticle particle) {
-            // Add to the particle mapping. If adding for the first time, make it visible.
-            if (particles.put(particle, updateObject) == null) {
-                particle.changeVisibility(viewer, true);
+        /**
+         * Makes a particle visible for the first time, or updates its lifecycle-controlled visible state
+         *
+         * @param particle Particle to spawn in
+         * @param lifecycleState State controlling what to spawn in (LOD, level of detail)
+         */
+        public void spawnOrRefresh(TrackParticle particle, ViewerLifecycleState lifecycleState) {
+            particles.compute(particle, (p, state) -> {
+                if (state == null) {
+                    return DisplayedState.spawn(p, lifecycleState);
+                } else {
+                    state.refresh(p, lifecycleState);
+                    return state;
+                }
+            });
+        }
+
+        /**
+         * De-spawns all the particles for which {@link #spawnOrRefresh(TrackParticle, ViewerLifecycleState)}
+         * was not called the last time. This is done by comparing against the update counter.
+         *
+         * @param lifecycleState State controlling what to spawn in (LOD, level of detail)
+         */
+        public void despawnOutdated(ViewerLifecycleState lifecycleState) {
+            Iterator<Map.Entry<TrackParticle, DisplayedState>> iter = particles.entrySet().iterator();
+            while (iter.hasNext()) {
+                Map.Entry<TrackParticle, DisplayedState> entry = iter.next();
+                DisplayedState state = entry.getValue();
+                if (state.updateCounter != lifecycleState.updateCounter) {
+                    state.despawn(entry.getKey(), lifecycleState.getViewer());
+                    iter.remove();
+                }
+            }
+        }
+
+        /**
+         * De-spawns all particles shown to this player
+         *
+         * @param viewer Viewer owner of this list of particles
+         */
+        public void despawnAll(Player viewer) {
+            if (!particles.isEmpty()) {
+                for (Map.Entry<TrackParticle, DisplayedState> entry : particles.entrySet()) {
+                    entry.getValue().despawn(entry.getKey(), viewer);
+                }
+                particles.clear();
+            }
+        }
+
+        /**
+         * De-spawns the particle for a viewer, but does not update the particle viewers list
+         *
+         * @param particle TrackParticle
+         * @param viewer Player
+         */
+        public void makeHidden(TrackParticle particle, Player viewer) {
+            DisplayedState state = particles.get(particle);
+            if (state != null) {
+                state.particleLifecycle.makeHiddenFor(viewer);
+                //state.despawn(particle, viewer);
+            }
+        }
+
+        /**
+         * Adds the lifecycle of a particle, if present, to a list of lifecycles
+         *
+         * @param particle TrackParticle
+         * @param viewer Player viewer of the particles
+         * @param lifecycles List of lifecycles (for later processing)
+         */
+        public void addLifecycle(TrackParticle particle, Player viewer, List<ActiveLifecycle> lifecycles) {
+            DisplayedState state = particles.get(particle);
+            if (state != null) {
+                lifecycles.add(new ActiveLifecycle(state.particleLifecycle, viewer));
+            }
+        }
+
+        /**
+         * De-spawns and then re-spawns a particle for a viewer. Only does so if this particle
+         * has been shown to the viewer before.
+         *
+         * @param particle TrackParticle
+         * @param viewer Player viewer
+         */
+        public void hideAndDisplay(TrackParticle particle, Player viewer) {
+            DisplayedState state = particles.get(particle);
+            if (state != null) {
+                state.particleLifecycle.makeHiddenFor(viewer);
+                state.particleLifecycle.makeVisibleFor(viewer);
+            }
+        }
+
+        public static class DisplayedState {
+            /** Used to de-spawn particles that have not been made visible this tick */
+            public int updateCounter;
+            /** Keeps track of the displayed state to the player (LOD) */
+            public TrackParticleLifecycle particleLifecycle;
+
+            public static DisplayedState spawn(TrackParticle particle, ViewerLifecycleState lifecycleState) {
+                particle.addNewViewer(lifecycleState.getViewer());
+
+                DisplayedState state = new DisplayedState();
+                state.updateCounter = lifecycleState.updateCounter;
+                state.particleLifecycle = particle.getLifecycle(lifecycleState);
+                state.particleLifecycle.makeVisibleFor(lifecycleState.getViewer());
+                return state;
+            }
+
+            public void refresh(TrackParticle particle, ViewerLifecycleState lifecycleState) {
+                this.updateCounter = lifecycleState.updateCounter;
+                if (!this.particleLifecycle.isLifecycleValid(lifecycleState)) {
+                    TrackParticleLifecycle newLifeCycle = particle.getLifecycle(lifecycleState);
+                    if (this.particleLifecycle != newLifeCycle) {
+                        this.particleLifecycle.makeHiddenFor(lifecycleState.getViewer());
+                        this.particleLifecycle = newLifeCycle;
+                        newLifeCycle.makeVisibleFor(lifecycleState.getViewer());
+                    }
+                }
+            }
+
+            public void despawn(TrackParticle particle, Player viewer) {
+                particle.removeOldViewer(viewer);
+
+                particleLifecycle.makeHiddenFor(viewer);
+            }
+        }
+
+        public static class ActiveLifecycle {
+            public final TrackParticleLifecycle lifecycle;
+            public final Player viewer;
+
+            public ActiveLifecycle(TrackParticleLifecycle lifecycle, Player viewer) {
+                this.lifecycle = lifecycle;
+                this.viewer = viewer;
+            }
+
+            public void makeHidden() {
+                lifecycle.makeHiddenFor(viewer);
+            }
+
+            public void makeVisible() {
+                lifecycle.makeVisibleFor(viewer);
+            }
+        }
+    }
+
+    private static class ViewerLifecycleState implements TrackParticleLifecycle.State {
+        public final Player viewer;
+        public final IntVector3 viewerBlock;
+        public final int updateCounter;
+        public DoubleOctreeIterator<?> cuboidIterator; // Used for x/y/z
+        private int cachedViewDistance = -1;
+
+        public ViewerLifecycleState(Player viewer, IntVector3 viewerBlock, int updateCounter) {
+            this.viewer = viewer;
+            this.viewerBlock = viewerBlock;
+            this.updateCounter = updateCounter;
+        }
+
+        @Override
+        public Player getViewer() {
+            return viewer;
+        }
+
+        public void resetViewDistance() {
+            cachedViewDistance = -1;
+        }
+
+        public int calcViewDistance() {
+            DoubleOctreeIterator<?> iter = this.cuboidIterator;
+            int dx = Math.abs(viewerBlock.x - iter.getBlockX());
+            int dy = Math.abs(viewerBlock.y - iter.getBlockY());
+            int dz = Math.abs(viewerBlock.z - iter.getBlockZ());
+            return cachedViewDistance = (dx + dy + dz); // Manhattan distance
+        }
+
+        @Override
+        public int getViewDistance() {
+            int view = this.cachedViewDistance;
+            if (view != -1) {
+                return view;
+            } else {
+                return calcViewDistance();
             }
         }
     }

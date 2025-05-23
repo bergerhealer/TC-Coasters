@@ -101,11 +101,7 @@ public class TrackParticleFallingBlock extends TrackParticle {
     public void updateAppearance() {
         if (this.clearFlag(FLAG_MATERIAL_CHANGED)) {
             this.clearFlag(FLAG_POSITION_CHANGED);
-
-            for (Player viewer : this.getViewers()) {
-                this.makeHiddenFor(viewer);
-                this.makeVisibleFor(viewer);
-            }
+            this.getWorld().hideAndDisplayParticle(this);
         }
         if (this.clearFlag(FLAG_POSITION_CHANGED)) {
             VirtualFallingBlock block = VirtualFallingBlock.create(this.holderEntityId, this.entityId)

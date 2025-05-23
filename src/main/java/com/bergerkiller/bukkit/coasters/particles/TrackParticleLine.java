@@ -154,10 +154,7 @@ public class TrackParticleLine extends TrackParticle {
     public void updateAppearance() {
         if (this.clearFlag(FLAG_NEEDS_RESPAWN)) {
             this.clearFlag(FLAG_POSITION_CHANGED);
-            for (Player player : this.getViewers()) {
-                makeHiddenFor(player);
-                makeVisibleFor(player);
-            }
+            this.getWorld().hideAndDisplayParticle(this);
         }
         if (this.clearFlag(FLAG_POSITION_CHANGED)) {
             for (Player viewer : this.getViewers()) {

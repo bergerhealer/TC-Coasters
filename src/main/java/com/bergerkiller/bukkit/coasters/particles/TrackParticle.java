@@ -14,7 +14,7 @@ import com.bergerkiller.generated.net.minecraft.network.protocol.PacketHandle;
  * When players are editing tracks AND are nearby this particle, the
  * particle is spawned and kept updated for the player.
  */
-public abstract class TrackParticle {
+public abstract class TrackParticle implements TrackParticleLifecycle {
     protected TrackParticleWorld world;
     private ImmutablePlayerSet viewers = ImmutablePlayerSet.EMPTY;
     private TrackParticleState.Source stateSource = TrackParticleState.SOURCE_NONE;
@@ -60,21 +60,34 @@ public abstract class TrackParticle {
     }
 
     /**
-     * Updates whether a particle is visible or not to a player, spawning or de-spawning it
-     * 
-     * @param viewer Player viewer
-     * @param visible Whether the particle is visible
+     * Gets the {@link TrackParticleLifecycle} used to display this particle. By default
+     * returns the default lifecycle, which is this particle itself. Different values can
+     * be returned to change the appearance.<br>
+     * <br>
+     * Primarily used for LOD (level-of-detail)
+     *
+     * @param state Current state that controls the lifecycle
+     * @return TrackParticleLifecycle to use
      */
-    public final void changeVisibility(Player viewer, boolean visible) {
-        ImmutablePlayerSet new_viewers = this.viewers.addOrRemove(viewer, visible);
-        if (this.viewers != new_viewers) {
-            this.viewers = new_viewers;
-            if (visible) {
-                makeVisibleFor(viewer);
-            } else {
-                makeHiddenFor(viewer);
-            }
-        }
+    public TrackParticleLifecycle getLifecycle(TrackParticleLifecycle.State state) {
+        return this;
+    }
+
+    // Internal use only
+    final void addNewViewer(Player viewer) {
+        this.viewers = this.viewers.add(viewer);
+    }
+
+    // Internal use only
+    final void removeOldViewer(Player viewer) {
+        this.viewers = this.viewers.remove(viewer);
+    }
+
+    // Internal use only
+    final ImmutablePlayerSet clearAllViewers() {
+        ImmutablePlayerSet old = this.viewers;
+        this.viewers = old.clear();
+        return old;
     }
 
     /**
@@ -135,13 +148,6 @@ public abstract class TrackParticle {
 
     public boolean hasViewers() {
         return !this.viewers.isEmpty();
-    }
-
-    public void makeHiddenForAll() {
-        for (Player viewer : this.viewers) {
-            this.makeHiddenFor(viewer);
-        }
-        this.viewers = this.viewers.clear();
     }
 
     public void broadcastPacket(PacketHandle packet) {

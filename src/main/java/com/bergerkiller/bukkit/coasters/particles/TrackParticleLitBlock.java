@@ -67,10 +67,7 @@ public class TrackParticleLitBlock extends TrackParticle {
     @Override
     public void onStateUpdated(Player viewer) {
         super.onStateUpdated(viewer);
-        if (this.getViewers().contains(viewer)) {
-            this.makeHiddenFor(viewer);
-            this.makeVisibleFor(viewer);
-        }
+        this.getWorld().hideAndDisplayParticle(this);
     }
 
     @Override

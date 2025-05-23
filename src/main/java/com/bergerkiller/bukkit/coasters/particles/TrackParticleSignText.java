@@ -91,21 +91,13 @@ public class TrackParticleSignText extends TrackParticle {
             }
         }
 
-        // De-spawn the original armorstands
-        for (Player player : this.getViewers()) {
-            this.makeHiddenFor(player);
-        }
-
         // Update the lines. Re-use entity id's if we can.
         for (int i = 0; i < new_lines.length; i++) {
             new_lines[i].entityId = (i < old_lines.length) ? old_lines[i].entityId : EntityUtil.getUniqueEntityId();
         }
-        this.lines = new_lines;
 
-        // Make the new lines visible again
-        for (Player player : this.getViewers()) {
-            this.makeVisibleFor(player);
-        }
+        // De-spawn the signs, update the lines, then show the signs again
+        this.getWorld().hideAndDisplayParticle(this, p -> p.lines = new_lines);
     }
 
     @Override
