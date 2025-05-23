@@ -354,6 +354,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
                         int manhattanDistance = lifecycleState.calcViewDistance();
                         particlesSortedList.add(new ParticleWithBlockDistance(particle, manhattanDistance));
                     }
+                    lifecycleState.cuboidIterator = null; // Avoid weirdness
 
                     // Sort so that furthest particles are at the end of the list
                     Collections.sort(particlesSortedList);
@@ -365,6 +366,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
                             reachedLimit = true;
                             break;
                         } else {
+                            lifecycleState.setViewDistance(p.distance);
                             viewed.spawnOrRefresh(p.particle, lifecycleState);
                         }
                     }
@@ -626,6 +628,10 @@ public class TrackParticleWorld implements CoasterWorldComponent {
 
         public void resetViewDistance() {
             cachedViewDistance = -1;
+        }
+
+        public void setViewDistance(int distance) {
+            cachedViewDistance = distance;
         }
 
         public int calcViewDistance() {
