@@ -44,7 +44,7 @@ public interface TrackParticleLifecycle {
      */
     default void switchToLifecycle(TrackParticleLifecycle newLifecycle, Player viewer) {
         this.makeHiddenFor(viewer);
-        newLifecycle.makeHiddenFor(viewer);
+        newLifecycle.makeVisibleFor(viewer);
     }
 
     /**
