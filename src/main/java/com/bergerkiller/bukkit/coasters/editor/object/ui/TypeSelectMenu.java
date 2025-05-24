@@ -56,6 +56,13 @@ public class TypeSelectMenu extends MapWidget {
             }
 
             this._displayedType = selectedType;
+
+            // Enable LOD button for objects that support it
+            for (MapWidget w : getParent().getWidgets()) {
+                if (w instanceof ItemLODSelectButton) {
+                    ((ItemLODSelectButton) w).updateEnabled();
+                }
+            }
         }
     }
 

@@ -6,12 +6,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
+import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemLODSelectButton;
 import org.bukkit.ChatColor;
 import org.bukkit.block.BlockFace;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersLocalization;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
-import com.bergerkiller.bukkit.coasters.editor.object.ui.TypePositionMenu;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.TypeSelectMenu;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
@@ -526,12 +526,14 @@ public enum PlayerEditMode {
         final TypeSelectMenu typeSelector = new TypeSelectMenu(stateSupplier);
         tab.addWidget(typeSelector).setBounds(40, 0, 36, 36);
 
+        final int BUTTON_Y_STEP = 15;
+
         tab.addWidget(new MapWidgetButton() {
             @Override
             public void onActivate() {
                 typeSelector.getSelectedType().openPositionMenu(tab, stateSupplier);
             }
-        }).setText("Position").setBounds(26, 40, 64, 13);
+        }).setText("Position").setBounds(26, 40 + 0 * BUTTON_Y_STEP, 64, 13);
 
         tab.addWidget(new MapWidgetButton() {
             @Override
@@ -546,7 +548,10 @@ public enum PlayerEditMode {
                     getDisplay().playSound(SoundEffect.EXTINGUISH);
                 }
             }
-        }).setText("Flip").setBounds(26, 55, 64, 13);
+        }).setText("Flip").setBounds(26, 40 + 1 * BUTTON_Y_STEP, 64, 13);
+
+        tab.addWidget(new ItemLODSelectButton(stateSupplier)).setText("LOD")
+                .setBounds(26, 40 + 2 * BUTTON_Y_STEP, 64, 13);
 
         tab.addWidget(new MapWidgetButton() {
             @Override
@@ -561,6 +566,6 @@ public enum PlayerEditMode {
                     getDisplay().playSound(SoundEffect.EXTINGUISH);
                 }
             }
-        }).setText("Delete").setBounds(26, 70, 64, 13);
+        }).setText("Delete").setBounds(26, 40 + 3 * BUTTON_Y_STEP, 64, 13);
     }
 }
