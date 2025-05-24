@@ -575,7 +575,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
                 if (!this.particleLifecycle.isLifecycleValid(lifecycleState)) {
                     TrackParticleLifecycle newLifeCycle = particle.getLifecycle(lifecycleState);
                     if (this.particleLifecycle != newLifeCycle) {
-                        this.particleLifecycle.switchToLifecycle(newLifeCycle, lifecycleState.getViewer());
+                        newLifeCycle.switchFromLifecycle(this.particleLifecycle, lifecycleState.getViewer());
                         this.particleLifecycle = newLifeCycle;
                     }
                 }

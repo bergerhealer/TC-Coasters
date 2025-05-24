@@ -35,16 +35,17 @@ public interface TrackParticleLifecycle {
     }
 
     /**
-     * Switches from the current (this) lifecycle to a new one. By default de-spawns the
-     * old particle and spawns the new one, but can be implemented to do something
-     * smarter like only updating the metadata of the already-spawned particle.
+     * Switches to this lifecycle from a previous one. De-spawns the
+     * old particle and spawns this new one by default, but can be implemented
+     * to do something smarter like only updating the metadata of the already-spawned
+     * particle.
      *
-     * @param newLifecycle The new lifecycle being switched to (new LOD)
-     * @param viewer Player viewer for who the lifecycle changed
+     * @param oldLifecycle The previous lifecycle being switched from (old LOD)
+     * @param viewer Player viewer for which the lifecycle changed
      */
-    default void switchToLifecycle(TrackParticleLifecycle newLifecycle, Player viewer) {
-        this.makeHiddenFor(viewer);
-        newLifecycle.makeVisibleFor(viewer);
+    default void switchFromLifecycle(TrackParticleLifecycle oldLifecycle, Player viewer) {
+        oldLifecycle.makeHiddenFor(viewer);
+        this.makeVisibleFor(viewer);
     }
 
     /**
