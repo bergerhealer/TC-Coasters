@@ -1,4 +1,4 @@
-package com.bergerkiller.bukkit.coasters.editor.object.ui;
+package com.bergerkiller.bukkit.coasters.editor.object.ui.lod;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItem;
@@ -27,6 +27,6 @@ public class ItemLODSelectButton extends MapWidgetButton {
 
     @Override
     public void onActivate() {
-
+        parent.addWidget(new ItemLODSelect(stateSupplier));
     }
 }

@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
-import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemLODSelectButton;
+import com.bergerkiller.bukkit.coasters.editor.object.ui.lod.ItemLODSelectButton;
 import org.bukkit.ChatColor;
 import org.bukkit.block.BlockFace;
 

@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.editor.object.ui;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.bergerkiller.bukkit.coasters.editor.object.ui.lod.ItemLODSelectButton;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 

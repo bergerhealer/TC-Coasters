@@ -57,12 +57,14 @@ public interface LODItemStack {
      */
     interface List {
         /**
-         * Gets whether multiple LODs are configured in this list. If this is false,
-         * then {@link #getForDistance(int)} will always return the same item.
+         * Gets the number of LOD ItemStacks represented in this List.
+         * If the amount is 1, then no distance thresholds are available, as the same
+         * item is always displayed.
          *
-         * @return True if multiple LODs are configured
+         * @return Number of LODs
+         * @see #getItem(int) 
          */
-        boolean hasMultipleLOD();
+        int size();
 
         /**
          * Gets the 'icon' ItemStack. This is the first LOD (nearest) that has a non-null item
@@ -80,6 +82,15 @@ public interface LODItemStack {
          * @return LODItemStack to display nearest
          */
         LODItemStack getNearest();
+
+        /**
+         * Gets a LODItemStack item in this list
+         *
+         * @param lodIndex Index of an LOD item in this list ({@link #getItems()})
+         * @return Item at this index
+         * @throws IndexOutOfBoundsException If the lodIndex is out of bounds of the list
+         */
+        LODItemStack getItem(int lodIndex);
 
         /**
          * Gets the LODItemStack to display for the view distance specified
@@ -126,6 +137,15 @@ public interface LODItemStack {
         List expandLOD();
 
         /**
+         * Adds a new entry to this list with the specified distance threshold and item
+         *
+         * @param distanceThreshold View distance threshold
+         * @param item ItemStack
+         * @return A new List with the new LOD item added
+         */
+        List expandLOD(int distanceThreshold, ItemStack item);
+
+        /**
          * Removes an LOD item from this List. The list can never shrink below one item, at
          * that point no removal is done anymore
          *
@@ -163,8 +183,8 @@ public interface LODItemStack {
         }
 
         @Override
-        public boolean hasMultipleLOD() {
-            return false;
+        public int size() {
+            return 1;
         }
 
         @Override
@@ -174,6 +194,12 @@ public interface LODItemStack {
 
         @Override
         public LODItemStack getNearest() {
+            return this;
+        }
+
+        @Override
+        public LODItemStack getItem(int lodIndex) {
+            checkIndex(lodIndex);
             return this;
         }
 
@@ -201,9 +227,14 @@ public interface LODItemStack {
 
         @Override
         public List expandLOD() {
+            return expandLOD(EXPAND_LOD_STEP, this.item);
+        }
+
+        @Override
+        public List expandLOD(int distanceThreshold, ItemStack item) {
             MultiItemList.ListLODItemStack[] items = new MultiItemList.ListLODItemStack[2];
             items[0] = new MultiItemList.ListLODItemStack(this.item, 0);
-            items[1] = new MultiItemList.ListLODItemStack(this.item, EXPAND_LOD_STEP);
+            items[1] = new MultiItemList.ListLODItemStack(item, distanceThreshold);
             return new MultiItemList(items);
         }
 
@@ -266,8 +297,8 @@ public interface LODItemStack {
         }
 
         @Override
-        public boolean hasMultipleLOD() {
-            return true;
+        public int size() {
+            return items.length;
         }
 
         @Override
@@ -283,6 +314,12 @@ public interface LODItemStack {
         @Override
         public LODItemStack getNearest() {
             return this.items[0];
+        }
+
+        @Override
+        public LODItemStack getItem(int lodIndex) {
+            checkIndex(lodIndex);
+            return items[lodIndex];
         }
 
         @Override
@@ -316,9 +353,15 @@ public interface LODItemStack {
 
         @Override
         public List expandLOD() {
+            ListLODItemStack last = items[items.length - 2];
+            return expandLOD(last.minViewDistance + EXPAND_LOD_STEP, last.item);
+        }
+
+        @Override
+        public List expandLOD(int distanceThreshold, ItemStack item) {
             ListLODItemStack[] items = Arrays.copyOf(this.items, this.items.length + 1);
             ListLODItemStack last = items[items.length - 2];
-            items[items.length - 1] = new ListLODItemStack(last.item, last.minViewDistance + EXPAND_LOD_STEP);
+            items[items.length - 1] = new ListLODItemStack(item, distanceThreshold);
             return new MultiItemList(items);
         }
 
