@@ -27,7 +27,7 @@ public class ItemSelectMenu extends MapWidgetMenu {
 
                 TrackObjectType<?> type = stateSupplier.get().getObjects().getSelectedType();
                 if (type instanceof TrackObjectTypeItem) {
-                    this.setSelectedItem(((TrackObjectTypeItem<?>) type).getItem());
+                    this.setSelectedItem(((TrackObjectTypeItem<?>) type).getLODItems().getNearest().getItem());
                 } else if (type instanceof TrackObjectTypeBlock) {
                     this.setSelectedItem(((TrackObjectTypeBlock<?>) type).getBlockData().createItem(1));
                 }

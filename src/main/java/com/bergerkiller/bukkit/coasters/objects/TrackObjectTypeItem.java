@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.objects;
 
+import com.bergerkiller.bukkit.coasters.objects.lod.LODItemStack;
 import com.bergerkiller.bukkit.coasters.particles.TrackParticle;
 import org.bukkit.inventory.ItemStack;
 
@@ -12,17 +13,17 @@ import org.bukkit.inventory.ItemStack;
 public interface TrackObjectTypeItem<P extends TrackParticle> extends TrackObjectType<P> {
 
     /**
-     * Gets the ItemStack of the item displayed
+     * Gets a list of level-of-detail controlled ItemStacks to display
      *
-     * @return item stack
+     * @return LODItemStack List
      */
-    ItemStack getItem();
+    LODItemStack.List getLODItems();
 
     /**
-     * Creates a copy of this type with the item stack changed
+     * Creates a copy of this type with the LOD item stack list changed
      *
-     * @param item The new items tack to set
+     * @param lodList The new LOD ItemStack list to set
      * @return copy of this type with item stack changed
      */
-    TrackObjectTypeItem<P> setItem(ItemStack item);
+    TrackObjectTypeItem<P> setLODItems(LODItemStack.List lodList);
 }
