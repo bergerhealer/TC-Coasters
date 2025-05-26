@@ -1,10 +1,10 @@
 package com.bergerkiller.bukkit.coasters.editor.object.ui.lod;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
-import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemSelectMenuBase;
 import com.bergerkiller.bukkit.coasters.objects.lod.LODItemStack;
 import com.bergerkiller.bukkit.common.events.map.MapKeyEvent;
 import com.bergerkiller.bukkit.common.map.MapBlendMode;
+import com.bergerkiller.bukkit.common.map.MapCanvas;
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.MapFont;
 import com.bergerkiller.bukkit.common.map.MapPlayerInput;
@@ -27,7 +27,12 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
     private static final int ITEM_HEIGHT = 17;
     private static final int ICON_SIZE = ITEM_HEIGHT - 1;
     private static final int REMOVE_BUTTON_SIZE = 11;
+    private static final int BUTTON_INDEX_SET_ITEM = 0;
+    private static final int BUTTON_INDEX_HIDE_ITEM = 1;
+    private static final int BUTTON_INDEX_THRESHOLD = 2;
+    private static final int BUTTON_INDEX_DELETE = 3;
     private final TCCoasters plugin;
+    private final MapTexture itemHiddenTexture;
     private LODItemStack.List lodList;
 
     /**
@@ -40,6 +45,8 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
     public ItemLODListWidget(TCCoasters plugin, LODItemStack.List lodList) {
         this.plugin = plugin;
         this.lodList = lodList;
+        this.itemHiddenTexture = MapTexture.loadPluginResource(plugin,
+                "com/bergerkiller/bukkit/coasters/resources/item_hidden_button.png");
         this.setSize(LIST_WIDTH, LIST_HEIGHT);
         this.setScrollPadding(5);
 
@@ -113,7 +120,7 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
     }
 
     private class LODItemWidget extends ListRowWidget {
-        private int buttonIdx = 0;
+        private int buttonIdx = BUTTON_INDEX_SET_ITEM;
         private boolean isEditingDistance = false;
         private int liveDistance = -1;
         private boolean liveDistanceChanged = false;
@@ -137,11 +144,8 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
         }
 
         public void updateItemImage() {
-            ItemStack item = lodList.getItem(this.index).getItem();
             this.itemIcon.clear();
-            if (item != null) {
-                this.itemIcon.fillItem(plugin.getResourcePack(), item);
-            }
+            lodList.getItem(this.index).drawIcon(plugin, this.itemIcon);
             this.invalidate();
         }
 
@@ -174,7 +178,7 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                     if (!Objects.equals(oldLODItem.getItem(), newLODItem.getItem())) {
                         widget.updateItemImage();
                     }
-                    widget.buttonIdx = 0;
+                    widget.buttonIdx = BUTTON_INDEX_SET_ITEM;
                     widget.isEditingDistance = false;
                     widget.invalidate();
                 }
@@ -195,7 +199,7 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                     }
                 }
                 if (itemWidget != null) {
-                    itemWidget.buttonIdx = 1;
+                    itemWidget.buttonIdx = BUTTON_INDEX_THRESHOLD;
                     itemWidget.isEditingDistance = true;
                     itemWidget.liveDistance = distanceUpdatedLODItem.getDistanceThreshold();
                     itemWidget.invalidate();
@@ -218,7 +222,7 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
             if (focusFromEditingDistance) {
                 focusFromEditingDistance = false;
             } else {
-                buttonIdx = 0;
+                buttonIdx = BUTTON_INDEX_SET_ITEM;
                 isEditingDistance = false;
                 isHoldingKeyUp = false;
                 isHoldingKeyDown = false;
@@ -233,7 +237,7 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
 
         @Override
         public void onActivate() {
-            if (buttonIdx == 0) {
+            if (buttonIdx == BUTTON_INDEX_SET_ITEM) {
                 // Show item configuration dialog
                 parent.addWidget(new ItemLODItemSelectMenu() {
                     @Override
@@ -248,12 +252,18 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                         onLODChanged(lodList);
                     }
                 });
-            } else if (buttonIdx == 1) {
+            } else if (buttonIdx == BUTTON_INDEX_HIDE_ITEM) {
+                // Set item to nothing
+                buttonIdx = BUTTON_INDEX_SET_ITEM;
+                lodList = lodList.update(index, lodList.getItem(index).withItem(null));
+                updateItemImage();
+                onLODChanged(lodList);
+            } else if (buttonIdx == BUTTON_INDEX_THRESHOLD) {
                 // Toggle editing the distance
                 isEditingDistance = !isEditingDistance;
                 liveDistance = lodList.getItem(index).getDistanceThreshold();
                 invalidate();
-            } else if (buttonIdx == 2) {
+            } else if (buttonIdx == BUTTON_INDEX_DELETE) {
                 // Removal
                 removeLODItem(index);
             }
@@ -264,6 +274,9 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
             if (this.isFocused()) {
                 if (event.getKey() == MapPlayerInput.Key.LEFT) {
                     buttonIdx = Math.max(0, buttonIdx - 1);
+                    if (buttonIdx == BUTTON_INDEX_HIDE_ITEM && lodList.getItem(index).getItem() == null) {
+                        buttonIdx = BUTTON_INDEX_SET_ITEM;
+                    }
                     isEditingDistance = false;
                     invalidate();
                     return;
@@ -271,7 +284,10 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                     // With only 1 LOD, only the item can be configured (button idx 0)
                     // So in that case left/right does nothing
                     if (lodList.size() > 1) {
-                        buttonIdx = Math.min(2, buttonIdx + 1);
+                        buttonIdx = Math.min(3, buttonIdx + 1);
+                        if (buttonIdx == BUTTON_INDEX_HIDE_ITEM && lodList.getItem(index).getItem() == null) {
+                            buttonIdx = BUTTON_INDEX_THRESHOLD;
+                        }
                         isEditingDistance = false;
                         invalidate();
                     }
@@ -318,7 +334,7 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
             int selButtonIdx = isFocused() ? this.buttonIdx : -1;
 
             // Item icon
-            if (selButtonIdx == 0) {
+            if (selButtonIdx == BUTTON_INDEX_SET_ITEM) {
                 this.view.draw(this.itemIcon, 0, 0);
                 this.view.setBlendMode(MapBlendMode.ADD);
                 this.view.fillRectangle(0, 0, ITEM_HEIGHT, ITEM_HEIGHT,
@@ -329,12 +345,27 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                 this.view.draw(this.itemIcon, 0, 0);
             }
 
+            // Make item invisible / hide item toggle
+            {
+                MapCanvas hideState;
+                int hideIconW = itemHiddenTexture.getWidth() / 3;
+                int hideIconH = itemHiddenTexture.getHeight();
+                if (lodList.size() == 1 || lodList.getItem(index).getItem() == null) {
+                    hideState = itemHiddenTexture.getView(hideIconW * 2, 0, hideIconW, hideIconH);
+                } else if (selButtonIdx == BUTTON_INDEX_HIDE_ITEM) {
+                    hideState = itemHiddenTexture.getView(hideIconW, 0, hideIconW, hideIconH);
+                } else {
+                    hideState = itemHiddenTexture.getView(0, 0, hideIconW, hideIconH);
+                }
+                this.view.draw(hideState, ITEM_HEIGHT + 4, (ITEM_HEIGHT - hideIconH) / 2);
+            }
+
             // View distance threshold
             {
                 byte textColor;
                 if (isEditingDistance) {
                     textColor = MapColorPalette.COLOR_YELLOW;
-                } else if (selButtonIdx == 1) {
+                } else if (selButtonIdx == BUTTON_INDEX_THRESHOLD) {
                     textColor = MapColorPalette.COLOR_WHITE;
                 } else {
                     textColor = MapColorPalette.getColor(158, 158, 158);
@@ -342,7 +373,7 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                 int viewThreshold = isEditingDistance
                         ? liveDistance
                         : lodList.getItem(index).getDistanceThreshold();
-                int viewThresholdX = ITEM_HEIGHT + 8;
+                int viewThresholdX = ITEM_HEIGHT + 19;
                 int viewThresholdY = 5;
                 String text = Integer.toString(viewThreshold);
                 view.draw(MapFont.MINECRAFT, viewThresholdX, viewThresholdY, textColor, text);
@@ -376,7 +407,7 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                     // Can't remove
                     removeButtonColorBg = MapColorPalette.getColor(64, 64, 64);
                     removeButtonColorIcon = MapColorPalette.getColor(90, 90, 90);
-                } else if (selButtonIdx == 2) {
+                } else if (selButtonIdx == BUTTON_INDEX_DELETE) {
                     removeButtonColorBg = MapColorPalette.getColor(128, 0, 0);
                     removeButtonColorIcon = MapColorPalette.getColor(200, 0, 0);
                 } else {

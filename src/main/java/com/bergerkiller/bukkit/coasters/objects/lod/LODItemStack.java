@@ -1,5 +1,8 @@
 package com.bergerkiller.bukkit.coasters.objects.lod;
 
+import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.common.map.MapCanvas;
+import com.bergerkiller.bukkit.common.map.MapTexture;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import org.bukkit.inventory.ItemStack;
 
@@ -42,6 +45,26 @@ public interface LODItemStack extends Comparable<LODItemStack> {
     @Override
     default int compareTo(LODItemStack other) {
         return Integer.compare(this.getDistanceThreshold(), other.getDistanceThreshold());
+    }
+
+    /**
+     * Draws an icon representing the item that is configured in this LOD.
+     * Draws a special icon of no item (hidden, NULL) is configured.
+     *
+     * @param plugin TCCoasters plugin instance
+     * @param canvas MapCanvas canvas to draw onto. Its contents are filled.
+     */
+    default void drawIcon(TCCoasters plugin, MapCanvas canvas) {
+        ItemStack item = getItem();
+        if (item != null) {
+            canvas.fillItem(plugin.getResourcePack(), item);
+        } else {
+            MapTexture itemIconHidden = MapTexture.loadPluginResource(plugin,
+                    "com/bergerkiller/bukkit/coasters/resources/item_icon_hidden.png");
+            canvas.draw(itemIconHidden,
+                    (canvas.getWidth() - itemIconHidden.getWidth()) / 2,
+                    (canvas.getHeight() - itemIconHidden.getHeight()) / 2);
+        }
     }
 
     /**
@@ -105,13 +128,15 @@ public interface LODItemStack extends Comparable<LODItemStack> {
         int size();
 
         /**
-         * Gets the 'icon' ItemStack. This is the first LOD (nearest) that has a non-null item
-         * set. This icon is used for generating the unique name of track objects, and for
-         * the icon displayed for those track objects.
+         * Gets the LODItemStack used close to the player, the closest that has an ItemStack
+         * set (and is not hidden). If the item is always hidden, returns the first LOD entry
+         * regardless. So this method doesn't ever return null.<br>
+         * <br>
+         * Primarily used for showing the "icon" representing the entire LOD.
          *
-         * @return Icon ItemStack
+         * @return LODItemStack to display nearest that is not hidden
          */
-        ItemStack getIcon();
+        LODItemStack getNearestNotHidden();
 
         /**
          * Gets the LODItemStack used close to the player. Same as {@link #getForDistance(int)}
@@ -230,8 +255,8 @@ public interface LODItemStack extends Comparable<LODItemStack> {
         }
 
         @Override
-        public ItemStack getIcon() {
-            return item;
+        public LODItemStack getNearestNotHidden() {
+            return this;
         }
 
         @Override
@@ -333,13 +358,13 @@ public interface LODItemStack extends Comparable<LODItemStack> {
         }
 
         @Override
-        public ItemStack getIcon() {
+        public LODItemStack getNearestNotHidden() {
             for (ListLODItemStack item : items) {
                 if (item.getItem() != null) {
-                    return item.getItem();
+                    return item;
                 }
             }
-            return null;
+            return items[0];
         }
 
         @Override

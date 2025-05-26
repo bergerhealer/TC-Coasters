@@ -129,7 +129,7 @@ public class TrackObjectTypeDisplayItemStack implements TrackObjectTypeDisplay<T
     @Override
     @SuppressWarnings("deprecation")
     public String generateName() {
-        ItemStack icon = lodList.getIcon();
+        ItemStack icon = lodList.getNearestNotHidden().getItem();
         if (icon == null) {
             return "I_D_UNSET";
         } else if (ItemUtil.hasDurability(icon)) {
@@ -159,16 +159,13 @@ public class TrackObjectTypeDisplayItemStack implements TrackObjectTypeDisplay<T
 
     @Override
     public boolean isSameImage(TrackObjectType<?> type) {
-        return Objects.equals(this.getLODItems().getIcon(),
-                ((TrackObjectTypeDisplayItemStack) type).getLODItems().getIcon());
+        return Objects.equals(this.getLODItems().getNearestNotHidden().getItem(),
+                ((TrackObjectTypeDisplayItemStack) type).getLODItems().getNearestNotHidden().getItem());
     }
 
     @Override
     public void drawImage(TCCoasters plugin, MapCanvas canvas) {
-        ItemStack icon = this.lodList.getIcon();
-        if (icon != null) {
-            canvas.fillItem(plugin.getResourcePack(), icon);
-        }
+        this.lodList.getNearestNotHidden().drawIcon(plugin, canvas);
     }
 
     @Override
