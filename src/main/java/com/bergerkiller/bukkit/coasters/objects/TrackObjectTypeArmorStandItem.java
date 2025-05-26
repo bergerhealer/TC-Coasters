@@ -134,7 +134,8 @@ public class TrackObjectTypeArmorStandItem implements TrackObjectTypeItem<TrackP
 
     @Override
     public TrackObjectTypeArmorStandItem acceptItem(ItemStack item) {
-        return this.setLODItems(this.lodList.updateItem(0, item));
+        return this.setLODItems(this.lodList.update(0,
+                this.lodList.getItem(0).withItem(item)));
     }
 
     @Override

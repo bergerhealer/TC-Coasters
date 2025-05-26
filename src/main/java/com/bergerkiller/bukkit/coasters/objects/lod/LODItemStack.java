@@ -6,14 +6,13 @@ import org.bukkit.inventory.ItemStack;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
-import java.util.function.Function;
 
 /**
  * Immutable ItemStack for displaying the item at a particular distance to the player.
  * The {@link List} stores multiple of these and has methods for editing the LODs.
  */
-public interface LODItemStack {
-    int EXPAND_LOD_STEP = 32; // Blocks increase every time LODs are expanded
+public interface LODItemStack extends Comparable<LODItemStack> {
+    int ADD_LOD_STEP = 32; // Blocks increase every time LODs are expanded
 
     /**
      * Gets the displayed item. Can be null if none is shown.
@@ -39,6 +38,45 @@ public interface LODItemStack {
      * @return True if this LOD is shown
      */
     boolean isForDistance(int viewDistance);
+
+    @Override
+    default int compareTo(LODItemStack other) {
+        return Integer.compare(this.getDistanceThreshold(), other.getDistanceThreshold());
+    }
+
+    /**
+     * Clones this LODItemStack with a new ItemStack item set
+     *
+     * @param newItem New ItemStack item to set
+     * @return New LODItemStack
+     * @see #of(int, ItemStack)
+     */
+    default LODItemStack withItem(ItemStack newItem) {
+        return of(getDistanceThreshold(), newItem);
+    }
+
+    /**
+     * Clones this LODItemStack with a new distance threshold set
+     *
+     * @param newDistanceThreshold New distance threshold to set
+     * @return New LODItemStack
+     * @see #of(int, ItemStack)
+     */
+    default LODItemStack withDistanceThreshold(int newDistanceThreshold) {
+        return of(newDistanceThreshold, getItem());
+    }
+
+    /**
+     * Creates a new LODItemStack snapshot. Its properties are not altered until it
+     * is added to a List structure.
+     *
+     * @param distanceThreshold Distance threshold
+     * @param item ItemStack item to display at this distance
+     * @return new LODItemStack
+     */
+    static LODItemStack of(int distanceThreshold, ItemStack item) {
+        return new LODItemStackImpl(distanceThreshold, item);
+    }
 
     /**
      * Creates a new List containing a single item. No distance thresholds are set,
@@ -108,33 +146,27 @@ public interface LODItemStack {
         java.util.List<LODItemStack> getItems();
 
         /**
-         * Updates the {@link LODItemStack#getDistanceThreshold()} of a LOD in this list
+         * Swaps out the LODItemStack that is in this list at an index
          *
          * @param lodIndex Index of an LOD item in this list ({@link #getItems()})
-         * @param distanceThreshold New distance threshold to set
-         * @return A new List with the lod threshold updated, and items sorted from near to far.
+         * @param newLODItem New LODItemStack to set
+         * @return A new List with the lod item updated, and items sorted from near to far.
          *         This means the lod index specified will not be valid in the new list.
          * @throws IndexOutOfBoundsException If the lodIndex is out of bounds of the list
          */
-        List updateDistanceThreshold(int lodIndex, int distanceThreshold);
-
-        /**
-         * Updates the {@link LODItemStack#getItem()} of a LOD in this list
-         *
-         * @param lodIndex Index of an LOD item in this list ({@link #getItems()})
-         * @param item New ItemStack item
-         * @return A new List with the item updated
-         * @throws IndexOutOfBoundsException If the lodIndex is out of bounds of the list
-         */
-        List updateItem(int lodIndex, ItemStack item);
+        List update(int lodIndex, LODItemStack newLODItem);
 
         /**
          * Duplicates the further entry and adds it to the end of this list. The view distance
-         * is set to the furthers plus {@link #EXPAND_LOD_STEP}, and can then be adjusted.
+         * is set to the furthers plus {@link #ADD_LOD_STEP}, and can then be adjusted.
          *
          * @return A new List with the new LOD added
          */
-        List addNewLOD();
+        default List addNewLOD() {
+            java.util.List<LODItemStack> items = getItems();
+            LODItemStack last = items.get(items.size() - 1);
+            return addNewLOD(last.getDistanceThreshold() + ADD_LOD_STEP, last.getItem());
+        }
 
         /**
          * Adds a new entry to this list with the specified distance threshold and item
@@ -143,7 +175,17 @@ public interface LODItemStack {
          * @param item ItemStack
          * @return A new List with the new LOD item added
          */
-        List addNewLOD(int distanceThreshold, ItemStack item);
+        default List addNewLOD(int distanceThreshold, ItemStack item) {
+            return addNewLOD(of(distanceThreshold, item));
+        }
+
+        /**
+         * Adds a new entry to this list with the specified LODItemStack configuration.
+         *
+         * @param lodItemStack LODItemStack with the distance threshold and item to use
+         * @return A new List with the new LOD item added
+         */
+        List addNewLOD(LODItemStack lodItemStack);
 
         /**
          * Removes an LOD item from this List. The list can never shrink below one item, at
@@ -214,27 +256,16 @@ public interface LODItemStack {
         }
 
         @Override
-        public List updateDistanceThreshold(int lodIndex, int distanceThreshold) {
+        public List update(int lodIndex, LODItemStack newLODItem) {
             checkIndex(lodIndex);
-            return this; // Has no thresholds so doesn't do anything
+            return new SingleItemList(newLODItem.getItem());
         }
 
         @Override
-        public List updateItem(int lodIndex, ItemStack item) {
-            checkIndex(lodIndex);
-            return new SingleItemList(item);
-        }
-
-        @Override
-        public List addNewLOD() {
-            return addNewLOD(EXPAND_LOD_STEP, this.item);
-        }
-
-        @Override
-        public List addNewLOD(int distanceThreshold, ItemStack item) {
+        public List addNewLOD(LODItemStack lodItem) {
             MultiItemList.ListLODItemStack[] items = new MultiItemList.ListLODItemStack[2];
-            items[0] = new MultiItemList.ListLODItemStack(this.item, 0);
-            items[1] = new MultiItemList.ListLODItemStack(item, distanceThreshold);
+            items[0] = new MultiItemList.ListLODItemStack(this);
+            items[1] = new MultiItemList.ListLODItemStack(lodItem);
             return new MultiItemList(items);
         }
 
@@ -285,11 +316,11 @@ public interface LODItemStack {
         private MultiItemList(ListLODItemStack[] items) {
             // Ensure sorted near-far and maxViewDistance is correct
             Arrays.sort(items);
-            if (items[0].minViewDistance != 0) {
-                items[0] = new ListLODItemStack(items[0].item, 0);
+            if (items[0].getDistanceThreshold() != 0) {
+                items[0] = new ListLODItemStack(items[0].withDistanceThreshold(0));
             }
             for (int i = 0; i < items.length - 1; i++) {
-                items[i].maxViewDistance = items[i + 1].minViewDistance;
+                items[i].maxViewDistance = items[i + 1].getDistanceThreshold();
             }
             items[items.length - 1].maxViewDistance = Integer.MAX_VALUE;
 
@@ -304,8 +335,8 @@ public interface LODItemStack {
         @Override
         public ItemStack getIcon() {
             for (ListLODItemStack item : items) {
-                if (item.item != null) {
-                    return item.item;
+                if (item.getItem() != null) {
+                    return item.getItem();
                 }
             }
             return null;
@@ -329,7 +360,7 @@ public interface LODItemStack {
             // We assume when objects spawn in, players are going to be far away from them
             for (int i = items.length - 1; i >= 1; --i) {
                 ListLODItemStack item = items[i];
-                if (viewDistance >= item.minViewDistance) {
+                if (viewDistance >= item.getDistanceThreshold()) {
                     return item;
                 }
             }
@@ -342,25 +373,17 @@ public interface LODItemStack {
         }
 
         @Override
-        public List updateDistanceThreshold(int lodIndex, int distanceThreshold) {
-            return updateListItem(lodIndex, prev -> new ListLODItemStack(prev.item, distanceThreshold));
+        public List update(int lodIndex, LODItemStack newLODItem) {
+            checkIndex(lodIndex);
+            ListLODItemStack[] newItems = items.clone();
+            newItems[lodIndex] = new ListLODItemStack(newLODItem);
+            return new MultiItemList(newItems);
         }
 
         @Override
-        public List updateItem(int lodIndex, ItemStack item) {
-            return updateListItem(lodIndex, prev -> new ListLODItemStack(item, prev.minViewDistance));
-        }
-
-        @Override
-        public List addNewLOD() {
-            ListLODItemStack last = items[items.length - 1];
-            return addNewLOD(last.minViewDistance + EXPAND_LOD_STEP, last.item);
-        }
-
-        @Override
-        public List addNewLOD(int distanceThreshold, ItemStack item) {
+        public List addNewLOD(LODItemStack lodItem) {
             ListLODItemStack[] items = Arrays.copyOf(this.items, this.items.length + 1);
-            items[items.length - 1] = new ListLODItemStack(item, distanceThreshold);
+            items[items.length - 1] = new ListLODItemStack(lodItem);
             return new MultiItemList(items);
         }
 
@@ -371,18 +394,11 @@ public interface LODItemStack {
             // 2 -> 1: Turn into a single-item list
             if (this.items.length == 2) {
                 ListLODItemStack other = (lodIndex == 0) ? this.items[1] : this.items[0];
-                return new SingleItemList(other.item);
+                return new SingleItemList(other.getItem());
             }
 
             // Remove item
             return new MultiItemList(LogicUtil.removeArrayElement(this.items, lodIndex));
-        }
-
-        private List updateListItem(int lodIndex, Function<ListLODItemStack, ListLODItemStack> func) {
-            checkIndex(lodIndex);
-            ListLODItemStack[] newItems = items.clone();
-            newItems[lodIndex] = func.apply(newItems[lodIndex]);
-            return new MultiItemList(newItems);
         }
 
         private void checkIndex(int lodIndex) {
@@ -414,68 +430,36 @@ public interface LODItemStack {
             str.append("MultiLODList [");
             for (ListLODItemStack item : items) {
                 str.append("\n  - [")
-                        .append(item.minViewDistance).append(" ... ")
+                        .append(item.getDistanceThreshold()).append(" ... ")
                         .append(item.maxViewDistance).append("]: ")
-                        .append(item.item);
+                        .append(item.getItem());
             }
             str.append("\n]");
             return str.toString();
         }
 
-        private static class ListLODItemStack implements LODItemStack, Comparable<ListLODItemStack> {
-            private final ItemStack item;
-            private final int minViewDistance;
-            private int maxViewDistance;
+        private static final class ListLODItemStack extends LODItemStackImpl {
+            private int maxViewDistance = Integer.MAX_VALUE;
 
-            public ListLODItemStack(ItemStack item, int minViewDistance) {
-                this.item = item;
-                this.minViewDistance = minViewDistance;
-                this.maxViewDistance = Integer.MAX_VALUE;
-            }
-
-            @Override
-            public ItemStack getItem() {
-                return item;
-            }
-
-            @Override
-            public int getDistanceThreshold() {
-                return minViewDistance;
+            public ListLODItemStack(LODItemStack lodItem) {
+                super(lodItem);
             }
 
             @Override
             public boolean isForDistance(int viewDistance) {
-                return viewDistance >= minViewDistance && viewDistance < maxViewDistance;
-            }
-
-            @Override
-            public int compareTo(LODItemStack.MultiItemList.ListLODItemStack listLODItemStack) {
-                return Integer.compare(this.minViewDistance, listLODItemStack.minViewDistance);
-            }
-
-            @Override
-            public int hashCode() {
-                return 31 * Objects.hashCode(item) + minViewDistance;
-            }
-
-            @Override
-            public boolean equals(Object o) {
-                if (o == this) {
-                    return true;
-                } else if (o instanceof LODItemStack) {
-                    LODItemStack other = (LODItemStack) o;
-                    return Objects.equals(this.item, other.getItem()) &&
-                            this.minViewDistance == other.getDistanceThreshold();
-                } else {
-                    return false;
-                }
+                return viewDistance >= getDistanceThreshold() && viewDistance < maxViewDistance;
             }
 
             @Override
             public String toString() {
-                return "MultiLODItemStack{threshold=[" +
-                        minViewDistance + " ... " + maxViewDistance +
-                        "], item=" + this.item + "}";
+                if (maxViewDistance == Integer.MAX_VALUE) {
+                    return "List.LODItemStack{threshold=" + getDistanceThreshold() +
+                            ", item=" + this.getItem() + "}";
+                } else {
+                    return "List.LODItemStack{threshold=[" +
+                            getDistanceThreshold() + " ... " + maxViewDistance +
+                            "], item=" + this.getItem() + "}";
+                }
             }
         }
     }

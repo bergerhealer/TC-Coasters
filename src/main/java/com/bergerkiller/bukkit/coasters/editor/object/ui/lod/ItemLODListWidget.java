@@ -49,12 +49,6 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
         this.addContainerWidget(new ExpandWidget());
     }
 
-    private boolean isLODItemAt(int lodIndex, int expectedThreshold, ItemStack expectedItem) {
-        LODItemStack item = lodList.getItem(lodIndex);
-        return item.getDistanceThreshold() == expectedThreshold &&
-                item.getItem() == expectedItem;
-    }
-
     private LODItemWidget getItemWidget(int lodIndex) {
         return (LODItemWidget) getContainer().getWidget(lodIndex);
     }
@@ -158,12 +152,11 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
             }
 
             // For focusing the right row later
-            ItemStack focusItem = lodList.getItem(index).getItem();
-            int focusThreshold = liveDistance;
+            LODItemStack distanceUpdatedLODItem = lodList.getItem(index).withDistanceThreshold(liveDistance);
 
             // Update distances. This could result in items being re-ordered.
             LODItemStack.List oldList = lodList;
-            LODItemStack.List newList = lodList.updateDistanceThreshold(index, liveDistance);
+            LODItemStack.List newList = lodList.update(index, distanceUpdatedLODItem);
             lodList = newList; // Ensures update functions work properly
 
             // Re-sync all widget in case order / items have changed
@@ -190,11 +183,11 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
             // Then focus this one and ensure editing of the distance is resumed (in case it was moved)
             if (isFocused()) {
                 LODItemWidget itemWidget = null;
-                if (isLODItemAt(index, focusThreshold, focusItem)) {
+                if (distanceUpdatedLODItem.equals(lodList.getItem(index))) {
                     itemWidget = getItemWidget(index);
                 } else {
                     for (int i = 0; i < lodList.size(); i++) {
-                        if (i != index && isLODItemAt(i, focusThreshold, focusItem)) {
+                        if (i != index && distanceUpdatedLODItem.equals(lodList.getItem(i))) {
                             itemWidget = getItemWidget(i);
                             break;
                         }
@@ -203,7 +196,7 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                 if (itemWidget != null) {
                     itemWidget.buttonIdx = 1;
                     itemWidget.isEditingDistance = true;
-                    itemWidget.liveDistance = focusThreshold;
+                    itemWidget.liveDistance = distanceUpdatedLODItem.getDistanceThreshold();
                     itemWidget.invalidate();
 
                     if (itemWidget != this) {
