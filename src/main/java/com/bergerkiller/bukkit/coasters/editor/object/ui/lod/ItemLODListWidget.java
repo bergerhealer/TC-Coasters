@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.editor.object.ui.lod;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemSelectMenuBase;
 import com.bergerkiller.bukkit.coasters.objects.lod.LODItemStack;
 import com.bergerkiller.bukkit.common.events.map.MapKeyEvent;
 import com.bergerkiller.bukkit.common.map.MapBlendMode;
@@ -234,6 +235,19 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
         public void onActivate() {
             if (buttonIdx == 0) {
                 // Show item configuration dialog
+                parent.addWidget(new ItemLODItemSelectMenu() {
+                    @Override
+                    public ItemStack getInitialItem() {
+                        return lodList.getItem(index).getItem();
+                    }
+
+                    @Override
+                    public void onItemUpdated(ItemStack item) {
+                        lodList = lodList.update(index, lodList.getItem(index).withItem(item));
+                        updateItemImage();
+                        onLODChanged(lodList);
+                    }
+                });
             } else if (buttonIdx == 1) {
                 // Toggle editing the distance
                 isEditingDistance = !isEditingDistance;

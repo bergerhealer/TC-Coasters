@@ -14,50 +14,27 @@ import com.bergerkiller.bukkit.common.resources.SoundEffect;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetMenu;
 import com.bergerkiller.bukkit.tc.attachments.ui.item.MapWidgetItemSelector;
 
-public class ItemSelectMenu extends MapWidgetMenu {
-    private final MapWidgetItemSelector itemSelector;
+public class ItemSelectMenu extends ItemSelectMenuBase {
+    private final Supplier<PlayerEditState> stateSupplier;
 
     public ItemSelectMenu(Supplier<PlayerEditState> stateSupplier) {
-        this.setBounds(0, 0, 118, 103);
-        this.setBackgroundColor(MapColorPalette.COLOR_BLUE);
-        this.itemSelector = this.addWidget(new MapWidgetItemSelector() {
-            @Override
-            public void onAttached() {
-                super.onAttached();
-
-                TrackObjectType<?> type = stateSupplier.get().getObjects().getSelectedType();
-                if (type instanceof TrackObjectTypeItem) {
-                    this.setSelectedItem(((TrackObjectTypeItem<?>) type).getLODItems().getNearest().getItem());
-                } else if (type instanceof TrackObjectTypeBlock) {
-                    this.setSelectedItem(((TrackObjectTypeBlock<?>) type).getBlockData().createItem(1));
-                }
-            }
-
-            @Override
-            public void onSelectedItemChanged() {
-                ItemStack item = this.getSelectedItem();
-                if (item == null) {
-                    return;
-                }
-                stateSupplier.get().getObjects().transformSelectedType(type -> type.acceptItem(this.getSelectedItem()));
-            }
-        });
-        this.itemSelector.setPosition(7, 7);
+        this.stateSupplier = stateSupplier;
     }
 
     @Override
-    public boolean onItemDrop(Player player, ItemStack item) {
-        return this.itemSelector.acceptItem(item);
+    public ItemStack getInitialItem() {
+        TrackObjectType<?> type = stateSupplier.get().getObjects().getSelectedType();
+        if (type instanceof TrackObjectTypeItem) {
+            return ((TrackObjectTypeItem<?>) type).getLODItems().getNearest().getItem();
+        } else if (type instanceof TrackObjectTypeBlock) {
+            return ((TrackObjectTypeBlock<?>) type).getBlockData().createItem(1);
+        } else {
+            return null;
+        }
     }
 
     @Override
-    public void onAttached() {
-        super.onAttached();
-        display.playSound(SoundEffect.PISTON_EXTEND);
-    }
-
-    @Override
-    public void onDetached() {
-        display.playSound(SoundEffect.PISTON_CONTRACT);
+    public void onItemUpdated(ItemStack item) {
+        stateSupplier.get().getObjects().transformSelectedType(type -> type.acceptItem(item));
     }
 }
