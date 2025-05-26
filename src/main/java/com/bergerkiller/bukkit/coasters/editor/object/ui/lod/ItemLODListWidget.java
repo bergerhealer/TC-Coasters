@@ -9,6 +9,7 @@ import com.bergerkiller.bukkit.common.map.MapFont;
 import com.bergerkiller.bukkit.common.map.MapPlayerInput;
 import com.bergerkiller.bukkit.common.map.MapTexture;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
+import com.bergerkiller.bukkit.common.map.widgets.MapWidgetButton;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetScroller;
 import org.bukkit.inventory.ItemStack;
 
@@ -20,21 +21,32 @@ import java.util.Objects;
  * modifying them.
  */
 public abstract class ItemLODListWidget extends MapWidgetScroller {
-    private static final int LIST_WIDTH = 108;
-    private static final int LIST_HEIGHT = 103;
-    private static final int ITEM_HEIGHT = 16;
+    private static final int LIST_WIDTH = 106;
+    private static final int LIST_HEIGHT = 90;
+    private static final int ITEM_HEIGHT = 17;
+    private static final int ICON_SIZE = ITEM_HEIGHT - 1;
     private static final int REMOVE_BUTTON_SIZE = 11;
     private final TCCoasters plugin;
     private LODItemStack.List lodList;
+
+    /**
+     * Called when the LOD list is re-configured
+     *
+     * @param lodList Updated List of LOD ItemStacks
+     */
+    public abstract void onLODChanged(LODItemStack.List lodList);
 
     public ItemLODListWidget(TCCoasters plugin, LODItemStack.List lodList) {
         this.plugin = plugin;
         this.lodList = lodList;
         this.setSize(LIST_WIDTH, LIST_HEIGHT);
+        this.setScrollPadding(5);
 
         for (int i = 0; i < lodList.size(); i++) {
             this.addContainerWidget(new LODItemWidget(i));
         }
+
+        this.addContainerWidget(new ExpandWidget());
     }
 
     private boolean isLODItemAt(int lodIndex, int expectedThreshold, ItemStack expectedItem) {
@@ -47,28 +59,86 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
         return (LODItemWidget) getContainer().getWidget(lodIndex);
     }
 
-    /**
-     * Called when the LOD list is re-configured
-     *
-     * @param lodList Updated List of LOD ItemStacks
-     */
-    public abstract void onLODChanged(LODItemStack.List lodList);
+    public void removeLODItem(int lodIndex) {
+        if (lodList.size() == 1) {
+            return;
+        }
 
-    private class LODItemWidget extends MapWidget {
-        private int index;
+        getContainer().removeWidget(getContainer().getWidget(lodIndex));
+        lodList = lodList.removeLOD(lodIndex);
+
+        for (int i = lodIndex; i < lodList.size(); i++) {
+            LODItemWidget itemWidget = getItemWidget(i);
+            itemWidget.resetEditingDistance();
+            itemWidget.updateIndex(i);
+            itemWidget.invalidate();
+        }
+
+        ((ListRowWidget) getContainer().getWidget(getContainer().getWidgetCount() - 1)).updateIndex(lodList.size());
+
+        getItemWidget(Math.min(lodList.size() - 1, lodIndex)).focus();
+
+        onLODChanged(lodList);
+    }
+
+    public void addNewLOD() {
+        lodList = lodList.addNewLOD();
+
+        // Swap out the expand button with a new LOD item widget, and focus it
+        getContainer().removeWidget(getContainer().getWidget(getContainer().getWidgetCount() - 1));
+        addContainerWidget(new LODItemWidget(lodList.size() - 1)).focus();
+        addContainerWidget(new ExpandWidget());
+
+        onLODChanged(lodList);
+    }
+
+    private static class ListRowWidget extends MapWidget {
+        protected int index;
+
+        public ListRowWidget(int index) {
+            this.updateIndex(index);
+            this.setFocusable(true);
+        }
+
+        public void updateIndex(int index) {
+            this.index = index;
+            this.setBounds(0, index * ITEM_HEIGHT, LIST_WIDTH, ITEM_HEIGHT);
+        }
+
+        protected byte getRowBackgroundColor() {
+            return isFocused()
+                    ? MapColorPalette.getColor(70, 70, 70)
+                    : MapColorPalette.getColor(40, 40, 40);
+        }
+
+        @Override
+        public void onDraw() {
+            view.fill(getRowBackgroundColor());
+        }
+    }
+
+    private class LODItemWidget extends ListRowWidget {
         private int buttonIdx = 0;
         private boolean isEditingDistance = false;
         private int liveDistance = -1;
         private boolean liveDistanceChanged = false;
         private boolean focusFromEditingDistance = false;
+        private boolean isHoldingKeyUp = false;
+        private boolean isHoldingKeyDown = false;
         private final MapTexture itemIcon;
 
         public LODItemWidget(int index) {
-            this.index = index;
-            this.setBounds(0, index * ITEM_HEIGHT, LIST_WIDTH, ITEM_HEIGHT);
-            this.setFocusable(true);
-            this.itemIcon = MapTexture.createEmpty(ITEM_HEIGHT, ITEM_HEIGHT);
+            super(index);
+            this.itemIcon = MapTexture.createEmpty(ICON_SIZE, ICON_SIZE);
             updateItemImage();
+        }
+
+        public void resetEditingDistance() {
+            liveDistance = -1;
+            isEditingDistance = false;
+            isHoldingKeyDown = false;
+            isHoldingKeyUp = false;
+            invalidate();
         }
 
         public void updateItemImage() {
@@ -100,12 +170,16 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
             for (int i = 0; i < oldList.size(); i++) {
                 LODItemStack oldLODItem = oldList.getItem(i);
                 LODItemStack newLODItem = newList.getItem(i);
+                LODItemWidget widget = getItemWidget(i);
+
+                if (widget.isEditingDistance) {
+                    widget.resetEditingDistance();
+                }
+
                 if (!oldLODItem.equals(newLODItem)) {
-                    LODItemWidget widget = getItemWidget(i);
                     if (!Objects.equals(oldLODItem.getItem(), newLODItem.getItem())) {
                         widget.updateItemImage();
                     }
-                    widget.liveDistance = newLODItem.getDistanceThreshold();
                     widget.buttonIdx = 0;
                     widget.isEditingDistance = false;
                     widget.invalidate();
@@ -129,6 +203,7 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                 if (itemWidget != null) {
                     itemWidget.buttonIdx = 1;
                     itemWidget.isEditingDistance = true;
+                    itemWidget.liveDistance = focusThreshold;
                     itemWidget.invalidate();
 
                     if (itemWidget != this) {
@@ -137,6 +212,8 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                     }
                 }
             }
+
+            onLODChanged(lodList);
         }
 
         @Override
@@ -149,6 +226,8 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
             } else {
                 buttonIdx = 0;
                 isEditingDistance = false;
+                isHoldingKeyUp = false;
+                isHoldingKeyDown = false;
             }
         }
 
@@ -169,6 +248,7 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                 invalidate();
             } else if (buttonIdx == 2) {
                 // Removal
+                removeLODItem(index);
             }
         }
 
@@ -181,18 +261,24 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                     invalidate();
                     return;
                 } else if (event.getKey() == MapPlayerInput.Key.RIGHT) {
-                    buttonIdx = Math.min(2, buttonIdx + 1);
-                    isEditingDistance = false;
-                    invalidate();
+                    // With only 1 LOD, only the item can be configured (button idx 0)
+                    // So in that case left/right does nothing
+                    if (lodList.size() > 1) {
+                        buttonIdx = Math.min(2, buttonIdx + 1);
+                        isEditingDistance = false;
+                        invalidate();
+                    }
                     return;
                 } else if (this.isEditingDistance) {
                     if (event.getKey() == MapPlayerInput.Key.UP) {
-                        liveDistance = Math.min(10000, liveDistance + 1);
+                        isHoldingKeyUp = true;
+                        liveDistance = Math.min(10000, liveDistance + getIncrease(event.getRepeat()));
                         liveDistanceChanged = true;
                         invalidate();
                         return;
                     } else if (event.getKey() == MapPlayerInput.Key.DOWN) {
-                        liveDistance = Math.max(0, liveDistance - 1);
+                        isHoldingKeyDown = true;
+                        liveDistance = Math.max(0, liveDistance - getIncrease(event.getRepeat()));
                         liveDistanceChanged = true;
                         invalidate();
                         return;
@@ -203,27 +289,33 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
             super.onKeyPressed(event);
         }
 
+        private int getIncrease(int repeat) {
+            return (int) Math.pow(2.0, (double) (repeat / 40));
+        }
+
         @Override
         public void onKeyReleased(MapKeyEvent event) {
             applyLiveDistance();
+            if (event.getKey() == MapPlayerInput.Key.UP) {
+                isHoldingKeyUp = false;
+            } else if (event.getKey() == MapPlayerInput.Key.DOWN) {
+                isHoldingKeyDown = false;
+            }
             super.onKeyReleased(event);
         }
 
         @Override
         public void onDraw() {
-            int selButtonIdx = -1;
-            if (this.isFocused()) {
-                view.fill(MapColorPalette.getColor(64, 64, 64));
-                selButtonIdx = this.buttonIdx;
-            } else {
-                view.fill(MapColorPalette.getColor(32, 32, 32));
-            }
+            super.onDraw();
+
+            int selButtonIdx = isFocused() ? this.buttonIdx : -1;
 
             // Item icon
             if (selButtonIdx == 0) {
                 this.view.draw(this.itemIcon, 0, 0);
                 this.view.setBlendMode(MapBlendMode.ADD);
-                this.view.fill(MapColorPalette.getColor(32, 32, 32));
+                this.view.fillRectangle(0, 0, ITEM_HEIGHT, ITEM_HEIGHT,
+                        MapColorPalette.getColor(32, 32, 32));
                 this.view.setBlendMode(MapBlendMode.OVERLAY);
                 this.view.drawRectangle(0, 0, ITEM_HEIGHT, ITEM_HEIGHT, MapColorPalette.COLOR_WHITE);
             } else {
@@ -243,14 +335,30 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                 int viewThreshold = isEditingDistance
                         ? liveDistance
                         : lodList.getItem(index).getDistanceThreshold();
-                int viewThresholdX = ITEM_HEIGHT + 4;
-                int viewThresholdY = 4;
+                int viewThresholdX = ITEM_HEIGHT + 8;
+                int viewThresholdY = 5;
                 String text = Integer.toString(viewThreshold);
                 view.draw(MapFont.MINECRAFT, viewThresholdX, viewThresholdY, textColor, text);
                 if (isEditingDistance) {
-                    int textW = (int) view.calcFontSize(MapFont.MINECRAFT, text).getWidth();
-                    view.drawLine(viewThresholdX, viewThresholdY + 8,
-                            viewThresholdX + textW, viewThresholdY + 8, textColor);
+                    int lineEndX = viewThresholdX + (int) view.calcFontSize(MapFont.MINECRAFT, text).getWidth() - 2;
+                    int lineY = viewThresholdY + 8;
+                    view.drawLine(viewThresholdX, lineY, lineEndX, lineY, textColor);
+
+                    // Show up/down arrow, colored if holding up
+                    int arrowX = lineEndX + 2;
+                    byte activeColor = MapColorPalette.getColor(200, 0, 0);
+                    {
+                        byte upColor = isHoldingKeyUp ? activeColor : textColor;
+                        view.drawPixel(arrowX + 2, viewThresholdY, upColor);
+                        view.drawLine(arrowX + 1, viewThresholdY + 1, arrowX + 3, viewThresholdY + 1, upColor);
+                        view.drawLine(arrowX, viewThresholdY + 2, arrowX + 4, viewThresholdY + 2, upColor);
+                    }
+                    {
+                        byte downColor = isHoldingKeyDown ? activeColor : textColor;
+                        view.drawLine(arrowX, lineY - 2, arrowX + 4, lineY - 2, downColor);
+                        view.drawLine(arrowX + 1, lineY - 1, arrowX + 3, lineY - 1, downColor);
+                        view.drawPixel(arrowX + 2, lineY, downColor);
+                    }
                 }
             }
 
@@ -273,18 +381,19 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                 int removeButtonY = removeButtonBorder;
 
                 // Rounded rectangle (we cut off the corners so it looks nicer)
+                byte rowBgColor = getRowBackgroundColor();
                 view.fillRectangle(removeButtonX + 1, removeButtonY + 1,
                         REMOVE_BUTTON_SIZE - 2, REMOVE_BUTTON_SIZE - 2,
                         removeButtonColorBg);
                 view.drawRectangle(removeButtonX, removeButtonY,
                         REMOVE_BUTTON_SIZE, REMOVE_BUTTON_SIZE,
                         removeButtonColorIcon);
-                view.writePixel(removeButtonX, removeButtonY, MapColorPalette.COLOR_TRANSPARENT);
-                view.writePixel(removeButtonX + REMOVE_BUTTON_SIZE - 1, removeButtonY, MapColorPalette.COLOR_TRANSPARENT);
-                view.writePixel(removeButtonX, removeButtonY + REMOVE_BUTTON_SIZE - 1, MapColorPalette.COLOR_TRANSPARENT);
+                view.writePixel(removeButtonX, removeButtonY, rowBgColor);
+                view.writePixel(removeButtonX + REMOVE_BUTTON_SIZE - 1, removeButtonY, rowBgColor);
+                view.writePixel(removeButtonX, removeButtonY + REMOVE_BUTTON_SIZE - 1, rowBgColor);
                 view.writePixel(removeButtonX + REMOVE_BUTTON_SIZE - 1,
                         removeButtonY + REMOVE_BUTTON_SIZE - 1,
-                        MapColorPalette.COLOR_TRANSPARENT);
+                        rowBgColor);
 
                 // X
                 view.drawLine(removeButtonX + 1,
@@ -298,6 +407,43 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
                         removeButtonY + 1,
                         removeButtonColorIcon);
             }
+        }
+    }
+
+    /** Shows a button to add one more new LOD (duplicating the last one) */
+    private class ExpandWidget extends ListRowWidget {
+
+        public ExpandWidget() {
+            super(lodList.size());
+        }
+
+        @Override
+        public void onActivate() {
+            addNewLOD();
+        }
+
+        @Override
+        public void onDraw() {
+            super.onDraw();
+
+            MapWidgetButton.fillBackground(view.getView(2, 2, getWidth() - 4, getHeight() - 4),
+                    true, isFocused());
+
+            byte textColor, textShadowColor;
+            if (this.isFocused()) {
+                textColor = MapColorPalette.getColor(255, 255, 160);
+                textShadowColor = MapColorPalette.getColor(63, 63, 40);
+            } else {
+                textColor = MapColorPalette.getColor(224, 224, 224);
+                textShadowColor = MapColorPalette.getColor(56, 56, 56);
+            }
+
+            int textX = 20;
+            int textY = 5;
+            String text = "Add new LOD";
+
+            view.draw(MapFont.MINECRAFT, textX + 1, textY + 1, textShadowColor, text);
+            view.draw(MapFont.MINECRAFT, textX, textY, textColor, text);
         }
     }
 }

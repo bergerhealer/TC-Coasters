@@ -134,7 +134,7 @@ public interface LODItemStack {
          *
          * @return A new List with the new LOD added
          */
-        List expandLOD();
+        List addNewLOD();
 
         /**
          * Adds a new entry to this list with the specified distance threshold and item
@@ -143,7 +143,7 @@ public interface LODItemStack {
          * @param item ItemStack
          * @return A new List with the new LOD item added
          */
-        List expandLOD(int distanceThreshold, ItemStack item);
+        List addNewLOD(int distanceThreshold, ItemStack item);
 
         /**
          * Removes an LOD item from this List. The list can never shrink below one item, at
@@ -226,12 +226,12 @@ public interface LODItemStack {
         }
 
         @Override
-        public List expandLOD() {
-            return expandLOD(EXPAND_LOD_STEP, this.item);
+        public List addNewLOD() {
+            return addNewLOD(EXPAND_LOD_STEP, this.item);
         }
 
         @Override
-        public List expandLOD(int distanceThreshold, ItemStack item) {
+        public List addNewLOD(int distanceThreshold, ItemStack item) {
             MultiItemList.ListLODItemStack[] items = new MultiItemList.ListLODItemStack[2];
             items[0] = new MultiItemList.ListLODItemStack(this.item, 0);
             items[1] = new MultiItemList.ListLODItemStack(item, distanceThreshold);
@@ -352,15 +352,14 @@ public interface LODItemStack {
         }
 
         @Override
-        public List expandLOD() {
-            ListLODItemStack last = items[items.length - 2];
-            return expandLOD(last.minViewDistance + EXPAND_LOD_STEP, last.item);
+        public List addNewLOD() {
+            ListLODItemStack last = items[items.length - 1];
+            return addNewLOD(last.minViewDistance + EXPAND_LOD_STEP, last.item);
         }
 
         @Override
-        public List expandLOD(int distanceThreshold, ItemStack item) {
+        public List addNewLOD(int distanceThreshold, ItemStack item) {
             ListLODItemStack[] items = Arrays.copyOf(this.items, this.items.length + 1);
-            ListLODItemStack last = items[items.length - 2];
             items[items.length - 1] = new ListLODItemStack(item, distanceThreshold);
             return new MultiItemList(items);
         }
