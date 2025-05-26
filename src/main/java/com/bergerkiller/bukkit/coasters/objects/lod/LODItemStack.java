@@ -1,11 +1,15 @@
 package com.bergerkiller.bukkit.coasters.objects.lod;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
+import com.bergerkiller.bukkit.coasters.util.StringArrayBuffer;
+import com.bergerkiller.bukkit.coasters.util.SyntaxException;
 import com.bergerkiller.bukkit.common.map.MapCanvas;
 import com.bergerkiller.bukkit.common.map.MapTexture;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
@@ -171,6 +175,13 @@ public interface LODItemStack extends Comparable<LODItemStack> {
         java.util.List<LODItemStack> getItems();
 
         /**
+         * Encodes all LODs except for the first as {@link CSVEntry}
+         *
+         * @return List of CSV Entries for the extra LODs
+         */
+        java.util.List<CSVEntry> encodeExtraLODsForCSV();
+
+        /**
          * Swaps out the LODItemStack that is in this list at an index
          *
          * @param lodIndex Index of an LOD item in this list ({@link #getItems()})
@@ -278,6 +289,11 @@ public interface LODItemStack extends Comparable<LODItemStack> {
         @Override
         public java.util.List<LODItemStack> getItems() {
             return Collections.singletonList(this);
+        }
+
+        @Override
+        public java.util.List<CSVEntry> encodeExtraLODsForCSV() {
+            return java.util.Collections.emptyList();
         }
 
         @Override
@@ -398,6 +414,17 @@ public interface LODItemStack extends Comparable<LODItemStack> {
         }
 
         @Override
+        public java.util.List<CSVEntry> encodeExtraLODsForCSV() {
+            java.util.List<CSVEntry> extraCSV = new ArrayList<>(items.length - 1);
+            for (int i = 1; i < items.length; i++) {
+                CSVEntry e = new CSVEntry();
+                e.lodItem = items[i];
+                extraCSV.add(e);
+            }
+            return extraCSV;
+        }
+
+        @Override
         public List update(int lodIndex, LODItemStack newLODItem) {
             checkIndex(lodIndex);
             ListLODItemStack[] newItems = items.clone();
@@ -486,6 +513,40 @@ public interface LODItemStack extends Comparable<LODItemStack> {
                             "], item=" + this.getItem() + "}";
                 }
             }
+        }
+    }
+
+    /**
+     * Stores additional LOD display modes for a display/armorstand item track object.
+     * These are accumulated in the CSV Reader State and consumed by track objects that
+     * follow after.
+     */
+    final class CSVEntry extends TrackCSV.CSVEntry {
+        public LODItemStack lodItem;
+
+        @Override
+        public boolean detect(StringArrayBuffer buffer) {
+            return buffer.get(0).equals("LOD");
+        }
+
+        @Override
+        public void read(StringArrayBuffer buffer) throws SyntaxException {
+            buffer.skipNext(1); // Type
+            int distanceThreshold = buffer.nextInt();
+            ItemStack item = buffer.nextItemStack();
+            lodItem = LODItemStack.of(distanceThreshold, item);
+        }
+
+        @Override
+        public void write(StringArrayBuffer buffer) {
+            buffer.put("LOD");
+            buffer.putInt(lodItem.getDistanceThreshold());
+            buffer.putItemStack(lodItem.getItem());
+        }
+
+        @Override
+        public void processReader(TrackCSV.CSVReaderState state) {
+            state.pendingLODs.add(lodItem);
         }
     }
 }

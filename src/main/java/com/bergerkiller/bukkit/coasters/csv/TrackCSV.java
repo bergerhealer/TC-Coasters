@@ -15,6 +15,7 @@ import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.events.CoasterBeforeUpdateAnimationStateEvent;
 import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayBlock;
 import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayItemStack;
+import com.bergerkiller.bukkit.coasters.objects.lod.LODItemStack;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSignKey;
 import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
 import org.bukkit.block.BlockFace;
@@ -91,6 +92,7 @@ public class TrackCSV {
         registerEntry(PlayerOrigin::new);
         registerEntry(LockCoasterEntry::new);
         registerEntry(AdjustTrackObjectTypeEntry::new);
+        registerEntry(LODItemStack.CSVEntry::new);
         registerEntry(ObjectEntry::new);
         registerEntry(SignEntry::new);
         registerEntry(NoLimits2Entry::new);
@@ -188,6 +190,7 @@ public class TrackCSV {
         public List<TrackConnectionState> pendingLinks = new ArrayList<TrackConnectionState>();
         public List<TrackConnectionState> prevNode_pendingLinks = new ArrayList<TrackConnectionState>();
         public Map<String, TrackObjectType<?>> trackObjectTypesByName = new HashMap<>();
+        public List<LODItemStack> pendingLODs = new ArrayList<>();
         public List<TrackObject> pendingTrackObjects = new ArrayList<TrackObject>();
         public Map<TrackNodeSignKey, TrackNodeSignKey> signKeyRemapping = new HashMap<>();
         public boolean prevNode_hasDefaultAnimationLinks = true;
@@ -204,6 +207,11 @@ public class TrackCSV {
         public TrackNode.AddSignPredicate addNodeSignPredicate = null; // Supports null for no filter!
         public TrackNode.UpdateAnimationStatePredicate updateAnimationStatePredicate = null; // Supports null for no filter!
 
+        /** Note: only to be used when parsing from YAML config. Very limited use. */
+        public CSVReaderState() {
+            this(null, false);
+        }
+
         public CSVReaderState(TrackCoaster coaster, Player player, boolean preserveSignKeys) {
             this(coaster, preserveSignKeys);
 
@@ -216,7 +224,7 @@ public class TrackCSV {
         public CSVReaderState(TrackCoaster coaster, boolean preserveSignKeys) {
             this.preserveSignKeys = preserveSignKeys;
             this.coaster = coaster;
-            this.world = coaster.getWorld();
+            this.world = (coaster == null) ? null : coaster.getWorld();
         }
 
         public void handleUsingPlayer(Player player) {
@@ -733,6 +741,14 @@ public class TrackCSV {
          * @param objectType The object type to write
          */
         public abstract void writeDetails(StringArrayBuffer buffer, T objectType);
+
+        /**
+         * Called before a track object type is written out as a new row in the CSV file.
+         * In here, additional CSV entries can be written out to represent the track object.
+         */
+        public List<? extends CSVEntry> getExtraCSVEntries() {
+            return Collections.emptyList();
+        }
 
         @Override
         public boolean detect(StringArrayBuffer buffer) {

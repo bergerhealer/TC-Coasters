@@ -1,8 +1,10 @@
 package com.bergerkiller.bukkit.coasters.objects;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
 import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayItemStack;
 import com.bergerkiller.bukkit.coasters.objects.lod.LODItemStack;
 import org.bukkit.inventory.ItemStack;
@@ -180,6 +182,25 @@ public class TrackObjectTypeArmorStandItem implements TrackObjectTypeItem<TrackP
                 return null;
             }
             return TrackObjectTypeArmorStandItem.create(this.width, itemStack);
+        }
+
+        @Override
+        public void processReader(TrackCSV.CSVReaderState state) {
+            if (!state.pendingLODs.isEmpty()) {
+                LODItemStack.List lodList = objectType.getLODItems();
+                for (LODItemStack lodItem : state.pendingLODs) {
+                    lodList.addNewLOD(lodItem);
+                }
+                state.pendingLODs.clear();
+                objectType = objectType.setLODItems(lodList);
+            }
+
+            super.processReader(state);
+        }
+
+        @Override
+        public List<? extends TrackCSV.CSVEntry> getExtraCSVEntries() {
+            return objectType.getLODItems().encodeExtraLODsForCSV();
         }
 
         @Override

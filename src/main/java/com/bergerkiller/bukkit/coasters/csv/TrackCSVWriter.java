@@ -391,8 +391,11 @@ public class TrackCSVWriter implements AutoCloseable {
                 name = this.writtenItemNameHash.nextHex() + "_" + type.generateName();
 
                 // Write the type out
-                TrackCSV.CSVEntry entry = TrackCSV.createTrackObjectTypeEntry(name, type);
+                TrackCSV.TrackObjectTypeEntry<?> entry = TrackCSV.createTrackObjectTypeEntry(name, type);
                 if (entry != null) {
+                    for (TrackCSV.CSVEntry extraEntry : entry.getExtraCSVEntries()) {
+                        this.write(extraEntry);
+                    }
                     this.write(entry);
                 }
             }

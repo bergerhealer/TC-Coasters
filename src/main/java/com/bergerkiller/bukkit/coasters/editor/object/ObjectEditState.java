@@ -16,6 +16,7 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+import com.bergerkiller.bukkit.common.Common;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
@@ -50,6 +51,8 @@ import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 
 public class ObjectEditState {
+    private static final boolean YAML_HAS_LIST_IN_LIST_BUG = !Common.hasCapability("Common:Yaml:ListOfListFix");
+
     private final PlayerEditState editState;
     private final Map<TrackObject, ObjectEditTrackObject> editedTrackObjects = new LinkedHashMap<TrackObject, ObjectEditTrackObject>();
     private final List<DuplicatedObject> duplicatedObjects = new ArrayList<DuplicatedObject>();
@@ -180,13 +183,33 @@ public class ObjectEditState {
         // Make use of the CSV format to save the selected track object type information
         TrackCSV.TrackObjectTypeEntry<?> entry = TrackCSV.createTrackObjectTypeEntry("SELECTED", this.selectedType);
         if (entry != null) {
-            StringArrayBuffer buffer = new StringArrayBuffer();
-            entry.write(buffer);
-            config.set("selectedTrackObject", Arrays.asList(buffer.toArray()));
+            List<? extends TrackCSV.CSVEntry> extraEntries = entry.getExtraCSVEntries();
+            if (!extraEntries.isEmpty()) {
+                List<ConfigurationNode> extraConfigs = config.getNodeList("selectedTrackObjectExtra", false);
+                for (TrackCSV.CSVEntry extraEntry : extraEntries) {
+                    ConfigurationNode extraConfig = new ConfigurationNode();
+                    if (YAML_HAS_LIST_IN_LIST_BUG) {
+                        extraConfig.set("unused", 0); // Workaround for BKCommonLib Yaml bug
+                    }
+                    writeCSVEntryToYaml(extraConfig, "data", extraEntry);
+                    extraConfigs.add(extraConfig);
+                }
+            } else {
+                config.remove("selectedTrackObjectExtra");
+            }
+
+            writeCSVEntryToYaml(config, "selectedTrackObject", entry);
         } else {
             config.remove("selectedTrackObject");
+            config.remove("selectedTrackObjectExtra");
         }
         config.set("dragControl", this.isDragControlEnabled);
+    }
+
+    private static void writeCSVEntryToYaml(ConfigurationNode config, String key, TrackCSV.CSVEntry entry) {
+        StringArrayBuffer buffer = new StringArrayBuffer();
+        entry.write(buffer);
+        config.set(key, Arrays.asList(buffer.toArray()));
     }
 
     /**
@@ -1264,26 +1287,55 @@ public class ObjectEditState {
 
     /// Makes use of the CSV format to load the selected track object type information
     private TrackObjectType<?> parseType(ConfigurationNode config) {
-        if (config.contains("selectedTrackObject")) {
-            List<String> values = config.getList("selectedTrackObject", String.class);
-            if (values != null && !values.isEmpty()) {
-                StringArrayBuffer buffer = new StringArrayBuffer();
-                buffer.load(values);
-                try {
-                    TrackCSV.CSVEntry entry = TrackCSV.decode(buffer);
-                    if (entry instanceof TrackCSV.TrackObjectTypeEntry) {
-                        TrackCSV.TrackObjectTypeEntry<?> typeEntry = (TrackCSV.TrackObjectTypeEntry<?>) entry;
-                        if (typeEntry.objectType != null) {
-                            return typeEntry.objectType;
+        try {
+            TrackCSV.CSVEntry entry = readEntryFromConfig(config, "selectedTrackObject");
+            if (entry instanceof TrackCSV.TrackObjectTypeEntry) {
+                // If there are 'extra' csv entries, parse those too and pass them to the
+                // entry being decoded using the reader state.
+                // This is to preserve item LODs
+                if (config.contains("selectedTrackObjectExtra")) {
+                    List<ConfigurationNode> extraConfigs = config.getNodeList("selectedTrackObjectExtra");
+                    if (extraConfigs != null && !extraConfigs.isEmpty()) {
+                        TrackCSV.CSVReaderState readerState = new TrackCSV.CSVReaderState();
+
+                        for (ConfigurationNode extraConfig : extraConfigs) {
+                            TrackCSV.CSVEntry extraEntry = readEntryFromConfig(extraConfig, "data");
+                            if (extraEntry != null) {
+                                extraEntry.processReader(readerState);
+                            }
                         }
+
+                        entry.processReader(readerState);
+                        entry.processReaderEnd(readerState);
                     }
-                } catch (SyntaxException e) {
-                    this.editState.getPlugin().getLogger().log(Level.WARNING, "Failed to load track object type for " +
-                            this.getPlayer().getName(), e);
+                }
+
+                TrackCSV.TrackObjectTypeEntry<?> typeEntry = (TrackCSV.TrackObjectTypeEntry<?>) entry;
+                if (typeEntry.objectType != null) {
+                    return typeEntry.objectType;
                 }
             }
+        } catch (SyntaxException | ChangeCancelledException e) {
+            this.editState.getPlugin().getLogger().log(Level.WARNING, "Failed to load track object type for " +
+                    this.getPlayer().getName(), e);
         }
+
         return TrackObjectTypeArmorStandItem.createDefault();
+    }
+
+    private static TrackCSV.CSVEntry readEntryFromConfig(ConfigurationNode config, String key) throws SyntaxException {
+        if (!config.contains(key)) {
+            return null;
+        }
+
+        List<String> values = config.getList(key, String.class);
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+
+        StringArrayBuffer buffer = new StringArrayBuffer();
+        buffer.load(values);
+        return TrackCSV.decode(buffer);
     }
 
     private Collection<ObjectEditTrackObject> computeDraggedObjects(boolean initialDirection) {

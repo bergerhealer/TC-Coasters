@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
+import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.wrappers.Brightness;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
@@ -29,6 +30,7 @@ import com.bergerkiller.bukkit.common.wrappers.BlockData;
  */
 public class StringArrayBuffer implements Iterator<String> {
     private static final NumberFormat DEFAULT_NUMBER_FORMAT = new DecimalFormat("0.0#####", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+    private static final boolean CAN_WRITE_NULL_ITEM = Common.hasCapability("Common:JSONSerializer:NullItemStack");
 
     private final JsonSerializer jsonSerializer = new JsonSerializer();
     private String[] buffer = new String[10];
@@ -161,6 +163,10 @@ public class StringArrayBuffer implements Iterator<String> {
      * @param item The ItemStack value to set
      */
     public void putItemStack(ItemStack item) {
+        if (!CAN_WRITE_NULL_ITEM && item == null) {
+            put("null"); // Until fixed in BKCommonLib
+        }
+
         put(jsonSerializer.itemStackToJson(item).replace(" ", "\\u0020"));
     }
 
@@ -254,7 +260,11 @@ public class StringArrayBuffer implements Iterator<String> {
      */
     public ItemStack nextItemStack() throws SyntaxException {
         try {
-            return this.jsonSerializer.fromJsonToItemStack(next());
+            String json = next();
+            if (!CAN_WRITE_NULL_ITEM && "null".equals(json)) {
+                return null; // Until patched in BKCommonLib
+            }
+            return this.jsonSerializer.fromJsonToItemStack(json);
         } catch (JsonSyntaxException e) {
             throw createSyntaxException("Invalid ItemStack Json(" + e.getMessage() + ")");
         }

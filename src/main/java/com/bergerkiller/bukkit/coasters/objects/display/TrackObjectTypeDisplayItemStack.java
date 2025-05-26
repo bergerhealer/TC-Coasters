@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.coasters.objects.display;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
 import com.bergerkiller.bukkit.coasters.csv.TrackCSV.TrackObjectTypeEntry;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.DisplayTypePositionMenu;
@@ -22,6 +23,7 @@ import com.bergerkiller.bukkit.common.wrappers.Brightness;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -248,6 +250,25 @@ public class TrackObjectTypeDisplayItemStack implements TrackObjectTypeDisplay<T
             }
 
             return TrackObjectTypeDisplayItemStack.create(this.width, clip, brightness, size, itemStack);
+        }
+
+        @Override
+        public void processReader(TrackCSV.CSVReaderState state) {
+            if (!state.pendingLODs.isEmpty()) {
+                LODItemStack.List lodList = objectType.getLODItems();
+                for (LODItemStack lodItem : state.pendingLODs) {
+                    lodList = lodList.addNewLOD(lodItem);
+                }
+                state.pendingLODs.clear();
+                objectType = objectType.setLODItems(lodList);
+            }
+
+            super.processReader(state);
+        }
+
+        @Override
+        public List<? extends TrackCSV.CSVEntry> getExtraCSVEntries() {
+            return objectType.getLODItems().encodeExtraLODsForCSV();
         }
 
         @Override
