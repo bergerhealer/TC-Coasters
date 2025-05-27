@@ -121,15 +121,37 @@ public class TrackParticleDisplayItem extends TrackParticle {
 
     @Override
     public void makeVisibleFor(Player viewer) {
+        makeVisibleFor(viewer, this.lodList.getNearest().getItem());
+    }
+
+    @Override
+    public TrackParticleLifecycle getLifecycle(State state) {
+        if (lodList.isSingleLOD()) {
+            return this;
+        } else {
+            return new LODLifecycle(lodList, lodList.getForDistance(state.getViewDistance()));
+        }
+    }
+
+    @Override
+    public boolean isLifecycleValid(State state) {
+        return lodList.isSingleLOD();
+    }
+
+    private VirtualDisplayEntity createItemDisplayEntity() {
+        return VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId);
+    }
+
+    private void makeVisibleFor(Player viewer, ItemStack item) {
         TrackParticleState state = getState(viewer);
 
-        VirtualDisplayEntity entity = VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId)
+        VirtualDisplayEntity entity = createItemDisplayEntity()
                 .position(this.position)
                 .orientation(this.orientation)
                 .clip(this.clip)
                 .scale(this.size)
                 .brightness(this.brightness)
-                .item(this.lodList.getNearest().getItem())
+                .item(item)
                 .glowing(state == TrackParticleState.SELECTED)
                 .spawn(viewer);
         this.holderEntityId = entity.holderEntityId();
@@ -172,9 +194,17 @@ public class TrackParticleDisplayItem extends TrackParticle {
                 .updateMetadata(this.getViewers());
         }
         if (this.clearFlag(FLAG_ITEM_CHANGED) && this.entityId != -1) {
-            VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId)
-                .item(this.lodList.getNearest().getItem())
-                .updateMetadata(this.getViewers());
+            if (lodList.isSingleLOD()) {
+                // Update directly
+                createItemDisplayEntity()
+                        .item(this.lodList.getNearest().getItem())
+                        .updateMetadata(this.getViewers());
+            } else {
+                // Must force players in view to refresh LOD
+                for (Player viewer : getViewers()) {
+                    getWorld().scheduleViewerUpdate(viewer);
+                }
+            }
         }
         if (this.clearFlag(FLAG_CLIP_CHANGED) && this.entityId != -1) {
             VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId)
@@ -205,5 +235,45 @@ public class TrackParticleDisplayItem extends TrackParticle {
     @Override
     public boolean usesEntityId(int entityId) {
         return this.holderEntityId == entityId || this.entityId == entityId;
+    }
+
+    /**
+     * Used for different LODs, if configured that way
+     */
+    private class LODLifecycle implements TrackParticleLifecycle {
+        private final LODItemStack.List lodListUsed; // For detecting changes in item
+        private final LODItemStack lod;
+
+        public LODLifecycle(LODItemStack.List lodList, LODItemStack lod) {
+            this.lodListUsed = lodList;
+            this.lod = lod;
+        }
+
+        @Override
+        public void makeVisibleFor(Player viewer) {
+            TrackParticleDisplayItem.this.makeVisibleFor(viewer, lod.getItem());
+        }
+
+        @Override
+        public void makeHiddenFor(Player viewer) {
+            TrackParticleDisplayItem.this.makeHiddenFor(viewer);
+        }
+
+        @Override
+        public boolean isLifecycleValid(State state) {
+            return lodList == lodListUsed && lod.isForDistance(state.getViewDistance());
+        }
+
+        @Override
+        public void switchFromLifecycle(TrackParticleLifecycle oldLifecycle, Player viewer) {
+            if (oldLifecycle instanceof LODLifecycle) {
+                // Only have to update the displayed item
+                createItemDisplayEntity()
+                        .item(this.lod.getItem())
+                        .updateMetadata(viewer);
+            } else {
+                TrackParticleLifecycle.super.switchFromLifecycle(oldLifecycle, viewer);
+            }
+        }
     }
 }

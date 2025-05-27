@@ -122,6 +122,14 @@ public interface LODItemStack extends Comparable<LODItemStack> {
      */
     interface List {
         /**
+         * Gets whether this List is for a single LOD. In that case, no dynamic switching
+         * occurs. This true for the initial Lists created using {@link #createList(ItemStack)}
+         *
+         * @return True if this is a single-LOD List
+         */
+        boolean isSingleLOD();
+
+        /**
          * Gets the number of LOD ItemStacks represented in this List.
          * If the amount is 1, then no distance thresholds are available, as the same
          * item is always displayed.
@@ -261,6 +269,11 @@ public interface LODItemStack extends Comparable<LODItemStack> {
         }
 
         @Override
+        public boolean isSingleLOD() {
+            return true;
+        }
+
+        @Override
         public int size() {
             return 1;
         }
@@ -366,6 +379,11 @@ public interface LODItemStack extends Comparable<LODItemStack> {
             items[items.length - 1].maxViewDistance = Integer.MAX_VALUE;
 
             this.items = items;
+        }
+
+        @Override
+        public boolean isSingleLOD() {
+            return false;
         }
 
         @Override

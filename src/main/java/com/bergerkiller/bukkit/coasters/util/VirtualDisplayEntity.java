@@ -52,6 +52,7 @@ public class VirtualDisplayEntity {
 
     // For Item Display entities
     private ItemStack item;
+    private boolean itemSet = false;
     // For Block Display entities
     private BlockData blockData;
 
@@ -111,6 +112,7 @@ public class VirtualDisplayEntity {
 
     public VirtualDisplayEntity item(ItemStack item) {
         this.item = item;
+        this.itemSet = true;
         return this;
     }
 
@@ -198,7 +200,7 @@ public class VirtualDisplayEntity {
             metadata.set(DisplayHandle.DATA_WIDTH, f);
             metadata.set(DisplayHandle.DATA_HEIGHT, f);
         }
-        if (item != null) {
+        if (itemSet) {
             metadata.set(DisplayHandle.ItemDisplayHandle.DATA_ITEM_STACK, item);
             metadata.set(DisplayHandle.ItemDisplayHandle.DATA_ITEM_DISPLAY_MODE, ItemDisplayMode.HEAD);
         } else if (blockData != null) {
