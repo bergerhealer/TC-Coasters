@@ -6,6 +6,7 @@ import com.bergerkiller.bukkit.coasters.csv.TrackCSV.TrackObjectTypeEntry;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.DisplayTypePositionMenu;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.ItemSelectMenu;
+import com.bergerkiller.bukkit.coasters.editor.object.ui.lod.ItemLODSelect;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectType;
 import com.bergerkiller.bukkit.coasters.objects.TrackObjectTypeItem;
 import com.bergerkiller.bukkit.coasters.objects.lod.LODItemStack;
@@ -172,7 +173,11 @@ public class TrackObjectTypeDisplayItemStack implements TrackObjectTypeDisplay<T
 
     @Override
     public void openMenu(MapWidget parent, Supplier<PlayerEditState> stateSupplier) {
-        parent.addWidget(new ItemSelectMenu(stateSupplier));
+        if (lodList.size() == 1) {
+            parent.addWidget(new ItemSelectMenu(stateSupplier));
+        } else {
+            parent.addWidget(new ItemLODSelect(stateSupplier));
+        }
     }
 
     @Override

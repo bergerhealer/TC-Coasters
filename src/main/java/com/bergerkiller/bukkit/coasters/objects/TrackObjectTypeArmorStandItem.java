@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 import com.bergerkiller.bukkit.coasters.csv.TrackCSV;
+import com.bergerkiller.bukkit.coasters.editor.object.ui.lod.ItemLODSelect;
 import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayItemStack;
 import com.bergerkiller.bukkit.coasters.objects.lod.LODItemStack;
 import org.bukkit.inventory.ItemStack;
@@ -128,7 +129,11 @@ public class TrackObjectTypeArmorStandItem implements TrackObjectTypeItem<TrackP
 
     @Override
     public void openMenu(MapWidget parent, Supplier<PlayerEditState> stateSupplier) {
-        parent.addWidget(new ItemSelectMenu(stateSupplier));
+        if (lodList.size() == 1) {
+            parent.addWidget(new ItemSelectMenu(stateSupplier));
+        } else {
+            parent.addWidget(new ItemLODSelect(stateSupplier));
+        }
     }
 
     @Override
