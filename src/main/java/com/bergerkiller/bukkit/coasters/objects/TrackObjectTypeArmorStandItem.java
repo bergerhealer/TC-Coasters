@@ -119,7 +119,7 @@ public class TrackObjectTypeArmorStandItem implements TrackObjectTypeItem<TrackP
     @Override
     public boolean isSameImage(TrackObjectType<?> type) {
         return Objects.equals(this.getLODItems().getNearestNotHidden().getItem(),
-                ((TrackObjectTypeDisplayItemStack) type).getLODItems().getNearestNotHidden().getItem());
+                ((TrackObjectTypeArmorStandItem) type).getLODItems().getNearestNotHidden().getItem());
     }
 
     @Override
