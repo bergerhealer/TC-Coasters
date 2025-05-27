@@ -10,6 +10,8 @@ import com.bergerkiller.bukkit.coasters.util.VirtualArmorStandItem;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 
+import java.util.Collections;
+
 /**
  * Displays an item or 3D model using the head of an armorstand
  */
@@ -88,12 +90,34 @@ public class TrackParticleArmorStandItem extends TrackParticle {
 
     @Override
     public void makeVisibleFor(Player viewer) {
+        makeVisibleFor(viewer, this.lodList.getNearest().getItem());
+    }
+
+    @Override
+    public TrackParticleLifecycle getLifecycle(State state) {
+        if (lodList.isSingleLOD()) {
+            return this;
+        } else {
+            return new LODLifecycle(lodList, lodList.getForDistance(state.getViewDistance()));
+        }
+    }
+
+    @Override
+    public boolean isLifecycleValid(State state) {
+        return lodList.isSingleLOD();
+    }
+
+    private VirtualArmorStandItem createArmorStandItem() {
+        return VirtualArmorStandItem.create(this.holderEntityId, this.entityId);
+    }
+
+    private void makeVisibleFor(Player viewer, ItemStack item) {
         TrackParticleState state = getState(viewer);
 
-        VirtualArmorStandItem entity = VirtualArmorStandItem.create(this.holderEntityId, this.entityId)
+        VirtualArmorStandItem entity = createArmorStandItem()
                 .position(this.position)
                 .orientation(this.orientation)
-                .item(this.lodList.getNearest().getItem())
+                .item(item)
                 .glowing(state == TrackParticleState.SELECTED)
                 .spawn(viewer);
         this.holderEntityId = entity.holderEntityId();
@@ -146,9 +170,17 @@ public class TrackParticleArmorStandItem extends TrackParticle {
                 .updateOrientation(this.getViewers());
         }
         if (this.clearFlag(FLAG_ITEM_CHANGED) && this.entityId != -1) {
-            VirtualArmorStandItem.create(this.holderEntityId, this.entityId)
-                .item(this.lodList.getNearest().getItem())
-                .updateItem(this.getViewers());
+            if (lodList.isSingleLOD()) {
+                // Update directly
+                VirtualArmorStandItem.create(this.holderEntityId, this.entityId)
+                        .item(this.lodList.getNearest().getItem())
+                        .updateItem(this.getViewers());
+            } else {
+                // Must force players in view to refresh LOD
+                for (Player viewer : getViewers()) {
+                    getWorld().scheduleViewerUpdate(viewer);
+                }
+            }
         }
     }
 
@@ -168,5 +200,45 @@ public class TrackParticleArmorStandItem extends TrackParticle {
     @Override
     public boolean usesEntityId(int entityId) {
         return this.holderEntityId == entityId || this.entityId == entityId;
+    }
+
+    /**
+     * Used for different LODs, if configured that way
+     */
+    private class LODLifecycle implements TrackParticleLifecycle {
+        private final LODItemStack.List lodListUsed; // For detecting changes in item
+        private final LODItemStack lod;
+
+        public LODLifecycle(LODItemStack.List lodList, LODItemStack lod) {
+            this.lodListUsed = lodList;
+            this.lod = lod;
+        }
+
+        @Override
+        public void makeVisibleFor(Player viewer) {
+            TrackParticleArmorStandItem.this.makeVisibleFor(viewer, lod.getItem());
+        }
+
+        @Override
+        public void makeHiddenFor(Player viewer) {
+            TrackParticleArmorStandItem.this.makeHiddenFor(viewer);
+        }
+
+        @Override
+        public boolean isLifecycleValid(State state) {
+            return lodList == lodListUsed && lod.isForDistance(state.getViewDistance());
+        }
+
+        @Override
+        public void switchFromLifecycle(TrackParticleLifecycle oldLifecycle, Player viewer) {
+            if (oldLifecycle instanceof LODLifecycle) {
+                // Only have to update the displayed item
+                createArmorStandItem()
+                        .item(this.lod.getItem())
+                        .updateItem(Collections.singletonList(viewer));
+            } else {
+                TrackParticleLifecycle.super.switchFromLifecycle(oldLifecycle, viewer);
+            }
+        }
     }
 }
