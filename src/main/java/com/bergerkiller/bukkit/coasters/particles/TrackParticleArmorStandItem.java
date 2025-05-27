@@ -133,7 +133,8 @@ public class TrackParticleArmorStandItem extends TrackParticle {
         VirtualArmorStandItem.create(this.holderEntityId, this.entityId)
             .glowing(state == TrackParticleState.SELECTED)
             .position(this.position)
-            .updateMetadata(viewer);
+            .updateMetadata(viewer)
+            .updatePosition(viewer);
     }
 
     @Override
