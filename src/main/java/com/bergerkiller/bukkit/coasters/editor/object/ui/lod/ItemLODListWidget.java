@@ -12,6 +12,7 @@ import com.bergerkiller.bukkit.common.map.MapTexture;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidgetButton;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetScroller;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.Objects;
@@ -233,6 +234,14 @@ public abstract class ItemLODListWidget extends MapWidgetScroller {
         public void onBlur() {
             super.onBlur();
             applyLiveDistance();
+        }
+
+        @Override
+        public boolean onItemDrop(Player player, ItemStack item) {
+            lodList = lodList.update(index, lodList.getItem(index).withItem(item));
+            updateItemImage();
+            onLODChanged(lodList);
+            return true;
         }
 
         @Override
