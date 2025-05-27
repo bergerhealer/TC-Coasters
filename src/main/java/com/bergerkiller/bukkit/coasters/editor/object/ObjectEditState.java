@@ -329,6 +329,18 @@ public class ObjectEditState {
                     // Set a flag that we are about to start duplicating mode
                     // Once the player moves the cursor away, actual duplicating starts
                     this.isPreDuplicating = true;
+
+                    // If all track objects occupy the exact same position, and are the same track object,
+                    // instead of duplicating just select one of them and continue dragging that.
+                    // Likely a previous dupe wasn't moved away by the player.
+                    if (DuplicationSourceList.isMultipleSameTrackObject(this.editedTrackObjects.values())) {
+                        this.isPreDuplicating = false;
+                        ObjectEditTrackObject firstObject = this.editedTrackObjects.values().iterator().next();
+                        this.clearEditedTrackObjects();
+                        this.selectTrackObject(firstObject.connection, firstObject.object);
+                        this.undoDuplicatedObjects();
+                        this.startDrag(point, false);
+                    }
                 }
             }
             return true;

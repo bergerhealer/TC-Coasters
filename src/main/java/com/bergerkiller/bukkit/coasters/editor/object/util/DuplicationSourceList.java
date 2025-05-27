@@ -2,6 +2,8 @@ package com.bergerkiller.bukkit.coasters.editor.object.util;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 
 import com.bergerkiller.bukkit.coasters.editor.object.ObjectEditTrackObject;
@@ -11,18 +13,19 @@ import com.bergerkiller.bukkit.coasters.editor.object.ObjectEditTrackObject;
  * Automatically computes the right duplication order and distances between the objects.
  */
 public class DuplicationSourceList {
+    public static final double MIN_REPEAT_SPACING = 1e-2;
     private final List<ObjectEditTrackObject> sourceObjects;
     private int index;
     private boolean indexIncreasing;
 
     public DuplicationSourceList(Collection<ObjectEditTrackObject> inSourceObjects) {
-        this.sourceObjects = new ArrayList<ObjectEditTrackObject>(inSourceObjects.size());
+        this.sourceObjects = new ArrayList<>(inSourceObjects.size());
         for (ObjectEditTrackObject editObject : inSourceObjects) {
             if (!Double.isNaN(editObject.dragDistance)) {
                 this.sourceObjects.add(editObject);
             }
         }
-        this.sourceObjects.sort((a, b) -> Double.compare(a.getDistancePosition(), b.getDistancePosition()));
+        this.sourceObjects.sort(Comparator.comparingDouble(ObjectEditTrackObject::getDistancePosition));
     }
 
     public List<ObjectEditTrackObject> list() {
@@ -40,9 +43,34 @@ public class DuplicationSourceList {
 
         double pmin = this.sourceObjects.get(0).getDistancePosition();
         double pmax = this.sourceObjects.get(this.sourceObjects.size()-1).getDistancePosition();
-        if ((pmax - pmin) < 1e-3) {
+        if ((pmax - pmin) < MIN_REPEAT_SPACING) {
             return false; // too close together
         }
+
+        return true;
+    }
+
+    public static boolean isMultipleSameTrackObject(Collection<ObjectEditTrackObject> objects) {
+        Iterator<ObjectEditTrackObject> iter = objects.iterator();
+        if (!iter.hasNext()) {
+            return false;
+        }
+
+        ObjectEditTrackObject first = iter.next();
+        if (!iter.hasNext()) {
+            return false;
+        }
+
+        do {
+            ObjectEditTrackObject other = iter.next();
+            if (
+                    first.connection != other.connection
+                    || Math.abs(first.object.getDistance() - other.object.getDistance()) >= MIN_REPEAT_SPACING
+                    || !first.object.getType().equals(other.object.getType())
+            ) {
+                return false;
+            }
+        } while (iter.hasNext());
 
         return true;
     }
