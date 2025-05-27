@@ -104,8 +104,8 @@ public class TrackObjectTypeArmorStandItem implements TrackObjectTypeItem<TrackP
 
     @Override
     public TrackParticleArmorStandItem createParticle(TrackConnection.PointOnPath point) {
-        TrackParticleArmorStandItem particle = point.getWorld().getParticles().addParticleArmorStandItem(point.position, point.orientation,
-                this.lodList.getNearest().getItem());
+        TrackParticleArmorStandItem particle = point.getWorld().getParticles().addParticleArmorStandItem(
+                point.position, point.orientation, this.lodList);
         particle.setAlwaysVisible(true);
         return particle;
     }
@@ -113,7 +113,7 @@ public class TrackObjectTypeArmorStandItem implements TrackObjectTypeItem<TrackP
     @Override
     public void updateParticle(TrackParticleArmorStandItem particle, TrackConnection.PointOnPath point) {
         particle.setPositionOrientation(point.position, point.orientation);
-        particle.setItem(this.lodList.getNearest().getItem());
+        particle.setLODItems(this.lodList);
     }
 
     @Override

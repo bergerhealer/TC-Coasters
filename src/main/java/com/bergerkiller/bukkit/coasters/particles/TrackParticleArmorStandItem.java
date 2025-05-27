@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.particles;
 
+import com.bergerkiller.bukkit.coasters.objects.lod.LODItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
@@ -23,14 +24,17 @@ public class TrackParticleArmorStandItem extends TrackParticle {
 
     private DoubleOctree.Entry<TrackParticle> position;
     private Quaternion orientation;
-    private ItemStack item;
+    private LODItemStack.List lodList;
     private int holderEntityId = -1;
     private int entityId = -1;
 
-    protected TrackParticleArmorStandItem(Vector position, Quaternion orientation, ItemStack item) {
+    protected TrackParticleArmorStandItem(Vector position, Quaternion orientation, LODItemStack.List lodList) {
+        if (lodList == null) {
+            throw new IllegalArgumentException("LOD Item List cannot be null");
+        }
         this.position = DoubleOctree.Entry.create(position, this);
         this.orientation = orientation.clone();
-        this.item = item;
+        this.lodList = lodList;
     }
 
     public void setPositionOrientation(Vector position, Quaternion orientation) {
@@ -53,8 +57,15 @@ public class TrackParticleArmorStandItem extends TrackParticle {
     }
 
     public void setItem(ItemStack item) {
-        if (this.item != item && !this.item.equals(item)) {
-            this.item = item;
+        setLODItems(LODItemStack.createList(item));
+    }
+
+    public void setLODItems(LODItemStack.List lodList) {
+        if (lodList == null) {
+            throw new IllegalArgumentException("LOD Item List cannot be null");
+        }
+        if (!this.lodList.equals(lodList)) {
+            this.lodList = lodList;
             this.setFlag(FLAG_ITEM_CHANGED);
             this.scheduleUpdateAppearance();
         }
@@ -82,7 +93,7 @@ public class TrackParticleArmorStandItem extends TrackParticle {
         VirtualArmorStandItem entity = VirtualArmorStandItem.create(this.holderEntityId, this.entityId)
                 .position(this.position)
                 .orientation(this.orientation)
-                .item(this.item)
+                .item(this.lodList.getNearest().getItem())
                 .glowing(state == TrackParticleState.SELECTED)
                 .spawn(viewer);
         this.holderEntityId = entity.holderEntityId();
@@ -136,7 +147,7 @@ public class TrackParticleArmorStandItem extends TrackParticle {
         }
         if (this.clearFlag(FLAG_ITEM_CHANGED) && this.entityId != -1) {
             VirtualArmorStandItem.create(this.holderEntityId, this.entityId)
-                .item(this.item)
+                .item(this.lodList.getNearest().getItem())
                 .updateItem(this.getViewers());
         }
     }

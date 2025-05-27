@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
+import com.bergerkiller.bukkit.coasters.objects.lod.LODItemStack;
 import com.bergerkiller.bukkit.common.collections.ImmutablePlayerSet;
 import com.bergerkiller.bukkit.common.wrappers.Brightness;
 import org.bukkit.Bukkit;
@@ -63,11 +64,19 @@ public class TrackParticleWorld implements CoasterWorldComponent {
     }
 
     public TrackParticleArmorStandItem addParticleArmorStandItem(Vector position, Quaternion orientation, ItemStack item) {
-        return addParticle(new TrackParticleArmorStandItem(position, orientation, item));
+        return addParticle(new TrackParticleArmorStandItem(position, orientation, LODItemStack.createList(item)));
+    }
+
+    public TrackParticleArmorStandItem addParticleArmorStandItem(Vector position, Quaternion orientation, LODItemStack.List lodList) {
+        return addParticle(new TrackParticleArmorStandItem(position, orientation, lodList));
     }
 
     public TrackParticleDisplayItem addParticleDisplayItem(Vector position, Quaternion orientation, double clip, Brightness brightness, Vector size, ItemStack item) {
-        return addParticle(new TrackParticleDisplayItem(position, orientation, clip, brightness, size, item));
+        return addParticle(new TrackParticleDisplayItem(position, orientation, clip, brightness, size, LODItemStack.createList(item)));
+    }
+
+    public TrackParticleDisplayItem addParticleDisplayItem(Vector position, Quaternion orientation, double clip, Brightness brightness, Vector size, LODItemStack.List lodList) {
+        return addParticle(new TrackParticleDisplayItem(position, orientation, clip, brightness, size, lodList));
     }
 
     public TrackParticleDisplayBlock addParticleDisplayBlock(Vector position, Quaternion orientation, double clip, Brightness brightness, Vector size, BlockData blockData) {

@@ -145,8 +145,7 @@ public class TrackObjectTypeDisplayItemStack implements TrackObjectTypeDisplay<T
     @Override
     public TrackParticleDisplayItem createParticle(TrackConnection.PointOnPath point) {
         TrackParticleDisplayItem particle = point.getWorld().getParticles().addParticleDisplayItem(
-                point.position, point.orientation, this.clip, this.brightness, this.size,
-                this.lodList.getNearest().getItem());
+                point.position, point.orientation, this.clip, this.brightness, this.size, this.lodList);
         particle.setAlwaysVisible(true);
         return particle;
     }
@@ -157,7 +156,7 @@ public class TrackObjectTypeDisplayItemStack implements TrackObjectTypeDisplay<T
         particle.setClip(this.clip);
         particle.setBrightness(this.brightness);
         particle.setSize(this.size);
-        particle.setItem(this.lodList.getNearest().getItem());
+        particle.setLODItems(this.lodList);
     }
 
     @Override

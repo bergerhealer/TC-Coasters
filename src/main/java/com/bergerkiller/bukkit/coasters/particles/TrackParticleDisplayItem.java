@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.particles;
 
+import com.bergerkiller.bukkit.coasters.objects.lod.LODItemStack;
 import com.bergerkiller.bukkit.coasters.util.QueuedTask;
 import com.bergerkiller.bukkit.coasters.util.VirtualDisplayEntity;
 import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
@@ -29,17 +30,20 @@ public class TrackParticleDisplayItem extends TrackParticle {
     private double clip;
     private Brightness brightness;
     private final Vector size;
-    private ItemStack item;
+    private LODItemStack.List lodList;
     private int holderEntityId = -1;
     private int entityId = -1;
 
-    protected TrackParticleDisplayItem(Vector position, Quaternion orientation, double clip, Brightness brightness, Vector size, ItemStack item) {
+    protected TrackParticleDisplayItem(Vector position, Quaternion orientation, double clip, Brightness brightness, Vector size, LODItemStack.List lodList) {
+        if (lodList == null) {
+            throw new IllegalArgumentException("LOD Item List cannot be null");
+        }
         this.position = DoubleOctree.Entry.create(position, this);
         this.orientation = orientation.clone();
         this.clip = clip;
         this.brightness = brightness;
         this.size = size.clone();
-        this.item = item;
+        this.lodList = lodList;
     }
 
     public void setPositionOrientation(Vector position, Quaternion orientation) {
@@ -86,8 +90,15 @@ public class TrackParticleDisplayItem extends TrackParticle {
     }
 
     public void setItem(ItemStack item) {
-        if (this.item != item && !this.item.equals(item)) {
-            this.item = item;
+        setLODItems(LODItemStack.createList(item));
+    }
+
+    public void setLODItems(LODItemStack.List lodList) {
+        if (lodList == null) {
+            throw new IllegalArgumentException("LOD Item List cannot be null");
+        }
+        if (!this.lodList.equals(lodList)) {
+            this.lodList = lodList;
             this.setFlag(FLAG_ITEM_CHANGED);
             this.scheduleUpdateAppearance();
         }
@@ -118,7 +129,7 @@ public class TrackParticleDisplayItem extends TrackParticle {
                 .clip(this.clip)
                 .scale(this.size)
                 .brightness(this.brightness)
-                .item(this.item)
+                .item(this.lodList.getNearest().getItem())
                 .glowing(state == TrackParticleState.SELECTED)
                 .spawn(viewer);
         this.holderEntityId = entity.holderEntityId();
@@ -162,7 +173,7 @@ public class TrackParticleDisplayItem extends TrackParticle {
         }
         if (this.clearFlag(FLAG_ITEM_CHANGED) && this.entityId != -1) {
             VirtualDisplayEntity.createItem(this.holderEntityId, this.entityId)
-                .item(this.item)
+                .item(this.lodList.getNearest().getItem())
                 .updateMetadata(this.getViewers());
         }
         if (this.clearFlag(FLAG_CLIP_CHANGED) && this.entityId != -1) {
