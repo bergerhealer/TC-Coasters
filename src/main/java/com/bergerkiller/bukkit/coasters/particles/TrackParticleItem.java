@@ -23,7 +23,7 @@ import com.bergerkiller.generated.net.minecraft.world.entity.item.EntityItemHand
 public class TrackParticleItem extends TrackParticle {
     protected static final int FLAG_POSITION_CHANGED  = (1<<2);
     protected static final int FLAG_ITEM_CHANGED      = (1<<3);
-    private static final Vector OFFSET = new Vector(0.0, -0.34, 0.0);
+    private static final Vector OFFSET = new Vector(0.0, -0.2, 0.0);
     private TrackParticleItemType itemType = TrackParticleItemType.DEFAULT;
     private DoubleOctree.Entry<TrackParticle> position;
     private int entityId = -1;

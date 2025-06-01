@@ -37,7 +37,7 @@ public class TrackParticleText extends TrackParticle {
     protected static final int FLAG_TEXT_CHANGED        = (1<<3);
     protected static final int FLAG_TEXT_COLOR_CHANGED  = (1<<4);
     protected static final int FLAG_SHOW_ITEM           = (1<<5);
-    private static final Vector ITEM_OFFSET = new Vector(0.0, -0.34, 0.0);
+    private static final Vector ITEM_OFFSET = new Vector(0.0, -0.2, 0.0);
     private static final Vector ARMORSTAND_OFFSET = new Vector(0.0, -2.5, 0.0);
     private int entityId = -1;
     private ChatColor textColor = ChatColor.BLACK;
