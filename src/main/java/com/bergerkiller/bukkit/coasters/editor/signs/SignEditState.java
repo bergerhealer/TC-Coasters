@@ -422,14 +422,15 @@ public class SignEditState {
     }
 
     /**
-     * Replaces the sign in all selected nodes matching the sign with a replacement
+     * Replaces the sign in all selected nodes matching the sign with a replacement.
+     * Keeps previous other information of the sign, like added power channels.
      *
      * @param toReplace Sign whose lines to match and replace
      * @param sign Sign replacement
      * @return True if one or more signs were replaced, False if none matched
      * @throws ChangeCancelledException
      */
-    public boolean replaceSign(TrackNodeSign toReplace, TrackNodeSign sign) throws ChangeCancelledException {
+    public boolean replaceSignText(TrackNodeSign toReplace, TrackNodeSign sign) throws ChangeCancelledException {
         // Deselect nodes we cannot edit
         editState.deselectLockedNodes();
 
@@ -445,7 +446,14 @@ public class SignEditState {
             TrackNodeSign[] new_signs = node.getSigns().clone();
             for (int i = 0; i < new_signs.length; i++) {
                 if (new_signs[i].hasSameLines(toReplace)) {
+                    TrackNodeSign oldSign = new_signs[i];
                     new_signs[i] = addedSign = sign.clone();
+                    for (NamedPowerChannel inputChannel : oldSign.getInputPowerChannels()) {
+                        addedSign.addInputPowerChannel(inputChannel);
+                    }
+                    for (NamedPowerChannel outputChannel : oldSign.getOutputPowerChannels()) {
+                        addedSign.addOutputPowerChannel(outputChannel);
+                    }
                 }
             }
             if (addedSign == null) {

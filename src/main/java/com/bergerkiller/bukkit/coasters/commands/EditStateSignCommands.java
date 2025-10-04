@@ -128,7 +128,7 @@ class EditStateSignCommands {
             return;
         }
         try {
-            if (state.getSigns().replaceSign(toReplace, sign)) {
+            if (state.getSigns().replaceSignText(toReplace, sign)) {
                 TCCoastersLocalization.SIGN_ADD_MANY_SUCCESS.message(sender);
             } else {
                 TCCoastersLocalization.SIGN_EDIT_MANY_NOTEXIST.message(sender);
