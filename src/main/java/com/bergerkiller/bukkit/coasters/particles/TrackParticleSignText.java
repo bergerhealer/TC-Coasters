@@ -114,7 +114,7 @@ public class TrackParticleSignText extends TrackParticle {
 
             // Spawns an invisible armorstand, which displays only the nametag
             yOffset += half_offset;
-            PacketPlayOutSpawnEntityLivingHandle spawnPacket = PacketPlayOutSpawnEntityLivingHandle.T.newHandleNull();
+            PacketPlayOutSpawnEntityLivingHandle spawnPacket = PacketPlayOutSpawnEntityLivingHandle.createNew();
             spawnPacket.setEntityId(line.entityId);
             spawnPacket.setEntityUUID(UUID.randomUUID());
             spawnPacket.setEntityType(EntityType.ARMOR_STAND);

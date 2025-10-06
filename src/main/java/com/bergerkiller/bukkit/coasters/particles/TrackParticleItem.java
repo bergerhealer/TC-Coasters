@@ -110,7 +110,7 @@ public class TrackParticleItem extends TrackParticle {
             this.entityUUID = UUID.randomUUID();
         }
 
-        PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.T.newHandleNull();
+        PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.createNew();
         spawnPacket.setEntityId(this.entityId);
         spawnPacket.setEntityUUID(this.entityUUID);
         spawnPacket.setEntityType(EntityType.DROPPED_ITEM);

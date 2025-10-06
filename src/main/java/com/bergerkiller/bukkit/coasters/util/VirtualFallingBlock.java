@@ -170,7 +170,7 @@ public class VirtualFallingBlock {
             this.holderEntityId = EntityUtil.getUniqueEntityId();
         }
 
-        PacketPlayOutSpawnEntityHandle packet = PacketPlayOutSpawnEntityHandle.T.newHandleNull();
+        PacketPlayOutSpawnEntityHandle packet = PacketPlayOutSpawnEntityHandle.createNew();
         packet.setEntityId(this.entityId);
         packet.setEntityUUID(UUID.randomUUID());
         packet.setPosX(this.posX);
