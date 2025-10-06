@@ -252,17 +252,7 @@ public class TrackParticleLine extends TrackParticle {
 
         PacketUtil.sendEntityLivingSpawnPacket(viewer, p1, p1_meta);
         PacketUtil.sendEntityLivingSpawnPacket(viewer, p2, p2_meta);
-
-        PacketPlayOutAttachEntityHandle ap1 = PacketPlayOutAttachEntityHandle.T.newHandleNull();
-        ap1.setVehicleId(this.e1);
-        ap1.setPassengerId(this.e2);
-
-        // Fix for <= 1.8.8
-        if (PacketPlayOutAttachEntityHandle.T.leashId.isAvailable()) {
-            PacketPlayOutAttachEntityHandle.T.leashId.set(ap1.getRaw(), 1);
-        }
-
-        PacketUtil.sendPacket(viewer, ap1);
+        PacketUtil.sendPacket(viewer, PacketPlayOutAttachEntityHandle.createNewLeash(this.e2, this.e1));
     }
 
     @Override
