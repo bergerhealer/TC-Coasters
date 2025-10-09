@@ -16,7 +16,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeConnect;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.BlockSelectMenu;
+import com.bergerkiller.bukkit.coasters.events.CoasterCreateConnectionEvent;
 import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import org.bukkit.Color;
@@ -1358,14 +1360,54 @@ public class PlayerEditState implements CoasterWorldComponent {
             this.setEditing(conn.getNodeA(), false);
             this.setEditing(conn.getNodeB(), false);
 
+            // Save all track objects currently on this connection before removal
+            TrackObject[] objectsToRestore = TrackObject.listToArray(conn.getObjects(), true);
+            double prevTotalDistance = conn.getFullDistance();
+
+            // Remove old connection
             changes.addChangeBeforeDisconnect(this.player, conn);
             conn.remove();
 
+            // Create the new middle node
             TrackNode newNode = conn.getNodeA().getCoaster().createNewNode(newNodePos, newNodeOri);
             changes.addChangeCreateNode(this.player, newNode);
 
-            changes.addChangeAfterConnect(this.player, tracks.connect(conn.getNodeA(), newNode));
-            changes.addChangeAfterConnect(this.player, tracks.connect(newNode, conn.getNodeB()));
+            // Create the new connections, can be cancelled
+            TrackConnection newConnA = tracks.connect(conn.getNodeA(), newNode);
+            changes.handleEvent(new CoasterCreateConnectionEvent(this.player, newConnA), newConnA::remove);
+            TrackConnection newConnB = tracks.connect(newNode, conn.getNodeB());
+            changes.handleEvent(new CoasterCreateConnectionEvent(this.player, newConnB), newConnB::remove);
+
+            // Compute the full distances of the two newly created connections
+            // They should be half of the full distance of the connection its replacing,
+            // but I'm not sure if we can guarantee that...
+            double newConnALength = newConnA.getFullDistance();
+            double newConnBLength = newConnB.getFullDistance();
+
+            // Place all track objects back onto the newly created two connections
+            for (TrackObject obj : objectsToRestore) {
+                // Normalize
+                double distance = obj.getDistance();
+                if (prevTotalDistance >= 1e-4) {
+                    distance *= (newConnALength + newConnBLength) / prevTotalDistance;
+                }
+
+                // Which one?
+                if (distance >= newConnALength) {
+                    distance -= newConnALength;
+                    distance = Math.min(newConnBLength, distance);
+
+                    obj.setDistanceFlippedSilently(distance, obj.isFlipped());
+                    newConnB.addObject(obj);
+                } else {
+                    obj.setDistanceFlippedSilently(distance, obj.isFlipped());
+                    newConnA.addObject(obj);
+                }
+            }
+
+            // Add to history tracking now that the objects have been added
+            changes.addChange(new HistoryChangeConnect(newConnA));
+            changes.addChange(new HistoryChangeConnect(newConnB));
             createdConnNodes.add(newNode);
         }
 

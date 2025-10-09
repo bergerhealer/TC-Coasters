@@ -73,9 +73,35 @@ public abstract class HistoryChangeCollection {
         return new HistoryChangeLazyGroup(this);
     }
 
-    private <T extends CoasterEvent> T handleEvent(T event) throws ChangeCancelledException {
+    /**
+     * Calls a CoasterEvent and, if cancelled, throws the
+     * ChangeCancelledException to interrupt normal flow.
+     *
+     * @param event CoasterEvent
+     * @return CoasterEvent if not cancelled
+     * @param <T> CoasterEvent Type
+     * @throws ChangeCancelledException If cancelled
+     */
+    public <T extends CoasterEvent> T handleEvent(T event) throws ChangeCancelledException {
+        return handleEvent(event, null);
+    }
+
+    /**
+     * Calls a CoasterEvent and, if cancelled, calls the cancel callback and throws the
+     * ChangeCancelledException after to interrupt normal flow.
+     *
+     * @param event CoasterEvent
+     * @param cancelCallback Runnable called if the event is cancelled
+     * @return CoasterEvent if not cancelled
+     * @param <T> CoasterEvent Type
+     * @throws ChangeCancelledException If cancelled
+     */
+    public <T extends CoasterEvent> T handleEvent(T event, Runnable cancelCallback) throws ChangeCancelledException {
         CommonUtil.callEvent(event);
         if (event.isCancelled()) {
+            if (cancelCallback != null) {
+                cancelCallback.run();
+            }
             throw new ChangeCancelledException();
         }
         return event;
@@ -102,16 +128,11 @@ public abstract class HistoryChangeCollection {
      * @throws ChangeCancelledException
      */
     public final HistoryChange addChangeAfterConnect(Player who, TrackConnection connection) throws ChangeCancelledException {
-        try {
-            handleEvent(new CoasterCreateConnectionEvent(who, connection));
-        } catch (ChangeCancelledException ex) {
-            // Revert the changes
-            connection.remove();
-            throw ex;
-        }
+        // Event + undo if cancelled
+        handleEvent(new CoasterCreateConnectionEvent(who, connection), connection::remove);
 
         // Pack the creation of the connection, and the track objects, into a history change
-        return addChange(new HistoryChangeConnect(connection.getNodeA(), connection.getNodeB(), connection.getObjects()));
+        return addChange(new HistoryChangeConnect(connection));
     }
 
     /**

@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.editor.history;
 import java.util.List;
 
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackLockedException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
@@ -12,6 +13,10 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
  */
 public class HistoryChangeConnect extends HistoryChange {
     private final TrackConnectionState state;
+
+    public HistoryChangeConnect(TrackConnection connection) {
+        this(connection.getNodeA(), connection.getNodeB(), connection.getObjects());
+    }
 
     public HistoryChangeConnect(TrackNode nodeA, TrackNode nodeB, List<TrackObject> objects) {
         super(nodeA.getWorld());
