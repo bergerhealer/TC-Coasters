@@ -11,7 +11,9 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
+import com.google.common.collect.Iterables;
 import org.bukkit.Location;
 import org.bukkit.util.Vector;
 
@@ -439,11 +441,31 @@ public class TrackWorld implements CoasterWorldComponent {
     /**
      * Attempts making a connection using the connection state provided.
      * If no nodes exist at the positions inside the state, the operation fails and null is returned.
-     * 
+     *
      * @param state
      * @return created connection, null on failure
      */
     public TrackConnection connect(TrackConnectionState state, boolean addObjects) {
+        TrackConnection connection = connectWithoutAddingObjects(state);
+        if (connection != null && addObjects && state.hasObjects()) {
+            // Collect a list of objects that already exist on the connection
+            List<TrackObject> existingObjects = connection.getObjects();
+
+            // Add objects, but it is possible that the same connection already existed
+            // So do verify the objects aren't already all added
+            connection.addAllObjects(state, (conn, o) -> !Iterables.any(existingObjects, existing -> existing.isSameAs(o)));
+        }
+        return connection;
+    }
+
+    /**
+     * Attempts making a connection using the connection state provided.
+     * If no nodes exist at the positions inside the state, the operation fails and null is returned.
+     * 
+     * @param state TrackConnectionState
+     * @return created connection, null on failure
+     */
+    private TrackConnection connectWithoutAddingObjects(TrackConnectionState state) {
         TrackNode nodeA, nodeB;
         if (state.node_a.isExistingNode()) {
             // If both are specified as an existing node, then do the normal connect() logic
@@ -497,11 +519,7 @@ public class TrackWorld implements CoasterWorldComponent {
         }
 
         // Create a new connection
-        TrackConnection connection = this.addConnection(nodeA, nodeB);
-        if (addObjects) {
-            connection.addAllObjects(state);
-        }
-        return connection;
+        return this.addConnection(nodeA, nodeB);
     }
 
     /**

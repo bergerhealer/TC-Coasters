@@ -137,6 +137,29 @@ public final class TrackConnectionState implements TrackObjectHolder {
     }
 
     /**
+     * Replaces one of the nodes of this connection state with another
+     *
+     * @param toReplace TrackNode or TrackNodeReference to replace
+     * @param replacement Replacement TrackNode or TrackNodeReference
+     * @return Updated TrackConnectionState, or the same if the node does not match
+     *         one to replace
+     */
+    public TrackConnectionState replaceNode(TrackNodeReference toReplace, TrackNodeReference replacement) {
+        // Do identity check first to make sure 'zero-distance' node neighbours work correctly
+        if (this.node_a == toReplace) {
+            return new TrackConnectionState(replacement, this.node_b, this.objects);
+        } else if (this.node_b == toReplace) {
+            return new TrackConnectionState(this.node_a, replacement, this.objects);
+        } else if (this.node_a.isReference(toReplace)) {
+            return new TrackConnectionState(replacement, this.node_b, this.objects);
+        } else if (this.node_b.isReference(toReplace)) {
+            return new TrackConnectionState(this.node_a, replacement, this.objects);
+        } else {
+            return this;
+        }
+    }
+
+    /**
      * Dereferences the nodes and track objects of this track connection, so that future changes to it
      * are not reflected back in this object.
      * 

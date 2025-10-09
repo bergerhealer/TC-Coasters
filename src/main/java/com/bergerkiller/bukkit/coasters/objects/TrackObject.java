@@ -163,6 +163,18 @@ public class TrackObject implements Cloneable {
         return Math.abs(getDistance() - other.getDistance()) < 1e-8 && isFlipped() == other.isFlipped();
     }
 
+    /**
+     * Gets whether this TrackObject is the same as the one specified.
+     * Same means the same position on the track and the same displayed information,
+     * but not the same instance.
+     *
+     * @param other TrackObject
+     * @return True if this TrackObject and the other one are the same
+     */
+    public boolean isSameAs(TrackObject other) {
+        return isSamePositionAs(other) && getType().equals(other.getType());
+    }
+
     private TrackConnection.PointOnPath findPointOnPath(TrackConnection connection) {
         TrackConnection.PointOnPath point = connection.findPointAtDistance(this.distance, this.type.getWidth());
         if (this.flipped) {
