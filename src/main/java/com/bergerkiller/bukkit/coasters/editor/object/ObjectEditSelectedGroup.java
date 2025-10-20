@@ -62,6 +62,22 @@ public class ObjectEditSelectedGroup {
     }
 
     /**
+     * Gets the first/single track object that is currently selected.
+     * Used for updating the UI for the selected track object when
+     * cycling through multiple of them.
+     *
+     * @return Selected TrackObject, or null if none are selected
+     */
+    public TrackObject getSingleSelection() {
+        for (SelectedObject select : selection) {
+            if (select.selected) {
+                return select.object;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Gets whether this group contains the specified track object
      *
      * @param object Track Object

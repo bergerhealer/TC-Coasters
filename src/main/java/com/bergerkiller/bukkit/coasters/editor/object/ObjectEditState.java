@@ -84,15 +84,33 @@ public class ObjectEditState {
      * Sets the selected track object type information to a new value.
      * Refreshes all selected track objects to use this new type.
      * New objects placed will have this same type.
-     * 
+     *
      * @param type
      */
     public void setSelectedType(TrackObjectType<?> type) {
+        setSelectedType(type, false);
+    }
+
+    /**
+     * Sets the selected track object type information to a new value.
+     * Refreshes all selected track objects to use this new type.
+     * New objects placed will have this same type.
+     * 
+     * @param type
+     * @param silent When silent, the type is not applied to the track objects.
+     *               It only updates the UI showing the track object that is
+     *               selected. Primarily internal use only.
+     */
+    public void setSelectedType(TrackObjectType<?> type, boolean silent) {
         if (type == null) {
             throw new IllegalArgumentException("Type can not be null");
         }
         this.selectedType = type;
         this.editState.markChanged();
+
+        if (silent) {
+            return;
+        }
 
         Iterator<ObjectEditTrackObject> iter = this.editedTrackObjects.values().iterator();
         Set<TrackConnection> updatedConnections = new HashSet<>();
@@ -594,6 +612,14 @@ public class ObjectEditState {
 
             // May have caused a particle visibility change
             getWorld().getParticles().scheduleViewerUpdate(this.getPlayer());
+
+            // Refresh UI
+            {
+                TrackObject singleSelection = group.getSingleSelection();
+                if (singleSelection != null) {
+                    setSelectedType(singleSelection.getType(), true);
+                }
+            }
         }
     }
 
