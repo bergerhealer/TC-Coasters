@@ -1,8 +1,10 @@
 package com.bergerkiller.bukkit.coasters.editor.object.ui;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.bergerkiller.bukkit.coasters.editor.object.ObjectEditSelectedGroup;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.lod.ItemLODSelectButton;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -27,11 +29,14 @@ import com.bergerkiller.bukkit.common.utils.LogicUtil;
  * When pressing on it, the appearance of the type can be changed.
  */
 public class TypeSelectMenu extends MapWidget {
+    private static final boolean[] NO_SELECTED_GROUP_STATES = new boolean[0];
+    private static final boolean[] SINGLE_SELECTED_OBJECT = new boolean[] {true};
     private final Supplier<PlayerEditState> _stateSupplier;
     private TrackObjectType<?> _displayedType = null;
+    private boolean[] _displayedSelectionStates = NO_SELECTED_GROUP_STATES;
     private MapTexture _displayedTypeTexture = null;
-    private TypeSelectArrow _leftArrow;
-    private TypeSelectArrow _rightArrow;
+    private final TypeSelectArrow _leftArrow;
+    private final TypeSelectArrow _rightArrow;
 
     public TypeSelectMenu(Supplier<PlayerEditState> stateSupplier) {
         this._stateSupplier = stateSupplier;
@@ -44,14 +49,16 @@ public class TypeSelectMenu extends MapWidget {
     /**
      * Sets the selected track object type displayed in this menu
      * 
-     * @param selectedType
+     * @param selectedType New selected type (not null)
      */
     private void setDisplayedType(TrackObjectType<?> selectedType) {
         if (!LogicUtil.bothNullOrEqual(this._displayedType, selectedType)) {
             // if class or icon changes, re-draw
-            if (selectedType.getClass() != this._displayedType.getClass() ||
-                !selectedType.isSameImage(this._displayedType))
-            {
+            if (
+                    this._displayedType == null
+                            || selectedType.getClass() != this._displayedType.getClass()
+                            || !selectedType.isSameImage(this._displayedType)
+            ) {
                 this._displayedTypeTexture = null;
                 this.invalidate();
             }
@@ -67,6 +74,13 @@ public class TypeSelectMenu extends MapWidget {
         }
     }
 
+    private void setDisplayedSelectionStates(boolean[] states) {
+        if (!Arrays.equals(this._displayedSelectionStates, states)) {
+            this._displayedSelectionStates = states;
+            this.invalidate();
+        }
+    }
+
     public TrackObjectType<?> getSelectedType() {
         // Set to valid value if unset
         if (this._displayedType == null) {
@@ -75,15 +89,30 @@ public class TypeSelectMenu extends MapWidget {
         return this._displayedType;
     }
 
+    private void refreshDisplay() {
+        this.setDisplayedType(this._stateSupplier.get().getObjects().getSelectedType());
+
+        {
+            ObjectEditSelectedGroup group = this._stateSupplier.get().getObjects().getLastEditedGroup();
+            if (group != null && !group.isEmpty()) {
+                this.setDisplayedSelectionStates(group.getSelectionStates());
+            } else if (this._stateSupplier.get().getObjects().hasEditedObjects()) {
+                this.setDisplayedSelectionStates(SINGLE_SELECTED_OBJECT);
+            } else {
+                this.setDisplayedSelectionStates(NO_SELECTED_GROUP_STATES);
+            }
+        }
+    }
+
     @Override
     public void onAttached() {
-        this._displayedType = this._stateSupplier.get().getObjects().getSelectedType();
         this._displayedTypeTexture = null;
+        this.refreshDisplay();
     }
 
     @Override
     public void onTick() {
-        this.setDisplayedType(this._stateSupplier.get().getObjects().getSelectedType());
+        this.refreshDisplay();
     }
 
     @Override
@@ -116,6 +145,24 @@ public class TypeSelectMenu extends MapWidget {
         } else {
             this.view.draw(this._displayedTypeTexture, icon_x, icon_y);
             this.view.drawRectangle(0, 0, getWidth(), getHeight(), MapColorPalette.COLOR_BLACK);
+        }
+
+        // If more than one track object is selected, draw a counter
+        if (_displayedSelectionStates.length >= 1) {
+            for (int i = 0; i < Math.min(8, _displayedSelectionStates.length); i++) {
+                drawSelectionStateDot(i, _displayedSelectionStates[i]);
+            }
+        }
+    }
+
+    private void drawSelectionStateDot(int i, boolean selected) {
+        byte color = this.isFocused() ? MapColorPalette.COLOR_RED : MapColorPalette.COLOR_BLACK;
+        int x = 2 + i * 4;
+        int y = 2;
+        if (selected) {
+            this.view.drawRectangle(x, y, 3, 3, color);
+        } else {
+            this.view.drawPixel(x + 1, y + 1, color);
         }
     }
 

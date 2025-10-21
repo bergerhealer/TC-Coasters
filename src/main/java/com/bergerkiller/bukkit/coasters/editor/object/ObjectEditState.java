@@ -265,6 +265,18 @@ public class ObjectEditState {
         return !this.editedTrackObjects.isEmpty();
     }
 
+    /**
+     * Gets the last edited group of track objects. If a player clicks on an object
+     * that is occupying the same space as several other track objects, a group is made.
+     * This group can then be cycled through. This property gives information about
+     * this cycling operation.
+     *
+     * @return ObjectEditSelectedGroup, or null if no group is selected
+     */
+    public ObjectEditSelectedGroup getLastEditedGroup() {
+        return lastEditedGroup;
+    }
+
     public void clearEditedTrackObjects() {
         this.lastEditedGroup = null;
         if (!this.editedTrackObjects.isEmpty()) {
