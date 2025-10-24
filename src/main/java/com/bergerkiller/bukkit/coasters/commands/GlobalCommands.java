@@ -2,18 +2,15 @@ package com.bergerkiller.bukkit.coasters.commands;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.commands.annotations.CommandRequiresTCCPermission;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
-import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.common.internal.CommonPlugin;
-import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.tc.TrainCarts;
 
 import org.incendo.cloud.annotations.Argument;
@@ -70,27 +67,7 @@ class GlobalCommands {
             final TCCoasters plugin
     ) {
         sender.sendMessage("Loading all tracks from disk now");
-
-        // First, log out all players to guarantee their state is saved and then reset
-        for (Player player : plugin.getPlayersWithEditStates()) {
-            plugin.logoutPlayer(player);
-        }
-
-        // Unload all coasters, saving coasters that have open changes first
-        // The load command should only be used to load new coasters / reload existing ones
-        for (World world : Bukkit.getWorlds()) {
-            plugin.unloadWorld(world);
-        }
-
-        // Reload all coasters, getCoasterWorld() will automatically load them
-        for (World world : Bukkit.getWorlds()) {
-            plugin.getCoasterWorld(world);
-        }
-
-        // For all players holding the editor map, reload it
-        for (TCCoastersDisplay display : MapDisplay.getAllDisplays(TCCoastersDisplay.class)) {
-            display.restartDisplay();
-        }
+        plugin.reload();
     }
 
     @CommandRequiresTCCPermission

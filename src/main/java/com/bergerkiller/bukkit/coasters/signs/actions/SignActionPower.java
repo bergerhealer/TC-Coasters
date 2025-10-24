@@ -14,7 +14,6 @@ import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
 import com.bergerkiller.bukkit.coasters.commands.parsers.TimeTicksParser;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannelRegistry;
-import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.resources.SoundEffect;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
@@ -143,26 +142,6 @@ public class SignActionPower extends TCCSignAction {
                 return new TCCPowerSignMetadata(metadata.powered, newRecipient);
             }
 
-            private TCCPowerSignRecipient makeRecipient(OfflineSignStore store, OfflineSign sign, boolean wasPowered) {
-                String channelName = sign.getLine(2);
-                if (channelName.isEmpty()) {
-                    return null;
-                }
-
-                Block signBlock = sign.getLoadedBlock();
-                boolean inverted = SignActionHeader.parse(sign.getLine(0)).isInverted();
-
-                TCCPowerSignRecipient recipient = new TCCPowerSignRecipient(plugin, signBlock, inverted,
-                        store, channelName, wasPowered);
-
-                // Refresh powered metadata if needed. Shouldn't be though...
-                if (wasPowered != recipient.channel.isPowered()) {
-                    recipient.refreshNextTick();
-                }
-
-                return recipient;
-            }
-
             @Override
             public void onUpdated(OfflineSignStore store, OfflineSign sign, TCCPowerSignMetadata oldValue, TCCPowerSignMetadata newValue) {
                 // No need to do anything here.
@@ -182,6 +161,36 @@ public class SignActionPower extends TCCSignAction {
 
     public void deinitPowerMeta() {
         TrainCarts.plugin.getOfflineSigns().unregisterHandler(TCCPowerSignMetadata.class);
+    }
+
+    /**
+     * Called after the reload command is used to re-register all the signs that got lost
+     */
+    public void reloadAllRecipients() {
+        final OfflineSignStore store = TrainCarts.plugin.getOfflineSigns();
+        store.getAllEntries(TCCPowerSignMetadata.class).forEach(entry -> {
+            entry.getMetadata().recipient = makeRecipient(store, entry.getSign(), entry.getMetadata().powered);
+        });
+    }
+
+    private TCCPowerSignRecipient makeRecipient(OfflineSignStore store, OfflineSign sign, boolean wasPowered) {
+        String channelName = sign.getLine(2);
+        if (channelName.isEmpty()) {
+            return null;
+        }
+
+        Block signBlock = sign.getLoadedBlock();
+        boolean inverted = SignActionHeader.parse(sign.getLine(0)).isInverted();
+
+        TCCPowerSignRecipient recipient = new TCCPowerSignRecipient(plugin, signBlock, inverted,
+                store, channelName, wasPowered);
+
+        // Refresh powered metadata if needed. Shouldn't be though...
+        if (wasPowered != recipient.channel.isPowered()) {
+            recipient.refreshNextTick();
+        }
+
+        return recipient;
     }
 
     public static class TCCPowerSignMetadata {

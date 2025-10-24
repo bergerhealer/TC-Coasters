@@ -18,8 +18,10 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerRegionViewRange;
+import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSignLookup;
+import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.tc.events.SignBuildEvent;
 import com.bergerkiller.bukkit.tc.events.SignChangeActionEvent;
 import com.bergerkiller.bukkit.tc.rails.RailLookup;
@@ -588,6 +590,36 @@ public class TCCoasters extends PluginBase {
             isDisabled = true;
             worlds.clear();
             editStates.clear();
+        }
+    }
+
+    /**
+     * Performs a soft reload: saves all data to disk, de-initializes partially and re-initializes
+     * from disk.
+     */
+    public void reload() {
+        // First, log out all players to guarantee their state is saved and then reset
+        for (Player player : getPlayersWithEditStates()) {
+            logoutPlayer(player);
+        }
+
+        // Unload all coasters, saving coasters that have open changes first
+        // The load command should only be used to load new coasters / reload existing ones
+        for (World world : Bukkit.getWorlds()) {
+            unloadWorld(world);
+        }
+
+        // Reload all coasters, getCoasterWorld() will automatically load them
+        for (World world : Bukkit.getWorlds()) {
+            getCoasterWorld(world);
+        }
+
+        // Ensure that tcc-power signs hook back up to their named power channel again
+        powerSignAction.reloadAllRecipients();
+
+        // For all players holding the editor map, reload it
+        for (TCCoastersDisplay display : MapDisplay.getAllDisplays(TCCoastersDisplay.class)) {
+            display.restartDisplay();
         }
     }
 
