@@ -1543,6 +1543,17 @@ public class PlayerEditState implements CoasterWorldComponent {
             return;
         }
 
+        // If the zero node has signs and the node does not, delete node instead to preserve those
+        if (zero.getSigns().length > 0 && node.getSigns().length == 0) {
+            TrackNode tmp = node;
+            node = zero;
+            zero = tmp;
+        }
+
+        makeNodeConnectionsCurved(changes, node, zero);
+    }
+
+    private void makeNodeConnectionsCurved(final HistoryChangeCollection changes, final TrackNode node, final TrackNode zero) throws ChangeCancelledException {
         // Disconnect all nodes connected to the zero node. Preserve objects!
         List<TrackConnection> connections = zero.getConnections().stream()
                 .filter(c -> !c.isConnected(node))
