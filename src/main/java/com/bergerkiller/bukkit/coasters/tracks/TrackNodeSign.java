@@ -3,10 +3,12 @@ package com.bergerkiller.bukkit.coasters.tracks;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Predicate;
+import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.tc.events.SignBuildEvent;
 import com.bergerkiller.bukkit.tc.rails.RailLookup;
+import org.bukkit.ChatColor;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
@@ -82,6 +84,11 @@ public class TrackNodeSign implements Cloneable {
                     channel.removeRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSignOutput(this));
                 }
             }
+        }
+
+        // Fire destroy event when removed
+        if (this.nodeOwner != null && node == null) {
+            fireDestroyEvent();
         }
 
         this.nodeOwner = node;
@@ -574,6 +581,23 @@ public class TrackNodeSign implements Cloneable {
     }
 
     /**
+     * Fires a sign destroy event. This tells the sign action implementation that this
+     * sign has been removed. Sign Actions can handle this event and do suitable cleanup.
+     * This sign must have been added to a track node prior.
+     */
+    public void fireDestroyEvent() {
+        RailLookup.TrackedSign trackedSign = getTrackedSign();
+        TCCoasters plugin = getNode().getPlugin();
+
+        try {
+            SignAction.handleDestroy(new SignActionEvent(trackedSign));
+        } catch (Throwable t) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to handle sign destroy event", t);
+            plugin.getLogger().severe("Sign Lines: " + Arrays.asList(lines));
+        }
+    }
+
+    /**
      * Fires a sign build event. Displays the type of sign placed to the player.
      * If the player lacks permissions to place this type of sign, returns false.
      * This sign must have been added to a track node prior.
@@ -583,10 +607,21 @@ public class TrackNodeSign implements Cloneable {
      * @return True if building was/is permitted
      */
     public boolean fireBuildEvent(Player player, boolean interactive) {
-        // Fire a sign build event with the sign's custom sign
-        SignBuildEvent event = new SignBuildEvent(player, getTrackedSign(), interactive);
-        SignAction.handleBuild(event);
-        return !event.isCancelled();
+        RailLookup.TrackedSign trackedSign = getTrackedSign();
+        TCCoasters plugin = getNode().getPlugin();
+
+        try {
+            // Fire a sign build event with the sign's custom sign
+            SignBuildEvent event = new SignBuildEvent(player, getTrackedSign(), interactive);
+            SignAction.handleBuild(event);
+            return !event.isCancelled();
+        } catch (Throwable t) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to handle sign build event", t);
+            plugin.getLogger().severe("Sign Lines: " + Arrays.asList(lines));
+            player.sendMessage(ChatColor.RED + "An internal error occurred trying to place a sign on a node. "
+                    + "See server log for more details.");
+            return false;
+        }
     }
 
     /**
