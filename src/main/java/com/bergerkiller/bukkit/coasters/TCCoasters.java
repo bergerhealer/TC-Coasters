@@ -19,12 +19,8 @@ import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerRegionViewRange;
 import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSignLookup;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
-import com.bergerkiller.bukkit.tc.events.SignBuildEvent;
-import com.bergerkiller.bukkit.tc.events.SignChangeActionEvent;
-import com.bergerkiller.bukkit.tc.rails.RailLookup;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
@@ -78,7 +74,6 @@ public class TCCoasters extends PluginBase {
     private final List<SignAction> registeredSignActions = Arrays.asList(
             powerSignAction, new SignActionTrackAnimate());
     private final Hastebin hastebin = new Hastebin(this);
-    private final TrackNodeSign.SignBuildHandler signBuildHandler = detectSignBuildHandler();
     private final TrackNodeSignLookup signLookup = new TrackNodeSignLookup();
     private final TCCoastersListener listener = new TCCoastersListener(this);
     private final TCCoastersInteractionListener interactionListener = new TCCoastersInteractionListener(this);
@@ -423,16 +418,6 @@ public class TCCoasters extends PluginBase {
         return this.exportFolder;
     }
 
-    /**
-     * Gets the Sign Building handler that is appropriate for the current version of TrainCarts
-     * run on the server. This handler handles build permissions for new signs
-     *
-     * @return Build handler
-     */
-    public TrackNodeSign.SignBuildHandler getSignBuildHandler() {
-        return signBuildHandler;
-    }
-
     @Override
     public void onLoad() {
         // Load configuration
@@ -775,41 +760,6 @@ public class TCCoasters extends PluginBase {
 
         // Treat as Hastebin URL
         return this.hastebin.download(fileOrURL);
-    }
-
-    private static TrackNodeSign.SignBuildHandler detectSignBuildHandler() {
-        boolean hasSignBuildEvent;
-        try {
-            SignBuildEvent.class.getConstructor(Player.class, RailLookup.TrackedSign.class, boolean.class);
-            hasSignBuildEvent = true;
-        } catch (Throwable t) {
-            hasSignBuildEvent = false;
-        }
-        return hasSignBuildEvent ? createModernSignBuildHandler() : createLegacySignBuildHandler();
-    }
-
-    private static TrackNodeSign.SignBuildHandler createModernSignBuildHandler() {
-        return (player, trackedSign, interactive) -> {
-            SignBuildEvent event = new SignBuildEvent(player, trackedSign, interactive);
-            SignAction.handleBuild(event);
-            return !event.isCancelled();
-        };
-    }
-
-    @SuppressWarnings("deprecation")
-    private static TrackNodeSign.SignBuildHandler createLegacySignBuildHandler() {
-        return (player, trackedSign, interactive) -> {
-            // Non-interactive building with only permission checking didn't exist here
-            // TODO: We do want to fire the loadedChanged() at least maybe? In legacy times
-            //       it already didn't fire this event (bug?) so it's whatever I guess.
-            if (!interactive) {
-                return true;
-            }
-
-            SignChangeActionEvent event = new SignChangeActionEvent(player, trackedSign);
-            SignAction.handleBuild(event);
-            return !event.isCancelled();
-        };
     }
 
     private static class AutosaveTask extends Task {

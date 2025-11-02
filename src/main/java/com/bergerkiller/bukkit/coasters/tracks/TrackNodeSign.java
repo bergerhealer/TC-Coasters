@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.tc.events.SignBuildEvent;
 import com.bergerkiller.bukkit.tc.rails.RailLookup;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -583,8 +584,9 @@ public class TrackNodeSign implements Cloneable {
      */
     public boolean fireBuildEvent(Player player, boolean interactive) {
         // Fire a sign build event with the sign's custom sign
-        TrackedFakeSign trackedSign = getTrackedSign();
-        return nodeOwner.getPlugin().getSignBuildHandler().handleBuild(player, trackedSign, interactive);
+        SignBuildEvent event = new SignBuildEvent(player, getTrackedSign(), interactive);
+        SignAction.handleBuild(event);
+        return !event.isCancelled();
     }
 
     /**
