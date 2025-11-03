@@ -34,15 +34,12 @@ import com.bergerkiller.bukkit.tc.signactions.SignActionType;
 public class TrackNodeSign implements Cloneable {
     public static final TrackNodeSign[] EMPTY_ARR = new TrackNodeSign[0];
 
+    private TrackNodeBinding binding = TrackNodeBinding.NONE;
     private TrackNodeSignKey key;
     private String[] lines;
     private NamedPowerChannel[] inputPowerChannels = NamedPowerChannel.NO_POWER_STATES;
     private NamedPowerChannel[] outputPowerChannels = NamedPowerChannel.NO_POWER_STATES;
     private TrackedFakeSign cachedFakeSign = null;
-
-    // Registration state
-    private TrackNode nodeOwner;
-    private boolean addedAsAnimation;
 
     public TrackNodeSign() {
         this(TrackNodeSignKey.random());
@@ -58,44 +55,43 @@ public class TrackNodeSign implements Cloneable {
         setLines(lines);
     }
 
-    void updateOwner(TCCoasters plugin, TrackNode node, boolean addedAsAnimation) {
-        if (node == null || addedAsAnimation) {
+    void updateBinding(TCCoasters plugin, TrackNodeBinding newBinding) {
+        if (!newBinding.isActive()) {
             this.cachedFakeSign = null; // Forces re-validation
             plugin.getSignLookup().remove(this); // Remove from lookup
         }
 
-        // Register/un-register the power states of this sign
-        if (this.nodeOwner != node) {
+        if (this.binding.isActive() != newBinding.isActive()) {
+            // Register/un-register the power states of this sign
             NamedPowerChannel[] inputChannels = this.inputPowerChannels;
             NamedPowerChannel[] outputChannels = this.outputPowerChannels;
-            if (node != null) {
+            if (newBinding.isActive()) {
                 for (NamedPowerChannel channel : inputChannels) {
-                    channel.addRecipient(node.getWorld().getNamedPowerChannels(), Recipient.ofSignInput(this));
+                    channel.addRecipient(newBinding.world().getNamedPowerChannels(), Recipient.ofSignInput(this));
                 }
                 for (NamedPowerChannel channel : outputChannels) {
-                    channel.addRecipient(node.getWorld().getNamedPowerChannels(), Recipient.ofSignOutput(this));
+                    channel.addRecipient(newBinding.world().getNamedPowerChannels(), Recipient.ofSignOutput(this));
                 }
             }
-            if (this.nodeOwner != null) {
+            if (this.binding.isActive()) {
                 for (NamedPowerChannel channel : inputChannels) {
-                    channel.removeRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSignInput(this));
+                    channel.removeRecipient(this.binding.world().getNamedPowerChannels(), Recipient.ofSignInput(this));
                 }
                 for (NamedPowerChannel channel : outputChannels) {
-                    channel.removeRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSignOutput(this));
+                    channel.removeRecipient(this.binding.world().getNamedPowerChannels(), Recipient.ofSignOutput(this));
                 }
+            }
+
+            // Fire destroy event when removed
+            if (!newBinding.isActive()) {
+                fireDestroyEvent();
             }
         }
 
-        // Fire destroy event when removed
-        if (this.nodeOwner != null && node == null) {
-            fireDestroyEvent();
-        }
-
-        this.nodeOwner = node;
-        this.addedAsAnimation = addedAsAnimation;
+        this.binding = newBinding;
 
         // Store in by-key mapping
-        if (node != null && !addedAsAnimation) {
+        if (newBinding.isActive()) {
             plugin.getSignLookup().store(this);
         }
     }
@@ -153,13 +149,23 @@ public class TrackNodeSign implements Cloneable {
     }
 
     /**
+     * Gets the binding, which contains the node and if it is added as
+     * an animation state.
+     *
+     * @return TrackNodeBinding
+     */
+    public TrackNodeBinding getBinding() {
+        return this.binding;
+    }
+
+    /**
      * Gets the track node owning this sign, if it was added to a node or an animation
      * state of a node.
      *
      * @return node owner
      */
     public TrackNode getNode() {
-        return this.nodeOwner;
+        return this.binding.node();
     }
 
     /**
@@ -170,7 +176,7 @@ public class TrackNodeSign implements Cloneable {
      *         False otherwise.
      */
     public boolean isAddedAsAnimation() {
-        return this.addedAsAnimation;
+        return this.binding.isAddedAsAnimation();
     }
 
     /**
@@ -250,8 +256,8 @@ public class TrackNodeSign implements Cloneable {
         channels = LogicUtil.appendArray(channels, channel);
         this.inputPowerChannels = channels;
 
-        if (this.nodeOwner != null) {
-            channel.addRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSignInput(this));
+        if (this.binding.isActive()) {
+            channel.addRecipient(this.binding.world().getNamedPowerChannels(), Recipient.ofSignInput(this));
             notifyOwningNode();
         }
     }
@@ -340,8 +346,8 @@ public class TrackNodeSign implements Cloneable {
                 } else {
                     this.inputPowerChannels = LogicUtil.removeArrayElement(channels, i);
                 }
-                if (this.nodeOwner != null) {
-                    existingState.removeRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSignInput(this));
+                if (this.binding.isActive()) {
+                    existingState.removeRecipient(this.binding.world().getNamedPowerChannels(), Recipient.ofSignInput(this));
                     notifyOwningNode();
                 }
                 found = true;
@@ -372,8 +378,8 @@ public class TrackNodeSign implements Cloneable {
         channels = LogicUtil.appendArray(channels, output);
         this.outputPowerChannels = channels;
 
-        if (this.nodeOwner != null) {
-            output.addRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSignOutput(this));
+        if (this.binding.isActive()) {
+            output.addRecipient(this.binding.world().getNamedPowerChannels(), Recipient.ofSignOutput(this));
             notifyOwningNode();
         }
     }
@@ -422,8 +428,8 @@ public class TrackNodeSign implements Cloneable {
                 } else {
                     this.outputPowerChannels = LogicUtil.removeArrayElement(channels, i);
                 }
-                if (this.nodeOwner != null) {
-                    existingState.removeRecipient(this.nodeOwner.getWorld().getNamedPowerChannels(), Recipient.ofSignOutput(this));
+                if (this.binding.isActive()) {
+                    existingState.removeRecipient(this.binding.world().getNamedPowerChannels(), Recipient.ofSignOutput(this));
                     notifyOwningNode();
                 }
                 found = true;
@@ -448,9 +454,9 @@ public class TrackNodeSign implements Cloneable {
     }
 
     private void notifyOwningNode() {
-        if (this.nodeOwner != null) {
-            this.nodeOwner.updateSignParticle();
-            this.nodeOwner.markChanged();
+        if (this.binding.node() != null) {
+            this.binding.node().updateSignParticle();
+            this.binding.node().markChanged();
         }
     }
 
@@ -461,8 +467,7 @@ public class TrackNodeSign implements Cloneable {
      * @return True if this node sign has a tracked sign
      */
     public boolean hasTrackedSign() {
-        final TrackNode node = this.getNode();
-        return node != null && !addedAsAnimation;
+        return this.binding.isActive();
     }
 
     /**
@@ -472,11 +477,9 @@ public class TrackNodeSign implements Cloneable {
      * @return Tracked fake sign
      */
     public TrackedFakeSign getTrackedSign() {
-        final TrackNode node = this.getNode();
-        if (node == null || addedAsAnimation) {
-            throw new IllegalStateException("This sign is not associated with a track node");
-        }
+        binding.assertActive("sign");
 
+        TrackNode node = binding.node();
         return getTrackedSign(RailPiece.create(node.getPlugin().getRailType(),
                 BlockUtil.getBlock(node.getBukkitWorld(), node.getRailBlock(true))));
     }
@@ -489,13 +492,11 @@ public class TrackNodeSign implements Cloneable {
      * @return Tracked fake sign
      */
     public TrackedFakeSign getTrackedSign(final RailPiece rail) {
-        final TrackNode node = this.getNode();
-        if (node == null || addedAsAnimation) {
-            throw new IllegalStateException("This sign is not associated with a track node");
-        }
+        binding.assertActive("sign");
 
         TrackedFakeSign cached = cachedFakeSign;
         if (cached == null || !cached.getRail().isSameBlock(rail)) {
+            final TrackNode node = binding.node();
             cachedFakeSign = cached = new TrackedFakeSign(rail) {
                 @Override
                 public String getLine(int index) throws IndexOutOfBoundsException {

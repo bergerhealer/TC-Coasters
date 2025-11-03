@@ -7,7 +7,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 
-import com.bergerkiller.bukkit.coasters.CoasterRailType;
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import org.bukkit.Location;
@@ -778,7 +777,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                 for (int j = i; j < this._animationStates.length; j++) {
                     this._animationStates[j].updateIndex(j);
                 }
-                handleSignOwnerUpdates(plugin, state.state.signs, TrackNodeSign.EMPTY_ARR, true);
+                updateSignBindings(plugin, state.state.signs, TrackNodeSign.EMPTY_ARR, TrackNodeBinding.forNodeAnimationStates(this));
                 plugin.forAllEditStates(editState -> editState.notifyNodeAnimationRemoved(TrackNode.this, name));
                 return true;
             }
@@ -891,7 +890,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                 old_state.destroyParticles();
                 this._animationStates[i] = state;
                 state.spawnParticles(this, i);
-                handleSignOwnerUpdates(plugin, old_state.state.signs, state.state.signs, true);
+                updateSignBindings(plugin, old_state.state.signs, state.state.signs, TrackNodeBinding.forNodeAnimationStates(this));
                 return;
             }
         }
@@ -904,7 +903,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         // Add new
         this._animationStates = LogicUtil.appendArrayElement(this._animationStates, state);
         state.spawnParticles(this, this._animationStates.length - 1);
-        handleSignOwnerUpdates(plugin, TrackNodeSign.EMPTY_ARR, state.state.signs, true);
+        updateSignBindings(plugin, TrackNodeSign.EMPTY_ARR, state.state.signs, TrackNodeBinding.forNodeAnimationStates(this));
 
         // Refresh any player edit states so they become aware of this animation
         plugin.forAllEditStates(editState -> editState.notifyNodeAnimationAdded(this, state.name));
@@ -950,7 +949,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                     old_state.destroyParticles();
                     this._animationStates[i] = new_state;
                     new_state.spawnParticles(this, i);
-                    handleSignOwnerUpdates(plugin, old_state.state.signs, new_state.state.signs, true);
+                    updateSignBindings(plugin, old_state.state.signs, new_state.state.signs, TrackNodeBinding.forNodeAnimationStates(this));
                     this.markChanged();
                 }
             }
@@ -969,11 +968,10 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         this.updateAnimationStates(name, anim_state -> {
             if (filter != null) {
                 // Go to verify we can actually add it first. For this the sign must be bound to this sign.
-                TrackNode oldNode = sign.getNode();
-                boolean oldAddedAsAnimation = sign.isAddedAsAnimation();
+                TrackNodeBinding prevBinding = sign.getBinding();
                 try {
                     // Must be addedAsAnimation=false otherwise errors occur (=not a sign)
-                    sign.updateOwner(this.getPlugin(), this, false);
+                    sign.updateBinding(this.getPlugin(), TrackNodeBinding.forNode(this));
 
                     // Check
                     if (!filter.canAddSign(this, sign)) {
@@ -981,7 +979,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                     }
                 } finally {
                     // Restore
-                    sign.updateOwner(this.getPlugin(), oldNode, oldAddedAsAnimation);
+                    sign.updateBinding(this.getPlugin(), prevBinding);
                 }
             }
 
@@ -1147,9 +1145,9 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         final TCCoasters plugin = getPlugin();
 
         destroyParticles();
-        handleSignOwnerUpdates(plugin, this._signs, TrackNodeSign.EMPTY_ARR, false);
+        updateSignBindings(plugin, this._signs, TrackNodeSign.EMPTY_ARR, TrackNodeBinding.forNode(this));
         for (TrackNodeAnimationState animState : this._animationStates) {
-            handleSignOwnerUpdates(plugin, animState.state.signs, TrackNodeSign.EMPTY_ARR, true);
+            updateSignBindings(plugin, animState.state.signs, TrackNodeSign.EMPTY_ARR, TrackNodeBinding.forNodeAnimationStates(this));
         }
         _coaster = null; // mark removed by breaking reference to coaster
     }
@@ -1233,7 +1231,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     private void setSignsWithoutMarkChanged(TrackNodeSign[] new_signs) {
         TrackNodeSign[] prev_signs = this._signs;
         this._signs = new_signs;
-        handleSignOwnerUpdates(getPlugin(), prev_signs, new_signs, false);
+        updateSignBindings(getPlugin(), prev_signs, new_signs, TrackNodeBinding.forNode(this));
         updateSignParticle();
     }
 
@@ -1256,15 +1254,14 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     public void addSign(TrackNodeSign sign, AddSignPredicate filter) {
         // Remember old state to restore if adding is not allowed
         TrackNodeSign[] oldSigns = this._signs;
-        TrackNode oldNode = sign.getNode();
-        boolean oldAsAnimation = sign.isAddedAsAnimation();
+        TrackNodeBinding prevBinding = sign.getBinding();
 
         this._signs = LogicUtil.appendArrayElement(this._signs, sign);
-        sign.updateOwner(this.getPlugin(), this, false);
+        sign.updateBinding(this.getPlugin(), TrackNodeBinding.forNode(this));
 
         if (filter != null && !filter.canAddSign(this, sign)) {
             this._signs = oldSigns;
-            sign.updateOwner(this.getPlugin(), oldNode, oldAsAnimation);
+            sign.updateBinding(this.getPlugin(), prevBinding);
             return;
         }
 
@@ -1272,16 +1269,16 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         markChanged();
     }
 
-    private void handleSignOwnerUpdates(TCCoasters plugin, TrackNodeSign[] prev_signs, TrackNodeSign[] new_signs, boolean isAnimationState) {
+    private static void updateSignBindings(TCCoasters plugin, TrackNodeSign[] prev_signs, TrackNodeSign[] new_signs, TrackNodeBinding newBinding) {
         if (prev_signs.length == 0) {
             // Adding stuff only
             for (TrackNodeSign sign : new_signs) {
-                sign.updateOwner(plugin, this, isAnimationState);
+                sign.updateBinding(plugin, newBinding);
             }
         } else if (new_signs.length == 0) {
             // Removing stuff only
             for (TrackNodeSign sign : prev_signs) {
-                sign.updateOwner(plugin, null, false);
+                sign.updateBinding(plugin, TrackNodeBinding.NONE);
             }
         } else {
             List<TrackNodeSign> prev_signs_list = Arrays.asList(prev_signs);
@@ -1291,14 +1288,14 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             // new signs is preserved.
             for (TrackNodeSign sign : new_signs) {
                 if (!prev_signs_list.contains(sign)) {
-                    sign.updateOwner(plugin, this, isAnimationState);
+                    sign.updateBinding(plugin, newBinding);
                 }
             }
 
             // Remove signs that no longer exist
             for (TrackNodeSign sign : prev_signs_list) {
                 if (!new_signs_list.contains(sign)) {
-                    sign.updateOwner(plugin, null, false);
+                    sign.updateBinding(plugin, TrackNodeBinding.NONE);
                 }
             }
         }
