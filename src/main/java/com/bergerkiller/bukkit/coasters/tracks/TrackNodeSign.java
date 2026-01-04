@@ -6,6 +6,7 @@ import java.util.function.Predicate;
 import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.common.offline.OfflineBlock;
 import com.bergerkiller.bukkit.tc.events.SignBuildEvent;
 import com.bergerkiller.bukkit.tc.rails.RailLookup;
 import org.bukkit.ChatColor;
@@ -72,6 +73,9 @@ public class TrackNodeSign implements Cloneable {
                 for (NamedPowerChannel channel : outputChannels) {
                     channel.addRecipient(newBinding.world().getNamedPowerChannels(), Recipient.ofSignOutput(this));
                 }
+
+                // Refresh rail cache when the sign is added
+                invalidateCachedSignsOfNode(newBinding.node());
             }
             if (this.binding.isActive()) {
                 for (NamedPowerChannel channel : inputChannels) {
@@ -80,6 +84,9 @@ public class TrackNodeSign implements Cloneable {
                 for (NamedPowerChannel channel : outputChannels) {
                     channel.removeRecipient(this.binding.world().getNamedPowerChannels(), Recipient.ofSignOutput(this));
                 }
+
+                // Refresh rail cache when the sign is removed
+                invalidateCachedSignsOfNode(this.binding.node());
             }
 
             // Fire destroy event when removed
@@ -93,6 +100,14 @@ public class TrackNodeSign implements Cloneable {
         // Store in by-key mapping
         if (newBinding.isActive()) {
             plugin.getSignLookup().store(this);
+        }
+    }
+
+    private static void invalidateCachedSignsOfNode(TrackNode node) {
+        OfflineBlock railBlock = node.getOfflineWorld().getBlockAt(node.getRailBlock(true));
+        RailLookup.CachedRailPiece piece = RailLookup.lookupCachedRailPieceIfCached(railBlock, node.getPlugin().getRailType());
+        if (!piece.isNone()) {
+            piece.forceCacheVerification();
         }
     }
 
