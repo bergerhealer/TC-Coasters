@@ -3,7 +3,6 @@ package com.bergerkiller.bukkit.coasters.editor;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -17,11 +16,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeConnect;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragHandler;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeDragManipulatorOrientation;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeDragManipulatorPosition;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.BlockSelectMenu;
 import com.bergerkiller.bukkit.coasters.events.CoasterCreateConnectionEvent;
 import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
-import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -60,7 +61,6 @@ import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
-import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.tc.controller.components.RailPath;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
@@ -80,11 +80,12 @@ public class PlayerEditState implements CoasterWorldComponent {
     private final TCCoasters plugin;
     private final Player player;
     private final PlayerEditInput input;
+    private final NodeDragHandler dragHandler;
     private final PlayerEditHistory history;
     private final PlayerEditClipboard clipboard;
     private final ObjectEditState objectState;
     private final SignEditState signState;
-    private final Map<TrackNode, PlayerEditNode> editedNodes = new LinkedHashMap<TrackNode, PlayerEditNode>();
+    protected final Map<TrackNode, PlayerEditNode> editedNodes = new LinkedHashMap<TrackNode, PlayerEditNode>();
     private final TreeMultimap<String, TrackNode> editedNodesByAnimationName = TreeMultimap.create(Ordering.natural(), Ordering.arbitrary());
     private CoasterWorld cachedCoasterWorld = null;
     private TrackNode lastEdited = null;
@@ -94,8 +95,6 @@ public class PlayerEditState implements CoasterWorldComponent {
     private int heldDownTicks = 0;
     private boolean changed = false;
     private boolean editedAnimationNamesChanged = false;
-    private Matrix4x4 editStartTransform = null;
-    private Vector editRotInfo = new Vector(); // virtual coordinate of the vector
     private Block targetedBlock = null;
     private BlockFace targetedBlockFace = BlockFace.UP;
     private String selectedAnimation = null;
@@ -107,6 +106,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         this.plugin = plugin;
         this.player = player;
         this.input = new PlayerEditInput(player);
+        this.dragHandler = new NodeDragHandler(input);
         this.history = new PlayerEditHistory(player);
         this.clipboard = new PlayerEditClipboard(this);
         this.objectState = new ObjectEditState(this);
@@ -665,7 +665,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         if (this.getMode() == PlayerEditMode.POSITION && this.isHoldingRightClick()) {
             // Complete moving the original selected node(s), call onEditingFinished
             try {
-                this.onEditingFinished();
+                this.dragManipulationFinish();
                 this.heldDownTicks = 0;
             } catch (ChangeCancelledException e) {
                 // Couldn't place the node(s) here, the change was aborted
@@ -926,7 +926,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         } else {
             if (this.heldDownTicks > 0) {
                 try {
-                    this.onEditingFinished();
+                    this.dragManipulationFinish();
                 } catch (ChangeCancelledException e) {
                     this.clearEditedNodes();
                 }
@@ -959,7 +959,7 @@ public class PlayerEditState implements CoasterWorldComponent {
             this.objectState.createObject();
         } else {
             // Position / Orientation logic
-            changePositionOrientation();
+            dragManipulationUpdate();
         }
     }
 
@@ -1304,8 +1304,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         // If drag mode, switch to POSITION mode and initiate the drag
         if (dragAfterCreate) {
             this.setMode(PlayerEditMode.POSITION);
-            this.editStartTransform = this.input.get().clone();
-            this.editRotInfo = this.editStartTransform.toVector();
+            this.dragHandler.reset();
             this.setAfterEditMode(PlayerEditMode.CREATE);
         }
     }
@@ -1537,7 +1536,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
     }
 
-    private void makeNodeConnectionsCurved(HistoryChangeCollection changes, TrackNode node) throws ChangeCancelledException {
+    public void makeNodeConnectionsCurved(HistoryChangeCollection changes, TrackNode node) throws ChangeCancelledException {
         TrackNode zero = node.getZeroDistanceNeighbour();
         if (zero == null) {
             return;
@@ -1553,7 +1552,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         makeNodeConnectionsCurved(changes, node, zero);
     }
 
-    private void makeNodeConnectionsCurved(final HistoryChangeCollection changes, final TrackNode node, final TrackNode zero) throws ChangeCancelledException {
+    public void makeNodeConnectionsCurved(final HistoryChangeCollection changes, final TrackNode node, final TrackNode zero) throws ChangeCancelledException {
         // Disconnect all nodes connected to the zero node. Preserve objects!
         List<TrackConnection> connections = zero.getConnections().stream()
                 .filter(c -> !c.isConnected(node))
@@ -1596,7 +1595,7 @@ public class PlayerEditState implements CoasterWorldComponent {
      *
      * @return Takes into account zero-distance nodes
      */
-    private boolean isEditingSingleNode() {
+    public boolean isEditingSingleNode() {
         if (this.editedNodes.size() == 1) {
             return true;
         } else if (this.editedNodes.size() == 2) {
@@ -1607,34 +1606,12 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
     }
 
-    public void changePositionOrientation() {
+    public void dragManipulationUpdate() {
         // Deselect locked nodes that we cannot edit
         this.deselectLockedNodes();
 
         if (!this.hasEditedNodes()) {
             return;
-        }
-
-        // Get current input
-        Matrix4x4 current = this.input.get();
-
-        // First click?
-        if (this.editStartTransform == null || this.heldDownTicks == 0) {
-            this.editStartTransform = current.clone();
-            this.editRotInfo = this.editStartTransform.toVector();
-
-            // Store initial positions
-            for (PlayerEditNode editNode : this.editedNodes.values()) {
-                editNode.dragPosition = editNode.node.getPosition().clone();
-            }
-
-            // Is used to properly alter the orientation of a node looked at
-            TrackNode lookingAt = this.findLookingAt();
-            if (lookingAt != null) {
-                Vector forward = this.editStartTransform.getRotation().forwardVector();
-                double distanceTo = lookingAt.getPosition().distance(this.editRotInfo);
-                this.editRotInfo.add(forward.multiply(distanceTo));
-            }
         }
 
         // Ensure moveBegin() is called once
@@ -1654,77 +1631,21 @@ public class PlayerEditState implements CoasterWorldComponent {
             return;
         }
 
-        // Calculate the transformation performed as a result of the player 'looking'
-        Matrix4x4 changes = new Matrix4x4();
-        changes.multiply(current);
-
-        { // Divide
-            Matrix4x4 m = this.editStartTransform.clone();
-            m.invert();
-            changes.multiply(m);
-        }
-
-        if (this.getMode() == PlayerEditMode.ORIENTATION) {
-            changes.transformPoint(this.editRotInfo);
-            for (PlayerEditNode editNode : this.editedNodes.values()) {
-                editNode.node.setOrientation(this.editRotInfo.clone().subtract(editNode.node.getPosition()));
-            }
-        } else {
-            // Check whether the player is moving only a single node or not
-            // Count two zero-connected nodes as one node
-            final boolean isSingleNode = isEditingSingleNode();
-
-            Vector eyePos = this.player.getEyeLocation().toVector();
-            for (PlayerEditNode editNode : this.editedNodes.values()) {
-                // Recover null
-                if (editNode.dragPosition == null) {
-                    editNode.dragPosition = editNode.node.getPosition().clone();
-                }
-
-                // Transform position and compute direction using player view position relative to the node
-                changes.transformPoint(editNode.dragPosition);
-                Vector position = editNode.dragPosition.clone();
-                Vector orientation = editNode.startState.orientation.clone();
-                Vector direction = position.clone().subtract(this.player.getEyeLocation().toVector()).normalize();
-                if (Double.isNaN(direction.getX())) {
-                    direction = this.player.getEyeLocation().getDirection();
-                }
-
-                // Snap position against the side of a block
-                // Then, look for other rails blocks and attach to it
-                // When sneaking, disable this functionality
-                // When more than 1 node is selected, only do this for nodes with 1 or less connections
-                // This is to avoid severe performance problems when moving a lot of track at once
-                if (!this.isSneaking() && (isSingleNode || editNode.node.getConnections().size() <= 1)) {
-                    TCCoastersUtil.snapToBlock(getBukkitWorld(), eyePos, position, orientation);
-
-                    if (TCCoastersUtil.snapToCoasterRails(editNode.node, position, orientation, n -> !isEditing(n))) {
-                        // Play particle effects to indicate we are snapping to the coaster rails
-                        PlayerUtil.spawnDustParticles(this.player, position, Color.RED);
-                    } else if (TCCoastersUtil.snapToRails(getBukkitWorld(), editNode.node.getRailBlock(true), position, direction, orientation)) {
-                        // Play particle effects to indicate we are snapping to the rails
-                        PlayerUtil.spawnDustParticles(this.player, position, Color.PURPLE);
-                    }
-                }
-
-                // Apply to node
-                editNode.node.setPosition(position);
-                editNode.node.setOrientation(orientation);
+        // Initialize the right manipulator
+        if (!dragHandler.isManipulating()) {
+            if (this.getMode() == PlayerEditMode.ORIENTATION) {
+                dragHandler.setManipulator(new NodeDragManipulatorOrientation());
+            } else {
+                dragHandler.setManipulator(new NodeDragManipulatorPosition());
             }
         }
 
-        this.editStartTransform = current.clone();
-    }
-
-    // when the list of animations in selected nodes changes
-    private void onEditedAnimationNamedChanged() {
-        for (TCCoastersDisplay display : MapDisplay.getAllDisplays(TCCoastersDisplay.class)) {
-            display.sendStatusChange("PlayerEditState::EditedAnimationNamesChanged");
-        }
+        // Next drag event
+        dragHandler.next(this, this.editedNodes.values());
     }
 
     // when player releases the right-click mouse button
-    private void onEditingFinished() throws ChangeCancelledException {
+    private void dragManipulationFinish() throws ChangeCancelledException {
         // Deselect locked nodes that we cannot edit
         this.deselectLockedNodes();
 
@@ -1737,158 +1658,21 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
         this.draggingCreateNewNodeChange = null;
 
-        // When drag-dropping a node onto a node, 'merge' the two
-        // Do so by connecting all other neighbours of the dragged node to the node
-        if (this.getMode() == PlayerEditMode.POSITION && isEditingSingleNode()) {
-            TrackWorld tracks = getWorld().getTracks();
-            PlayerEditNode draggedNode = this.editedNodes.values().iterator().next();
-
-            // If we never even began moving this node, do nothing
-            if (!draggedNode.hasMoveBegun()) {
-                return;
-            }
-
-            // Get all nodes nearby the position, sorted from close to far
-            // Pick first (closest) node that is not the node(s) dragged
-            final Vector pos = draggedNode.node.getPosition();
-            final TrackNode initialDroppedNode = tracks.findNodesNear(new ArrayList<TrackNode>(), pos, 1e-2).stream()
-                    .sorted(Comparator.comparingDouble(o -> o.getPosition().distanceSquared(pos)))
-                    .filter(n -> !isEditing(n))
-                    .findFirst()
-                    .orElse(null);
-
-            // Merge if found
-            if (initialDroppedNode != null) {
-                try {
-                    // Save all connections the dragged node had
-                    List<TrackConnectionState> previousConnections = draggedNode.node.getConnections().stream()
-                            .filter(c -> !c.isConnected(initialDroppedNode))
-                            .map(TrackConnectionState::create)
-                            .collect(Collectors.toCollection(ArrayList::new));
-
-                    // Undo the changes to the node position as a result of the drag
-                    draggedNode.node.setState(draggedNode.startState);
-
-                    // Track all the changes we are doing down below.
-                    // Delete the original node, and connections to the node, the player was dragging
-                    HistoryChange changes = dragParent.addChangeBeforeDeleteNode(this.player, draggedNode.node);
-                    draggedNode.node.remove();
-
-                    // If the dropped node has a zero-distance neighbour, special care must be taken
-                    // If it or itself is an orphan, purge the right orphan node accordingly
-                    // If both nodes have connections already, it becomes a junction, so then
-                    // one of the two nodes must be removed and connections transferred over.
-                    final TrackNode initialDroppedZDNode = initialDroppedNode.getZeroDistanceNeighbour();
-
-                    // Prefer connecting with a zero-distance orphan node
-                    TrackNode droppedZDNode = initialDroppedZDNode;
-                    TrackNode droppedNode = initialDroppedNode;
-                    if (droppedZDNode != null && droppedZDNode.isZeroDistanceOrphan()) {
-                        // If both are orphans, there is no way to resolve this through connecting later
-                        // Get rid of the duplicate orphan
-                        if (droppedNode.isZeroDistanceOrphan()) {
-                            previousConnections.removeIf(c -> c.isConnected(initialDroppedZDNode));
-                            droppedZDNode.remove();
-                            droppedZDNode = null;
-                        } else {
-                            previousConnections.removeIf(c -> c.isConnected(initialDroppedNode));
-                            droppedZDNode = droppedNode;
-                            droppedNode = initialDroppedZDNode;
-                        }
-                    }
-
-                    if (droppedZDNode != null) {
-                        // If node being dropped on is an orphan, and there's nothing to connect to
-                        // after, then just fix up the orphan situation
-                        if (droppedNode.isZeroDistanceOrphan() && previousConnections.isEmpty()) {
-                            droppedNode.remove();
-                            selectNode(droppedZDNode);
-                            return; // Skip everything
-                        }
-
-                        // If there's connections and we got two non-orphaned straightened nodes,
-                        // then it would turn into a junction. Make sure to make it curved first.
-                        if (previousConnections.size() > 1 || (!previousConnections.isEmpty() && !droppedNode.isZeroDistanceOrphan())) {
-                            makeNodeConnectionsCurved(dragParent, droppedNode);
-                            droppedZDNode = null; // Removed
-                        }
-                    }
-
-                    // Connect all that was connected to it, with the one dropped on
-                    for (TrackConnectionState connectionState : previousConnections) {
-                        TrackConnection connection = tracks.connect(connectionState.replaceNode(draggedNode.node, droppedNode), true);
-                        if (connection != null) {
-                            changes.addChangeAfterConnect(this.player, connection);
-                            addConnectionForAnimationStates(droppedNode, connection.getOtherNode(droppedNode));
-                            addConnectionForAnimationStates(connection.getOtherNode(droppedNode), droppedNode);
-                        }
-                    }
-
-                    // Select the node it was dropped on
-                    selectNode(droppedNode);
-                    if (droppedZDNode != null) {
-                        selectNode(droppedZDNode);
-                    }
-
-                    // Do not do the standard position/orientation change saving down below
-                    return;
-                } finally {
-                    draggedNode.moveEnd();
-                }
-            }
-        }
-
-        // For position/orientation, store the changes
-        if (this.isMode(PlayerEditMode.POSITION, PlayerEditMode.ORIENTATION, PlayerEditMode.ANIMATION)) {
-            try {
-                // Before processing, fire an event for all nodes that changed. If any of them fail (permissions!),
-                // cancel the entire move operation for all other nodes, too.
-                {
-                    HistoryChange changes = null;
-                    for (PlayerEditNode editNode : this.editedNodes.values()) {
-                        if (editNode.hasMoveBegun()) {
-                            try {
-                                if (changes == null) {
-                                    changes = getHistory().addChangeGroup();
-                                }
-                                changes.addChangeAfterChangingNode(this.player, editNode.node, editNode.startState);
-                            } catch (ChangeCancelledException ex) {
-                                // Undo all changes that were already executed or are going to be executed for other nodes
-                                // Ignore the one that was already cancelled
-                                for (PlayerEditNode prevModifiedNode : this.editedNodes.values()) {
-                                    if (prevModifiedNode != editNode) {
-                                        prevModifiedNode.node.setState(prevModifiedNode.startState);
-                                    }
-                                }
-                                throw ex;
-                            }
-                        }
-                    }
-                }
-
-                // Update position and orientation of animation state, if one is selected
-                if (this.selectedAnimation != null) {
-                    for (PlayerEditNode editNode : this.editedNodes.values()) {
-                        if (editNode.hasMoveBegun()) {
-                            TrackNodeAnimationState animState = editNode.node.findAnimationState(this.selectedAnimation);
-                            if (animState != null) {
-                                editNode.node.setAnimationState(animState.name,
-                                        editNode.node.getState().changeRail(animState.state.railBlock),
-                                        animState.connections);
-                            }
-                        }
-                    }
-                }
-            } finally {
-                for (PlayerEditNode editNode : this.editedNodes.values()) {
-                    editNode.moveEnd();
-                }
-            }
+        // Perform finishing logic if we were manipulating before
+        if (dragHandler.isManipulating()) {
+            dragHandler.finish(this, dragParent, editedNodes.values());
         }
 
         // For moving track objects, store the changes / fire after change event
         if (this.isMode(PlayerEditMode.OBJECT)) {
             this.objectState.onEditingFinished();
+        }
+    }
+
+    // when the list of animations in selected nodes changes
+    private void onEditedAnimationNamedChanged() {
+        for (TCCoastersDisplay display : MapDisplay.getAllDisplays(TCCoastersDisplay.class)) {
+            display.sendStatusChange("PlayerEditState::EditedAnimationNamesChanged");
         }
     }
 
@@ -1898,7 +1682,7 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @param node The node, first parameter of connect(a,b), to this node connections are added
      * @param target The target, second parameter of connect(a,b)
      */
-    private void addConnectionForAnimationStates(TrackNode node, TrackNodeReference target) {
+    public void addConnectionForAnimationStates(TrackNode node, TrackNodeReference target) {
         node.addAnimationStateConnection(this.selectedAnimation, TrackConnectionState.create(node, target, Collections.emptyList()));
     }
 
@@ -1908,7 +1692,7 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @param node
      * @param target
      */
-    private void removeConnectionForAnimationStates(TrackNode node, TrackNodeReference target) {
+    public void removeConnectionForAnimationStates(TrackNode node, TrackNodeReference target) {
         node.removeAnimationStateConnection(this.selectedAnimation, target);
     }
 
