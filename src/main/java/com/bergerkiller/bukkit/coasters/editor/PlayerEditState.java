@@ -1247,7 +1247,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
 
         // If targeting a block face, create a node on top of this face
-        if (this.targetedBlock != null) {
+        if (!dragAfterCreate && this.targetedBlock != null) {
             // If the targeted block is a rails block, connect to one end of it
             RailType clickedRailType = RailType.getType(this.targetedBlock);
             if (clickedRailType != RailType.NONE) {
