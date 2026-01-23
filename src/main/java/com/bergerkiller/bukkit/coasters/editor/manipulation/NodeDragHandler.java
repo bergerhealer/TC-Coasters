@@ -5,9 +5,12 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditNode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.stream.Collectors;
 
 /**
  * Tracks the change in where the player looks, and makes a 4x4 transform matrix available
@@ -16,6 +19,10 @@ import java.util.Collection;
 public class NodeDragHandler {
     private final PlayerEditInput input;
     private Matrix4x4 editStartTransform = null;
+
+    /** Currently edited nodes. If different, drag manipulations are shifted out. */
+    private Collection<TrackNode> editedNodesSaveState = Collections.emptyList();
+    /** Current manipulator, or null if no manipulation is active */
     private NodeDragManipulator manipulator = null;
 
     public NodeDragHandler(PlayerEditInput input) {
@@ -29,6 +36,7 @@ public class NodeDragHandler {
     public void reset() {
         this.editStartTransform = null;
         this.manipulator = null;
+        this.editedNodesSaveState = Collections.emptyList();
     }
 
     /**
@@ -41,48 +49,46 @@ public class NodeDragHandler {
     }
 
     /**
-     * Sets the manipulator to use for handling drag events.
-     *
-     * @param manipulator Manipulator
-     */
-    public void setManipulator(NodeDragManipulator manipulator) {
-        this.manipulator = manipulator;
-        this.editStartTransform = null; // Force restart
-    }
-
-    /**
      * Called every tick while a drag is happening
      *
+     * @param initializer Manipulator initializer. Creates a new manipulator if no manipulation is active yet.
      * @param state PlayerEditState
      * @param editedNodes Edited nodes
      */
-    public void next(PlayerEditState state, Collection<PlayerEditNode> editedNodes) {
-        if (manipulator == null) {
-            return;
+    public void next(NodeDragManipulator.Initializer initializer, PlayerEditState state, Collection<PlayerEditNode> editedNodes) throws ChangeCancelledException {
+        NodeDragEvent event = this.nextEvent(manipulator == null || state.getHeldDownTicks() == 0);
+
+        // If a manipulator is active, verify that the edited nodes are still the same
+        // If not, finish the previous manipulator and resume with a newly created one
+        if (manipulator != null && !areEditedNodesEqual(this.editedNodesSaveState, editedNodes)) {
+            // This could throw (fail to commit), in which case no drag is started
+            // Caller will reset selected nodes to resolve the problem.
+            this.finish(state.getHistory());
         }
 
-        NodeDragEvent event = this.nextEvent(state.getHeldDownTicks() == 0);
-        if (event.isStart()) {
-            manipulator.onStarted(state, editedNodes, event);
+        // If no manipulator is set yet, create one
+        if (manipulator == null) {
+            editedNodesSaveState = editedNodes.stream().map(en -> en.node).collect(Collectors.toSet());
+            manipulator = initializer.start(state, editedNodes, event);
+            manipulator.onStarted(event);
         }
-        manipulator.onUpdate(state, editedNodes, event);
+
+        manipulator.onUpdate(event);
     }
 
     /**
      * Called once the player releases the drag, finalizing the changes
      *
-     * @param state PlayerEditState
-     * @param history History change collection
-     * @param editedNodes Edited nodes
+     * @param history History change collection to commit changes to
      */
-    public void finish(PlayerEditState state, HistoryChangeCollection history, Collection<PlayerEditNode> editedNodes) throws ChangeCancelledException {
-        if (manipulator == null) {
+    public void finish(HistoryChangeCollection history) throws ChangeCancelledException {
+        if (!isManipulating()) {
             return;
         }
 
         NodeDragEvent event = this.nextEvent(false);
         try {
-            manipulator.onFinished(state, history, editedNodes, event);
+            manipulator.onFinished(history, event);
         } finally {
             this.reset();
         }
@@ -119,5 +125,20 @@ public class NodeDragHandler {
         this.editStartTransform = current.clone();
 
         return new NodeDragEvent(current, changes, isStart);
+    }
+
+    private static boolean areEditedNodesEqual(Collection<TrackNode> editedNodesSaveState, Collection<PlayerEditNode> editedNodes) {
+        if (editedNodesSaveState.size() != editedNodes.size()) {
+            return false;
+        }
+
+        for (PlayerEditNode node : editedNodes) {
+            if (!editedNodesSaveState.contains(node.node)) {
+                return false;
+            }
+        }
+
+        // Nodes won't be duplicate and size are equal, so we know they are the same
+        return true;
     }
 }

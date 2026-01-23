@@ -23,18 +23,23 @@ import java.util.stream.Collectors;
  * saving the changes on finish into the player's history.
  */
 public abstract class NodeDragManipulatorBase implements NodeDragManipulator {
+    protected final PlayerEditState state;
+    protected final Collection<PlayerEditNode> editedNodes;
+
+    public NodeDragManipulatorBase(PlayerEditState state, Collection<PlayerEditNode> editedNodes) {
+        this.state = state;
+        this.editedNodes = editedNodes;
+    }
 
     /**
      * If dragging only a single node around, attempts to merge this node with another nearby node.
      * This is done when releasing drag for a single selected node.
      *
-     * @param state PlayerEditState
      * @param history History change collection to record finalized manipulation changes into
-     * @param editedNodes Edited nodes
      * @return True if a merge was performed (and other logic should be skipped)
      * @throws ChangeCancelledException If the change is cancelled
      */
-    protected boolean tryMergeSingleNode(PlayerEditState state, HistoryChangeCollection history, Collection<PlayerEditNode> editedNodes) throws ChangeCancelledException {
+    protected boolean tryMergeSingleNode(HistoryChangeCollection history) throws ChangeCancelledException {
         if (!state.isEditingSingleNode()) {
             return false;
         }
@@ -139,7 +144,7 @@ public abstract class NodeDragManipulatorBase implements NodeDragManipulator {
         return false;
     }
 
-    protected void recordEditedNodesInHistory(PlayerEditState state, HistoryChangeCollection history, Collection<PlayerEditNode> editedNodes) throws ChangeCancelledException {
+    protected void recordEditedNodesInHistory(HistoryChangeCollection history) throws ChangeCancelledException {
         try {
             // Before processing, fire an event for all nodes that changed. If any of them fail (permissions!),
             // cancel the entire move operation for all other nodes, too.

@@ -16,11 +16,17 @@ import java.util.Collection;
  * based on where the player is looking.
  */
 public class NodeDragManipulatorOrientation extends NodeDragManipulatorBase {
+    public static final Initializer INITIALIZER = (state, editedNodes, event) -> new NodeDragManipulatorOrientation(state, editedNodes);
+
     /** Virtual point of the node handle (lever) being dragged */
     private Vector handlePosition;
 
+    public NodeDragManipulatorOrientation(PlayerEditState state, Collection<PlayerEditNode> editedNodes) {
+        super(state, editedNodes);
+    }
+
     @Override
-    public void onStarted(PlayerEditState state, Collection<PlayerEditNode> editedNodes, NodeDragEvent event) {
+    public void onStarted(NodeDragEvent event) {
         this.handlePosition = event.current().toVector();
 
         // Is used to properly alter the orientation of a node looked at
@@ -33,7 +39,7 @@ public class NodeDragManipulatorOrientation extends NodeDragManipulatorBase {
     }
 
     @Override
-    public void onUpdate(PlayerEditState state, Collection<PlayerEditNode> editedNodes, NodeDragEvent event) {
+    public void onUpdate(NodeDragEvent event) {
         if (!event.isStart()) {
             event.change().transformPoint(this.handlePosition);
         }
@@ -44,7 +50,7 @@ public class NodeDragManipulatorOrientation extends NodeDragManipulatorBase {
     }
 
     @Override
-    public void onFinished(PlayerEditState state, HistoryChangeCollection history, Collection<PlayerEditNode> editedNodes, NodeDragEvent event) throws ChangeCancelledException {
-        recordEditedNodesInHistory(state, history, editedNodes);
+    public void onFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException {
+        recordEditedNodesInHistory(history);
     }
 }

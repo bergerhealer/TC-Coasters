@@ -15,30 +15,40 @@ public interface NodeDragManipulator {
     /**
      * Called when node dragging is started.
      *
-     * @param state Player edit state
-     * @param editedNodes Edited nodes to be manipulated
      * @param event Node drag event
      */
-    void onStarted(PlayerEditState state, Collection<PlayerEditNode> editedNodes, NodeDragEvent event);
+    void onStarted(NodeDragEvent event);
 
     /**
-     * Called after {@link #onStarted(PlayerEditState, Collection, NodeDragEvent)}
+     * Called after {@link #onStarted(NodeDragEvent)}
      * and repeatedly to update manipulation.
      *
-     * @param state Player edit state
-     * @param editedNodes Edited nodes to be manipulated
      * @param event Node drag event
      */
-    void onUpdate(PlayerEditState state, Collection<PlayerEditNode> editedNodes, NodeDragEvent event);
+    void onUpdate(NodeDragEvent event);
 
     /**
      * Called when node dragging has finished (player releases mouse button).
      *
-     * @param state Player edit state
      * @param history History change collection to record finalized manipulation changes into
-     * @param editedNodes Edited nodes to be manipulated
      * @param event Node drag event
      * @throws ChangeCancelledException If the change is cancelled
      */
-    void onFinished(PlayerEditState state, HistoryChangeCollection history, Collection<PlayerEditNode> editedNodes, NodeDragEvent event) throws ChangeCancelledException;
+    void onFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException;
+
+    /**
+     * Initializer for creating NodeDragManipulator instances.
+     */
+    interface Initializer {
+        /**
+         * Creates a NodeDragManipulator instance. Implementation can be decided based on the type of selection
+         * the user created.
+         *
+         * @param state Player edit state
+         * @param editedNodes Edited nodes to be manipulated
+         * @param event Node drag event
+         * @return NodeDragManipulator instance
+         */
+        NodeDragManipulator start(PlayerEditState state, Collection<PlayerEditNode> editedNodes, NodeDragEvent event);
+    }
 }

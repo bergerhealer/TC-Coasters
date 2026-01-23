@@ -19,15 +19,21 @@ import java.util.Collection;
  * based on where the player is dragging.
  */
 public class NodeDragManipulatorPosition extends NodeDragManipulatorBase {
+    public static final Initializer INITIALIZER = (state, editedNodes, event) -> new NodeDragManipulatorPosition(state, editedNodes);
+
+    public NodeDragManipulatorPosition(PlayerEditState state, Collection<PlayerEditNode> editedNodes) {
+        super(state, editedNodes);
+    }
+
     @Override
-    public void onStarted(PlayerEditState state, Collection<PlayerEditNode> editedNodes, NodeDragEvent event) {
+    public void onStarted(NodeDragEvent event) {
         for (PlayerEditNode node : editedNodes) {
             node.dragPosition = node.node.getPosition().clone();
         }
     }
 
     @Override
-    public void onUpdate(PlayerEditState state, Collection<PlayerEditNode> editedNodes, NodeDragEvent event) {
+    public void onUpdate(NodeDragEvent event) {
         // Check whether the player is moving only a single node or not
         // Count two zero-connected nodes as one node
         final boolean isSingleNode = state.isEditingSingleNode();
@@ -73,11 +79,11 @@ public class NodeDragManipulatorPosition extends NodeDragManipulatorBase {
     }
 
     @Override
-    public void onFinished(PlayerEditState state, HistoryChangeCollection history, Collection<PlayerEditNode> editedNodes, NodeDragEvent event) throws ChangeCancelledException {
-        if (tryMergeSingleNode(state, history, editedNodes)) {
+    public void onFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException {
+        if (tryMergeSingleNode(history)) {
             return;
         }
 
-        recordEditedNodesInHistory(state, history, editedNodes);
+        recordEditedNodesInHistory(history);
     }
 }

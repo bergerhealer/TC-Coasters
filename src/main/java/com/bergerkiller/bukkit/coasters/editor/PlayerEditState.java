@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeConnect;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragHandler;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragManipulator;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeDragManipulatorOrientation;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeDragManipulatorPosition;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.BlockSelectMenu;
@@ -1631,17 +1632,20 @@ public class PlayerEditState implements CoasterWorldComponent {
             return;
         }
 
-        // Initialize the right manipulator
-        if (!dragHandler.isManipulating()) {
+        try {
+            // Initialize the right manipulator
+            NodeDragManipulator.Initializer initializer;
             if (this.getMode() == PlayerEditMode.ORIENTATION) {
-                dragHandler.setManipulator(new NodeDragManipulatorOrientation());
+                initializer = NodeDragManipulatorOrientation.INITIALIZER;
             } else {
-                dragHandler.setManipulator(new NodeDragManipulatorPosition());
+                initializer = NodeDragManipulatorPosition.INITIALIZER;
             }
-        }
 
-        // Next drag event
-        dragHandler.next(this, this.editedNodes.values());
+            // Manages dragging. If edited node selection changed, re-initializes
+            dragHandler.next(initializer, this, this.editedNodes.values());
+        } catch (ChangeCancelledException ex) {
+            this.clearEditedNodes();
+        }
     }
 
     // when player releases the right-click mouse button
@@ -1660,7 +1664,7 @@ public class PlayerEditState implements CoasterWorldComponent {
 
         // Perform finishing logic if we were manipulating before
         if (dragHandler.isManipulating()) {
-            dragHandler.finish(this, dragParent, editedNodes.values());
+            dragHandler.finish(dragParent);
         }
 
         // For moving track objects, store the changes / fire after change event
