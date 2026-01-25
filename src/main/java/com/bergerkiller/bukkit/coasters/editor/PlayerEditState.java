@@ -20,7 +20,7 @@ import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeConnect;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragHandler;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragManipulator;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulationMode;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeDragManipulatorOrientation;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.circle.NodeDragManipulatorCircleFit;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeDragManipulatorPosition;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.BlockSelectMenu;
 import com.bergerkiller.bukkit.coasters.events.CoasterCreateConnectionEvent;
@@ -1667,13 +1667,14 @@ public class PlayerEditState implements CoasterWorldComponent {
             // Initialize the right manipulator
             NodeDragManipulator.Initializer initializer;
             if (this.getMode() == PlayerEditMode.ORIENTATION) {
-                initializer = NodeDragManipulatorOrientation.INITIALIZER;
+                initializer = NodeDragManipulatorCircleFit.INITIALIZER;
+                //initializer = NodeDragManipulatorOrientation.INITIALIZER;
             } else {
                 initializer = NodeDragManipulatorPosition.INITIALIZER;
             }
 
             // Manages dragging. If edited node selection changed, re-initializes
-            dragHandler.next(initializer, this, this.editedNodes.values());
+            dragHandler.next(initializer, this, this.editedNodes);
         } catch (ChangeCancelledException ex) {
             this.clearEditedNodes();
         }

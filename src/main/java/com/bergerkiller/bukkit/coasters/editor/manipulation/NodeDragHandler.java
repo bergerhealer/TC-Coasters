@@ -10,7 +10,8 @@ import com.bergerkiller.bukkit.common.math.Matrix4x4;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.stream.Collectors;
+import java.util.HashSet;
+import java.util.Map;
 
 /**
  * Tracks the change in where the player looks, and makes a 4x4 transform matrix available
@@ -55,12 +56,12 @@ public class NodeDragHandler {
      * @param state PlayerEditState
      * @param editedNodes Edited nodes
      */
-    public void next(NodeDragManipulator.Initializer initializer, PlayerEditState state, Collection<PlayerEditNode> editedNodes) throws ChangeCancelledException {
+    public void next(NodeDragManipulator.Initializer initializer, PlayerEditState state, Map<TrackNode, PlayerEditNode> editedNodes) throws ChangeCancelledException {
         NodeDragEvent event = this.nextEvent(manipulator == null || state.getHeldDownTicks() == 0);
 
         // If a manipulator is active, verify that the edited nodes are still the same
         // If not, finish the previous manipulator and resume with a newly created one
-        if (manipulator != null && !areEditedNodesEqual(this.editedNodesSaveState, editedNodes)) {
+        if (manipulator != null && !areEditedNodesEqual(this.editedNodesSaveState, editedNodes.values())) {
             // This could throw (fail to commit), in which case no drag is started
             // Caller will reset selected nodes to resolve the problem.
             this.finish(state.getHistory());
@@ -68,7 +69,7 @@ public class NodeDragHandler {
 
         // If no manipulator is set yet, create one
         if (manipulator == null) {
-            editedNodesSaveState = editedNodes.stream().map(en -> en.node).collect(Collectors.toSet());
+            editedNodesSaveState = new HashSet<>(editedNodes.keySet());
             manipulator = initializer.start(state, editedNodes, event);
             manipulator.onStarted(event);
         }

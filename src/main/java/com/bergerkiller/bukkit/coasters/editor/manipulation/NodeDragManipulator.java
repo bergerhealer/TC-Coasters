@@ -4,8 +4,10 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditNode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 
 import java.util.Collection;
+import java.util.Map;
 
 /**
  * Handles node drag events and manipulates the selected nodes accordingly.
@@ -49,6 +51,6 @@ public interface NodeDragManipulator {
          * @param event Node drag event
          * @return NodeDragManipulator instance
          */
-        NodeDragManipulator start(PlayerEditState state, Collection<PlayerEditNode> editedNodes, NodeDragEvent event);
+        NodeDragManipulator start(PlayerEditState state, Map<TrackNode, PlayerEditNode> editedNodes, NodeDragEvent event);
     }
 }
