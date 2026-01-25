@@ -10,6 +10,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import org.bukkit.util.Vector;
 
 import java.util.Collection;
+import java.util.Map;
 
 /**
  * Node drag manipulator that alters the orientation of the edited nodes
@@ -21,7 +22,7 @@ public class NodeDragManipulatorOrientation extends NodeDragManipulatorBase {
     /** Virtual point of the node handle (lever) being dragged */
     private Vector handlePosition;
 
-    public NodeDragManipulatorOrientation(PlayerEditState state, Collection<PlayerEditNode> editedNodes) {
+    public NodeDragManipulatorOrientation(PlayerEditState state, Map<TrackNode, PlayerEditNode> editedNodes) {
         super(state, editedNodes);
     }
 

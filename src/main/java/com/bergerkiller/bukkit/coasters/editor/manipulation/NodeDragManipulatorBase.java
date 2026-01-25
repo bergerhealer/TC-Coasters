@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.editor.manipulation;
 
+import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditNode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
@@ -10,12 +11,15 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeAnimationState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
+import com.bergerkiller.bukkit.common.utils.PlayerUtil;
+import org.bukkit.Color;
+import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -24,11 +28,58 @@ import java.util.stream.Collectors;
  */
 public abstract class NodeDragManipulatorBase implements NodeDragManipulator {
     protected final PlayerEditState state;
-    protected final Collection<PlayerEditNode> editedNodes;
+    protected final List<PlayerEditNode> editedNodes;
 
-    public NodeDragManipulatorBase(PlayerEditState state, Collection<PlayerEditNode> editedNodes) {
+    public NodeDragManipulatorBase(PlayerEditState state, Map<TrackNode, PlayerEditNode> editedNodes) {
         this.state = state;
-        this.editedNodes = editedNodes;
+        this.editedNodes = new ArrayList<>(editedNodes.values());
+    }
+
+    /**
+     * Moves a single node according to the drag event. This is used in position manipulation mode.
+     *
+     * @param editNode PlayerEditNode
+     * @param event Node drag event
+     * @param isSingleNode Whether only a single node is dragged. Has special meaning for snapping against blocks.
+     */
+    protected void moveNode(PlayerEditNode editNode, NodeDragEvent event, boolean isSingleNode) {
+        Player player = state.getPlayer();
+
+        // Recover null
+        if (editNode.dragPosition == null) {
+            editNode.dragPosition = editNode.node.getPosition().clone();
+        }
+
+        // Transform position and compute direction using player view position relative to the node
+        event.change().transformPoint(editNode.dragPosition);
+        Vector position = editNode.dragPosition.clone();
+        Vector orientation = editNode.startState.orientation.clone();
+        Vector direction = position.clone().subtract(player.getEyeLocation().toVector()).normalize();
+        if (Double.isNaN(direction.getX())) {
+            direction = player.getEyeLocation().getDirection();
+        }
+
+        // Snap position against the side of a block
+        // Then, look for other rails blocks and attach to it
+        // When sneaking, disable this functionality
+        // When more than 1 node is selected, only do this for nodes with 1 or less connections
+        // This is to avoid severe performance problems when moving a lot of track at once
+        if (!state.isSneaking() && (isSingleNode || editNode.node.getConnections().size() <= 1)) {
+            Vector eyePos = player.getEyeLocation().toVector();
+            TCCoastersUtil.snapToBlock(state.getBukkitWorld(), eyePos, position, orientation);
+
+            if (TCCoastersUtil.snapToCoasterRails(editNode.node, position, orientation, n -> !state.isEditing(n))) {
+                // Play particle effects to indicate we are snapping to the coaster rails
+                PlayerUtil.spawnDustParticles(player, position, Color.RED);
+            } else if (TCCoastersUtil.snapToRails(state.getBukkitWorld(), editNode.node.getRailBlock(true), position, direction, orientation)) {
+                // Play particle effects to indicate we are snapping to the rails
+                PlayerUtil.spawnDustParticles(player, position, Color.PURPLE);
+            }
+        }
+
+        // Apply to node
+        editNode.node.setPosition(position);
+        editNode.node.setOrientation(orientation);
     }
 
     /**
