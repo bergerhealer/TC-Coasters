@@ -1,0 +1,227 @@
+package com.bergerkiller.bukkit.coasters.editor.manipulation.modes.circle;
+
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditNode;
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragManipulatorBase;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeDragManipulatorPosition;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.common.math.Quaternion;
+import org.bukkit.util.Vector;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Node drag manipulator that computes a best-fit circle for the edited nodes on start.
+ * The Taubin-style algebraic fit is used on the 2D-projected points.
+ *
+ * Note: onUpdate is intentionally left unimplemented for now.
+ */
+public abstract class NodeDragManipulatorCircleFit extends NodeDragManipulatorBase {
+    public static final Initializer INITIALIZER = (state, editedNodes, event) -> {
+        // If there's not enough nodes to form a circle, just return a position manipulator instead
+        if (editedNodes.size() <= 2) {
+            return new NodeDragManipulatorPosition(state, editedNodes);
+        }
+
+        // Attempt to detect a full sequence of nodes, with a start and end node, without any loops
+        // If found, return a NodeDragManipulatorCircleFitConnected instance
+        NodeSequenceFinder sequenceFinder = new NodeSequenceFinder(editedNodes);
+        if (sequenceFinder.findSequence()) {
+            return new NodeDragManipulatorCircleFitConnected(state, editedNodes, sequenceFinder.first.curr, sequenceFinder.last.curr);
+        }
+
+        // Fallback implementation that just scales the circle and moves it around
+        return new NodeDragManipulatorCircleFitFallback(state, editedNodes);
+    };
+
+    public NodeDragManipulatorCircleFit(PlayerEditState state, Map<TrackNode, PlayerEditNode> editedNodes) {
+        super(state, editedNodes);
+    }
+
+    private static class NodeSequenceFinder {
+        private final Map<TrackNode, PlayerEditNode> editedNodes;
+        private final Set<TrackNode> remaining;
+        public ChainLink first, last;
+
+        public NodeSequenceFinder(Map<TrackNode, PlayerEditNode> editedNodes) {
+            this.editedNodes = editedNodes;
+            this.remaining = new HashSet<>(editedNodes.keySet());
+        }
+
+        private static class ChainLink {
+            public final PlayerEditNode curr;
+            public final PlayerEditNode prev;
+
+            public ChainLink(PlayerEditNode curr, PlayerEditNode prev) {
+                this.curr = curr;
+                this.prev = prev;
+            }
+        }
+
+        public boolean findSequence() {
+            // Find a node to start with that has a connection to two other selected nodes
+            // This seeds or first/last values
+            // If none are found, abort.
+            first = last = null;
+            for (PlayerEditNode editNode : editedNodes.values()) {
+                List<PlayerEditNode> selectedNeighbours = editNode.node.getNeighbours().stream()
+                        .map(editedNodes::get)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+                if (selectedNeighbours.size() == 2) {
+                    first = new ChainLink(selectedNeighbours.get(0), editNode);
+                    last = new ChainLink(selectedNeighbours.get(1), editNode);
+                    remaining.remove(editNode.node);
+                    remaining.remove(first.curr.node);
+                    remaining.remove(last.curr.node);
+                    break;
+                }
+            }
+            if (first != null && last != null) {
+                first = extendLink(first);
+                last = extendLink(last);
+            }
+
+            // Ends must both be valid and there must not be any remaining nodes
+            return first != null && last != null && remaining.isEmpty();
+        }
+
+        /**
+         * Walks the full chain until the end (or a loop/error condition) is reached. Returns the maximally navigated
+         * chain link end, or null if failure occurred.
+         *
+         * @param initialLink Current link
+         * @return Link at the end of the chain, or null if failure occurred
+         */
+        private ChainLink extendLink(ChainLink initialLink) {
+            ChainLink link = initialLink;
+            while (true) {
+                final ChainLink currLink = link;
+                List<PlayerEditNode> selectedNeighbours = currLink.curr.node.getNeighbours().stream()
+                        .filter(n -> n != currLink.prev.node)
+                        .map(editedNodes::get)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+
+                // Fail if connected in a complex way (junction?)
+                if (selectedNeighbours.size() >= 2) {
+                    return null;
+                }
+
+                // Complete if there are no neighbours
+                if (selectedNeighbours.isEmpty()) {
+                    break;
+                }
+
+                // Next node in the chain but not already have been consumed (circular reference)
+                if (!remaining.remove(selectedNeighbours.get(0).node)) {
+                    return null;
+                }
+
+                link = new ChainLink(selectedNeighbours.get(0), link.curr);
+            }
+            return link;
+        }
+    }
+
+    /**
+     * A Taubin-style algebraic circle fit:
+     * This implementation performs the centroid shift then uses the common algebraic least-squares solve
+     * (which is numerically similar to Taubin for typical point sets). It returns center in the shifted
+     * coordinates (cx, cy) and radius r.
+     */
+    protected static Circle2D fitCircleTaubinLike(double[] x, double[] y) {
+        int n = x.length;
+        if (n == 0) return new Circle2D(0, 0, 0);
+
+        // centroid shift
+        double mx = 0, my = 0;
+        for (int i = 0; i < n; i++) {
+            mx += x[i];
+            my += y[i];
+        }
+        mx /= n;
+        my /= n;
+        double[] u = new double[n];
+        double[] v = new double[n];
+        for (int i = 0; i < n; i++) {
+            u[i] = x[i] - mx;
+            v[i] = y[i] - my;
+        }
+
+        // moments
+        double Suu = 0, Suv = 0, Svv = 0;
+        double Suuu = 0, Svvv = 0, Suvv = 0, Suuv = 0;
+        for (int i = 0; i < n; i++) {
+            double ui = u[i], vi = v[i];
+            double ui2 = ui * ui, vi2 = vi * vi;
+            Suu += ui2;
+            Suv += ui * vi;
+            Svv += vi2;
+            Suuu += ui2 * ui;
+            Svvv += vi2 * vi;
+            Suvv += ui * vi2;
+            Suuv += ui2 * vi;
+        }
+
+        // solve linear system [Suu Suv; Suv Svv] * [uc; vc] = 0.5 * [Suuu + Suvv; Svvv + Suuv]
+        double A = Suu;
+        double B = Suv;
+        double C = Svv;
+        double D = 0.5 * (Suuu + Suvv);
+        double E = 0.5 * (Svvv + Suuv);
+
+        double det = A * C - B * B;
+        double uc, vc;
+        if (Math.abs(det) < 1e-12) {
+            // Degenerate: fall back to simpler method (e.g., average radius)
+            uc = 0;
+            vc = 0;
+        } else {
+            uc = (D * C - B * E) / det;
+            vc = (A * E - D * B) / det;
+        }
+
+        double cx = uc + mx;
+        double cy = vc + my;
+
+        // compute radius
+        double r = 0;
+        for (int i = 0; i < n; i++) {
+            double dx = x[i] - cx;
+            double dy = y[i] - cy;
+            r += Math.sqrt(dx * dx + dy * dy);
+        }
+        r /= n;
+
+        return new Circle2D(uc, vc, r);
+    }
+
+    // Return any vector perpendicular to v (not necessarily normalized)
+    protected static Vector perpendicular(Vector v) {
+        // pick smallest component to avoid degeneracy
+        double ax = Math.abs(v.getX()), ay = Math.abs(v.getY()), az = Math.abs(v.getZ());
+        if (ax <= ay && ax <= az) {
+            return new Vector(0, -v.getZ(), v.getY());
+        } else if (ay <= ax && ay <= az) {
+            return new Vector(-v.getZ(), 0, v.getX());
+        } else {
+            return new Vector(-v.getY(), v.getX(), 0);
+        }
+    }
+
+    protected static Vector orthogonalize(Vector v, Vector reference) {
+        double refLen2 = reference.lengthSquared();
+        if (refLen2 < 1e-12) {
+            return v.clone(); // can't project onto a near-zero vector
+        }
+        Vector proj = reference.clone().multiply(v.dot(reference) / refLen2);
+        Vector res = v.clone().subtract(proj);
+        if (res.lengthSquared() < 1e-12) {
+            // fallback to any perpendicular vector (uses existing helper)
+            return perpendicular(v);
+        }
+        return res;
+    }
+}
