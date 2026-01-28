@@ -35,7 +35,7 @@ public class NodeDragManipulatorPosition extends NodeDragManipulatorBase {
         final boolean isSingleNode = state.isEditingSingleNode();
 
         for (PlayerEditNode editNode : editedNodes) {
-            moveNode(editNode, event, isSingleNode);
+            handleDrag(editNode, event, isSingleNode).applyTo(editNode.node);
         }
     }
 
