@@ -41,8 +41,9 @@ public abstract class NodeDragManipulatorBase implements NodeDragManipulator {
      * @param editNode PlayerEditNode
      * @param event Node drag event
      * @param isSingleNode Whether only a single node is dragged. Has special meaning for snapping against blocks.
+     * @return Node drag position after move
      */
-    protected void moveNode(PlayerEditNode editNode, NodeDragEvent event, boolean isSingleNode) {
+    protected NodeDragPosition handleDrag(PlayerEditNode editNode, NodeDragEvent event, boolean isSingleNode) {
         Player player = state.getPlayer();
 
         // Recover null
@@ -77,9 +78,8 @@ public abstract class NodeDragManipulatorBase implements NodeDragManipulator {
             }
         }
 
-        // Apply to node
-        editNode.node.setPosition(position);
-        editNode.node.setOrientation(orientation);
+        // Return result
+        return new NodeDragPosition(position, orientation);
     }
 
     /**
@@ -240,6 +240,21 @@ public abstract class NodeDragManipulatorBase implements NodeDragManipulator {
             for (PlayerEditNode editNode : editedNodes) {
                 editNode.moveEnd();
             }
+        }
+    }
+
+    protected static class NodeDragPosition {
+        public final Vector position;
+        public final Vector orientation;
+
+        public NodeDragPosition(Vector position, Vector orientation) {
+            this.position = position;
+            this.orientation = orientation;
+        }
+
+        public void applyTo(TrackNode node) {
+            node.setPosition(position);
+            node.setOrientation(orientation);
         }
     }
 }

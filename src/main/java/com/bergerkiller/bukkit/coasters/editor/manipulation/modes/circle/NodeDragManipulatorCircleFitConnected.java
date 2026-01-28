@@ -8,13 +8,14 @@ import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragEvent;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.math.Vector2;
-import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.DebugUtil;
+import com.bergerkiller.bukkit.common.utils.MathUtil;
 import com.bergerkiller.bukkit.tc.Util;
 import org.bukkit.Color;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -24,14 +25,18 @@ import java.util.Map;
  * of circle fit operation, namely curves and such.
  */
 public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit {
+    /**
+     * Minimum distance kept between nodes while dragging to avoid nodes merging.
+     * Nodes will move aside to maintain this distance.
+     */
+    private static final double MIN_NODE_DIST = 0.2;
+
     /** First node of the sequence of nodes that is selected */
     private final PlayerEditNode first;
     /** Last node of the sequence of nodes that is selected */
     private final PlayerEditNode last;
     /** Which of the nodes was clicked at the start (is dragged), or null if none (scale mode) */
     private PlayerEditNode clickedNode = null;
-    /** The position of the dragged middle node. Circle is rotated/scaled so this point is close to on it */
-    private Vector draggedMiddleNodePos;
 
     /** Parameters at the time dragging was started */
     private PinnedParams startParams = null;
@@ -73,7 +78,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
             for (PlayerEditNode node : editedNodes) {
                 if (node.node == clickedNodeNode) {
                     clickedNode = node;
-                    draggedMiddleNodePos = node.node.getPosition().clone();
+                    clickedNode.dragPosition = clickedNode.node.getPosition().clone();
                     break;
                 }
             }
@@ -84,19 +89,24 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
     public void onUpdate(NodeDragEvent event) {
         // Transform the first node (Test)
         if (clickedNode == first || clickedNode == last) {
-            moveNode(clickedNode, event, true);
+            handleDrag(clickedNode, event, true).applyTo(clickedNode.node);
         } else if (clickedNode != null) {
             // Drag the middle node around
-            event.change().transformPoint(draggedMiddleNodePos);
+            NodeDragPosition dragPos = handleDrag(clickedNode, event, true);
 
-            Util.spawnDustParticle(draggedMiddleNodePos.toLocation(state.getBukkitWorld()), Color.BLUE);
+            //Util.spawnDustParticle(dragPos.position.toLocation(state.getBukkitWorld()), Color.BLUE);
 
             // Rotate the circle so that the node can be on it
-            adjustCircleUp(draggedMiddleNodePos);
+            adjustCircleUp(dragPos.position);
 
             // Figure out what new radius is needed to place the dragged middle node on the circle
-            adjustRadiusForNode(draggedMiddleNodePos);
+            adjustRadiusForNode(dragPos.position);
 
+            // Find which of the middle nodes is the clicked node
+            middleNodes.stream().filter(n -> n.node == clickedNode).findFirst().ifPresent(n -> {
+                // Move this node theta to be on the circle at the dragged position
+                moveNodeTheta(n, dragPos.position);
+            });
         } else {
             //double newRadius = Math.max(1.0, pinnedParams.radius + 0.1 * (event.change().toVector().getX() + event.change().toVector().getZ()));
             //pinnedParams = new PinnedParams(newRadius, pinnedParams.minorArc, pinnedParams.up);
@@ -177,6 +187,11 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         this.pinnedParams = new PinnedParams(this.pinnedParams.radius, upQuat, side, this.pinnedParams.minorArc);
     }
 
+    /**
+     * Adjusts the circle radius so that the provided position lies on the circle.
+     *
+     * @param posOnCircle Point on the circle
+     */
     private void adjustRadiusForNode(Vector posOnCircle) {
         if (pinnedParams == null) throw new IllegalStateException("Pinned parameters have not been computed");
 
@@ -246,6 +261,72 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
     }
 
     /**
+     * Adjusts the theta of the provided node so that it lies on the circle at the provided position.
+     *
+     * @param node ConnectedMiddleNode
+     * @param posOnCircle Point on the circle
+     */
+    private void moveNodeTheta(ConnectedMiddleNode node, Vector posOnCircle) {
+        NodeThetaCalculator calc = createNodeThetaCalculator();
+
+        // Compute theta fraction that corresponds to the minimum distance
+        // Abort if this theta fraction is too small to move nodes around
+        double arcLength = Math.abs(calc.arcAngle * calc.circle.r);
+        double thetaLimit = MIN_NODE_DIST / arcLength;
+        if (arcLength < MIN_NODE_DIST || (editedNodes.size() - 1) * thetaLimit >= 1.0) {
+            return; // No room to move nodes
+        }
+
+        // Compute how much space is required left and right of this node
+        // Also see at what theta value neighbouring nodes need to be moved
+        double thetaLeftLimit = thetaLimit;
+        double thetaRightLimit = 1.0 - thetaLimit;
+        double leftTheta = -Double.MAX_VALUE;
+        double rightTheta = Double.MAX_VALUE;
+        for (ConnectedMiddleNode otherNode : middleNodes) {
+            if (otherNode == node) continue;
+            if (otherNode.initialTheta < 0.0 || otherNode.initialTheta > 1.0) continue;
+            if (otherNode.initialTheta < node.initialTheta) {
+                thetaLeftLimit += thetaLimit;
+                leftTheta = Math.max(leftTheta, otherNode.initialTheta);
+            } else {
+                thetaRightLimit -= thetaLimit;
+                rightTheta = Math.min(rightTheta, otherNode.initialTheta);
+            }
+        }
+        if (thetaLeftLimit > thetaRightLimit) {
+            return; // No room to move nodes
+        }
+
+        // Compute best theta for current pinnedParams using NodeThetaCalculator, limited by minThetaLeft/Right
+        node.theta = MathUtil.clamp(calc.computeTheta(posOnCircle), thetaLeftLimit, thetaRightLimit);
+
+        // If theta exceeds left limit, adjust left-side nodes proportionally
+        if ((node.theta - thetaLimit) <= leftTheta) {
+            double scale = (node.theta - thetaLimit) / leftTheta;
+            for (ConnectedMiddleNode otherNode : middleNodes) {
+                if (otherNode == node) continue;
+                if (otherNode.initialTheta < 0.0 || otherNode.initialTheta > 1.0) continue;
+                if (otherNode.initialTheta < node.initialTheta) {
+                    otherNode.theta = scale * otherNode.initialTheta;
+                }
+            }
+        }
+
+        // If theta exceeds right limit, adjust right-side nodes proportionally
+        if ((node.theta + thetaLimit) >= rightTheta) {
+            double scale = (1.0 - (node.theta + thetaLimit)) / (1.0 - rightTheta);
+            for (ConnectedMiddleNode otherNode : middleNodes) {
+                if (otherNode == node) continue;
+                if (otherNode.initialTheta < 0.0 || otherNode.initialTheta > 1.0) continue;
+                if (otherNode.initialTheta > node.initialTheta) {
+                    otherNode.theta = 1.0 - (1.0 - otherNode.initialTheta) * scale;
+                }
+            }
+        }
+    }
+
+    /**
      * Apply stored middle node thetas to position nodes on the provided circle using the given plane basis.
      * Preserves the circle radius and center; reconstructs 3D positions and assigns them to nodes.
      */
@@ -290,8 +371,9 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
 
             if (DebugUtil.getBooleanValue("apply", false)) {
                 cmn.node.node.setPosition(newPos);
+            } else {
+                Util.spawnDustParticle(newPos.toLocation(state.getBukkitWorld()), Color.RED);
             }
-            Util.spawnDustParticle(newPos.toLocation(state.getBukkitWorld()), Color.RED);
         }
     }
 
@@ -299,13 +381,28 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
      * A middle node that is connected to the first and last nodes of the sequence.
      * Stores the normalized theta value along the arc from first->last.
      */
-    protected static class ConnectedMiddleNode {
+    protected static class ConnectedMiddleNode implements Comparable<ConnectedMiddleNode> {
         public final PlayerEditNode node;
-        public final double theta; // normalized fraction along arc from first->last (can be <0 or >1)
+        /**
+         * Initial theta value at the time dragging begun.
+         * Normalized fraction along arc from first->last (can be <0 or >1)
+         */
+        public final double initialTheta;
+        /**
+         * Calculated (new) theta value during dragging.
+         * Normalized fraction along arc from first->last (can be <0 or >1).
+         */
+        public double theta;
 
-        public ConnectedMiddleNode(PlayerEditNode node, double theta) {
+        public ConnectedMiddleNode(PlayerEditNode node, double initialTheta) {
             this.node = node;
-            this.theta = theta;
+            this.initialTheta = initialTheta;
+            this.theta = initialTheta;
+        }
+
+        @Override
+        public int compareTo(ConnectedMiddleNode o) {
+            return Double.compare(this.initialTheta, o.initialTheta);
         }
     }
 
@@ -315,12 +412,21 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
      * Returns the list stored in `middleNodes`.
      */
     protected List<ConnectedMiddleNode> computeMiddleNodesFromCircle2D() {
+        NodeThetaCalculator calculator = createNodeThetaCalculator();
+
+        List<ConnectedMiddleNode> middleNodes = new ArrayList<>(editedNodes.size() - 2);
+        for (PlayerEditNode en : editedNodes) {
+            if (en == first || en == last) continue;
+            middleNodes.add(new ConnectedMiddleNode(en, calculator.computeTheta(en.node.getPosition())));
+        }
+        Collections.sort(middleNodes);
+
+        return middleNodes;
+    }
+
+    private NodeThetaCalculator createNodeThetaCalculator() {
         PlaneBasis basis = buildPlaneBasisFromPins();
         Circle2D circle = buildCircle2DFromPins();
-
-        if (!pinnedParams.minorArc) {
-            //basis.ey.multiply(-1.0);
-        }
 
         // project first/last into plane coords
         Vector p1v = first.node.getPosition().clone().subtract(basis.centroid);
@@ -344,28 +450,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         // When taking the major arc, this is reversed
         double angleSide = pinnedParams.minorArc ? 1.0 : -1.0;
 
-        List<ConnectedMiddleNode> middleNodes = new ArrayList<>(editedNodes.size() - 2);
-        for (PlayerEditNode en : editedNodes) {
-            if (en == first || en == last) continue;
-
-            Vector pv = en.node.getPosition().clone().subtract(basis.centroid);
-            double px = pv.dot(basis.ex), py = pv.dot(basis.ey);
-            double ang = Math.atan2(py - circle.cy, px - circle.cx);
-            double num = angleSide * (ang - angleFirst);
-            if (num < 0.0) {
-                num += 2.0 * Math.PI;
-            }
-
-            // Make negative if it is left of the first point somehow (broken?)
-            if (num > (arcAngle + 0.5 * (2.0 * Math.PI - arcAngle))) {
-                num -= 2.0 * Math.PI;
-            }
-
-            double theta = num / arcAngle;
-            middleNodes.add(new ConnectedMiddleNode(en, theta));
-        }
-
-        return middleNodes;
+        return new NodeThetaCalculator(basis, circle, angleFirst, arcAngle, angleSide);
     }
 
     protected PlaneBasis buildPlaneBasisFromPins() {
@@ -446,6 +531,42 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
             t = Math.sqrt(Math.max(0.0, r * r - halfChord * halfChord));
         }
         return new Circle2D(0.0, t, r);
+    }
+
+    /**
+     * Helper class to compute theta values for nodes based on a provided circle and plane basis.
+     */
+    private static class NodeThetaCalculator {
+        public final PlaneBasis basis;
+        public final Circle2D circle;
+        public final double angleFirst;
+        public final double arcAngle;
+        public final double angleSide;
+
+        public NodeThetaCalculator(PlaneBasis basis, Circle2D circle, double angleFirst, double arcAngle, double angleSide) {
+            this.basis = basis;
+            this.circle = circle;
+            this.angleFirst = angleFirst;
+            this.arcAngle = arcAngle;
+            this.angleSide = angleSide;
+        }
+
+        public double computeTheta(Vector position) {
+            Vector pv = position.clone().subtract(basis.centroid);
+            double px = pv.dot(basis.ex), py = pv.dot(basis.ey);
+            double ang = Math.atan2(py - circle.cy, px - circle.cx);
+            double num = angleSide * (ang - angleFirst);
+            if (num < 0.0) {
+                num += 2.0 * Math.PI;
+            }
+
+            // Make negative if it is left of the first point somehow (broken?)
+            if (num > (arcAngle + 0.5 * (2.0 * Math.PI - arcAngle))) {
+                num -= 2.0 * Math.PI;
+            }
+
+            return num / arcAngle;
+        }
     }
 
     /**
