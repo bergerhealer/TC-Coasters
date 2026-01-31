@@ -8,10 +8,7 @@ import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragEvent;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.math.Vector2;
-import com.bergerkiller.bukkit.common.utils.DebugUtil;
 import com.bergerkiller.bukkit.common.utils.MathUtil;
-import com.bergerkiller.bukkit.tc.Util;
-import org.bukkit.Color;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
@@ -20,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Node drag manipulator that fits a circle through the first and last nodes
+ * Node drag manipulator that fits a circle pinned by the first and last nodes
  * of a connected sequence of nodes being edited. This is the most common type
  * of circle fit operation, namely curves and such.
  */
@@ -66,12 +63,6 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
 
         // Fit middle nodes and store their thetas
         this.middleNodes = computeMiddleNodesFromCircle2D();
-        for (ConnectedMiddleNode n : this.middleNodes) {
-            //System.out.println("MIDDLE[" + n.node.node.getPosition() + "] = " + n.theta);
-        }
-
-        //System.out.println("START: " + first.node.getPosition() + " -> " + last.node.getPosition());
-        //System.out.println("PINNED: " + pinnedParams.radius + " MINORARC=" + pinnedParams.minorArc);
 
         TrackNode clickedNodeNode = state.findLookingAt();
         if (clickedNodeNode != null) {
@@ -90,11 +81,10 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         // Transform the first node (Test)
         if (clickedNode == first || clickedNode == last) {
             handleDrag(clickedNode, event, true).applyTo(clickedNode.node);
+            applyMiddleNodesToCircle();
         } else if (clickedNode != null) {
             // Drag the middle node around
             NodeDragPosition dragPos = handleDrag(clickedNode, event, true);
-
-            //Util.spawnDustParticle(dragPos.position.toLocation(state.getBukkitWorld()), Color.BLUE);
 
             // Rotate the circle so that the node can be on it
             adjustCircleUp(dragPos.position);
@@ -107,30 +97,18 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
                 // Move this node theta to be on the circle at the dragged position
                 moveNodeTheta(n, dragPos.position);
             });
+
+            applyMiddleNodesToCircle();
         } else {
-            //double newRadius = Math.max(1.0, pinnedParams.radius + 0.1 * (event.change().toVector().getX() + event.change().toVector().getZ()));
-            //pinnedParams = new PinnedParams(newRadius, pinnedParams.minorArc, pinnedParams.up);
-
-            /*
-            // Build plane basis from pinned nodes
-            PlaneBasis basis = buildPlaneBasisFromPins();
-
-            // Alter pinned radius (fake)
-            // When moving away from the circle, increase the radius
-            // When moving towards the circle, decrease the radius
-            Vector newCentroidPos = basis.centroid.clone();
-            event.current().transformPoint(newCentroidPos);
-            double newRadius = centroidStart.distance(newCentroidPos) / (0.5 * first.node.getPosition().distance(last.node.getPosition()));
-            if (newRadius < 0.0) {
-                pinnedParams = new PinnedParams(-newRadius, -sideStart, pinnedParams.up);
-            } else {
-                pinnedParams = new PinnedParams(newRadius, sideStart, pinnedParams.up);
+            // Move all nodes, same as position mode
+            // We do re-apply the middle nodes to take on a circle shape again
+            if (event.isStart()) {
+                applyMiddleNodesToCircle();
             }
-
-             */
+            for (PlayerEditNode editNode : editedNodes) {
+                handleDrag(editNode, event, false).applyTo(editNode.node);
+            }
         }
-
-        applyMiddleNodesToCircle();
     }
 
     @Override
@@ -369,11 +347,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
                     .add(basis.ex.clone().multiply(x2))
                     .add(basis.ey.clone().multiply(y2));
 
-            if (DebugUtil.getBooleanValue("apply", false)) {
-                cmn.node.node.setPosition(newPos);
-            } else {
-                Util.spawnDustParticle(newPos.toLocation(state.getBukkitWorld()), Color.RED);
-            }
+            cmn.node.node.setPosition(newPos);
         }
     }
 
