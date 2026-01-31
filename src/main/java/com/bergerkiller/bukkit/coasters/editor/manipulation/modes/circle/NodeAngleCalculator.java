@@ -26,4 +26,18 @@ class NodeAngleCalculator {
         double px = pv.dot(basis.ex), py = pv.dot(basis.ey);
         return Math.atan2(py - circle.cy, px - circle.cx);
     }
+
+    /**
+     * Computes the 3D point on the circle at the given angle.
+     *
+     * @param angle Angle in radians
+     * @return 3D point on the circle
+     */
+    public Vector computePointAtAngle(double angle) {
+        double x = circle.cx + circle.r * Math.cos(angle);
+        double y = circle.cy + circle.r * Math.sin(angle);
+        return basis.centroid.clone()
+                .add(basis.ex.clone().multiply(x))
+                .add(basis.ey.clone().multiply(y));
+    }
 }

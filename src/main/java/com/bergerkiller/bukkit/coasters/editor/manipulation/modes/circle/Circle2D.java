@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.editor.manipulation.modes.circle;
 
 import com.bergerkiller.bukkit.common.math.Vector2;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -19,6 +20,77 @@ class Circle2D {
         this.cx = cx;
         this.cy = cy;
         this.r = r;
+    }
+
+    /**
+     * A Taubin-style algebraic circle fit:
+     * This implementation performs the centroid shift then uses the common algebraic least-squares solve
+     * (which is numerically similar to Taubin for typical point sets). It returns center in the shifted
+     * coordinates (cx, cy) and radius r.
+     *
+     * @param points Points to fit the circle to
+     * @return Fitted circle as a Circle2D instance
+     */
+    public static Circle2D fitCircleTaubinLike(List<Vector2> points) {
+        if (points.isEmpty())
+            return new Circle2D(0, 0, 0);
+
+        // centroid shift
+        double mx = 0, my = 0;
+        for (Vector2 p : points) {
+            mx += p.x;
+            my += p.y;
+        }
+        mx /= points.size();
+        my /= points.size();
+        List<Vector2> shiftedPoints = new ArrayList<>(points.size());
+        for (Vector2 p : points) {
+            shiftedPoints.add(new Vector2(p.x - mx, p.y - my));
+        }
+
+        // moments
+        double Suu = 0, Suv = 0, Svv = 0;
+        double Suuu = 0, Svvv = 0, Suvv = 0, Suuv = 0;
+        for (Vector2 p : shiftedPoints) {
+            double pxSq = p.x * p.x;
+            double pySq = p.y * p.y;
+            Suu += pxSq;
+            Suv += p.x * p.y;
+            Svv += pySq;
+            Suuu += pxSq * p.x;
+            Svvv += pySq * p.y;
+            Suvv += p.x * pySq;
+            Suuv += pxSq * p.y;
+        }
+
+        // solve linear system [Suu Suv; Suv Svv] * [uc; vc] = 0.5 * [Suuu + Suvv; Svvv + Suuv]
+        double A = Suu;
+        double B = Suv;
+        double C = Svv;
+        double D = 0.5 * (Suuu + Suvv);
+        double E = 0.5 * (Svvv + Suuv);
+
+        double det = A * C - B * B;
+        double uc, vc;
+        if (Math.abs(det) < 1e-12) {
+            // Degenerate: fall back to simpler method (e.g., average radius)
+            uc = 0;
+            vc = 0;
+        } else {
+            uc = (D * C - B * E) / det;
+            vc = (A * E - D * B) / det;
+        }
+
+        Vector2 center = new Vector2(uc + mx, vc + my);
+
+        // compute average radius
+        double r = 0;
+        for (Vector2 p : points) {
+            r += p.distance(center);
+        }
+        r /= points.size();
+
+        return new Circle2D(center.x, center.y, r);
     }
 
     /**
