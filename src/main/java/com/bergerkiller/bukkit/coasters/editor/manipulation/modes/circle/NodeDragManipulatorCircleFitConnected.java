@@ -40,7 +40,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
     /** Additional parameters that are used to compute the full circle */
     private PinnedParams pinnedParams = null;
     /** Middle nodes with their theta values along the arc from first->last */
-    protected List<ConnectedMiddleNode> middleNodes = null;
+    protected List<CircleNode> middleNodes = null;
 
     public NodeDragManipulatorCircleFitConnected(PlayerEditState state, Map<TrackNode, PlayerEditNode> editedNodes, PlayerEditNode first, PlayerEditNode last) {
         super(state, editedNodes);
@@ -241,10 +241,10 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
     /**
      * Adjusts the theta of the provided node so that it lies on the circle at the provided position.
      *
-     * @param node ConnectedMiddleNode
+     * @param node CircleNode
      * @param posOnCircle Point on the circle
      */
-    private void moveNodeTheta(ConnectedMiddleNode node, Vector posOnCircle) {
+    private void moveNodeTheta(CircleNode node, Vector posOnCircle) {
         NodeBiSectorThetaCalculator calc = createNodeThetaCalculator();
 
         // Compute theta fraction that corresponds to the minimum distance
@@ -261,7 +261,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         double thetaRightLimit = 1.0 - thetaLimit;
         double leftTheta = -Double.MAX_VALUE;
         double rightTheta = Double.MAX_VALUE;
-        for (ConnectedMiddleNode otherNode : middleNodes) {
+        for (CircleNode otherNode : middleNodes) {
             if (otherNode == node) continue;
             if (otherNode.initialTheta < 0.0 || otherNode.initialTheta > 1.0) continue;
             if (otherNode.initialTheta < node.initialTheta) {
@@ -282,7 +282,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         // If theta exceeds left limit, adjust left-side nodes proportionally
         if ((node.theta - thetaLimit) <= leftTheta) {
             double scale = (node.theta - thetaLimit) / leftTheta;
-            for (ConnectedMiddleNode otherNode : middleNodes) {
+            for (CircleNode otherNode : middleNodes) {
                 if (otherNode == node) continue;
                 if (otherNode.initialTheta < 0.0 || otherNode.initialTheta > 1.0) continue;
                 if (otherNode.initialTheta < node.initialTheta) {
@@ -294,7 +294,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         // If theta exceeds right limit, adjust right-side nodes proportionally
         if ((node.theta + thetaLimit) >= rightTheta) {
             double scale = (1.0 - (node.theta + thetaLimit)) / (1.0 - rightTheta);
-            for (ConnectedMiddleNode otherNode : middleNodes) {
+            for (CircleNode otherNode : middleNodes) {
                 if (otherNode == node) continue;
                 if (otherNode.initialTheta < 0.0 || otherNode.initialTheta > 1.0) continue;
                 if (otherNode.initialTheta > node.initialTheta) {
@@ -339,7 +339,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         // When taking the major arc, this is reversed
         double angleSide = pinnedParams.minorArc ? 1.0 : -1.0;
 
-        for (ConnectedMiddleNode cmn : middleNodes) {
+        for (CircleNode cmn : middleNodes) {
             double ang = angleFirst + (angleSide * cmn.theta * arcAngle);
             double x2 = circle.cx + Math.cos(ang) * circle.r;
             double y2 = circle.cy + Math.sin(ang) * circle.r;
@@ -355,7 +355,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
      * A middle node that is connected to the first and last nodes of the sequence.
      * Stores the normalized theta value along the arc from first->last.
      */
-    protected static class ConnectedMiddleNode implements Comparable<ConnectedMiddleNode> {
+    protected static class CircleNode implements Comparable<CircleNode> {
         public final PlayerEditNode node;
         /**
          * Initial theta value at the time dragging begun.
@@ -368,14 +368,14 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
          */
         public double theta;
 
-        public ConnectedMiddleNode(PlayerEditNode node, double initialTheta) {
+        public CircleNode(PlayerEditNode node, double initialTheta) {
             this.node = node;
             this.initialTheta = initialTheta;
             this.theta = initialTheta;
         }
 
         @Override
-        public int compareTo(ConnectedMiddleNode o) {
+        public int compareTo(CircleNode o) {
             return Double.compare(this.initialTheta, o.initialTheta);
         }
     }
@@ -385,13 +385,13 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
      * Circle2D and PlaneBasis must be in the same 2D coordinate system used by the fitter.
      * Returns the list stored in `middleNodes`.
      */
-    protected List<ConnectedMiddleNode> computeMiddleNodesFromCircle2D() {
+    protected List<CircleNode> computeMiddleNodesFromCircle2D() {
         NodeBiSectorThetaCalculator calculator = createNodeThetaCalculator();
 
-        List<ConnectedMiddleNode> middleNodes = new ArrayList<>(editedNodes.size() - 2);
+        List<CircleNode> middleNodes = new ArrayList<>(editedNodes.size() - 2);
         for (PlayerEditNode en : editedNodes) {
             if (en == first || en == last) continue;
-            middleNodes.add(new ConnectedMiddleNode(en, calculator.computeTheta(en.node.getPosition())));
+            middleNodes.add(new CircleNode(en, calculator.computeTheta(en.node.getPosition())));
         }
         Collections.sort(middleNodes);
 
