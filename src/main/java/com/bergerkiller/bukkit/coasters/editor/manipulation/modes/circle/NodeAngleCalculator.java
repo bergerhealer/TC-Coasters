@@ -1,0 +1,29 @@
+package com.bergerkiller.bukkit.coasters.editor.manipulation.modes.circle;
+
+import org.bukkit.util.Vector;
+
+/**
+ * Computes the angle of a node position around a 2D circle and a
+ * circle plane basis to project the circle onto.
+ */
+class NodeAngleCalculator {
+    public final PlaneBasis basis;
+    public final Circle2D circle;
+
+    public NodeAngleCalculator(PlaneBasis basis, Circle2D circle) {
+        this.basis = basis;
+        this.circle = circle;
+    }
+
+    /**
+     * Computes the angle of the given position around the circle.
+     *
+     * @param position Position to compute the angle for
+     * @return Angle in radians
+     */
+    public double computeAngle(Vector position) {
+        Vector pv = position.clone().subtract(basis.centroid);
+        double px = pv.dot(basis.ex), py = pv.dot(basis.ey);
+        return Math.atan2(py - circle.cy, px - circle.cx);
+    }
+}

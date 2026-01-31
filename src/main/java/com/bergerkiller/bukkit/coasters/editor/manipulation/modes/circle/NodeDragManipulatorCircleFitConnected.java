@@ -245,7 +245,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
      * @param posOnCircle Point on the circle
      */
     private void moveNodeTheta(ConnectedMiddleNode node, Vector posOnCircle) {
-        NodeThetaCalculator calc = createNodeThetaCalculator();
+        NodeBiSectorThetaCalculator calc = createNodeThetaCalculator();
 
         // Compute theta fraction that corresponds to the minimum distance
         // Abort if this theta fraction is too small to move nodes around
@@ -386,7 +386,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
      * Returns the list stored in `middleNodes`.
      */
     protected List<ConnectedMiddleNode> computeMiddleNodesFromCircle2D() {
-        NodeThetaCalculator calculator = createNodeThetaCalculator();
+        NodeBiSectorThetaCalculator calculator = createNodeThetaCalculator();
 
         List<ConnectedMiddleNode> middleNodes = new ArrayList<>(editedNodes.size() - 2);
         for (PlayerEditNode en : editedNodes) {
@@ -398,7 +398,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         return middleNodes;
     }
 
-    private NodeThetaCalculator createNodeThetaCalculator() {
+    private NodeBiSectorThetaCalculator createNodeThetaCalculator() {
         PlaneBasis basis = buildPlaneBasisFromPins();
         Circle2D circle = buildCircle2DFromPins();
 
@@ -424,7 +424,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         // When taking the major arc, this is reversed
         double angleSide = pinnedParams.minorArc ? 1.0 : -1.0;
 
-        return new NodeThetaCalculator(basis, circle, angleFirst, arcAngle, angleSide);
+        return new NodeBiSectorThetaCalculator(basis, circle, angleFirst, arcAngle, angleSide);
     }
 
     protected PlaneBasis buildPlaneBasisFromPins() {
@@ -505,42 +505,6 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
             t = Math.sqrt(Math.max(0.0, r * r - halfChord * halfChord));
         }
         return new Circle2D(0.0, t, r);
-    }
-
-    /**
-     * Helper class to compute theta values for nodes based on a provided circle and plane basis.
-     */
-    private static class NodeThetaCalculator {
-        public final PlaneBasis basis;
-        public final Circle2D circle;
-        public final double angleFirst;
-        public final double arcAngle;
-        public final double angleSide;
-
-        public NodeThetaCalculator(PlaneBasis basis, Circle2D circle, double angleFirst, double arcAngle, double angleSide) {
-            this.basis = basis;
-            this.circle = circle;
-            this.angleFirst = angleFirst;
-            this.arcAngle = arcAngle;
-            this.angleSide = angleSide;
-        }
-
-        public double computeTheta(Vector position) {
-            Vector pv = position.clone().subtract(basis.centroid);
-            double px = pv.dot(basis.ex), py = pv.dot(basis.ey);
-            double ang = Math.atan2(py - circle.cy, px - circle.cx);
-            double num = angleSide * (ang - angleFirst);
-            if (num < 0.0) {
-                num += 2.0 * Math.PI;
-            }
-
-            // Make negative if it is left of the first point somehow (broken?)
-            if (num > (arcAngle + 0.5 * (2.0 * Math.PI - arcAngle))) {
-                num -= 2.0 * Math.PI;
-            }
-
-            return num / arcAngle;
-        }
     }
 
     /**
