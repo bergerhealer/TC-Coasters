@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.editor.manipulation.modes.circle;
 
+import com.bergerkiller.bukkit.common.math.Quaternion;
 import org.bukkit.util.Vector;
 
 /**
@@ -39,5 +40,24 @@ class NodeAngleCalculator {
         return basis.centroid.clone()
                 .add(basis.ex.clone().multiply(x))
                 .add(basis.ey.clone().multiply(y));
+    }
+
+    /**
+     * Computes the orientation quaternion at the given angle, facing
+     * along the tangent of the circle.
+     *
+     * @param angle Angle in radians
+     * @return Orientation quaternion
+     */
+    public Quaternion computeTangentOrientation(double angle) {
+        // Tangent vector in 2D
+        double tx = -Math.sin(angle);
+        double ty = Math.cos(angle);
+
+        // Convert to 3D
+        Vector tangent = basis.ex.clone().multiply(tx).add(basis.ey.clone().multiply(ty)).normalize();
+
+        // Create orientation quaternion from tangent
+        return Quaternion.fromLookDirection(tangent, basis.normal);
     }
 }

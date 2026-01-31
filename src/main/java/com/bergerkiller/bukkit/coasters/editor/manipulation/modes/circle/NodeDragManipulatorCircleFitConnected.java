@@ -39,6 +39,8 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
     private PinnedParams startParams = null;
     /** Additional parameters that are used to compute the full circle */
     private PinnedParams pinnedParams = null;
+    /** All circle nodes, including the first/last node */
+    protected List<CircleNode> circleNodes = null;
     /** Middle nodes with their theta values along the arc from first->last */
     protected List<CircleNode> middleNodes = null;
 
@@ -61,8 +63,31 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         // Compute pinned parameters for the constrained circle fit
         this.startParams = this.pinnedParams = this.computePinnedParams2D();
 
-        // Fit middle nodes and store their thetas
-        this.middleNodes = computeMiddleNodesFromCircle2D();
+        // This calculator handles the angle <> theta <> node position logic
+        // It is based on the previously computed pinned parameters
+        NodeBiSectorThetaCalculator calculator = createNodeThetaCalculator();
+
+        // Compute middle nodes with their initial theta values
+        middleNodes = new ArrayList<>(editedNodes.size() - 2);
+        for (PlayerEditNode en : editedNodes) {
+            if (en == first || en == last) continue;
+            middleNodes.add(new CircleNode(en, calculator.computeTheta(en.node.getPosition())));
+        }
+        Collections.sort(middleNodes);
+
+        // Include first/last node in the full circle nodes list
+        circleNodes = new ArrayList<>(middleNodes.size() + 2);
+        circleNodes.add(new CircleNode(first, 0.0));
+        circleNodes.addAll(middleNodes);
+        circleNodes.add(new CircleNode(last, 1.0));
+
+        // Determine the tangent orientation of each node currently and compute the up vector relative to that
+        for (CircleNode cn : circleNodes) {
+            double ang = calculator.computeAngleFromTheta(cn.theta);
+            Vector up = cn.node.node.getOrientation().clone();
+            calculator.computeTangentOrientation(ang).invTransformPoint(up);
+            cn.up = up;
+        }
 
         TrackNode clickedNodeNode = state.findLookingAt();
         if (clickedNodeNode != null) {
@@ -81,7 +106,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         // Transform the first node (Test)
         if (clickedNode == first || clickedNode == last) {
             handleDrag(clickedNode, event, true).applyTo(clickedNode.node);
-            applyMiddleNodesToCircle();
+            applyNodesToCircle();
         } else if (clickedNode != null) {
             // Drag the middle node around
             NodeDragPosition dragPos = handleDrag(clickedNode, event, true);
@@ -98,12 +123,12 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
                 moveNodeTheta(n, dragPos.position);
             });
 
-            applyMiddleNodesToCircle();
+            applyNodesToCircle();
         } else {
             // Move all nodes, same as position mode
             // We do re-apply the middle nodes to take on a circle shape again
             if (event.isStart()) {
-                applyMiddleNodesToCircle();
+                applyNodesToCircle();
             }
             for (PlayerEditNode editNode : editedNodes) {
                 handleDrag(editNode, event, false).applyTo(editNode.node);
@@ -308,46 +333,22 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
      * Apply stored middle node thetas to position nodes on the provided circle using the given plane basis.
      * Preserves the circle radius and center; reconstructs 3D positions and assigns them to nodes.
      */
-    protected void applyMiddleNodesToCircle() {
-        PlaneBasis basis = buildPlaneBasisFromPins();
-        Circle2D circle = buildCircle2DFromPins();
+    protected void applyNodesToCircle() {
+        NodeBiSectorThetaCalculator calc = createNodeThetaCalculator();
 
-        // Compute the angle of the first node on the circle
-        // This is the reference angle for all middle nodes
-        Vector p1v = first.node.getPosition().clone().subtract(basis.centroid);
-        double p1x = p1v.dot(basis.ex), p1y = p1v.dot(basis.ey);
-        double angleFirst = Math.atan2(p1y - circle.cy, p1x - circle.cx);
+        // Update all nodes, not just the middle ones
+        // For the first/last node we do not update position, as it should be unchanged anyway
+        for (CircleNode cn : circleNodes) {
+            double ang = calc.computeAngleFromTheta(cn.theta);
 
-        // Compute the angle of the last node on the circle
-        Vector p2v = last.node.getPosition().clone().subtract(basis.centroid);
-        double p2x = p2v.dot(basis.ex), p2y = p2v.dot(basis.ey);
-        double angleLast = Math.atan2(p2y - circle.cy, p2x - circle.cx);
+            if (cn.node != first && cn.node != last) {
+                Vector newPos = calc.computePointAtAngle(ang);
+                cn.node.node.setPosition(newPos);
+            }
 
-        // Compute the arc angle difference from the first node to the last node, on the circle
-        double arcAngle = Math.abs(normalizeAngleDiff(angleLast - angleFirst));
-        if (arcAngle < 1e-8) {
-            // treat as full circle when effectively identical angles
-            arcAngle = 2.0 * Math.PI;
-        }
-
-        // Take into account whether the pinned arc is the minor arc or the major arc
-        if (!pinnedParams.minorArc) {
-            arcAngle = 2.0 * Math.PI - arcAngle;
-        }
-
-        // When taking the minor arc, the angle increases from first->last
-        // When taking the major arc, this is reversed
-        double angleSide = pinnedParams.minorArc ? 1.0 : -1.0;
-
-        for (CircleNode cmn : middleNodes) {
-            double ang = angleFirst + (angleSide * cmn.theta * arcAngle);
-            double x2 = circle.cx + Math.cos(ang) * circle.r;
-            double y2 = circle.cy + Math.sin(ang) * circle.r;
-            Vector newPos = basis.centroid.clone()
-                    .add(basis.ex.clone().multiply(x2))
-                    .add(basis.ey.clone().multiply(y2));
-
-            cmn.node.node.setPosition(newPos);
+            Vector newUp = cn.up.clone();
+            calc.computeTangentOrientation(ang).transformPoint(newUp);
+            cn.node.node.setOrientation(newUp);
         }
     }
 
@@ -367,6 +368,10 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
          * Normalized fraction along arc from first->last (can be <0 or >1).
          */
         public double theta;
+        /**
+         * The up-orientation of the node relative to the direction/normal vector on the circle
+         */
+        public Vector up = null;
 
         public CircleNode(PlayerEditNode node, double initialTheta) {
             this.node = node;
@@ -380,36 +385,13 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         }
     }
 
-    /**
-     * Compute and store the middle node thetas for all edited nodes except first/last.
-     * Circle2D and PlaneBasis must be in the same 2D coordinate system used by the fitter.
-     * Returns the list stored in `middleNodes`.
-     */
-    protected List<CircleNode> computeMiddleNodesFromCircle2D() {
-        NodeBiSectorThetaCalculator calculator = createNodeThetaCalculator();
-
-        List<CircleNode> middleNodes = new ArrayList<>(editedNodes.size() - 2);
-        for (PlayerEditNode en : editedNodes) {
-            if (en == first || en == last) continue;
-            middleNodes.add(new CircleNode(en, calculator.computeTheta(en.node.getPosition())));
-        }
-        Collections.sort(middleNodes);
-
-        return middleNodes;
-    }
-
     private NodeBiSectorThetaCalculator createNodeThetaCalculator() {
         PlaneBasis basis = buildPlaneBasisFromPins();
         Circle2D circle = buildCircle2DFromPins();
+        NodeAngleCalculator angleCalc = new NodeAngleCalculator(basis, circle);
 
-        // project first/last into plane coords
-        Vector p1v = first.node.getPosition().clone().subtract(basis.centroid);
-        Vector p2v = last.node.getPosition().clone().subtract(basis.centroid);
-        double p1x = p1v.dot(basis.ex), p1y = p1v.dot(basis.ey);
-        double p2x = p2v.dot(basis.ex), p2y = p2v.dot(basis.ey);
-
-        double angleFirst = Math.atan2(p1y - circle.cy, p1x - circle.cx);
-        double angleLast  = Math.atan2(p2y - circle.cy, p2x - circle.cx);
+        double angleFirst = angleCalc.computeAngle(first.node.getPosition());
+        double angleLast  = angleCalc.computeAngle(last.node.getPosition());
 
         // Compute the arc angle difference from the first node to the last node, on the circle
         double arcAngle = Math.abs(normalizeAngleDiff(angleLast - angleFirst));

@@ -38,4 +38,14 @@ class NodeBiSectorThetaCalculator extends NodeAngleCalculator {
 
         return num / arcAngle;
     }
+
+    /**
+     * Computes the radian angle from the theta value (0.0 to 1.0) around the bi-sector constrained circle.
+     *
+     * @param theta Theta value (0.0 to 1.0)
+     * @return Radian angle
+     */
+    public double computeAngleFromTheta(double theta) {
+        return angleFirst + (angleSide * theta * arcAngle);
+    }
 }
