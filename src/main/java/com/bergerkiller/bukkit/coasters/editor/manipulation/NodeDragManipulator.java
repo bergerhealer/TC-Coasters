@@ -42,9 +42,11 @@ public interface NodeDragManipulator {
      * <br>
      * Depending on what kind of manipulation mode is active, different rules can be used
      * to compute the required spacing.
+     *
+     * @throws ChangeCancelledException If the change is cancelled
      */
-    default void equalizeNodeSpacing() {
-        //TODO: Implement
+    default void equalizeNodeSpacing() throws ChangeCancelledException {
+        throw new ChangeCancelledException();
     }
 
     /**

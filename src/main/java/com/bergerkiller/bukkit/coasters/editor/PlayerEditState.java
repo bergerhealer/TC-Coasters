@@ -1634,12 +1634,44 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
     }
 
-    public void dragManipulationUpdate() {
+    /**
+     * Performs a manipulation action using the drag manipulator. This can perform batch operations
+     * on nodes, like equalizing spacing or adding/removing nodes in a common selected 'shape'.
+     * Returns false if the change could not be (fully) applied, or true if successful.<br>
+     * <br>
+     * The type of manipulator that runs the action depends on what menu the user has activated.
+     * For example: if the circle shape mode is active, then the nodes will be fit to a circle shape.
+     *
+     * @param action Action to perform
+     * @return True if successful, false if cancelled
+     */
+    public boolean performManipulation(ManipulatorAction action) {
+        /** If not already dragging we got to finish dragging right after the function is called */
+        boolean finishAfterCall = !dragHandler.isManipulating();
+
+        NodeDragManipulator manipulator = this.dragManipulationUpdate();
+        if (manipulator == null) {
+            return false;
+        }
+
+        try {
+            action.perform(manipulator);
+            if (finishAfterCall) {
+                dragManipulationFinish();
+            }
+            return true;
+        } catch (ChangeCancelledException ex) {
+            this.clearEditedNodes();
+            return false;
+        }
+    }
+
+    public NodeDragManipulator dragManipulationUpdate() {
         // Deselect locked nodes that we cannot edit
         this.deselectLockedNodes();
 
         if (!this.hasEditedNodes()) {
-            return;
+            return null;
         }
 
         try {
@@ -1657,8 +1689,10 @@ public class PlayerEditState implements CoasterWorldComponent {
             for (TrackNode cancelledNode : result.cancelledNodes) {
                 this.setEditing(cancelledNode, false);
             }
+            return result.manipulator;
         } catch (ChangeCancelledException ex) {
             this.clearEditedNodes();
+            return null;
         }
     }
 
@@ -1794,6 +1828,16 @@ public class PlayerEditState implements CoasterWorldComponent {
     }
 
     /**
+     * An action to be performed using the node-drag manipulator. Actions can include
+     * equalizing the spacing between nodes or inserting/deleting nodes in the selected
+     * 'shape'. Manipulator actions are effectively batch operations.
+     */
+    @FunctionalInterface
+    public interface ManipulatorAction {
+        void perform(NodeDragManipulator manipulator) throws ChangeCancelledException;
+    }
+
+    /**
      * Plan for building a track, used by the track builder tool. Stores all information about the track to be built,
      * such as what connections will be made or what nodes will be created. This builder plan can be executed,
      * or its information can be used to refresh GUI screens.
@@ -1801,17 +1845,29 @@ public class PlayerEditState implements CoasterWorldComponent {
     public static final class TrackBuilderPlan {
         public static final TrackBuilderPlan SPACE_OCCUPIED = new TrackBuilderPlan();
 
-        /** If true this is the SPACE_OCCUPIED constant, and no new node can be created there */
+        /**
+         * If true this is the SPACE_OCCUPIED constant, and no new node can be created there
+         */
         public final boolean spaceOccupied;
-        /** New node position */
+        /**
+         * New node position
+         */
         public final Vector newNodePosition;
-        /** New node orientation. If null, leave default */
+        /**
+         * New node orientation. If null, leave default
+         */
         public final Vector newNodeOrientation;
-        /** Whether the node was placed in the air versus on the ground */
+        /**
+         * Whether the node was placed in the air versus on the ground
+         */
         public final boolean isInAir;
-        /** Connections that will be split with a new node inserted in the middle */
+        /**
+         * Connections that will be split with a new node inserted in the middle
+         */
         public final Set<TrackConnection> connectionsToSplit = new HashSet<>();
-        /** Remainder of nodes that will be connected together if in air, or to a new node if placed on ground */
+        /**
+         * Remainder of nodes that will be connected together if in air, or to a new node if placed on ground
+         */
         public final Set<TrackNode> nodesToConnect = new LinkedHashSet<>();
 
         // Space occupied, can't build here

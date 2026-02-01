@@ -63,7 +63,7 @@ public class NodeDragHandler {
     public DragResult drag(NodeDragManipulator.Initializer initializer, PlayerEditState state) throws ChangeCancelledException {
         Set<TrackNode> editedNodes = state.getEditedNodes();
         if (editedNodes.isEmpty()) {
-            return new DragResult(Collections.emptyList());
+            return new DragResult(Collections.emptyList(), null);
         }
 
         // If a manipulator is active, verify that the edited nodes are still the same
@@ -94,12 +94,12 @@ public class NodeDragHandler {
                 manipulator.onUpdate(event);
             }
 
-            return new DragResult(cancelledNodes);
+            return new DragResult(cancelledNodes, manipulator);
         }
 
         NodeDragEvent event = this.nextEvent(state.getHeldDownTicks() == 0);
         manipulator.onUpdate(event);
-        return new DragResult(Collections.emptyList());
+        return new DragResult(Collections.emptyList(), manipulator);
     }
 
     /**
@@ -172,10 +172,14 @@ public class NodeDragHandler {
      * Result of a drag operation, including nodes for which the drag was cancelled
      */
     public static class DragResult {
+        /** Nodes that could not be edited because the change was cancelled */
         public final List<TrackNode> cancelledNodes;
+        /** Manipulator used for this drag operation. Null if no manipulator is active (no nodes to edit). */
+        public final NodeDragManipulator manipulator;
 
-        public DragResult(List<TrackNode> cancelledNodes) {
+        public DragResult(List<TrackNode> cancelledNodes, NodeDragManipulator manipulator) {
             this.cancelledNodes = cancelledNodes;
+            this.manipulator = manipulator;
         }
     }
 }
