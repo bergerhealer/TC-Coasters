@@ -628,7 +628,7 @@ public class TrackNodeSign implements Cloneable {
 
         try {
             // Fire a sign build event with the sign's custom sign
-            SignBuildEvent event = new SignBuildEvent(player, getTrackedSign(), interactive);
+            SignBuildEvent event = new SignBuildEvent(player, trackedSign, interactive);
             SignAction.handleBuild(event);
             return !event.isCancelled();
         } catch (Throwable t) {
@@ -638,6 +638,15 @@ public class TrackNodeSign implements Cloneable {
                     + "See server log for more details.");
             return false;
         }
+    }
+
+    /**
+     * Calls the SignAction loadedChanged callback.
+     *
+     * @param loaded Whether the sign is now loaded
+     */
+    public void handleLoadChange(boolean loaded) {
+        SignAction.handleLoadChange(getTrackedSign(), loaded);
     }
 
     /**

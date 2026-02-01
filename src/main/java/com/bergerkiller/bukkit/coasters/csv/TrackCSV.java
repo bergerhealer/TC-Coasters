@@ -965,6 +965,11 @@ public class TrackCSV {
             } else {
                 // Add to the node itself
                 state.prevNode.addSign(sign, state.addNodeSignPredicate);
+
+                // Fire load event if not built by a Player
+                if (state.player == null) {
+                    sign.handleLoadChange(true);
+                }
             }
         }
     }
