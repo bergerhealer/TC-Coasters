@@ -131,7 +131,9 @@ class GlobalCommands {
             PlayerEditState editState = plugin.getEditState(player);
             if (editState != null) {
                 for (TrackNode node : editState.getEditedNodes()) {
-                    node.onStateUpdated(player);
+                    if (!node.isRemoved()) {
+                        node.onStateUpdated(player);
+                    }
                 }
             }
         }

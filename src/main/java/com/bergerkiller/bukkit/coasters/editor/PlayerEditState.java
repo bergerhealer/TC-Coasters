@@ -260,7 +260,9 @@ public class PlayerEditState implements CoasterWorldComponent {
             this.lastEdited = null;
             this.onEditedNodesChanged();
             for (TrackNode oldNode : oldNodes) {
-                oldNode.onStateUpdated(this.player);
+                if (!oldNode.isRemoved()) {
+                    oldNode.onStateUpdated(this.player);
+                }
             }
         }
     }
@@ -531,9 +533,11 @@ public class PlayerEditState implements CoasterWorldComponent {
             if (node.isLocked()) {
                 iter.remove();
                 hadLockedNodes = true;
-                node.onStateUpdated(this.player);
-                this.lastEdited = node;
-                this.editedAnimationNamesChanged |= node.hasAnimationStates();
+                if (!node.isRemoved()) {
+                    node.onStateUpdated(this.player);
+                    this.lastEdited = node;
+                    this.editedAnimationNamesChanged |= node.hasAnimationStates();
+                }
             }
         }
         onEditedNodesChanged();
@@ -558,7 +562,9 @@ public class PlayerEditState implements CoasterWorldComponent {
 
             // Refresh the nodes and their particles based on the mode
             for (TrackNode node : this.getEditedNodes()) {
-                node.onStateUpdated(this.player);
+                if (!node.isRemoved()) {
+                    node.onStateUpdated(this.player);
+                }
             }
 
             // Tell object state too
