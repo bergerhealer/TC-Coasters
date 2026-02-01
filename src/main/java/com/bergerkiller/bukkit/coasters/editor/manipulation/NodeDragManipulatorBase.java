@@ -101,13 +101,14 @@ public abstract class NodeDragManipulatorBase<N extends DraggedTrackNode> implem
             return false;
         }
 
-        TrackWorld tracks = state.getWorld().getTracks();
-        DraggedTrackNode draggedNode = draggedNodes.iterator().next();
+        final TrackWorld tracks = state.getWorld().getTracks();
+        final DraggedTrackNode draggedNode = draggedNodes.iterator().next();
 
         // Get all nodes nearby the position, sorted from close to far
         // Pick first (closest) node that is not the node(s) dragged
         final Vector pos = draggedNode.node.getPosition();
-        final TrackNode initialDroppedNode = tracks.findNodesNear(new ArrayList<TrackNode>(), pos, 1e-2).stream()
+        final TrackNode initialDroppedNode = tracks.findNodesNear(new ArrayList<>(), pos, 1e-2).stream()
+                .filter(n -> n != draggedNode.node && n != draggedNode.node_zd)
                 .sorted(Comparator.comparingDouble(o -> o.getPosition().distanceSquared(pos)))
                 .filter(n -> !state.isEditing(n))
                 .findFirst()
