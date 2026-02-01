@@ -98,10 +98,11 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
             return;
         }
 
-        NodeChainComputation<N> comp = new NodeChainComputation<N>();
+        NodeChainComputation<N> comp = new NodeChainComputation<>();
 
         // Seed the computation with an initial path
         NodeConnectionPath<N> curr = new NodeConnectionPath<N>(startNode, otherNode, into);
+        comp.first = startNode;
         comp.start = curr;
         comp.numConnections = 1;
         comp.fullDistance = curr.fullDistance;
@@ -113,7 +114,7 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
         }
 
         while (true) {
-            comp.nodes.add(curr.to);
+            comp.middleNodes.add(curr.to);
             remainingNodes.remove(curr.to);
             curr = curr.next;
 
@@ -132,6 +133,7 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
             }
         }
 
+        comp.last = curr.to;
         chains.add(comp);
     }
 
@@ -143,7 +145,7 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
             }
 
             // Positions a step distance apart
-            List<TrackConnection.PointOnPath> points = new ArrayList<>(chain.nodes.size());
+            List<TrackConnection.PointOnPath> points = new ArrayList<>(chain.middleNodes.size());
 
             // Walk the path, setting positions along the way
             double stepRemainingDistance = stepDistance;
@@ -167,12 +169,12 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
             }
 
             // Apply positions to nodes
-            for (int i = 0; i < chain.nodes.size(); i++) {
+            for (int i = 0; i < chain.middleNodes.size(); i++) {
                 if (i >= points.size()) {
                     break;
                 }
                 TrackConnection.PointOnPath point = points.get(i);
-                N node = chain.nodes.get(i);
+                N node = chain.middleNodes.get(i);
                 node.setPosition(point.position);
                 node.setOrientation(point.orientation.upVector());
                 node.dragPosition = point.position.clone();
@@ -198,12 +200,16 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
     public static class NodeChainComputation<N extends DraggedTrackNode> {
         /** Starting connection path */
         public NodeConnectionPath<N> start;
+        /** First node. Pinned in place. */
+        public N first;
+        /** Last node. Pinned in place. */
+        public N last;
         /**
          * List of nodes in the same order as the path connections.
          * Does not include the first/last node of the sequence, which is
          * considered pinned in place.
          */
-        public final List<N> nodes = new ArrayList<>();
+        public final List<N> middleNodes = new ArrayList<>();
         /**
          * Full distance of all connections in the chain
          */
@@ -221,7 +227,7 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
      *
      * @param <N> Dragged Node type
      */
-    private static class NodeConnectionPath<N extends DraggedTrackNode> {
+    public static class NodeConnectionPath<N extends DraggedTrackNode> {
         public final N from;
         public final N to;
         public final TrackConnection connection;

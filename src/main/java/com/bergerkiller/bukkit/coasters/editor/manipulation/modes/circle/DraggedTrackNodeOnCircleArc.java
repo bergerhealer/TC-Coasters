@@ -7,7 +7,7 @@ import org.bukkit.util.Vector;
  * A dragged track node on a circular arc, tracking theta values
  * along the arc for position updates.
  */
-class DraggedTrackNodeOnCircleArc extends DraggedTrackNode implements Comparable<DraggedTrackNodeOnCircleArc> {
+class DraggedTrackNodeOnCircleArc extends DraggedTrackNode {
     /**
      * Initial theta value at the time dragging begun.
      * Normalized fraction along arc from first->last (can be <0 or >1)
@@ -29,10 +29,5 @@ class DraggedTrackNodeOnCircleArc extends DraggedTrackNode implements Comparable
 
     public void setInitialTheta(double initialTheta) {
         this.theta = this.initialTheta = initialTheta;
-    }
-
-    @Override
-    public int compareTo(DraggedTrackNodeOnCircleArc o) {
-        return Double.compare(this.initialTheta, o.initialTheta);
     }
 }

@@ -12,7 +12,7 @@ import com.bergerkiller.bukkit.common.utils.MathUtil;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -42,20 +42,17 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
     /** Additional parameters that are used to compute the full circle */
     private PinnedParams pinnedParams = null;
 
-    public NodeDragManipulatorCircleFitConnected(PlayerEditState state, List<DraggedTrackNode> draggedNodes, DraggedTrackNode first, DraggedTrackNode last) {
+    /**
+     * Creates a new node drag manipulator that fits a circle through the first and last node,
+     *
+     * @param state PlayerEditState
+     * @param draggedNodes All dragged nodes, sorted by order in the sequence (important!)
+     */
+    public NodeDragManipulatorCircleFitConnected(PlayerEditState state, List<DraggedTrackNode> draggedNodes) {
         super(state, draggedNodes, DraggedTrackNodeOnCircleArc::new);
 
-        if (first == null) {
-            throw new IllegalStateException("First node is null");
-        }
-        if (last == null) {
-            throw new IllegalStateException("Last node is null");
-        }
-
-        this.first = this.draggedNodes.stream().filter(n -> n.node == first.node).findFirst()
-                .orElseThrow(() -> new IllegalStateException("First node is not in the dragged nodes list"));
-        this.last = this.draggedNodes.stream().filter(n -> n.node == last.node).findFirst()
-                .orElseThrow(() -> new IllegalStateException("First node is not in the dragged nodes list"));
+        this.first = this.draggedNodes.get(0);
+        this.last = this.draggedNodes.get(this.draggedNodes.size() - 1);
         this.middleNodes = this.draggedNodes.stream()
                 .filter(n -> n != this.first && n != this.last)
                 .collect(Collectors.toCollection(ArrayList::new));
@@ -76,7 +73,24 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
             middleNode.setInitialTheta(calculator.computeTheta(middleNode.node.getPosition()));
         }
         last.setInitialTheta(1.0);
-        Collections.sort(middleNodes);
+
+        // Recompute the list of middle nodes, and sort it by theta value
+        // If the list is different, shuffle (re-assign) the theta values accordingly
+        List<ThetaSortedNode> middleNodesSortedByTheta = middleNodes.stream()
+                .map(ThetaSortedNode::new)
+                .sorted()
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        boolean hasSwappedNodes = false;
+        for (int i = 0; i < middleNodes.size(); i++) {
+            DraggedTrackNodeOnCircleArc node = middleNodes.get(i);
+            ThetaSortedNode sortedNode = middleNodesSortedByTheta.get(i);
+            if (node != sortedNode.node) {
+                hasSwappedNodes = true;
+                // Only assign initial theta, not theta, so that theta stays valid
+                node.setInitialTheta(sortedNode.theta);
+            }
+        }
 
         // Determine the tangent orientation of each node currently and compute the up vector relative to that
         for (DraggedTrackNodeOnCircleArc draggedNode : draggedNodes) {
@@ -90,8 +104,18 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
         if (clickedNodeNode != null) {
             for (DraggedTrackNodeOnCircleArc draggedNode : draggedNodes) {
                 if (draggedNode.node == clickedNodeNode) {
+                    Vector position = draggedNode.node.getPosition().clone();
+
+                    // Correct for swapped theta, as this node is still at the old position
+                    if (hasSwappedNodes) {
+                        final double theta = calculator.computeTheta(clickedNodeNode.getPosition());
+                        draggedNode = draggedNodes.stream()
+                                .min(Comparator.comparingDouble(a -> Math.abs(a.theta - theta)))
+                                .orElse(draggedNode);
+                    }
+
                     clickedNode = draggedNode;
-                    clickedNode.dragPosition = clickedNode.node.getPosition().clone();
+                    clickedNode.dragPosition = position;
                     break;
                 }
             }
@@ -135,6 +159,14 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
         // Merge/record behavior can be copied from other manipulators when implementing finish behavior.
         // For now, do nothing special.
         recordEditedNodesInHistory(history);
+    }
+
+    @Override
+    public void equalizeNodeSpacing() {
+        for (int i = 0; i < middleNodes.size(); i++) {
+            middleNodes.get(i).theta = (double) (i + 1) / (middleNodes.size() + 1);
+        }
+        applyNodesToCircle();
     }
 
     /**
@@ -355,7 +387,7 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
         double angleLast  = angleCalc.computeAngle(last.node.getPosition());
 
         // Compute the arc angle difference from the first node to the last node, on the circle
-        double arcAngle = Math.abs(normalizeAngleDiff(angleLast - angleFirst));
+        double arcAngle = getNormalizedAngleDifference(angleLast, angleFirst);
         if (arcAngle < 1e-8) {
             // treat as full circle when effectively identical angles
             arcAngle = 2.0 * Math.PI;
@@ -579,9 +611,18 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
         return dir;
     }
 
-    private static double normalizeAngleDiff(double a) {
-        while (a <= -Math.PI) a += 2.0 * Math.PI;
-        while (a >   Math.PI) a -= 2.0 * Math.PI;
-        return a;
+    private static class ThetaSortedNode implements Comparable<ThetaSortedNode> {
+        public final DraggedTrackNodeOnCircleArc node;
+        public final double theta;
+
+        public ThetaSortedNode(DraggedTrackNodeOnCircleArc node) {
+            this.node = node;
+            this.theta = node.theta;
+        }
+
+        @Override
+        public int compareTo(ThetaSortedNode o) {
+            return Double.compare(this.theta, o.theta);
+        }
     }
 }
