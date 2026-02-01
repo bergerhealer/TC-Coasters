@@ -5,9 +5,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -86,7 +85,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     private final PlayerEditClipboard clipboard;
     private final ObjectEditState objectState;
     private final SignEditState signState;
-    protected final Map<TrackNode, PlayerEditNode> editedNodes = new LinkedHashMap<TrackNode, PlayerEditNode>();
+    protected final Set<TrackNode> editedNodes = new LinkedHashSet<TrackNode>();
     private final TreeMultimap<String, TrackNode> editedNodesByAnimationName = TreeMultimap.create(Ordering.natural(), Ordering.arbitrary());
     private CoasterWorld cachedCoasterWorld = null;
     private TrackNode lastEdited = null;
@@ -160,14 +159,14 @@ public class PlayerEditState implements CoasterWorldComponent {
                             z = Double.parseDouble(coords[2]);
                             TrackNode node = getWorld().getTracks().findNodeExact(new Vector(x, y, z));
                             if (node != null) {
-                                this.editedNodes.put(node, new PlayerEditNode(node));
+                                this.editedNodes.add(node);
                                 for (TrackNodeAnimationState animation : node.getAnimationStates()) {
                                     this.editedNodesByAnimationName.put(animation.name, node);
                                 }
 
                                 TrackNode zeroDistNeighbour = node.getZeroDistanceNeighbour();
                                 if (zeroDistNeighbour != null) {
-                                    this.editedNodes.put(zeroDistNeighbour, new PlayerEditNode(zeroDistNeighbour));
+                                    this.editedNodes.add(zeroDistNeighbour);
                                 }
                             }
                         } catch (NumberFormatException ex) {}
@@ -461,8 +460,7 @@ public class PlayerEditState implements CoasterWorldComponent {
      */
     public boolean hasCurvedConnectionTrackNodes() {
         return hasEditedNodes() && getEditedNodes().stream()
-            .filter(n -> n.getConnections().size() == 2 && n.getZeroDistanceNeighbour() == null)
-            .findAny().isPresent();
+            .anyMatch(n -> n.getConnections().size() == 2 && n.getZeroDistanceNeighbour() == null);
     }
 
     /**
@@ -472,8 +470,7 @@ public class PlayerEditState implements CoasterWorldComponent {
      */
     public boolean hasStraightConnectionTrackNodes() {
         return hasEditedNodes() && getEditedNodes().stream()
-            .filter(n -> n.getZeroDistanceNeighbour() != null)
-            .findAny().isPresent();
+            .anyMatch(n -> n.getZeroDistanceNeighbour() != null);
     }
 
     /**
@@ -482,7 +479,7 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @return set of all edited nodes
      */
     public Set<TrackNode> getEditedNodes() {
-        return this.editedNodes.keySet();
+        return this.editedNodes;
     }
 
     /**
@@ -505,7 +502,7 @@ public class PlayerEditState implements CoasterWorldComponent {
      */
     public TrackNode getLastEditedNode() {
         TrackNode last = null;
-        for (TrackNode node : this.editedNodes.keySet()) {
+        for (TrackNode node : this.editedNodes) {
             last = node;
         }
         return last;
@@ -527,7 +524,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
 
         boolean hadLockedNodes = false;
-        Iterator<TrackNode> iter = this.editedNodes.keySet().iterator();
+        Iterator<TrackNode> iter = this.editedNodes.iterator();
         while (iter.hasNext()) {
             TrackNode node = iter.next();
             if (node.isLocked()) {
@@ -592,7 +589,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         if (node == null) {
             throw new IllegalArgumentException("Node can not be null");
         }
-        if (this.editedNodes.containsKey(node)) {
+        if (this.editedNodes.contains(node)) {
             return true;
         }
         if (CommonUtil.callEvent(new CoasterSelectNodeEvent(this.player, node)).isCancelled()) {
@@ -608,14 +605,14 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
         boolean changed;
         if (editing) {
-            if (this.editedNodes.containsKey(node)) {
+            if (this.editedNodes.contains(node)) {
                 changed = false;
             } else {
                 changed = true;
-                this.editedNodes.put(node, new PlayerEditNode(node));
+                this.editedNodes.add(node);
             }
         } else {
-            changed = (this.editedNodes.remove(node) != null);
+            changed = this.editedNodes.remove(node);
         }
         if (changed) {
             // Can be caused by the node being removed, handle that here
@@ -639,7 +636,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     }
 
     public boolean isEditing(TrackNode node) {
-        return this.editedNodes.containsKey(node);
+        return this.editedNodes.contains(node);
     }
 
     /**
@@ -1143,7 +1140,7 @@ public class PlayerEditState implements CoasterWorldComponent {
 
         if (this.editedNodes.size() == 1) {
             // Simplified
-            TrackNode node = this.editedNodes.keySet().iterator().next();
+            TrackNode node = this.editedNodes.iterator().next();
             setRailForNode(this.getHistory(), node, manipulator.apply(node.getRailBlock(true)));
         } else if (!this.editedNodes.isEmpty()) {
             // Set the same rails block for all selected nodes and save as a single change
@@ -1606,7 +1603,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         if (this.editedNodes.size() == 1) {
             return true;
         } else if (this.editedNodes.size() == 2) {
-            Iterator<TrackNode> iter = this.editedNodes.keySet().iterator();
+            Iterator<TrackNode> iter = this.editedNodes.iterator();
             return iter.next().getZeroDistanceNeighbour() == iter.next();
         } else {
             return false;
@@ -1617,23 +1614,6 @@ public class PlayerEditState implements CoasterWorldComponent {
         // Deselect locked nodes that we cannot edit
         this.deselectLockedNodes();
 
-        if (!this.hasEditedNodes()) {
-            return;
-        }
-
-        // Ensure moveBegin() is called once
-        List<TrackNode> cancelled = Collections.emptyList();
-        for (PlayerEditNode editNode : this.editedNodes.values()) {
-            if (!editNode.moveBegin(this.player)) {
-                if (cancelled.isEmpty()) {
-                    cancelled = new ArrayList<TrackNode>();
-                }
-                cancelled.add(editNode.node);
-            }
-        }
-        for (TrackNode cancelledNode : cancelled) {
-            this.setEditing(cancelledNode, false);
-        }
         if (!this.hasEditedNodes()) {
             return;
         }
@@ -1649,7 +1629,10 @@ public class PlayerEditState implements CoasterWorldComponent {
             }
 
             // Manages dragging. If edited node selection changed, re-initializes
-            dragHandler.next(initializer, this, this.editedNodes);
+            NodeDragHandler.DragResult result = dragHandler.drag(initializer, this);
+            for (TrackNode cancelledNode : result.cancelledNodes) {
+                this.setEditing(cancelledNode, false);
+            }
         } catch (ChangeCancelledException ex) {
             this.clearEditedNodes();
         }
