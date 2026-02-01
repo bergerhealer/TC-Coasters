@@ -530,7 +530,9 @@ public class PlayerEditState implements CoasterWorldComponent {
         Iterator<TrackNode> iter = this.editedNodes.iterator();
         while (iter.hasNext()) {
             TrackNode node = iter.next();
-            if (node.isLocked()) {
+            if (node.isRemoved()) {
+                iter.remove();
+            } else if (node.isLocked()) {
                 iter.remove();
                 hadLockedNodes = true;
                 if (!node.isRemoved()) {
@@ -605,6 +607,9 @@ public class PlayerEditState implements CoasterWorldComponent {
     public void setEditing(TrackNode node, boolean editing) {
         if (node == null) {
             throw new IllegalArgumentException("Node can not be null");
+        }
+        if (editing && node.isRemoved()) {
+            throw new IllegalArgumentException("Cannot edit a removed node");
         }
         boolean changed;
         if (editing) {
