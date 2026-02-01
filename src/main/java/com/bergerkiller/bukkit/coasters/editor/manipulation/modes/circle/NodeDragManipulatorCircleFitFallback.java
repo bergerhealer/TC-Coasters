@@ -4,6 +4,7 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNode;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNodeSpacingEqualizer;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragEvent;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.math.Quaternion;
@@ -94,6 +95,54 @@ class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<
         // Merge/record behavior can be copied from other manipulators when implementing finish behavior.
         // For now, do nothing special.
         recordEditedNodesInHistory(history);
+    }
+
+    @Override
+    public void equalizeNodeSpacing() throws ChangeCancelledException {
+        DraggedTrackNodeSpacingEqualizer<DraggedTrackNodeOnCircle> equalizer = new DraggedTrackNodeSpacingEqualizer<>(draggedNodes);
+        equalizer.findChains();
+        if (equalizer.chains.isEmpty()) {
+            throw new ChangeCancelledException();
+        }
+
+        for (DraggedTrackNodeSpacingEqualizer.NodeChainComputation<DraggedTrackNodeOnCircle> chain : equalizer.chains) {
+            double arcAngle;
+            double arcSide = 1.0;
+            if (chain.first == chain.last) {
+                // Full circle
+                arcAngle = 2.0 * Math.PI;
+            } else {
+                // Arc between first and last node
+                arcAngle = getNormalizedAngleDifference(chain.last.angle, chain.first.angle);
+
+                // Determine using the other nodes which side of the arc to use
+                int ord = 0;
+                for (DraggedTrackNodeOnCircle dn : chain.middleNodes) {
+                    double diffFromFirst = dn.angle - chain.first.angle;
+                    while (diffFromFirst < 0.0) {
+                        diffFromFirst += 2.0 * Math.PI;
+                    }
+                    if (diffFromFirst <= arcAngle) {
+                        ord++;
+                    } else {
+                        ord--;
+                    }
+                }
+                if (ord < 0) {
+                    arcSide = -1.0;
+                }
+            }
+
+            // Compute angles for all nodes in-between first and last
+            double anglePerNode = arcSide * arcAngle / (double) (chain.middleNodes.size() + 1);
+            for (int i = 0; i < chain.middleNodes.size(); i++) {
+                DraggedTrackNodeOnCircle dn = chain.middleNodes.get(i);
+                dn.angle = chain.first.angle + anglePerNode * (i + 1);
+            }
+        }
+
+        // Apply new angles to node positions
+        applyCircleNodesToCircle();
     }
 
     /**
