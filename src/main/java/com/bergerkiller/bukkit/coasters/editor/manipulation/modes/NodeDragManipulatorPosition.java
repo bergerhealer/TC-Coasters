@@ -1,29 +1,28 @@
 package com.bergerkiller.bukkit.coasters.editor.manipulation.modes;
 
-import com.bergerkiller.bukkit.coasters.editor.PlayerEditNode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNode;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragEvent;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragManipulatorBase;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 
-import java.util.Map;
+import java.util.List;
 
 /**
  * Node drag manipulator that alters the position of the edited nodes
  * based on where the player is dragging.
  */
-public class NodeDragManipulatorPosition extends NodeDragManipulatorBase {
-    public static final Initializer INITIALIZER = (state, editedNodes, event) -> new NodeDragManipulatorPosition(state, editedNodes);
+public class NodeDragManipulatorPosition extends NodeDragManipulatorBase<DraggedTrackNode> {
+    public static final Initializer INITIALIZER = (state, draggedNodes, event) -> new NodeDragManipulatorPosition(state, draggedNodes);
 
-    public NodeDragManipulatorPosition(PlayerEditState state, Map<TrackNode, PlayerEditNode> editedNodes) {
-        super(state, editedNodes);
+    public NodeDragManipulatorPosition(PlayerEditState state, List<DraggedTrackNode> draggedNodes) {
+        super(state, draggedNodes);
     }
 
     @Override
     public void onStarted(NodeDragEvent event) {
-        for (PlayerEditNode node : editedNodes) {
+        for (DraggedTrackNode node : draggedNodes) {
             node.dragPosition = node.node.getPosition().clone();
         }
     }
@@ -34,8 +33,8 @@ public class NodeDragManipulatorPosition extends NodeDragManipulatorBase {
         // Count two zero-connected nodes as one node
         final boolean isSingleNode = state.isEditingSingleNode();
 
-        for (PlayerEditNode editNode : editedNodes) {
-            handleDrag(editNode, event, isSingleNode).applyTo(editNode.node);
+        for (DraggedTrackNode draggedNode : draggedNodes) {
+            handleDrag(draggedNode, event, isSingleNode).applyTo(draggedNode);
         }
     }
 

@@ -1,13 +1,10 @@
 package com.bergerkiller.bukkit.coasters.editor.manipulation;
 
-import com.bergerkiller.bukkit.coasters.editor.PlayerEditNode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 
-import java.util.Collection;
-import java.util.Map;
+import java.util.List;
 
 /**
  * Handles node drag events and manipulates the selected nodes accordingly.
@@ -39,6 +36,18 @@ public interface NodeDragManipulator {
     void onFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException;
 
     /**
+     * Called when the equalize node spacing action is triggered.
+     * This should adjust the positions of the manipulated nodes so that they are
+     * evenly spaced between each other.<br>
+     * <br>
+     * Depending on what kind of manipulation mode is active, different rules can be used
+     * to compute the required spacing.
+     */
+    default void equalizeNodeSpacing() {
+        //TODO: Implement
+    }
+
+    /**
      * Initializer for creating NodeDragManipulator instances.
      */
     interface Initializer {
@@ -47,10 +56,10 @@ public interface NodeDragManipulator {
          * the user created.
          *
          * @param state Player edit state
-         * @param editedNodes Edited nodes to be manipulated
+         * @param draggedNodes Edited nodes to be manipulated
          * @param event Node drag event
          * @return NodeDragManipulator instance
          */
-        NodeDragManipulator start(PlayerEditState state, Map<TrackNode, PlayerEditNode> editedNodes, NodeDragEvent event);
+        NodeDragManipulator start(PlayerEditState state, List<DraggedTrackNode> draggedNodes, NodeDragEvent event);
     }
 }

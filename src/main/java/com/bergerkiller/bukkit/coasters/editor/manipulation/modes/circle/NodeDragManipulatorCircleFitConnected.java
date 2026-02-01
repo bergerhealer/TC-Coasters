@@ -1,9 +1,9 @@
 package com.bergerkiller.bukkit.coasters.editor.manipulation.modes.circle;
 
-import com.bergerkiller.bukkit.coasters.editor.PlayerEditNode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNode;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragEvent;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.math.Quaternion;
@@ -14,14 +14,14 @@ import org.bukkit.util.Vector;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Node drag manipulator that fits a circle pinned by the first and last nodes
  * of a connected sequence of nodes being edited. This is the most common type
  * of circle fit operation, namely curves and such.
  */
-public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit {
+class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit<DraggedTrackNodeOnCircleArc> {
     /**
      * Minimum distance kept between nodes while dragging to avoid nodes merging.
      * Nodes will move aside to maintain this distance.
@@ -29,23 +29,21 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
     private static final double MIN_NODE_DIST = 0.2;
 
     /** First node of the sequence of nodes that is selected */
-    private final PlayerEditNode first;
+    private final DraggedTrackNodeOnCircleArc first;
     /** Last node of the sequence of nodes that is selected */
-    private final PlayerEditNode last;
+    private final DraggedTrackNodeOnCircleArc last;
+    /** Middle nodes with their theta values along the arc from first->last */
+    protected final List<DraggedTrackNodeOnCircleArc> middleNodes;
     /** Which of the nodes was clicked at the start (is dragged), or null if none (scale mode) */
-    private PlayerEditNode clickedNode = null;
+    private DraggedTrackNodeOnCircleArc clickedNode = null;
 
     /** Parameters at the time dragging was started */
     private PinnedParams startParams = null;
     /** Additional parameters that are used to compute the full circle */
     private PinnedParams pinnedParams = null;
-    /** All circle nodes, including the first/last node */
-    protected List<CircleNode> circleNodes = null;
-    /** Middle nodes with their theta values along the arc from first->last */
-    protected List<CircleNode> middleNodes = null;
 
-    public NodeDragManipulatorCircleFitConnected(PlayerEditState state, Map<TrackNode, PlayerEditNode> editedNodes, PlayerEditNode first, PlayerEditNode last) {
-        super(state, editedNodes);
+    public NodeDragManipulatorCircleFitConnected(PlayerEditState state, List<DraggedTrackNode> draggedNodes, DraggedTrackNode first, DraggedTrackNode last) {
+        super(state, draggedNodes, DraggedTrackNodeOnCircleArc::new);
 
         if (first == null) {
             throw new IllegalStateException("First node is null");
@@ -54,8 +52,13 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
             throw new IllegalStateException("Last node is null");
         }
 
-        this.first = first;
-        this.last = last;
+        this.first = this.draggedNodes.stream().filter(n -> n.node == first.node).findFirst()
+                .orElseThrow(() -> new IllegalStateException("First node is not in the dragged nodes list"));
+        this.last = this.draggedNodes.stream().filter(n -> n.node == last.node).findFirst()
+                .orElseThrow(() -> new IllegalStateException("First node is not in the dragged nodes list"));
+        this.middleNodes = this.draggedNodes.stream()
+                .filter(n -> n != this.first && n != this.last)
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -67,33 +70,27 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         // It is based on the previously computed pinned parameters
         NodeBiSectorThetaCalculator calculator = createNodeThetaCalculator();
 
-        // Compute middle nodes with their initial theta values
-        middleNodes = new ArrayList<>(editedNodes.size() - 2);
-        for (PlayerEditNode en : editedNodes) {
-            if (en == first || en == last) continue;
-            middleNodes.add(new CircleNode(en, calculator.computeTheta(en.node.getPosition())));
+        // Compute initial theta values
+        first.setInitialTheta(0.0);
+        for (DraggedTrackNodeOnCircleArc middleNode : middleNodes) {
+            middleNode.setInitialTheta(calculator.computeTheta(middleNode.node.getPosition()));
         }
+        last.setInitialTheta(1.0);
         Collections.sort(middleNodes);
 
-        // Include first/last node in the full circle nodes list
-        circleNodes = new ArrayList<>(middleNodes.size() + 2);
-        circleNodes.add(new CircleNode(first, 0.0));
-        circleNodes.addAll(middleNodes);
-        circleNodes.add(new CircleNode(last, 1.0));
-
         // Determine the tangent orientation of each node currently and compute the up vector relative to that
-        for (CircleNode cn : circleNodes) {
-            double ang = calculator.computeAngleFromTheta(cn.theta);
-            Vector up = cn.node.node.getOrientation().clone();
+        for (DraggedTrackNodeOnCircleArc draggedNode : draggedNodes) {
+            double ang = calculator.computeAngleFromTheta(draggedNode.theta);
+            Vector up = draggedNode.node.getOrientation().clone();
             calculator.computeTangentOrientation(ang).invTransformPoint(up);
-            cn.up = up;
+            draggedNode.up = up;
         }
 
         TrackNode clickedNodeNode = state.findLookingAt();
         if (clickedNodeNode != null) {
-            for (PlayerEditNode node : editedNodes) {
-                if (node.node == clickedNodeNode) {
-                    clickedNode = node;
+            for (DraggedTrackNodeOnCircleArc draggedNode : draggedNodes) {
+                if (draggedNode.node == clickedNodeNode) {
+                    clickedNode = draggedNode;
                     clickedNode.dragPosition = clickedNode.node.getPosition().clone();
                     break;
                 }
@@ -105,7 +102,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
     public void onUpdate(NodeDragEvent event) {
         // Transform the first node (Test)
         if (clickedNode == first || clickedNode == last) {
-            handleDrag(clickedNode, event, true).applyTo(clickedNode.node);
+            handleDrag(clickedNode, event, true).applyTo(clickedNode);
             applyNodesToCircle();
         } else if (clickedNode != null) {
             // Drag the middle node around
@@ -118,10 +115,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
             adjustRadiusForNode(dragPos.position);
 
             // Find which of the middle nodes is the clicked node
-            middleNodes.stream().filter(n -> n.node == clickedNode).findFirst().ifPresent(n -> {
-                // Move this node theta to be on the circle at the dragged position
-                moveNodeTheta(n, dragPos.position);
-            });
+            moveNodeTheta(clickedNode, dragPos.position);
 
             applyNodesToCircle();
         } else {
@@ -130,8 +124,8 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
             if (event.isStart()) {
                 applyNodesToCircle();
             }
-            for (PlayerEditNode editNode : editedNodes) {
-                handleDrag(editNode, event, false).applyTo(editNode.node);
+            for (DraggedTrackNodeOnCircleArc draggedNode : draggedNodes) {
+                handleDrag(draggedNode, event, false).applyTo(draggedNode);
             }
         }
     }
@@ -269,14 +263,14 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
      * @param node CircleNode
      * @param posOnCircle Point on the circle
      */
-    private void moveNodeTheta(CircleNode node, Vector posOnCircle) {
+    private void moveNodeTheta(DraggedTrackNodeOnCircleArc node, Vector posOnCircle) {
         NodeBiSectorThetaCalculator calc = createNodeThetaCalculator();
 
         // Compute theta fraction that corresponds to the minimum distance
         // Abort if this theta fraction is too small to move nodes around
         double arcLength = Math.abs(calc.arcAngle * calc.circle.r);
         double thetaLimit = MIN_NODE_DIST / arcLength;
-        if (arcLength < MIN_NODE_DIST || (editedNodes.size() - 1) * thetaLimit >= 1.0) {
+        if (arcLength < MIN_NODE_DIST || (draggedNodes.size() - 1) * thetaLimit >= 1.0) {
             return; // No room to move nodes
         }
 
@@ -286,7 +280,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         double thetaRightLimit = 1.0 - thetaLimit;
         double leftTheta = -Double.MAX_VALUE;
         double rightTheta = Double.MAX_VALUE;
-        for (CircleNode otherNode : middleNodes) {
+        for (DraggedTrackNodeOnCircleArc otherNode : middleNodes) {
             if (otherNode == node) continue;
             if (otherNode.initialTheta < 0.0 || otherNode.initialTheta > 1.0) continue;
             if (otherNode.initialTheta < node.initialTheta) {
@@ -307,7 +301,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         // If theta exceeds left limit, adjust left-side nodes proportionally
         if ((node.theta - thetaLimit) <= leftTheta) {
             double scale = (node.theta - thetaLimit) / leftTheta;
-            for (CircleNode otherNode : middleNodes) {
+            for (DraggedTrackNodeOnCircleArc otherNode : middleNodes) {
                 if (otherNode == node) continue;
                 if (otherNode.initialTheta < 0.0 || otherNode.initialTheta > 1.0) continue;
                 if (otherNode.initialTheta < node.initialTheta) {
@@ -319,7 +313,7 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         // If theta exceeds right limit, adjust right-side nodes proportionally
         if ((node.theta + thetaLimit) >= rightTheta) {
             double scale = (1.0 - (node.theta + thetaLimit)) / (1.0 - rightTheta);
-            for (CircleNode otherNode : middleNodes) {
+            for (DraggedTrackNodeOnCircleArc otherNode : middleNodes) {
                 if (otherNode == node) continue;
                 if (otherNode.initialTheta < 0.0 || otherNode.initialTheta > 1.0) continue;
                 if (otherNode.initialTheta > node.initialTheta) {
@@ -338,50 +332,17 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
 
         // Update all nodes, not just the middle ones
         // For the first/last node we do not update position, as it should be unchanged anyway
-        for (CircleNode cn : circleNodes) {
+        for (DraggedTrackNodeOnCircleArc cn : draggedNodes) {
             double ang = calc.computeAngleFromTheta(cn.theta);
 
-            if (cn.node != first && cn.node != last) {
+            if (cn != first && cn != last) {
                 Vector newPos = calc.computePointAtAngle(ang);
-                cn.node.node.setPosition(newPos);
+                cn.setPosition(newPos);
             }
 
             Vector newUp = cn.up.clone();
             calc.computeTangentOrientation(ang).transformPoint(newUp);
-            cn.node.node.setOrientation(newUp);
-        }
-    }
-
-    /**
-     * A middle node that is connected to the first and last nodes of the sequence.
-     * Stores the normalized theta value along the arc from first->last.
-     */
-    protected static class CircleNode implements Comparable<CircleNode> {
-        public final PlayerEditNode node;
-        /**
-         * Initial theta value at the time dragging begun.
-         * Normalized fraction along arc from first->last (can be <0 or >1)
-         */
-        public final double initialTheta;
-        /**
-         * Calculated (new) theta value during dragging.
-         * Normalized fraction along arc from first->last (can be <0 or >1).
-         */
-        public double theta;
-        /**
-         * The up-orientation of the node relative to the direction/normal vector on the circle
-         */
-        public Vector up = null;
-
-        public CircleNode(PlayerEditNode node, double initialTheta) {
-            this.node = node;
-            this.initialTheta = initialTheta;
-            this.theta = initialTheta;
-        }
-
-        @Override
-        public int compareTo(CircleNode o) {
-            return Double.compare(this.initialTheta, o.initialTheta);
+            cn.setOrientation(newUp);
         }
     }
 
@@ -536,11 +497,11 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
 
         // use node orientation to compute average up direction, which will flip the plane normal
         // if needed to be more aligned with the average up direction
-        List<Vector> pts = new ArrayList<>(editedNodes.size());
+        List<Vector> pts = new ArrayList<>(draggedNodes.size());
         Vector averageUp = new Vector();
-        for (PlayerEditNode en : editedNodes) {
-            pts.add(en.node.getPosition().clone());
-            averageUp.add(en.node.getOrientation());
+        for (DraggedTrackNodeOnCircleArc dn : draggedNodes) {
+            pts.add(dn.node.getPosition().clone());
+            averageUp.add(dn.node.getOrientation());
         }
         double averageUpLen = averageUp.length();
         if (averageUpLen < 1e-8) {
@@ -558,13 +519,13 @@ public class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCi
         // project each node into 2D plane coords (relative to basis.centroid)
         // compute the pinned coordinates, and the other points that are not pinned
         Vector2 p1 = null, p2 = null;
-        List<Vector2> otherPoints = new ArrayList<>(editedNodes.size());
-        for (PlayerEditNode en : editedNodes) {
-            Vector p = en.node.getPosition().clone().subtract(basis.centroid);
+        List<Vector2> otherPoints = new ArrayList<>(draggedNodes.size());
+        for (DraggedTrackNodeOnCircleArc dn : draggedNodes) {
+            Vector p = dn.node.getPosition().clone().subtract(basis.centroid);
             Vector2 p2d = new Vector2(p.dot(basis.ex), p.dot(basis.ey));
-            if (en == first) {
+            if (dn == first) {
                 p1 = p2d;
-            } else if (en == last) {
+            } else if (dn == last) {
                 p2 = p2d;
             } else {
                 otherPoints.add(p2d);
