@@ -4,6 +4,7 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNode;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNodeSpacingEqualizer;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragEvent;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragManipulatorBase;
 
@@ -45,5 +46,16 @@ public class NodeDragManipulatorPosition extends NodeDragManipulatorBase<Dragged
         }
 
         recordEditedNodesInHistory(history);
+    }
+
+    @Override
+    public void equalizeNodeSpacing() throws ChangeCancelledException {
+        DraggedTrackNodeSpacingEqualizer<DraggedTrackNode> equalizer = new DraggedTrackNodeSpacingEqualizer<>(draggedNodes);
+        equalizer.findChains();
+        if (equalizer.chains.isEmpty()) {
+            throw new ChangeCancelledException();
+        }
+
+        equalizer.equalizeSpacing();
     }
 }

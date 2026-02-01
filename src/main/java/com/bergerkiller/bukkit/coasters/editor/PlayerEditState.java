@@ -1610,12 +1610,44 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
     }
 
-    public void dragManipulationUpdate() {
+    /**
+     * Performs a manipulation action using the drag manipulator. This can perform batch operations
+     * on nodes, like equalizing spacing or adding/removing nodes in a common selected 'shape'.
+     * Returns false if the change could not be (fully) applied, or true if successful.<br>
+     * <br>
+     * The type of manipulator that runs the action depends on what menu the user has activated.
+     * For example: if the circle shape mode is active, then the nodes will be fit to a circle shape.
+     *
+     * @param action Action to perform
+     * @return True if successful, false if cancelled
+     */
+    public boolean performManipulation(ManipulatorAction action) {
+        /** If not already dragging we got to finish dragging right after the function is called */
+        boolean finishAfterCall = !dragHandler.isManipulating();
+
+        NodeDragManipulator manipulator = this.dragManipulationUpdate();
+        if (manipulator == null) {
+            return false;
+        }
+
+        try {
+            action.perform(manipulator);
+            if (finishAfterCall) {
+                dragManipulationFinish();
+            }
+            return true;
+        } catch (ChangeCancelledException ex) {
+            this.clearEditedNodes();
+            return false;
+        }
+    }
+
+    private NodeDragManipulator dragManipulationUpdate() {
         // Deselect locked nodes that we cannot edit
         this.deselectLockedNodes();
 
         if (!this.hasEditedNodes()) {
-            return;
+            return null;
         }
 
         try {
@@ -1633,8 +1665,10 @@ public class PlayerEditState implements CoasterWorldComponent {
             for (TrackNode cancelledNode : result.cancelledNodes) {
                 this.setEditing(cancelledNode, false);
             }
+            return result.manipulator;
         } catch (ChangeCancelledException ex) {
             this.clearEditedNodes();
+            return null;
         }
     }
 
@@ -1767,5 +1801,15 @@ public class PlayerEditState implements CoasterWorldComponent {
             this.nodes = nodes;
             this.distance = distance;
         }
+    }
+
+    /**
+     * An action to be performed using the node-drag manipulator. Actions can include
+     * equalizing the spacing between nodes or inserting/deleting nodes in the selected
+     * 'shape'. Manipulator actions are effectively batch operations.
+     */
+    @FunctionalInterface
+    public interface ManipulatorAction {
+        void perform(NodeDragManipulator manipulator) throws ChangeCancelledException;
     }
 }

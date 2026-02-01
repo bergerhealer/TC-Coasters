@@ -30,7 +30,7 @@ public class DraggedTrackNode {
 
     public DraggedTrackNode(TrackNode node) {
         this.node = node;
-        this.node_zd = null; //TODO: Implement node.getZeroDistanceNeighbour();
+        this.node_zd = node.getZeroDistanceNeighbour();
         this.startState = node.getState();
     }
 
@@ -83,6 +83,27 @@ public class DraggedTrackNode {
     }
 
     /**
+     * Gets all connections of this dragged node. Includes connections from the zero-distance
+     * neighbour, if any, except for the connection between the node and the zero-distance one.
+     *
+     * @return Connections
+     */
+    public List<TrackConnection> getConnections() {
+        if (node_zd == null) {
+            return node.getConnections();
+        } else {
+            List<TrackConnection> connections = new ArrayList<>(node.getConnections());
+            for (TrackConnection conn : node_zd.getConnections()) {
+                if (conn.getOtherNode(node_zd) == node) {
+                    continue;
+                }
+                connections.add(conn);
+            }
+            return connections;
+        }
+    }
+
+    /**
      * Creates DraggedTrackNode instances for all provided nodes. De-duplicates nodes that
      * are zero-distance neighbours of each other.
      *
@@ -117,7 +138,7 @@ public class DraggedTrackNode {
      * @param <N> Type of dragged node
      * @return Map from TrackNode to DraggedTrackNode
      */
-    public static <N extends DraggedTrackNode> Map<TrackNode, N> listToMap(List<N> draggedNodes) {
+    public static <N extends DraggedTrackNode> Map<TrackNode, N> listToMap(Collection<N> draggedNodes) {
         Map<TrackNode, N> map = new HashMap<>(draggedNodes.size());
         for (N draggedNode : draggedNodes) {
             map.put(draggedNode.node, draggedNode);
