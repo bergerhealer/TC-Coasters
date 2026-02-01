@@ -74,6 +74,12 @@ public class NodeDragHandler {
             this.finish(state.getHistory());
         }
 
+        // Previous finish() could be changing the selected nodes
+        editedNodes = state.getEditedNodes();
+        if (editedNodes.isEmpty()) {
+            return new DragResult(Collections.emptyList(), null);
+        }
+
         // If no manipulator is set yet, create one
         if (manipulator == null) {
             // Fire start events for all nodes to be edited and keep track of cancelled ones
