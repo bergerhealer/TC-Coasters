@@ -1,7 +1,6 @@
 package com.bergerkiller.bukkit.coasters.editor.manipulation;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
-import com.bergerkiller.bukkit.coasters.editor.PlayerEditNode;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
@@ -19,42 +18,49 @@ import org.bukkit.util.Vector;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
  * Base logic for all manipulators. Adds some common logic, such as handling
  * saving the changes on finish into the player's history.
+ *
+ * @param <N> Type of DraggedTrackNode used
  */
-public abstract class NodeDragManipulatorBase implements NodeDragManipulator {
+public abstract class NodeDragManipulatorBase<N extends DraggedTrackNode> implements NodeDragManipulator {
     protected final PlayerEditState state;
-    protected final List<PlayerEditNode> editedNodes;
+    protected final List<N> draggedNodes;
 
-    public NodeDragManipulatorBase(PlayerEditState state, Map<TrackNode, PlayerEditNode> editedNodes) {
+    public NodeDragManipulatorBase(PlayerEditState state, List<DraggedTrackNode> draggedNodes, Function<DraggedTrackNode, N> converter) {
         this.state = state;
-        this.editedNodes = new ArrayList<>(editedNodes.values());
+        this.draggedNodes = draggedNodes.stream().map(converter).collect(Collectors.toList());
+    }
+
+    public NodeDragManipulatorBase(PlayerEditState state, List<N> draggedNodes) {
+        this.state = state;
+        this.draggedNodes = draggedNodes;
     }
 
     /**
      * Moves a single node according to the drag event. This is used in position manipulation mode.
      *
-     * @param editNode PlayerEditNode
+     * @param draggedNode DraggedTrackNode
      * @param event Node drag event
      * @param isSingleNode Whether only a single node is dragged. Has special meaning for snapping against blocks.
      * @return Node drag position after move
      */
-    protected NodeDragPosition handleDrag(PlayerEditNode editNode, NodeDragEvent event, boolean isSingleNode) {
+    protected NodeDragPosition handleDrag(DraggedTrackNode draggedNode, NodeDragEvent event, boolean isSingleNode) {
         Player player = state.getPlayer();
 
         // Recover null
-        if (editNode.dragPosition == null) {
-            editNode.dragPosition = editNode.node.getPosition().clone();
+        if (draggedNode.dragPosition == null) {
+            draggedNode.dragPosition = draggedNode.node.getPosition().clone();
         }
 
         // Transform position and compute direction using player view position relative to the node
-        event.change().transformPoint(editNode.dragPosition);
-        Vector position = editNode.dragPosition.clone();
-        Vector orientation = editNode.startState.orientation.clone();
+        event.change().transformPoint(draggedNode.dragPosition);
+        Vector position = draggedNode.dragPosition.clone();
+        Vector orientation = draggedNode.startState.orientation.clone();
         Vector direction = position.clone().subtract(player.getEyeLocation().toVector()).normalize();
         if (Double.isNaN(direction.getX())) {
             direction = player.getEyeLocation().getDirection();
@@ -65,14 +71,14 @@ public abstract class NodeDragManipulatorBase implements NodeDragManipulator {
         // When sneaking, disable this functionality
         // When more than 1 node is selected, only do this for nodes with 1 or less connections
         // This is to avoid severe performance problems when moving a lot of track at once
-        if (!state.isSneaking() && (isSingleNode || editNode.node.getConnections().size() <= 1)) {
+        if (!state.isSneaking() && (isSingleNode || draggedNode.node.getConnections().size() <= 1)) {
             Vector eyePos = player.getEyeLocation().toVector();
             TCCoastersUtil.snapToBlock(state.getBukkitWorld(), eyePos, position, orientation);
 
-            if (TCCoastersUtil.snapToCoasterRails(editNode.node, position, orientation, n -> !state.isEditing(n))) {
+            if (TCCoastersUtil.snapToCoasterRails(draggedNode.node, position, orientation, n -> !state.isEditing(n))) {
                 // Play particle effects to indicate we are snapping to the coaster rails
                 PlayerUtil.spawnDustParticles(player, position, Color.RED);
-            } else if (TCCoastersUtil.snapToRails(state.getBukkitWorld(), editNode.node.getRailBlock(true), position, direction, orientation)) {
+            } else if (TCCoastersUtil.snapToRails(state.getBukkitWorld(), draggedNode.node.getRailBlock(true), position, direction, orientation)) {
                 // Play particle effects to indicate we are snapping to the rails
                 PlayerUtil.spawnDustParticles(player, position, Color.PURPLE);
             }
@@ -96,12 +102,7 @@ public abstract class NodeDragManipulatorBase implements NodeDragManipulator {
         }
 
         TrackWorld tracks = state.getWorld().getTracks();
-        PlayerEditNode draggedNode = editedNodes.iterator().next();
-
-        // If we never even began moving this node, do nothing
-        if (!draggedNode.hasMoveBegun()) {
-            return false;
-        }
+        DraggedTrackNode draggedNode = draggedNodes.iterator().next();
 
         // Get all nodes nearby the position, sorted from close to far
         // Pick first (closest) node that is not the node(s) dragged
@@ -114,131 +115,117 @@ public abstract class NodeDragManipulatorBase implements NodeDragManipulator {
 
         // Merge if found
         if (initialDroppedNode != null) {
-            try {
-                // Save all connections the dragged node had
-                List<TrackConnectionState> previousConnections = draggedNode.node.getConnections().stream()
-                        .filter(c -> !c.isConnected(initialDroppedNode))
-                        .map(TrackConnectionState::create)
-                        .collect(Collectors.toCollection(ArrayList::new));
+            // Save all connections the dragged node had
+            List<TrackConnectionState> previousConnections = draggedNode.node.getConnections().stream()
+                    .filter(c -> !c.isConnected(initialDroppedNode))
+                    .map(TrackConnectionState::create)
+                    .collect(Collectors.toCollection(ArrayList::new));
 
-                // Undo the changes to the node position as a result of the drag
-                draggedNode.node.setState(draggedNode.startState);
+            // Undo the changes to the node position as a result of the drag
+            draggedNode.node.setState(draggedNode.startState);
 
-                // Track all the changes we are doing down below.
-                // Delete the original node, and connections to the node, the player was dragging
-                HistoryChange changes = history.addChangeBeforeDeleteNode(state.getPlayer(), draggedNode.node);
-                draggedNode.node.remove();
+            // Track all the changes we are doing down below.
+            // Delete the original node, and connections to the node, the player was dragging
+            HistoryChange changes = history.addChangeBeforeDeleteNode(state.getPlayer(), draggedNode.node);
+            draggedNode.node.remove();
 
-                // If the dropped node has a zero-distance neighbour, special care must be taken
-                // If it or itself is an orphan, purge the right orphan node accordingly
-                // If both nodes have connections already, it becomes a junction, so then
-                // one of the two nodes must be removed and connections transferred over.
-                final TrackNode initialDroppedZDNode = initialDroppedNode.getZeroDistanceNeighbour();
+            // If the dropped node has a zero-distance neighbour, special care must be taken
+            // If it or itself is an orphan, purge the right orphan node accordingly
+            // If both nodes have connections already, it becomes a junction, so then
+            // one of the two nodes must be removed and connections transferred over.
+            final TrackNode initialDroppedZDNode = initialDroppedNode.getZeroDistanceNeighbour();
 
-                // Prefer connecting with a zero-distance orphan node
-                TrackNode droppedZDNode = initialDroppedZDNode;
-                TrackNode droppedNode = initialDroppedNode;
-                if (droppedZDNode != null && droppedZDNode.isZeroDistanceOrphan()) {
-                    // If both are orphans, there is no way to resolve this through connecting later
-                    // Get rid of the duplicate orphan
-                    if (droppedNode.isZeroDistanceOrphan()) {
-                        previousConnections.removeIf(c -> c.isConnected(initialDroppedZDNode));
-                        droppedZDNode.remove();
-                        droppedZDNode = null;
-                    } else {
-                        previousConnections.removeIf(c -> c.isConnected(initialDroppedNode));
-                        droppedZDNode = droppedNode;
-                        droppedNode = initialDroppedZDNode;
-                    }
+            // Prefer connecting with a zero-distance orphan node
+            TrackNode droppedZDNode = initialDroppedZDNode;
+            TrackNode droppedNode = initialDroppedNode;
+            if (droppedZDNode != null && droppedZDNode.isZeroDistanceOrphan()) {
+                // If both are orphans, there is no way to resolve this through connecting later
+                // Get rid of the duplicate orphan
+                if (droppedNode.isZeroDistanceOrphan()) {
+                    previousConnections.removeIf(c -> c.isConnected(initialDroppedZDNode));
+                    droppedZDNode.remove();
+                    droppedZDNode = null;
+                } else {
+                    previousConnections.removeIf(c -> c.isConnected(initialDroppedNode));
+                    droppedZDNode = droppedNode;
+                    droppedNode = initialDroppedZDNode;
                 }
-
-                if (droppedZDNode != null) {
-                    // If node being dropped on is an orphan, and there's nothing to connect to
-                    // after, then just fix up the orphan situation
-                    if (droppedNode.isZeroDistanceOrphan() && previousConnections.isEmpty()) {
-                        droppedNode.remove();
-                        state.selectNode(droppedZDNode);
-                        return true; // Skip everything
-                    }
-
-                    // If there's connections and we got two non-orphaned straightened nodes,
-                    // then it would turn into a junction. Make sure to make it curved first.
-                    if (previousConnections.size() > 1 || (!previousConnections.isEmpty() && !droppedNode.isZeroDistanceOrphan())) {
-                        state.makeNodeConnectionsCurved(history, droppedNode);
-                        droppedZDNode = null; // Removed
-                    }
-                }
-
-                // Connect all that was connected to it, with the one dropped on
-                for (TrackConnectionState connectionState : previousConnections) {
-                    TrackConnection connection = tracks.connect(connectionState.replaceNode(draggedNode.node, droppedNode), true);
-                    if (connection != null) {
-                        changes.addChangeAfterConnect(state.getPlayer(), connection);
-                        state.addConnectionForAnimationStates(droppedNode, connection.getOtherNode(droppedNode));
-                        state.addConnectionForAnimationStates(connection.getOtherNode(droppedNode), droppedNode);
-                    }
-                }
-
-                // Select the node it was dropped on
-                state.selectNode(droppedNode);
-                if (droppedZDNode != null) {
-                    state.selectNode(droppedZDNode);
-                }
-
-                // Do not do the standard position/orientation change saving down below
-                return true;
-            } finally {
-                draggedNode.moveEnd();
             }
+
+            if (droppedZDNode != null) {
+                // If node being dropped on is an orphan, and there's nothing to connect to
+                // after, then just fix up the orphan situation
+                if (droppedNode.isZeroDistanceOrphan() && previousConnections.isEmpty()) {
+                    droppedNode.remove();
+                    state.selectNode(droppedZDNode);
+                    return true; // Skip everything
+                }
+
+                // If there's connections and we got two non-orphaned straightened nodes,
+                // then it would turn into a junction. Make sure to make it curved first.
+                if (previousConnections.size() > 1 || (!previousConnections.isEmpty() && !droppedNode.isZeroDistanceOrphan())) {
+                    state.makeNodeConnectionsCurved(history, droppedNode);
+                    droppedZDNode = null; // Removed
+                }
+            }
+
+            // Connect all that was connected to it, with the one dropped on
+            for (TrackConnectionState connectionState : previousConnections) {
+                TrackConnection connection = tracks.connect(connectionState.replaceNode(draggedNode.node, droppedNode), true);
+                if (connection != null) {
+                    changes.addChangeAfterConnect(state.getPlayer(), connection);
+                    state.addConnectionForAnimationStates(droppedNode, connection.getOtherNode(droppedNode));
+                    state.addConnectionForAnimationStates(connection.getOtherNode(droppedNode), droppedNode);
+                }
+            }
+
+            // Select the node it was dropped on
+            state.selectNode(droppedNode);
+            if (droppedZDNode != null) {
+                state.selectNode(droppedZDNode);
+            }
+
+            // Do not do the standard position/orientation change saving down below
+            return true;
         }
 
         return false;
     }
 
     protected void recordEditedNodesInHistory(HistoryChangeCollection history) throws ChangeCancelledException {
-        try {
-            // Before processing, fire an event for all nodes that changed. If any of them fail (permissions!),
-            // cancel the entire move operation for all other nodes, too.
-            {
-                HistoryChange changes = null;
-                for (PlayerEditNode editNode : editedNodes) {
-                    if (editNode.hasMoveBegun()) {
-                        try {
-                            if (changes == null) {
-                                changes = history.addChangeGroup();
-                            }
-                            changes.addChangeAfterChangingNode(state.getPlayer(), editNode.node, editNode.startState);
-                        } catch (ChangeCancelledException ex) {
-                            // Undo all changes that were already executed or are going to be executed for other nodes
-                            // Ignore the one that was already cancelled
-                            for (PlayerEditNode prevModifiedNode : editedNodes) {
-                                if (prevModifiedNode != editNode) {
-                                    prevModifiedNode.node.setState(prevModifiedNode.startState);
-                                }
-                            }
-                            throw ex;
+        // Before processing, fire an event for all nodes that changed. If any of them fail (permissions!),
+        // cancel the entire move operation for all other nodes, too.
+        {
+            HistoryChange changes = null;
+            for (DraggedTrackNode draggedNode : draggedNodes) {
+                try {
+                    if (changes == null) {
+                        changes = history.addChangeGroup();
+                    }
+                    changes.addChangeAfterChangingNode(state.getPlayer(), draggedNode.node, draggedNode.startState);
+                } catch (ChangeCancelledException ex) {
+                    // Undo all changes that were already executed or are going to be executed for other nodes
+                    // Ignore the one that was already cancelled
+                    for (DraggedTrackNode prevModifiedNode : draggedNodes) {
+                        if (prevModifiedNode != draggedNode) {
+                            prevModifiedNode.node.setState(prevModifiedNode.startState);
                         }
                     }
+                    throw ex;
                 }
             }
+        }
 
-            // Update position and orientation of animation state, if one is selected
-            String selectedAnimation = state.getSelectedAnimation();
-            if (selectedAnimation != null) {
-                for (PlayerEditNode editNode : editedNodes) {
-                    if (editNode.hasMoveBegun()) {
-                        TrackNodeAnimationState animState = editNode.node.findAnimationState(selectedAnimation);
-                        if (animState != null) {
-                            editNode.node.setAnimationState(animState.name,
-                                    editNode.node.getState().changeRail(animState.state.railBlock),
-                                    animState.connections);
-                        }
-                    }
+        // Update position and orientation of animation state, if one is selected
+        String selectedAnimation = state.getSelectedAnimation();
+        if (selectedAnimation != null) {
+            for (DraggedTrackNode draggedNode : draggedNodes) {
+                TrackNodeAnimationState animState = draggedNode.node.findAnimationState(selectedAnimation);
+                if (animState != null) {
+                    draggedNode.node.setAnimationState(animState.name,
+                            draggedNode.node.getState().changeRail(animState.state.railBlock),
+                            animState.connections);
                 }
-            }
-        } finally {
-            for (PlayerEditNode editNode : editedNodes) {
-                editNode.moveEnd();
             }
         }
     }
@@ -252,7 +239,7 @@ public abstract class NodeDragManipulatorBase implements NodeDragManipulator {
             this.orientation = orientation;
         }
 
-        public void applyTo(TrackNode node) {
+        public void applyTo(DraggedTrackNode node) {
             node.setPosition(position);
             node.setOrientation(orientation);
         }

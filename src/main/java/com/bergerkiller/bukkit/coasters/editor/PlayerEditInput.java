@@ -52,6 +52,15 @@ public final class PlayerEditInput {
     }
 
     /**
+     * Gets the Player this input is for
+     *
+     * @return Player
+     */
+    public Player getPlayer() {
+        return player;
+    }
+
+    /**
      * Gets the current player input transformation sample
      * 
      * @return transform matrix
