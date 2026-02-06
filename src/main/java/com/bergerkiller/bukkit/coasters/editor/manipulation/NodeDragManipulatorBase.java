@@ -203,13 +203,23 @@ public abstract class NodeDragManipulatorBase<N extends DraggedTrackNode> implem
                     if (changes == null) {
                         changes = history.addChangeGroup();
                     }
-                    changes.addChangeAfterChangingNode(state.getPlayer(), draggedNode.node, draggedNode.startState);
+                    if (!draggedNode.node.isRemoved()) {
+                        changes.addChangeAfterChangingNode(state.getPlayer(), draggedNode.node, draggedNode.startState);
+                    }
+                    if (draggedNode.node_zd != null && !draggedNode.node_zd.isRemoved()) {
+                        changes.addChangeAfterChangingNode(state.getPlayer(), draggedNode.node_zd, draggedNode.startState);
+                    }
                 } catch (ChangeCancelledException ex) {
                     // Undo all changes that were already executed or are going to be executed for other nodes
                     // Ignore the one that was already cancelled
                     for (DraggedTrackNode prevModifiedNode : draggedNodes) {
                         if (prevModifiedNode != draggedNode) {
-                            prevModifiedNode.node.setState(prevModifiedNode.startState);
+                            if (!prevModifiedNode.node.isRemoved()) {
+                                prevModifiedNode.node.setState(prevModifiedNode.startState);
+                            }
+                            if (prevModifiedNode.node_zd != null && !prevModifiedNode.node_zd.isRemoved()) {
+                                prevModifiedNode.node_zd.setState(prevModifiedNode.startState);
+                            }
                         }
                     }
                     throw ex;

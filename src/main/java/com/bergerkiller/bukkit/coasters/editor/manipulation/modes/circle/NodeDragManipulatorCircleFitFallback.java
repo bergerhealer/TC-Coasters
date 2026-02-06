@@ -98,7 +98,7 @@ class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<
     }
 
     @Override
-    public void equalizeNodeSpacing() throws ChangeCancelledException {
+    public void equalizeNodeSpacing(HistoryChangeCollection history) throws ChangeCancelledException {
         DraggedTrackNodeSpacingEqualizer<DraggedTrackNodeOnCircle> equalizer = new DraggedTrackNodeSpacingEqualizer<>(draggedNodes);
         equalizer.findChains();
         if (equalizer.chains.isEmpty()) {

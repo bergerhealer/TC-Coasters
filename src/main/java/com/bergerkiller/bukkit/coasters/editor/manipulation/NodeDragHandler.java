@@ -53,6 +53,23 @@ public class NodeDragHandler {
     }
 
     /**
+     * Finishes the current manipulation if the edited nodes have changed.
+     *
+     * @param state Player edit state to check the edited nodes of
+     * @param history History change collection to commit changes to if the manipulation needs to be finished
+     * @throws ChangeCancelledException If the change is cancelled
+     */
+    public void finishIfSelectionChanged(PlayerEditState state, HistoryChangeCollection history) throws ChangeCancelledException {
+        // If a manipulator is active, verify that the edited nodes are still the same
+        // If not, finish the previous manipulator and resume with a newly created one
+        if (manipulator != null && !areEditedNodesEqual(this.editedNodesSaveState, state.getEditedNodes())) {
+            // This could throw (fail to commit), in which case no drag is started
+            // Caller will reset selected nodes to resolve the problem.
+            this.finish(history);
+        }
+    }
+
+    /**
      * Called every tick while a drag is happening. Automatically initializes and re-initializes
      * the drag operation as needed.
      *
@@ -66,13 +83,7 @@ public class NodeDragHandler {
             return new DragResult(Collections.emptyList(), null);
         }
 
-        // If a manipulator is active, verify that the edited nodes are still the same
-        // If not, finish the previous manipulator and resume with a newly created one
-        if (manipulator != null && !areEditedNodesEqual(this.editedNodesSaveState, editedNodes)) {
-            // This could throw (fail to commit), in which case no drag is started
-            // Caller will reset selected nodes to resolve the problem.
-            this.finish(state.getHistory());
-        }
+        finishIfSelectionChanged(state, state.getHistory());
 
         // Previous finish() could be changing the selected nodes
         editedNodes = state.getEditedNodes();

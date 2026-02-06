@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.commands;
 import com.bergerkiller.bukkit.coasters.commands.annotations.CommandRequiresSelectedNodes;
 import com.bergerkiller.bukkit.coasters.commands.annotations.CommandRequiresTCCPermission;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragManipulator;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
@@ -24,10 +25,49 @@ class EditStateShapeCommands {
             final PlayerEditState state,
             final CommandSender sender
     ) {
-        if (state.performManipulation(NodeDragManipulator::equalizeNodeSpacing)) {
+        HistoryChangeCollection history = state.getHistory().addChangeGroup();
+        if (state.performManipulation(history, NodeDragManipulator::equalizeNodeSpacing)) {
             sender.sendMessage(ChatColor.GREEN + "The selected nodes have been evenly spaced");
         } else {
             sender.sendMessage(ChatColor.RED + "The selected nodes could not be evenly spaced");
+        }
+    }
+
+    @CommandRequiresTCCPermission
+    @CommandRequiresSelectedNodes
+    @Command("finer")
+    @CommandDescription("Inserts additional nodes between the selected nodes, making the shape finer")
+    public void commandShapeFiner(
+            final PlayerEditState state,
+            final CommandSender sender
+    ) {
+        HistoryChangeCollection history = state.getHistory().addChangeGroup();
+        if (state.performManipulation(history, NodeDragManipulator::makeFiner)) {
+            sender.sendMessage(ChatColor.GREEN + "Inserted additional node(s) between the selected nodes");
+            if (!state.performManipulation(history, NodeDragManipulator::equalizeNodeSpacing)) {
+                sender.sendMessage(ChatColor.RED + "The selected nodes could not be evenly spaced");
+            }
+        } else {
+            sender.sendMessage(ChatColor.RED + "Could not insert additional nodes between the selected nodes");
+        }
+    }
+
+    @CommandRequiresTCCPermission
+    @CommandRequiresSelectedNodes
+    @Command("courser")
+    @CommandDescription("Removes nodes between the selected nodes, making the shape courser")
+    public void commandShapeCourser(
+            final PlayerEditState state,
+            final CommandSender sender
+    ) {
+        HistoryChangeCollection history = state.getHistory().addChangeGroup();
+        if (state.performManipulation(history, NodeDragManipulator::makeCourser)) {
+            sender.sendMessage(ChatColor.GREEN + "Removed node(s) between the selected nodes");
+            if (!state.performManipulation(history, NodeDragManipulator::equalizeNodeSpacing)) {
+                sender.sendMessage(ChatColor.RED + "The selected nodes could not be evenly spaced");
+            }
+        } else {
+            sender.sendMessage(ChatColor.RED + "Could not remove node(s) between the selected nodes");
         }
     }
 }
