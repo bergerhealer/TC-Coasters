@@ -674,7 +674,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         if (this.getMode() == PlayerEditMode.POSITION && this.isHoldingRightClick()) {
             // Complete moving the original selected node(s), call onEditingFinished
             try {
-                this.dragManipulationFinish();
+                this.dragManipulationFinish(null);
                 this.heldDownTicks = 0;
             } catch (ChangeCancelledException e) {
                 // Couldn't place the node(s) here, the change was aborted
@@ -935,7 +935,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         } else {
             if (this.heldDownTicks > 0) {
                 try {
-                    this.dragManipulationFinish();
+                    this.dragManipulationFinish(null);
                 } catch (ChangeCancelledException e) {
                     this.clearEditedNodes();
                 }
@@ -1359,64 +1359,14 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
 
         // Insert a new node in the middle of all selected connections
-        // Select these created nodes
-        List<TrackNode> createdConnNodes = new ArrayList<TrackNode>();
+        // These created nodes are selected, so skip them down below
+        List<TrackNode> createdSplitNodes = new ArrayList<>();
         for (TrackConnection conn : selectedConnections) {
-            Vector newNodePos = conn.getPosition(0.5);
-            Vector newNodeOri = conn.getOrientation(0.5);
-
             this.setEditing(conn.getNodeA(), false);
             this.setEditing(conn.getNodeB(), false);
 
-            // Save all track objects currently on this connection before removal
-            TrackObject[] objectsToRestore = TrackObject.listToArray(conn.getObjects(), true);
-            double prevTotalDistance = conn.getFullDistance();
-
-            // Remove old connection
-            changes.addChangeBeforeDisconnect(this.player, conn);
-            conn.remove();
-
-            // Create the new middle node
-            TrackNode newNode = conn.getNodeA().getCoaster().createNewNode(newNodePos, newNodeOri);
-            changes.addChangeCreateNode(this.player, newNode);
-
-            // Create the new connections, can be cancelled
-            TrackConnection newConnA = tracks.connect(conn.getNodeA(), newNode);
-            changes.handleEvent(new CoasterCreateConnectionEvent(this.player, newConnA), newConnA::remove);
-            TrackConnection newConnB = tracks.connect(newNode, conn.getNodeB());
-            changes.handleEvent(new CoasterCreateConnectionEvent(this.player, newConnB), newConnB::remove);
-
-            // Compute the full distances of the two newly created connections
-            // They should be half of the full distance of the connection its replacing,
-            // but I'm not sure if we can guarantee that...
-            double newConnALength = newConnA.getFullDistance();
-            double newConnBLength = newConnB.getFullDistance();
-
-            // Place all track objects back onto the newly created two connections
-            for (TrackObject obj : objectsToRestore) {
-                // Normalize
-                double distance = obj.getDistance();
-                if (prevTotalDistance >= 1e-4) {
-                    distance *= (newConnALength + newConnBLength) / prevTotalDistance;
-                }
-
-                // Which one?
-                if (distance >= newConnALength) {
-                    distance -= newConnALength;
-                    distance = Math.min(newConnBLength, distance);
-
-                    obj.setDistanceFlippedSilently(distance, obj.isFlipped());
-                    newConnB.addObject(obj);
-                } else {
-                    obj.setDistanceFlippedSilently(distance, obj.isFlipped());
-                    newConnA.addObject(obj);
-                }
-            }
-
-            // Add to history tracking now that the objects have been added
-            changes.addChange(new HistoryChangeConnect(newConnA));
-            changes.addChange(new HistoryChangeConnect(newConnB));
-            createdConnNodes.add(newNode);
+            TrackNode newNode = splitConnection(conn, changes);
+            createdSplitNodes.add(newNode);
         }
 
         // When clicking on a block or when only having one node selected, create a new node
@@ -1438,7 +1388,7 @@ public class PlayerEditState implements CoasterWorldComponent {
                 prevNode = node;
             }
         } else {
-            // Add a new node connecting to existing selected nodes
+            // Add a new node connecting to existing selected node
             TrackNode newNode = null;
             for (TrackNode node : getEditedNodes()) {
                 if (newNode == null) {
@@ -1459,10 +1409,171 @@ public class PlayerEditState implements CoasterWorldComponent {
             }
         }
 
-        // Set all new nodes we created as editing, too.
-        for (TrackNode node : createdConnNodes) {
-            setEditing(node, true);
+        for (TrackNode newNode : createdSplitNodes) {
+            setEditing(newNode, true);
         }
+    }
+
+    /**
+     * Splits a connection in two, inserting a new node in the middle.
+     * The newly inserted node is automatically selected.
+     *
+     * @param connection TrackConnection to split
+     * @param history History to record changes to
+     * @return The new node created in the middle of the connection
+     * @throws ChangeCancelledException If the change was cancelled
+     */
+    public TrackNode splitConnection(TrackConnection connection, HistoryChangeCollection history) throws ChangeCancelledException {
+        TrackWorld tracks = getWorld().getTracks();
+
+        Vector newNodePos = connection.getPosition(0.5);
+        Vector newNodeOri = connection.getOrientation(0.5);
+
+        // Save all track objects currently on this connection before removal
+        TrackObject[] objectsToRestore = TrackObject.listToArray(connection.getObjects(), true);
+        double prevTotalDistance = connection.getFullDistance();
+
+        // Remove old connection
+        history.addChangeBeforeDisconnect(this.player, connection);
+        connection.remove();
+
+        // Create the new middle node
+        TrackNode newNode = connection.getNodeA().getCoaster().createNewNode(newNodePos, newNodeOri);
+        history.addChangeCreateNode(this.player, newNode);
+
+        // Create the new connections, can be cancelled
+        TrackConnection newConnA = tracks.connect(connection.getNodeA(), newNode);
+        history.handleEvent(new CoasterCreateConnectionEvent(this.player, newConnA), newConnA::remove);
+        TrackConnection newConnB = tracks.connect(newNode, connection.getNodeB());
+        history.handleEvent(new CoasterCreateConnectionEvent(this.player, newConnB), newConnB::remove);
+
+        // Compute the full distances of the two newly created connections
+        // They should be half of the full distance of the connection its replacing,
+        // but I'm not sure if we can guarantee that...
+        double newConnALength = newConnA.getFullDistance();
+        double newConnBLength = newConnB.getFullDistance();
+
+        // Place all track objects back onto the newly created two connections
+        for (TrackObject obj : objectsToRestore) {
+            // Normalize
+            double distance = obj.getDistance();
+            if (prevTotalDistance >= 1e-4) {
+                distance *= (newConnALength + newConnBLength) / prevTotalDistance;
+            }
+
+            // Which one?
+            if (distance >= newConnALength) {
+                distance -= newConnALength;
+                distance = Math.min(newConnBLength, distance);
+
+                obj.setDistanceFlippedSilently(distance, obj.isFlipped());
+                newConnB.addObject(obj);
+            } else {
+                obj.setDistanceFlippedSilently(distance, obj.isFlipped());
+                newConnA.addObject(obj);
+            }
+        }
+
+        // Add to history tracking now that the objects have been added
+        history.addChange(new HistoryChangeConnect(newConnA));
+        history.addChange(new HistoryChangeConnect(newConnB));
+
+        // Select the new node
+        this.setEditing(newNode, true);
+
+        return newNode;
+    }
+
+    /**
+     * Removes a node, and connects the connecting nodes with each other instead.
+     * The track objects on the connections are preserved as well, and placed back onto the new
+     * connection in the same relative positions.
+     *
+     * @param node Node to remove
+     * @param history History to record changes to
+     * @throws ChangeCancelledException If the change was cancelled
+     */
+    public void mergeRemoveNode(TrackNode node, HistoryChangeCollection history) throws ChangeCancelledException {
+        TrackWorld tracks = getWorld().getTracks();
+
+        // Validate connections. Keep track of a zero-distance neighbour as well.
+        List<TrackConnection> connections = new ArrayList<>(node.getConnections());
+        TrackNode nodeZD = node.getZeroDistanceNeighbour();
+        if (nodeZD != null) {
+            connections.addAll(nodeZD.getConnections());
+            connections.removeIf(c -> c.isConnected(node) && c.isConnected(nodeZD));
+        }
+        if (connections.size() < 2) {
+            // Remove trailing node
+            history.addChangeBeforeDeleteNode(this.player, node);
+            node.remove();
+            return;
+        }
+        if (connections.size() > 2) {
+            // Can't merge, too many connections
+            return;
+        }
+
+        // The connections surrounding the node
+        TrackConnection connA = connections.get(0);
+        TrackConnection connB = connections.get(1);
+
+        // The nodes connected to the node (or zero-distance neighbour if straightened)
+        TrackNode neightNodeA = (connA.getNodeA() == node || connA.getNodeA() == nodeZD) ? connA.getNodeB() : connA.getNodeA();
+        TrackNode neightNodeB = (connB.getNodeA() == node || connB.getNodeA() == nodeZD) ? connB.getNodeB() : connB.getNodeA();
+
+        // Save all track objects that exist on the old two connections before removal
+        // Adjust the distance value for the objects to be the full distance of the new replacement connection,
+        // and also adjust it so that the distance saved is FROM neightNodeA to neightNodeB
+        List<TrackObject> objectsToRestore;
+        if (connA.hasObjects() || connB.hasObjects()) {
+            objectsToRestore = new ArrayList<>();
+
+            for (TrackObject obj : connA.getObjects()) {
+                if (connA.getNodeA() == neightNodeA) {
+                    objectsToRestore.add(obj.clone());
+                } else {
+                    objectsToRestore.add(obj.cloneFlipEnds(connA));
+                }
+            }
+
+            for (TrackObject obj : connB.getObjects()) {
+                TrackObject clonedObj;
+                if (connB.getNodeA() == neightNodeB) {
+                    clonedObj = obj.clone();
+                } else {
+                    clonedObj = obj.cloneFlipEnds(connB);
+                }
+                clonedObj.setDistanceFlippedSilently(clonedObj.getDistance() + connA.getFullDistance(), clonedObj.isFlipped());
+                objectsToRestore.add(clonedObj);
+            }
+        } else {
+            objectsToRestore = Collections.emptyList();
+        }
+
+        history.addChangeBeforeDisconnect(this.player, connA);
+        history.addChangeBeforeDisconnect(this.player, connB);
+        history.addChangeBeforeDeleteNode(this.player, node);
+
+        connA.remove();
+        connB.remove();
+        node.remove();
+
+        // Connect the nodes together again
+        TrackConnection newConn = tracks.connect(neightNodeA, neightNodeB);
+        history.handleEvent(new CoasterCreateConnectionEvent(this.player, newConn), newConn::remove);
+
+        // Place all track objects back onto the newly created connection
+        for (TrackObject obj : objectsToRestore) {
+            if (newConn.getNodeA() != neightNodeA) {
+                obj.setDistanceFlippedSilently(newConn.getFullDistance() - obj.getDistance(), !obj.isFlipped());
+            }
+
+            newConn.addObject(obj);
+        }
+
+        // Save history
+        history.addChange(new HistoryChangeConnect(newConn));
     }
 
     /**
@@ -1623,10 +1734,11 @@ public class PlayerEditState implements CoasterWorldComponent {
      * The type of manipulator that runs the action depends on what menu the user has activated.
      * For example: if the circle shape mode is active, then the nodes will be fit to a circle shape.
      *
+     * @param history History to record changes to
      * @param action Action to perform
      * @return True if successful, false if cancelled
      */
-    public boolean performManipulation(ManipulatorAction action) {
+    public boolean performManipulation(HistoryChangeCollection history, ManipulatorAction action) {
         /** If not already dragging we got to finish dragging right after the function is called */
         boolean finishAfterCall = !dragHandler.isManipulating();
 
@@ -1636,9 +1748,11 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
 
         try {
-            action.perform(manipulator);
+            action.perform(manipulator, history);
             if (finishAfterCall) {
-                dragManipulationFinish();
+                dragManipulationFinish(history);
+            } else {
+                dragHandler.finishIfSelectionChanged(this, history);
             }
             return true;
         } catch (ChangeCancelledException ex) {
@@ -1678,22 +1792,24 @@ public class PlayerEditState implements CoasterWorldComponent {
     }
 
     // when player releases the right-click mouse button
-    private void dragManipulationFinish() throws ChangeCancelledException {
+    private void dragManipulationFinish(HistoryChangeCollection history) throws ChangeCancelledException {
         // Deselect locked nodes that we cannot edit
         this.deselectLockedNodes();
 
         // When we left-clicked while right-click dragging earlier, we made some changes to split the node
         // We want the new position of this dragged node to be merged with those changes, so only one undo is needed
         // If this is not the case, then we just add a new change to the history itself
-        HistoryChangeCollection dragParent = this.getHistory();
-        if (this.draggingCreateNewNodeChange != null && this.draggingCreateNewNodeChange == this.getHistory().getLastChange()) {
-            dragParent = this.draggingCreateNewNodeChange;
+        if (history == null) {
+            history = this.getHistory();
+            if (this.draggingCreateNewNodeChange != null && this.draggingCreateNewNodeChange == this.getHistory().getLastChange()) {
+                history = this.draggingCreateNewNodeChange;
+            }
+            this.draggingCreateNewNodeChange = null;
         }
-        this.draggingCreateNewNodeChange = null;
 
         // Perform finishing logic if we were manipulating before
         if (dragHandler.isManipulating()) {
-            dragHandler.finish(dragParent);
+            dragHandler.finish(history);
         }
 
         // For moving track objects, store the changes / fire after change event
@@ -1815,6 +1931,6 @@ public class PlayerEditState implements CoasterWorldComponent {
      */
     @FunctionalInterface
     public interface ManipulatorAction {
-        void perform(NodeDragManipulator manipulator) throws ChangeCancelledException;
+        void perform(NodeDragManipulator manipulator, HistoryChangeCollection history) throws ChangeCancelledException;
     }
 }

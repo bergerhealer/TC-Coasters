@@ -10,6 +10,12 @@ import java.util.List;
  * Handles node drag events and manipulates the selected nodes accordingly.
  */
 public interface NodeDragManipulator {
+    /**
+     * Minimum distance kept between nodes while dragging to avoid nodes merging.
+     * Nodes will move aside to maintain this distance. And the finer operation will
+     * not insert more nodes if the distance between two nodes is smaller than this value.
+     */
+    double MINIMUM_CONNECTION_DISTANCE = 0.2;
 
     /**
      * Called when node dragging is started.
@@ -43,9 +49,37 @@ public interface NodeDragManipulator {
      * Depending on what kind of manipulation mode is active, different rules can be used
      * to compute the required spacing.
      *
+     * @param history History change collection to record finalized manipulation changes into
      * @throws ChangeCancelledException If the change is cancelled
      */
-    default void equalizeNodeSpacing() throws ChangeCancelledException {
+    default void equalizeNodeSpacing(HistoryChangeCollection history) throws ChangeCancelledException {
+        throw new ChangeCancelledException();
+    }
+
+    /**
+     * Inserts an additional node where possible, making the manipulated shape finer.
+     * This is used when the user presses the "Make Finer" button. Depending on the manipulation mode,
+     * different rules can be used to determine where the new node is inserted and how it is positioned.
+     * Nodes are created where there is maximal distance between two other connected nodes.<br>
+     * <br>
+     * The newly created nodes are selected automatically.
+     *
+     * @param history History change collection to record finalized manipulation changes into
+     * @throws ChangeCancelledException If the change is cancelled
+     */
+    default void makeFiner(HistoryChangeCollection history) throws ChangeCancelledException {
+        throw new ChangeCancelledException();
+    }
+
+    /**
+     * Removes nodes where possible, making the manipulated shape coarser.
+     * This is used when the user presses the "Make Coarser" button. Depending on the manipulation mode,
+     * different rules can be used to determine which nodes are removed and how the remaining nodes are repositioned.
+     *
+     * @param history History change collection to record finalized manipulation changes into
+     * @throws ChangeCancelledException If the change is cancelled
+     */
+    default void makeCourser(HistoryChangeCollection history) throws ChangeCancelledException {
         throw new ChangeCancelledException();
     }
 

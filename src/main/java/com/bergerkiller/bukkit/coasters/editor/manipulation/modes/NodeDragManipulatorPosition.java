@@ -49,7 +49,7 @@ public class NodeDragManipulatorPosition extends NodeDragManipulatorBase<Dragged
     }
 
     @Override
-    public void equalizeNodeSpacing() throws ChangeCancelledException {
+    public void equalizeNodeSpacing(HistoryChangeCollection history) throws ChangeCancelledException {
         DraggedTrackNodeSpacingEqualizer<DraggedTrackNode> equalizer = new DraggedTrackNodeSpacingEqualizer<>(draggedNodes);
         equalizer.findChains();
         if (equalizer.chains.isEmpty()) {
@@ -57,5 +57,27 @@ public class NodeDragManipulatorPosition extends NodeDragManipulatorBase<Dragged
         }
 
         equalizer.equalizeSpacing();
+    }
+
+    @Override
+    public void makeFiner(HistoryChangeCollection history) throws ChangeCancelledException {
+        DraggedTrackNodeSpacingEqualizer<DraggedTrackNode> equalizer = new DraggedTrackNodeSpacingEqualizer<>(draggedNodes);
+        equalizer.findChains();
+        if (equalizer.chains.isEmpty()) {
+            throw new ChangeCancelledException();
+        }
+
+        equalizer.makeFiner(state, history);
+    }
+
+    @Override
+    public void makeCourser(HistoryChangeCollection history) throws ChangeCancelledException {
+        DraggedTrackNodeSpacingEqualizer<DraggedTrackNode> equalizer = new DraggedTrackNodeSpacingEqualizer<>(draggedNodes);
+        equalizer.findChains();
+        if (equalizer.chains.isEmpty()) {
+            throw new ChangeCancelledException();
+        }
+
+        equalizer.makeCourser(state, history);
     }
 }
