@@ -1,5 +1,9 @@
 package com.bergerkiller.bukkit.coasters.editor.manipulation;
 
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
+import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
+import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
+import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 
@@ -137,6 +141,18 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
         chains.add(comp);
     }
 
+    public void makeFiner(PlayerEditState state, HistoryChangeCollection history) throws ChangeCancelledException {
+        for (NodeChainComputation<N> chain : chains) {
+            chain.makeFiner(state, history);
+        }
+    }
+
+    public void makeCourser(PlayerEditState state, HistoryChangeCollection history) throws ChangeCancelledException {
+        for (NodeChainComputation<N> chain : chains) {
+            chain.makeCourser(state, history);
+        }
+    }
+
     public void equalizeSpacing() {
         for (NodeChainComputation<N> chain : chains) {
             final double stepDistance = chain.fullDistance / (chain.numConnections);
@@ -218,6 +234,57 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
          * Number of connections in the chain
          */
         public int numConnections = 0;
+
+        public void makeFiner(PlayerEditState state, HistoryChangeCollection history) throws ChangeCancelledException {
+            // Abort if node-node distance becomes too short
+            if ((this.fullDistance / (this.numConnections + 1)) <= NodeDragManipulator.MINIMUM_CONNECTION_DISTANCE) {
+                return;
+            }
+
+            // Find the connection with the largest distance between two nodes, and insert a new node there
+            NodeConnectionPath<N> longestPath = null;
+            for (NodeConnectionPath<N> path = start; path != null; path = path.next) {
+                if (longestPath == null || path.fullDistance > longestPath.fullDistance) {
+                    longestPath = path;
+                }
+            }
+            if (longestPath == null) {
+                return;
+            }
+
+            // Break the previous connection in half by inserting a new node in the middle (selected)
+            // At this point this data structure becomes invalid and cannot be used again
+            TrackNode node = state.splitConnection(longestPath.connection, history);
+            state.setEditing(node, true);
+        }
+
+        public void makeCourser(PlayerEditState state, HistoryChangeCollection history) throws ChangeCancelledException {
+            // Need at least one middle node to remove
+            if (this.middleNodes.isEmpty()) {
+                return;
+            }
+
+            // Find the connection with the smallest distance between two nodes, and remove one of its nodes
+            TrackNode nodeWithShortestPaths = null;
+            double shortestTotalDistance = Double.MAX_VALUE;
+            for (NodeConnectionPath<N> path = start; path != null; path = path.next) {
+                NodeConnectionPath next = path.next;
+                if (next == null) {
+                    break;
+                }
+
+                double nodeDistanceTotal = path.fullDistance + next.fullDistance;
+                if (nodeWithShortestPaths == null || nodeDistanceTotal < shortestTotalDistance) {
+                    nodeWithShortestPaths = path.to.node;
+                    shortestTotalDistance = nodeDistanceTotal;
+                }
+            }
+            if (nodeWithShortestPaths == null) {
+                return;
+            }
+
+            state.mergeRemoveNode(nodeWithShortestPaths, history);
+        }
     }
 
     /**
@@ -231,7 +298,8 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
         public final N from;
         public final N to;
         public final TrackConnection connection;
-        public final double fullDistance;
+        public double fullDistance;
+        public NodeConnectionPath<N> prev;
         public NodeConnectionPath<N> next;
 
         public NodeConnectionPath(N from, N to, TrackConnection connection) {
@@ -270,7 +338,10 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
                     return null;
                 }
 
-                return next = new NodeConnectionPath<N>(to, nextDraggedNode, conn);
+                next = new NodeConnectionPath<N>(to, nextDraggedNode, conn);
+                next.prev = this;
+
+                return next;
             }
             return null;
         }

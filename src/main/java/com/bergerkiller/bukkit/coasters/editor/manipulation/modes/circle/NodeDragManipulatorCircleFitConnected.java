@@ -22,12 +22,6 @@ import java.util.stream.Collectors;
  * of circle fit operation, namely curves and such.
  */
 class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit<DraggedTrackNodeOnCircleArc> {
-    /**
-     * Minimum distance kept between nodes while dragging to avoid nodes merging.
-     * Nodes will move aside to maintain this distance.
-     */
-    private static final double MIN_NODE_DIST = 0.2;
-
     /** First node of the sequence of nodes that is selected */
     private final DraggedTrackNodeOnCircleArc first;
     /** Last node of the sequence of nodes that is selected */
@@ -162,7 +156,7 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
     }
 
     @Override
-    public void equalizeNodeSpacing() {
+    public void equalizeNodeSpacing(HistoryChangeCollection history) {
         for (int i = 0; i < middleNodes.size(); i++) {
             middleNodes.get(i).theta = (double) (i + 1) / (middleNodes.size() + 1);
         }
@@ -301,8 +295,8 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
         // Compute theta fraction that corresponds to the minimum distance
         // Abort if this theta fraction is too small to move nodes around
         double arcLength = Math.abs(calc.arcAngle * calc.circle.r);
-        double thetaLimit = MIN_NODE_DIST / arcLength;
-        if (arcLength < MIN_NODE_DIST || (draggedNodes.size() - 1) * thetaLimit >= 1.0) {
+        double thetaLimit = MINIMUM_CONNECTION_DISTANCE / arcLength;
+        if (arcLength < MINIMUM_CONNECTION_DISTANCE || (draggedNodes.size() - 1) * thetaLimit >= 1.0) {
             return; // No room to move nodes
         }
 
