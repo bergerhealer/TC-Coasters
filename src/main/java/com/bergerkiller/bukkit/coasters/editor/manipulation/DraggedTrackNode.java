@@ -55,6 +55,10 @@ public class DraggedTrackNode {
         }
     }
 
+    public boolean isNode(TrackNode node) {
+        return this.node == node || this.node_zd == node;
+    }
+
     /**
      * Gets the neighbouring nodes of this dragged node. Omits the zero-distance neighbour,
      * but does include connections to that zero-distance neighbour.
@@ -101,6 +105,47 @@ public class DraggedTrackNode {
             }
             return connections;
         }
+    }
+
+    /**
+     * Looks for a connection between this dragged node and the given other node.
+     * Checks connections from both the main node and zero-distance neighbour, if any.
+     *
+     * @param other Other TrackNode
+     * @return Connection to the other node, or null if not found
+     */
+    public TrackConnection findConnectionWith(TrackNode other) {
+        for (TrackConnection conn : node.getConnections()) {
+            if (conn.getOtherNode(node) == other) {
+                return conn;
+            }
+        }
+        if (node_zd != null) {
+            for (TrackConnection conn : node_zd.getConnections()) {
+                if (conn.getOtherNode(node_zd) == other) {
+                    return conn;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Looks for a connection between this dragged node and the given other node.
+     * Checks connections from both the main node and zero-distance neighbour, if any.
+     *
+     * @param node Other dragged node to find a connection with
+     * @return Connection to the other node, or null if not found
+     */
+    public TrackConnection findConnectionWith(DraggedTrackNode node) {
+        TrackConnection conn = findConnectionWith(node.node);
+        if (conn != null) {
+            return conn;
+        }
+        if (node_zd != null) {
+            return findConnectionWith(node.node_zd);
+        }
+        return null;
     }
 
     /**

@@ -774,21 +774,39 @@ public class TrackConnection implements Lockable, CoasterWorldComponent, TrackOb
     }
 
     /**
+     * A single Point on a connection, but without information about the connection and distance
+     * from the start this point is at.
+     */
+    public static class Point {
+        /** World position */
+        public final Vector position;
+        /** Orientation (up vector) along the path direction (tangent) */
+        public final Quaternion orientation;
+
+        public Point(Vector position, Quaternion orientation) {
+            this.position = position;
+            this.orientation = orientation;
+        }
+
+        @Override
+        public String toString() {
+            return "{x=" + position.getX() + ", y=" + position.getY() + ", z=" + position.getZ() + "}";
+        }
+    }
+
+    /**
      * A point on the track connection path
      */
-    public static final class PointOnPath {
+    public static final class PointOnPath extends Point {
         public final TrackConnection connection;
         public final double theta;
         public final double distance;
-        public final Vector position;
-        public final Quaternion orientation;
 
         public PointOnPath(TrackConnection connection, double theta, double distance, Vector position, Quaternion orientation) {
+            super(position, orientation);
             this.connection = connection;
             this.theta = theta;
             this.distance = distance;
-            this.position = position;
-            this.orientation = orientation;
         }
 
         public CoasterWorld getWorld() {

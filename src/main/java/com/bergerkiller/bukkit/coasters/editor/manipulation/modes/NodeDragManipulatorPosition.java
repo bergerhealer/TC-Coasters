@@ -56,7 +56,7 @@ public class NodeDragManipulatorPosition extends NodeDragManipulatorBase<Dragged
             throw new ChangeCancelledException();
         }
 
-        equalizer.equalizeSpacing();
+        equalizer.equalizeSpacing(state, history);
     }
 
     @Override
