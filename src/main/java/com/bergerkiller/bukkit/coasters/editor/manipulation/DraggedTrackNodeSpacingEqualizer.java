@@ -2,13 +2,15 @@ package com.bergerkiller.bukkit.coasters.editor.manipulation;
 
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
-import com.bergerkiller.bukkit.coasters.editor.history.HistoryChange;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
+import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -153,48 +155,9 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
         }
     }
 
-    public void equalizeSpacing() {
+    public void equalizeSpacing(PlayerEditState state, HistoryChangeCollection history) throws ChangeCancelledException {
         for (NodeChainComputation<N> chain : chains) {
-            final double stepDistance = chain.fullDistance / (chain.numConnections);
-            if (stepDistance <= 0.05) {
-                continue; // This would cause absolute chaos and lag
-            }
-
-            // Positions a step distance apart
-            List<TrackConnection.PointOnPath> points = new ArrayList<>(chain.middleNodes.size());
-
-            // Walk the path, setting positions along the way
-            double stepRemainingDistance = stepDistance;
-            NodeConnectionPath<N> path = chain.start;
-            double pathTraveled = 0.0;
-            while (true) {
-                if (stepRemainingDistance > path.fullDistance - pathTraveled) {
-                    // Move to next path
-                    stepRemainingDistance -= (path.fullDistance - pathTraveled);
-                    path = path.next;
-                    pathTraveled = 0.0;
-                    if (path == null) {
-                        break;
-                    }
-                } else {
-                    // Set position on this path
-                    pathTraveled += stepRemainingDistance;
-                    points.add(path.getPoint(pathTraveled));
-                    stepRemainingDistance = stepDistance;
-                }
-            }
-
-            // Apply positions to nodes
-            for (int i = 0; i < chain.middleNodes.size(); i++) {
-                if (i >= points.size()) {
-                    break;
-                }
-                TrackConnection.PointOnPath point = points.get(i);
-                N node = chain.middleNodes.get(i);
-                node.setPosition(point.position);
-                node.setOrientation(point.orientation.upVector());
-                node.dragPosition = point.position.clone();
-            }
+            chain.equalizeSpacing(state, history);
         }
     }
 
@@ -206,6 +169,53 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
         } else {
             return draggedNodesByNode.get(connection.getNodeA());
         }
+    }
+
+    /**
+     * Creates a new instance of the equalizer for an already known sequence of connected nodes.
+     * This can be used to directly create a single chain computation without needing to find the chains first.
+     * Only valid if the draggedNodes are all connected in a single sequence and do not contain junctions.
+     *
+     * @param draggedNodes Nodes in the sequence, in order from first to last
+     * @return Equalizer instance with a single chain computation for the given sequence
+     * @param <N> Dragged Node type
+     */
+    public static <N extends DraggedTrackNode> NodeChainComputation<N> ofSequence(List<N> draggedNodes) {
+        if (draggedNodes.size() < 2) {
+            throw new IllegalArgumentException("Sequence must have at least 2 nodes");
+        }
+
+        NodeChainComputation<N> comp = new NodeChainComputation<>();
+        Iterator<N> iter = draggedNodes.iterator();
+        comp.first = iter.next();
+        comp.middleNodes.addAll(draggedNodes.subList(1, draggedNodes.size() - 1));
+
+        N prev = comp.first;
+        NodeConnectionPath<N> prevPath = null;
+        while (iter.hasNext()) {
+            N node = iter.next();
+            TrackConnection connection = prev.findConnectionWith(node);
+            if (connection == null) {
+                throw new IllegalArgumentException("Nodes are not connected in a sequence");
+            }
+            NodeConnectionPath<N> path = new NodeConnectionPath<>(prev, node, connection);
+
+            if (prevPath == null) {
+                comp.start = path;
+            } else {
+                prevPath.next = path;
+                path.prev = prevPath;
+            }
+
+            comp.fullDistance += path.fullDistance;
+            comp.numConnections++;
+            prev = node;
+            prevPath = path;
+        }
+
+        comp.last = (prevPath == null) ? comp.first : prevPath.to;
+
+        return comp;
     }
 
     /**
@@ -234,6 +244,144 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
          * Number of connections in the chain
          */
         public int numConnections = 0;
+
+        public void equalizeSpacing(PlayerEditState state, HistoryChangeCollection history) throws ChangeCancelledException {
+            final double stepDistance = fullDistance / (numConnections);
+            if (stepDistance <= 0.05) {
+                return; // This would cause absolute chaos and lag
+            }
+
+            // Positions a step distance apart
+            List<TrackConnection.Point> points = new ArrayList<>(middleNodes.size());
+
+            // Walk the path, setting positions along the way
+            double stepRemainingDistance = stepDistance;
+            NodeConnectionPath<N> path = start;
+            double pathTraveled = 0.0;
+            while (true) {
+                if (stepRemainingDistance > path.fullDistance - pathTraveled) {
+                    // Move to next path
+                    stepRemainingDistance -= (path.fullDistance - pathTraveled);
+                    path = path.next;
+                    pathTraveled = 0.0;
+                    if (path == null) {
+                        break;
+                    }
+                } else {
+                    // Set position on this path
+                    pathTraveled += stepRemainingDistance;
+                    points.add(path.getPoint(pathTraveled));
+                    stepRemainingDistance = stepDistance;
+                }
+            }
+
+            // Apply positions to the middle nodes
+            applyMiddleNodePositions(state, history, points);
+        }
+
+        /**
+         * Applies the given positions to the middle nodes in order. The first position is applied to the first middle node, etc.
+         * If there are more middle nodes than positions, the remaining middle nodes are not modified.<br>
+         * <br>
+         * Also preserves the positions of the track objects by tracking the distance offset of those track objects relative
+         * to the first node of this chain, and applying that same offset to the new positions.
+         *
+         * @param state Player edit state
+         * @param history History change collection to record finalized manipulation changes into
+         * @param points New middle node points. Must be in the same order as the middle nodes.
+         * @throws ChangeCancelledException If the change is cancelled (moving track objects)
+         */
+        public void applyMiddleNodePositions(PlayerEditState state, HistoryChangeCollection history, List<? extends TrackConnection.Point> points) throws ChangeCancelledException {
+            // Save the current position of all track objects on the edited nodes
+            // Remove all track objects from the connections between the dragged nodes
+            double totalDistance = 0.0;
+            List<MovedTrackObject> movedObjects = new ArrayList<>();
+            for (NodeConnectionPath<N> path = start; path != null; path = path.next) {
+                TrackConnection conn = path.connection;
+                if (conn.hasObjects()) {
+                    boolean reverse = path.isConnectionReversed();
+                    for (TrackObject object : conn.getObjects()) {
+                        double fullDistance = totalDistance + (reverse ? (conn.getFullDistance() - object.getDistance()) : object.getDistance());
+                        movedObjects.add(new MovedTrackObject(conn, object, reverse, fullDistance));
+                    }
+                }
+                totalDistance += conn.getFullDistance();
+            }
+
+            // Sort by distance from start. Needed for applying later.
+            movedObjects.sort(Comparator.comparingDouble(a -> a.fullDistance));
+
+            // Move all the nodes to their new positions
+            for (int i = 0; i < middleNodes.size(); i++) {
+                if (i >= points.size()) {
+                    break;
+                }
+                TrackConnection.Point point = points.get(i);
+                N node = middleNodes.get(i);
+                node.setPosition(point.position);
+                node.setOrientation(point.orientation.upVector());
+                node.dragPosition = point.position.clone();
+            }
+
+            // Recompute the connection shapes
+            first.node.getWorld().getTracks().updateAll();
+            fullDistance = 0.0;
+            for (NodeConnectionPath<N> path = start; path != null; path = path.next) {
+                path.fullDistance = path.connection.getFullDistance();
+                fullDistance += path.fullDistance;
+            }
+
+            // Re-apply all the previously saved track objects, with event handling (can be cancelled)
+            NodeConnectionPath<N> path = start;
+            double distanceTraveled = 0.0;
+            for (MovedTrackObject movedObject : movedObjects) {
+                // If cancelled or not on the chain, don't operate on this object
+                if (movedObject.fullDistance < distanceTraveled) {
+                    continue;
+                }
+
+                // Until the distance is on a connection, iterate the paths
+                while (path != null && movedObject.fullDistance > (distanceTraveled + path.fullDistance)) {
+                    distanceTraveled += path.fullDistance;
+                    path = path.next;
+                }
+                if (path == null) {
+                    break;
+                }
+
+                // Compute distance on the connection the object is at
+                double distance = movedObject.fullDistance - distanceTraveled;
+                if (path.isConnectionReversed()) {
+                    distance = path.fullDistance - distance;
+                }
+
+                // Save a snapshot
+                TrackObject oldObject = movedObject.object.clone();
+
+                // Remove and re-add object versus shifting position
+                if (path.connection == movedObject.connection) {
+                    // Same connection, just update position
+                    movedObject.object.setDistanceFlipped(path.connection, distance, movedObject.object.isFlipped());
+                } else {
+                    // Different connection, move the object to the new connection
+                    movedObject.connection.removeObject(movedObject.object);
+
+                    // Flipped state could change if the connection reversed state is different between the two connections
+                    boolean flipped = movedObject.object.isFlipped();
+                    if (path.isConnectionReversed() != movedObject.reverse) {
+                        flipped = !flipped;
+                    }
+
+                    // Adjust and re-add to the new connection
+                    movedObject.object.setDistanceFlippedSilently(distance, flipped);
+                    path.connection.addObject(movedObject.object);
+                }
+
+                // Fire event to confirm the track object being moved
+                // If this throws, then all subsequence track objects aren't moved either and stay on their old connection
+                history.addChangeAfterMovingTrackObject(state.getPlayer(), path.connection, movedObject.object, movedObject.connection, oldObject);
+            }
+        }
 
         public void makeFiner(PlayerEditState state, HistoryChangeCollection history) throws ChangeCancelledException {
             // Abort if node-node distance becomes too short
@@ -309,6 +457,10 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
             this.fullDistance = connection.getFullDistance();
         }
 
+        public boolean isConnectionReversed() {
+            return to.isNode(connection.getNodeA());
+        }
+
         public TrackConnection.PointOnPath getPoint(double distance) {
             TrackNode p0 = connection.getNodeA();
             if (p0 == from.node || p0 == from.node_zd) {
@@ -344,6 +496,29 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
                 return next;
             }
             return null;
+        }
+    }
+
+    /**
+     * Helper container class for storing track objects together with the connection they are part of.
+     * Can be used with, for example, the history tracker.
+     * Also stores a full distance value relative to the first node of a sequence of nodes.
+     */
+    public static final class MovedTrackObject {
+        /** Original connection the track object was on */
+        public final TrackConnection connection;
+        /** Original track object that was on the connection, to be moved */
+        public final TrackObject object;
+        /** Whether the connection is reversed in order */
+        public final boolean reverse;
+        /** Full distance of the track object relative to the first node of the sequence, after moving */
+        public final double fullDistance;
+
+        public MovedTrackObject(TrackConnection connection, TrackObject object, boolean reverse, double fullDistance) {
+            this.connection = connection;
+            this.object = object;
+            this.reverse = reverse;
+            this.fullDistance = fullDistance;
         }
     }
 }
