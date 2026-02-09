@@ -4,7 +4,9 @@ import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNode;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNodeSpacingEqualizer;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragEvent;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.math.Vector2;
@@ -12,6 +14,7 @@ import com.bergerkiller.bukkit.common.utils.MathUtil;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -156,11 +159,85 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
     }
 
     @Override
-    public void equalizeNodeSpacing(HistoryChangeCollection history) {
+    public void equalizeNodeSpacing(HistoryChangeCollection history) throws ChangeCancelledException {
+        // Compute equalized theta and the new node positions for the middle nodes
+        List<TrackConnection.Point> middleNodePoints = new ArrayList<>(middleNodes.size());
+        NodeBiSectorThetaCalculator calc = createNodeThetaCalculator();
         for (int i = 0; i < middleNodes.size(); i++) {
-            middleNodes.get(i).theta = (double) (i + 1) / (middleNodes.size() + 1);
+            DraggedTrackNodeOnCircleArc middleNode = middleNodes.get(i);
+            middleNode.theta = (double) (i + 1) / (middleNodes.size() + 1);
+
+            // Circle angle -> position and orientation on the circle
+            double ang = calc.computeAngleFromTheta(middleNode.theta);
+            Vector newPos = calc.computePointAtAngle(ang);
+            Vector newUpVec = middleNode.up.clone();
+            Quaternion tangent = calc.computeTangentOrientation(ang);
+            tangent.transformPoint(newUpVec);
+            Quaternion newUp = Quaternion.fromLookDirection(tangent.forwardVector(), newUpVec);
+
+            // Save
+            middleNodePoints.add(new TrackConnection.Point(newPos, newUp));
         }
-        applyNodesToCircle();
+
+        // Move all the nodes and preserve the position of track objects
+        DraggedTrackNodeSpacingEqualizer.NodeChainComputation<DraggedTrackNodeOnCircleArc> chain = DraggedTrackNodeSpacingEqualizer.ofSequence(draggedNodes);
+        chain.applyMiddleNodePositions(state, history, middleNodePoints);
+    }
+
+    @Override
+    public void makeFiner(HistoryChangeCollection history) throws ChangeCancelledException {
+        // Find the connection between nodes that is the longest along the circle, and insert a new node there
+        double biggestTheta = -Double.MAX_VALUE;
+        TrackConnection longestConnection = null;
+        double longestConnectionMiddleTheta = 0.0;
+        for (int i = 0; i <= middleNodes.size(); i++) {
+            DraggedTrackNodeOnCircleArc left = (i > 0) ? middleNodes.get(i - 1) : first;
+            DraggedTrackNodeOnCircleArc right = (i < middleNodes.size()) ? middleNodes.get(i) : last;
+            double totalTheta = Math.abs(right.theta - left.theta);
+            if (totalTheta > biggestTheta) {
+                TrackConnection conn = left.findConnectionWith(right);
+                if (conn != null) {
+                    biggestTheta = totalTheta;
+                    longestConnection = conn;
+                    longestConnectionMiddleTheta = 0.5 * (left.theta + right.theta);
+                }
+            }
+        }
+        if (longestConnection == null) {
+            throw new ChangeCancelledException(); // No connection we can split
+        }
+
+        // Compute the position & orientation at this angle
+        NodeBiSectorThetaCalculator calc = createNodeThetaCalculator();
+        Vector newPos = calc.computePointAtAngle(calc.computeAngleFromTheta(longestConnectionMiddleTheta));
+        Vector newOri = Quaternion.average(Arrays.asList(
+                Quaternion.fromLookDirection(longestConnection.getNodeA().getDirection(), longestConnection.getNodeA().getOrientation()),
+                Quaternion.fromLookDirection(longestConnection.getNodeB().getDirection(), longestConnection.getNodeB().getOrientation())
+        )).upVector();
+
+        state.splitConnection(longestConnection, newPos, newOri, history);
+    }
+
+    @Override
+    public void makeCourser(HistoryChangeCollection history) throws ChangeCancelledException {
+        // Find the node that has the smallest angle that suffers the least from removing a node
+        TrackNode bestNode = null;
+        double smallestTheta = Double.MAX_VALUE;
+        for (int i = 0; i < middleNodes.size(); i++) {
+            DraggedTrackNodeOnCircleArc node = middleNodes.get(i);
+            DraggedTrackNodeOnCircleArc left = (i > 0) ? middleNodes.get(i - 1) : first;
+            DraggedTrackNodeOnCircleArc right = (i < middleNodes.size() - 1) ? middleNodes.get(i + 1) : last;
+            double totalTheta = Math.abs(right.theta - left.theta);
+            if (bestNode == null || totalTheta < smallestTheta) {
+                bestNode = node.node;
+                smallestTheta = totalTheta;
+            }
+        }
+        if (bestNode == null) {
+            throw new ChangeCancelledException(); // No nodes to remove
+        }
+
+        state.mergeRemoveNode(bestNode, history);
     }
 
     /**

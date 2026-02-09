@@ -1499,10 +1499,24 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @throws ChangeCancelledException If the change was cancelled
      */
     public TrackNode splitConnection(TrackConnection connection, HistoryChangeCollection history) throws ChangeCancelledException {
-        TrackWorld tracks = getWorld().getTracks();
-
         Vector newNodePos = connection.getPosition(0.5);
         Vector newNodeOri = connection.getOrientation(0.5);
+        return splitConnection(connection, newNodePos, newNodeOri, history);
+    }
+
+    /**
+     * Splits a connection in two, inserting a new node in the middle.
+     * The newly inserted node is automatically selected.
+     *
+     * @param connection TrackConnection to split
+     * @param newNodePos Position to place the new node at
+     * @param newNodeOri Orientation to place the new node at
+     * @param history History to record changes to
+     * @return The new node created in the middle of the connection
+     * @throws ChangeCancelledException If the change was cancelled
+     */
+    public TrackNode splitConnection(TrackConnection connection, Vector newNodePos, Vector newNodeOri, HistoryChangeCollection history) throws ChangeCancelledException {
+        TrackWorld tracks = getWorld().getTracks();
 
         // Save all track objects currently on this connection before removal
         TrackObject[] objectsToRestore = TrackObject.listToArray(connection.getObjects(), true);
