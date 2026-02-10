@@ -23,33 +23,33 @@ import java.util.List;
  * creating a sub-arc selection and adjusting the nodes there.
  */
 class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<DraggedTrackNodeOnCircle> {
-    /** Which of the nodes was clicked at the start (is dragged), or null if none (scale mode) */
-    private DraggedTrackNodeOnCircle clickedNode = null;
-    /** Opposite position on the circle of the clicked node to pin the circle to */
-    private Vector pinnedOppositePosition = null;
-
     /** Parameters at the time dragging was started */
     private PinnedParams startParams = null;
     /** Additional parameters that are used to compute the full circle */
     private PinnedParams pinnedParams = null;
 
+    /** Which of the nodes was clicked at the start (is dragged), or null if none (scale mode) */
+    private DraggedTrackNodeOnCircle clickedNode = null;
+    /** Opposite position on the circle of the clicked node to pin the circle to */
+    private Vector pinnedOppositePosition = null;
+
     public NodeDragManipulatorCircleFitFallback(PlayerEditState state, List<DraggedTrackNode> draggedNodes) {
         super(state, draggedNodes, DraggedTrackNodeOnCircle::new);
-    }
 
-    @Override
-    public void onStarted(NodeDragEvent event) {
         // Compute pinned parameters for the constrained circle fit
         this.startParams = this.pinnedParams = this.computePinnedParams2D();
 
         // Compute initial angle and up-vector for all dragged nodes
         NodeAngleCalculator calculator = createNodeAngleCalculator();
-        for (DraggedTrackNodeOnCircle draggedNode : draggedNodes) {
+        for (DraggedTrackNodeOnCircle draggedNode : this.draggedNodes) {
             draggedNode.angle = calculator.computeAngle(draggedNode.node.getPosition());
             draggedNode.up = draggedNode.node.getOrientation().clone();
             pinnedParams.orientation.invTransformPoint(draggedNode.up);
         }
+    }
 
+    @Override
+    public void onDragStarted(NodeDragEvent event) {
         TrackNode clickedNodeNode = state.findLookingAt();
         if (clickedNodeNode != null) {
             for (DraggedTrackNodeOnCircle draggedNode : draggedNodes) {
@@ -63,6 +63,7 @@ class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<
 
         if (clickedNode != null) {
             // Opposite position of the clicked node
+            NodeAngleCalculator calculator = createNodeAngleCalculator();
             pinnedOppositePosition = calculator.computePointAtAngle(clickedNode.angle + Math.PI);
 
             // Adjust angles so that clicked node is at angle 0 to simplify the node-dragging maths
@@ -78,7 +79,7 @@ class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<
     }
 
     @Override
-    public void onUpdate(NodeDragEvent event) {
+    public void onDragUpdate(NodeDragEvent event) {
         if (clickedNode != null) {
             // Drag the node around
             NodeDragPosition dragPos = handleDrag(clickedNode, event, true);
@@ -91,7 +92,7 @@ class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<
     }
 
     @Override
-    public void onFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException {
+    public void onDragFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException {
         // Merge/record behavior can be copied from other manipulators when implementing finish behavior.
         // For now, do nothing special.
         recordEditedNodesInHistory(history);

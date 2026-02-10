@@ -15,6 +15,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeConnect;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNode;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragHandler;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragManipulator;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulationMode;
@@ -905,7 +906,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         } else {
             if (this.heldDownTicks > 0) {
                 try {
-                    this.dragManipulationFinish(null);
+                    this.dragManipulationFinish();
                 } catch (ChangeCancelledException e) {
                     this.clearEditedNodes();
                 }
@@ -1265,7 +1266,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     public boolean insertNodeWhileDragging() throws ChangeCancelledException {
         // Complete moving the original selected node(s), call onEditingFinished
         // Note: can be cancelled!
-        this.dragManipulationFinish(null);
+        this.dragManipulationFinish();
 
         // Guarantee
         this.deselectLockedNodes();
@@ -1828,82 +1829,105 @@ public class PlayerEditState implements CoasterWorldComponent {
      * @return True if successful, false if cancelled
      */
     public boolean performManipulation(HistoryChangeCollection history, ManipulatorAction action) {
-        /** If not already dragging we got to finish dragging right after the function is called */
-        boolean finishAfterCall = !dragHandler.isManipulating();
+        this.deselectLockedNodes();
 
-        NodeDragManipulator manipulator = this.dragManipulationUpdate();
-        if (manipulator == null) {
+        // Check if user was dragging nodes around before, in the middle of this manipulation being performed
+        // In that case the previous drag operation must be finished (=committed) before running the manipulation.
+        // After the manipulation is applied, the drag operation resumes like before.
+        boolean wasDragging = dragHandler.isDragging();
+        if (wasDragging) {
+            try {
+                dragManipulationFinish();
+            } catch (ChangeCancelledException ex) {
+                this.clearEditedNodes();
+                return false;
+            }
+        }
+
+        // Avoid no-selection manipulation
+        if (!this.hasEditedNodes()) {
             return false;
         }
 
+        // Initialize the right manipulator and perform the action
+        NodeDragManipulator.Initializer initializer = getDragManipulatorInitializer();
         try {
+            NodeDragManipulator manipulator = initializer.start(this, DraggedTrackNode.listOfNodes(this.getEditedNodes()));
             action.perform(manipulator, history);
-            if (finishAfterCall) {
-                dragManipulationFinish(history);
-            } else {
-                dragHandler.finishIfSelectionChanged(this, history);
-            }
-            return true;
         } catch (ChangeCancelledException ex) {
             this.clearEditedNodes();
             return false;
         }
+
+        // If we were dragging before, resume the drag operation with the new node positions
+        if (wasDragging) {
+            dragManipulationUpdate();
+        }
+
+        return true;
     }
 
-    public NodeDragManipulator dragManipulationUpdate() {
+    public void dragManipulationUpdate() {
         // Deselect locked nodes that we cannot edit
         this.deselectLockedNodes();
 
         if (!this.hasEditedNodes()) {
-            return null;
+            return;
         }
 
         try {
             // Initialize the right manipulator
-            NodeDragManipulator.Initializer initializer;
-            if (this.getMode() == PlayerEditMode.ORIENTATION) {
-                initializer = NodeDragManipulatorCircleFit.INITIALIZER;
-                //initializer = NodeDragManipulatorOrientation.INITIALIZER;
-            } else {
-                initializer = NodeDragManipulatorPosition.INITIALIZER;
-            }
+            NodeDragManipulator.Initializer initializer = getDragManipulatorInitializer();
 
             // Manages dragging. If edited node selection changed, re-initializes
-            NodeDragHandler.DragResult result = dragHandler.drag(initializer, this);
-            for (TrackNode cancelledNode : result.cancelledNodes) {
-                this.setEditing(cancelledNode, false);
-            }
-            return result.manipulator;
+            dragHandler.drag(initializer, this);
         } catch (ChangeCancelledException ex) {
             this.clearEditedNodes();
-            return null;
         }
     }
 
-    // when player releases the right-click mouse button
-    private void dragManipulationFinish(HistoryChangeCollection history) throws ChangeCancelledException {
+    /**
+     * When player releases the right-click mouse button or dragging is aborted for some other reason.
+     * Records the dragged changes into history, and performs finishing logic.
+     *
+     * @throws ChangeCancelledException If the drag was cancelled
+     */
+    private void dragManipulationFinish() throws ChangeCancelledException {
         // Deselect locked nodes that we cannot edit
         this.deselectLockedNodes();
 
         // When we left-clicked while right-click dragging earlier, we made some changes to split the node
         // We want the new position of this dragged node to be merged with those changes, so only one undo is needed
         // If this is not the case, then we just add a new change to the history itself
-        if (history == null) {
-            history = this.getHistory();
-            if (this.draggingCreateNewNodeChange != null && this.draggingCreateNewNodeChange == this.getHistory().getLastChange()) {
-                history = this.draggingCreateNewNodeChange;
-            }
-            this.draggingCreateNewNodeChange = null;
+        HistoryChangeCollection history = this.getHistory();
+        if (this.draggingCreateNewNodeChange != null && this.draggingCreateNewNodeChange == this.getHistory().getLastChange()) {
+            history = this.draggingCreateNewNodeChange;
         }
+        this.draggingCreateNewNodeChange = null;
 
         // Perform finishing logic if we were manipulating before
-        if (dragHandler.isManipulating()) {
-            dragHandler.finish(history);
+        if (dragHandler.isDragging()) {
+            dragHandler.dragFinish(history);
         }
 
         // For moving track objects, store the changes / fire after change event
         if (this.isMode(PlayerEditMode.OBJECT)) {
             this.objectState.onEditingFinished();
+        }
+    }
+
+    /**
+     * Gets the initializer for the drag manipulator to use, based on the current edit mode of the player.
+     * If the player is in sort of shape manipulator mode, then that shape's specific manipulator is used.
+     *
+     * @return NodeDragManipulator Initializer to use for the current edit mode
+     */
+    private NodeDragManipulator.Initializer getDragManipulatorInitializer() {
+        if (this.getMode() == PlayerEditMode.ORIENTATION) {
+            return NodeDragManipulatorCircleFit.INITIALIZER;
+            //return NodeDragManipulatorOrientation.INITIALIZER;
+        } else {
+            return NodeDragManipulatorPosition.INITIALIZER;
         }
     }
 
