@@ -23,18 +23,18 @@ import java.util.stream.Collectors;
  * then adjusting the positions of nodes in each sequence so that they are evenly spaced.
  * The ends of the connected sequences remain fixed in position.
  *
- * @param <N> Dragged Node type
+ * @param <N> Manipulated Node type
  */
-public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
+public class ManipulatedTrackNodeSpacingEqualizer<N extends ManipulatedTrackNode> {
     /**
-     * Remaining dragged nodes to be processed into chains, that are not part
+     * Remaining nodes to be processed into chains, that are not part
      * of a chain already
      */
     private final Set<N> remainingNodes;
     /**
-     * Map of TrackNode to DraggedTrackNode for quick lookup
+     * Map of TrackNode to ManipulatedTrackNode for quick lookup
      */
-    private final Map<TrackNode, N> draggedNodesByNode;
+    private final Map<TrackNode, N> manipulatedNodesByNode;
     /**
      * Nodes that are junctions and should not be moved
      */
@@ -44,14 +44,14 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
      */
     public final List<NodeChainComputation<N>> chains = new ArrayList<>(2);
 
-    public DraggedTrackNodeSpacingEqualizer(List<N> draggedNodes) {
-        remainingNodes = draggedNodes.stream()
+    public ManipulatedTrackNodeSpacingEqualizer(List<N> manipulatedNodes) {
+        remainingNodes = manipulatedNodes.stream()
                 .filter(n -> !n.node.getConnections().isEmpty())
                 .collect(Collectors.toCollection(HashSet::new));
 
-        draggedNodesByNode = DraggedTrackNode.listToMap(remainingNodes);
+        manipulatedNodesByNode = ManipulatedTrackNode.listToMap(remainingNodes);
 
-        junctionNodes = draggedNodes.stream()
+        junctionNodes = manipulatedNodes.stream()
                 .filter(n -> n.node_zd == null && n.node.getConnections().size() >= 3)
                 .collect(Collectors.toSet());
     }
@@ -164,32 +164,32 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
 
     private N getOtherNode(N node, TrackConnection connection) {
         if (connection.getNodeA() == node.node) {
-            return draggedNodesByNode.get(connection.getNodeB());
+            return manipulatedNodesByNode.get(connection.getNodeB());
         } else if (node.node_zd != null && connection.getNodeA() == node.node_zd) {
-            return draggedNodesByNode.get(connection.getNodeB());
+            return manipulatedNodesByNode.get(connection.getNodeB());
         } else {
-            return draggedNodesByNode.get(connection.getNodeA());
+            return manipulatedNodesByNode.get(connection.getNodeA());
         }
     }
 
     /**
      * Creates a new instance of the equalizer for an already known sequence of connected nodes.
      * This can be used to directly create a single chain computation without needing to find the chains first.
-     * Only valid if the draggedNodes are all connected in a single sequence and do not contain junctions.
+     * Only valid if the manipulated nodes are all connected in a single sequence and do not contain junctions.
      *
-     * @param draggedNodes Nodes in the sequence, in order from first to last
+     * @param manipulatedNodes Nodes in the sequence, in order from first to last
      * @return Equalizer instance with a single chain computation for the given sequence
-     * @param <N> Dragged Node type
+     * @param <N> Manipulated Node type
      */
-    public static <N extends DraggedTrackNode> NodeChainComputation<N> ofSequence(List<N> draggedNodes) {
-        if (draggedNodes.size() < 2) {
+    public static <N extends ManipulatedTrackNode> NodeChainComputation<N> ofSequence(List<N> manipulatedNodes) {
+        if (manipulatedNodes.size() < 2) {
             throw new IllegalArgumentException("Sequence must have at least 2 nodes");
         }
 
         NodeChainComputation<N> comp = new NodeChainComputation<>();
-        Iterator<N> iter = draggedNodes.iterator();
+        Iterator<N> iter = manipulatedNodes.iterator();
         comp.first = iter.next();
-        comp.middleNodes.addAll(draggedNodes.subList(1, draggedNodes.size() - 1));
+        comp.middleNodes.addAll(manipulatedNodes.subList(1, manipulatedNodes.size() - 1));
 
         N prev = comp.first;
         NodeConnectionPath<N> prevPath = null;
@@ -222,9 +222,9 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
     /**
      * Represents a single chain of nodes to be equalized in spacing.
      *
-     * @param <N> Dragged Node type
+     * @param <N> Manipulated Node type
      */
-    public static class NodeChainComputation<N extends DraggedTrackNode> {
+    public static class NodeChainComputation<N extends ManipulatedTrackNode> {
         /** Starting connection path */
         public NodeConnectionPath<N> start;
         /** First node. Pinned in place. */
@@ -294,7 +294,7 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
          */
         public void applyMiddleNodePositions(PlayerEditState state, HistoryChangeCollection history, List<? extends TrackConnection.Point> points) throws ChangeCancelledException {
             // Save the current position of all track objects on the edited nodes
-            // Remove all track objects from the connections between the dragged nodes
+            // Remove all track objects from the connections between the manipulated nodes
             double totalDistance = 0.0;
             List<MovedTrackObject> movedObjects = new ArrayList<>();
             for (NodeConnectionPath<N> path = start; path != null; path = path.next) {
@@ -401,7 +401,7 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
 
         public void makeFiner(PlayerEditState state, HistoryChangeCollection history) throws ChangeCancelledException {
             // Abort if node-node distance becomes too short
-            if ((this.fullDistance / (this.numConnections + 1)) <= NodeDragManipulator.MINIMUM_CONNECTION_DISTANCE) {
+            if ((this.fullDistance / (this.numConnections + 1)) <= NodeManipulator.MINIMUM_CONNECTION_DISTANCE) {
                 return;
             }
 
@@ -456,9 +456,9 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
      * positions along the path when equalizing node spacing.
      * Is a linked list of connected paths.
      *
-     * @param <N> Dragged Node type
+     * @param <N> Manipulated Node type
      */
-    public static class NodeConnectionPath<N extends DraggedTrackNode> {
+    public static class NodeConnectionPath<N extends ManipulatedTrackNode> {
         public final N from;
         public final N to;
         public final TrackConnection connection;
@@ -486,7 +486,7 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
             }
         }
 
-        public NodeConnectionPath<N> findNext(DraggedTrackNodeSpacingEqualizer<N> equalizer) {
+        public NodeConnectionPath<N> findNext(ManipulatedTrackNodeSpacingEqualizer<N> equalizer) {
             TrackNode toNode = to.node;
             if (to.node_zd != null && connection.isConnected(to.node)) {
                 toNode = to.node_zd;
@@ -501,12 +501,12 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
                 }
 
                 // Map it
-                N nextDraggedNode = equalizer.draggedNodesByNode.get(nextNode);
-                if (nextDraggedNode == null || !equalizer.remainingNodes.contains(nextDraggedNode)) {
+                N nextManipulatedNode = equalizer.manipulatedNodesByNode.get(nextNode);
+                if (nextManipulatedNode == null || !equalizer.remainingNodes.contains(nextManipulatedNode)) {
                     return null;
                 }
 
-                next = new NodeConnectionPath<N>(to, nextDraggedNode, conn);
+                next = new NodeConnectionPath<N>(to, nextManipulatedNode, conn);
                 next.prev = this;
 
                 return next;

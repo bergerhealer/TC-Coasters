@@ -3,9 +3,9 @@ package com.bergerkiller.bukkit.coasters.editor.manipulation.modes;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNode;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.ManipulatedTrackNode;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragEvent;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragManipulatorBase;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulatorBase;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import org.bukkit.util.Vector;
 
@@ -15,14 +15,14 @@ import java.util.List;
  * Node drag manipulator that alters the orientation of the edited nodes
  * based on where the player is looking.
  */
-public class NodeDragManipulatorOrientation extends NodeDragManipulatorBase<DraggedTrackNode> {
-    public static final Initializer INITIALIZER = NodeDragManipulatorOrientation::new;
+public class NodeManipulatorOrientation extends NodeManipulatorBase<ManipulatedTrackNode> {
+    public static final Initializer INITIALIZER = NodeManipulatorOrientation::new;
 
     /** Virtual point of the node handle (lever) being dragged */
     private Vector handlePosition;
 
-    public NodeDragManipulatorOrientation(PlayerEditState state, List<DraggedTrackNode> draggedNodes) {
-        super(state, draggedNodes);
+    public NodeManipulatorOrientation(PlayerEditState state, List<ManipulatedTrackNode> manipulatedNodes) {
+        super(state, manipulatedNodes);
     }
 
     @Override
@@ -44,8 +44,8 @@ public class NodeDragManipulatorOrientation extends NodeDragManipulatorBase<Drag
             event.change().transformPoint(this.handlePosition);
         }
 
-        for (DraggedTrackNode draggedNode : draggedNodes) {
-            draggedNode.setOrientation(this.handlePosition.clone().subtract(draggedNode.node.getPosition()));
+        for (ManipulatedTrackNode manipulatedNode : manipulatedNodes) {
+            manipulatedNode.setOrientation(this.handlePosition.clone().subtract(manipulatedNode.node.getPosition()));
         }
     }
 

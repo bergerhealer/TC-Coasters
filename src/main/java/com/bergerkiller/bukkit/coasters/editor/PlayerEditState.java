@@ -15,11 +15,11 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeConnect;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNode;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.ManipulatedTrackNode;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragHandler;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragManipulator;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.circle.NodeDragManipulatorCircleFit;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeDragManipulatorPosition;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulator;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.circle.NodeManipulatorCircleFit;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeManipulatorPosition;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.BlockSelectMenu;
 import com.bergerkiller.bukkit.coasters.events.CoasterCreateConnectionEvent;
 import com.bergerkiller.bukkit.common.Common;
@@ -1775,9 +1775,9 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
 
         // Initialize the right manipulator and perform the action
-        NodeDragManipulator.Initializer initializer = getDragManipulatorInitializer();
+        NodeManipulator.Initializer initializer = getDragManipulatorInitializer();
         try {
-            NodeDragManipulator manipulator = initializer.start(this, DraggedTrackNode.listOfNodes(this.getEditedNodes()));
+            NodeManipulator manipulator = initializer.start(this, ManipulatedTrackNode.listOfNodes(this.getEditedNodes()));
             action.perform(manipulator, history);
         } catch (ChangeCancelledException ex) {
             this.clearEditedNodes();
@@ -1802,7 +1802,7 @@ public class PlayerEditState implements CoasterWorldComponent {
 
         try {
             // Initialize the right manipulator
-            NodeDragManipulator.Initializer initializer = getDragManipulatorInitializer();
+            NodeManipulator.Initializer initializer = getDragManipulatorInitializer();
 
             // Manages dragging. If edited node selection changed, re-initializes
             dragHandler.drag(initializer, this);
@@ -1845,14 +1845,14 @@ public class PlayerEditState implements CoasterWorldComponent {
      * Gets the initializer for the drag manipulator to use, based on the current edit mode of the player.
      * If the player is in sort of shape manipulator mode, then that shape's specific manipulator is used.
      *
-     * @return NodeDragManipulator Initializer to use for the current edit mode
+     * @return NodeManipulator Initializer to use for the current edit mode
      */
-    private NodeDragManipulator.Initializer getDragManipulatorInitializer() {
+    private NodeManipulator.Initializer getDragManipulatorInitializer() {
         if (this.getMode() == PlayerEditMode.ORIENTATION) {
-            return NodeDragManipulatorCircleFit.INITIALIZER;
-            //return NodeDragManipulatorOrientation.INITIALIZER;
+            return NodeManipulatorCircleFit.INITIALIZER;
+            //return NodeManipulatorOrientation.INITIALIZER;
         } else {
-            return NodeDragManipulatorPosition.INITIALIZER;
+            return NodeManipulatorPosition.INITIALIZER;
         }
     }
 
@@ -1969,6 +1969,6 @@ public class PlayerEditState implements CoasterWorldComponent {
      */
     @FunctionalInterface
     public interface ManipulatorAction {
-        void perform(NodeDragManipulator manipulator, HistoryChangeCollection history) throws ChangeCancelledException;
+        void perform(NodeManipulator manipulator, HistoryChangeCollection history) throws ChangeCancelledException;
     }
 }

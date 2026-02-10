@@ -3,8 +3,8 @@ package com.bergerkiller.bukkit.coasters.editor.manipulation.modes.circle;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNode;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNodeSpacingEqualizer;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.ManipulatedTrackNode;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.ManipulatedTrackNodeSpacingEqualizer;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragEvent;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.math.Quaternion;
@@ -22,29 +22,29 @@ import java.util.List;
  * Relative node positions on the circle cannot be changed, but that can be done by
  * creating a sub-arc selection and adjusting the nodes there.
  */
-class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<DraggedTrackNodeOnCircle> {
+class NodeManipulatorCircleFitFallback extends NodeManipulatorCircleFit<ManipulatedTrackNodeOnCircle> {
     /** Parameters at the time dragging was started */
     private PinnedParams startParams = null;
     /** Additional parameters that are used to compute the full circle */
     private PinnedParams pinnedParams = null;
 
     /** Which of the nodes was clicked at the start (is dragged), or null if none (scale mode) */
-    private DraggedTrackNodeOnCircle clickedNode = null;
+    private ManipulatedTrackNodeOnCircle clickedNode = null;
     /** Opposite position on the circle of the clicked node to pin the circle to */
     private Vector pinnedOppositePosition = null;
 
-    public NodeDragManipulatorCircleFitFallback(PlayerEditState state, List<DraggedTrackNode> draggedNodes) {
-        super(state, draggedNodes, DraggedTrackNodeOnCircle::new);
+    public NodeManipulatorCircleFitFallback(PlayerEditState state, List<ManipulatedTrackNode> manipulatedNodes) {
+        super(state, manipulatedNodes, ManipulatedTrackNodeOnCircle::new);
 
         // Compute pinned parameters for the constrained circle fit
         this.startParams = this.pinnedParams = this.computePinnedParams2D();
 
         // Compute initial angle and up-vector for all dragged nodes
         NodeAngleCalculator calculator = createNodeAngleCalculator();
-        for (DraggedTrackNodeOnCircle draggedNode : this.draggedNodes) {
-            draggedNode.angle = calculator.computeAngle(draggedNode.node.getPosition());
-            draggedNode.up = draggedNode.node.getOrientation().clone();
-            pinnedParams.orientation.invTransformPoint(draggedNode.up);
+        for (ManipulatedTrackNodeOnCircle manipulatedNode : this.manipulatedNodes) {
+            manipulatedNode.angle = calculator.computeAngle(manipulatedNode.node.getPosition());
+            manipulatedNode.up = manipulatedNode.node.getOrientation().clone();
+            pinnedParams.orientation.invTransformPoint(manipulatedNode.up);
         }
     }
 
@@ -52,9 +52,9 @@ class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<
     public void onDragStarted(NodeDragEvent event) {
         TrackNode clickedNodeNode = state.findLookingAt();
         if (clickedNodeNode != null) {
-            for (DraggedTrackNodeOnCircle draggedNode : draggedNodes) {
-                if (draggedNode.node == clickedNodeNode) {
-                    clickedNode = draggedNode;
+            for (ManipulatedTrackNodeOnCircle manipulatedNode : manipulatedNodes) {
+                if (manipulatedNode.node == clickedNodeNode) {
+                    clickedNode = manipulatedNode;
                     clickedNode.dragPosition = clickedNode.node.getPosition().clone();
                     break;
                 }
@@ -70,9 +70,9 @@ class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<
             double angleOffset = clickedNode.angle;
             Quaternion orientationChange = new Quaternion();
             orientationChange.rotateY(Math.toDegrees(angleOffset));
-            for (DraggedTrackNodeOnCircle draggedNode : draggedNodes) {
-                draggedNode.angle -= angleOffset;
-                orientationChange.invTransformPoint(draggedNode.up);
+            for (ManipulatedTrackNodeOnCircle manipulatedNode : manipulatedNodes) {
+                manipulatedNode.angle -= angleOffset;
+                orientationChange.invTransformPoint(manipulatedNode.up);
             }
             pinnedParams.orientation.multiply(orientationChange);
         }
@@ -100,13 +100,13 @@ class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<
 
     @Override
     public void equalizeNodeSpacing(HistoryChangeCollection history) throws ChangeCancelledException {
-        DraggedTrackNodeSpacingEqualizer<DraggedTrackNodeOnCircle> equalizer = new DraggedTrackNodeSpacingEqualizer<>(draggedNodes);
+        ManipulatedTrackNodeSpacingEqualizer<ManipulatedTrackNodeOnCircle> equalizer = new ManipulatedTrackNodeSpacingEqualizer<>(manipulatedNodes);
         equalizer.findChains();
         if (equalizer.chains.isEmpty()) {
             throw new ChangeCancelledException();
         }
 
-        for (DraggedTrackNodeSpacingEqualizer.NodeChainComputation<DraggedTrackNodeOnCircle> chain : equalizer.chains) {
+        for (ManipulatedTrackNodeSpacingEqualizer.NodeChainComputation<ManipulatedTrackNodeOnCircle> chain : equalizer.chains) {
             double arcAngle;
             double arcSide = 1.0;
             if (chain.first == chain.last) {
@@ -118,7 +118,7 @@ class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<
 
                 // Determine using the other nodes which side of the arc to use
                 int ord = 0;
-                for (DraggedTrackNodeOnCircle dn : chain.middleNodes) {
+                for (ManipulatedTrackNodeOnCircle dn : chain.middleNodes) {
                     double diffFromFirst = dn.angle - chain.first.angle;
                     while (diffFromFirst < 0.0) {
                         diffFromFirst += 2.0 * Math.PI;
@@ -137,7 +137,7 @@ class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<
             // Compute angles for all nodes in-between first and last
             double anglePerNode = arcSide * arcAngle / (double) (chain.middleNodes.size() + 1);
             for (int i = 0; i < chain.middleNodes.size(); i++) {
-                DraggedTrackNodeOnCircle dn = chain.middleNodes.get(i);
+                ManipulatedTrackNodeOnCircle dn = chain.middleNodes.get(i);
                 dn.angle = chain.first.angle + anglePerNode * (i + 1);
             }
         }
@@ -153,7 +153,7 @@ class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<
     protected void applyCircleNodesToCircle() {
         NodeAngleCalculator calculator = createNodeAngleCalculator();
 
-        for (DraggedTrackNodeOnCircle dn : draggedNodes) {
+        for (ManipulatedTrackNodeOnCircle dn : manipulatedNodes) {
             Vector newPos = calculator.computePointAtAngle(dn.angle);
             Vector newUp = dn.up.clone();
             pinnedParams.orientation.transformPoint(newUp);
@@ -246,9 +246,9 @@ class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<
     protected PinnedParams computePinnedParams2D() {
         // use node orientation to compute average up direction, which will flip the plane normal
         // if needed to be more aligned with the average up direction
-        List<Vector> pts = new ArrayList<>(draggedNodes.size());
+        List<Vector> pts = new ArrayList<>(manipulatedNodes.size());
         Vector averageUp = new Vector();
-        for (DraggedTrackNodeOnCircle dn : draggedNodes) {
+        for (ManipulatedTrackNodeOnCircle dn : manipulatedNodes) {
             pts.add(dn.node.getPosition().clone());
             averageUp.add(dn.node.getOrientation());
         }
@@ -267,8 +267,8 @@ class NodeDragManipulatorCircleFitFallback extends NodeDragManipulatorCircleFit<
 
         // project each node into 2D plane coords (relative to basis.centroid)
         // compute the pinned coordinates, and the other points that are not pinned
-        List<Vector2> points = new ArrayList<>(draggedNodes.size());
-        for (DraggedTrackNodeOnCircle dn : draggedNodes) {
+        List<Vector2> points = new ArrayList<>(manipulatedNodes.size());
+        for (ManipulatedTrackNodeOnCircle dn : manipulatedNodes) {
             Vector p = dn.node.getPosition().clone().subtract(basis.centroid);
             Vector2 p2d = new Vector2(p.dot(basis.ex), p.dot(basis.ey));
             points.add(p2d);
