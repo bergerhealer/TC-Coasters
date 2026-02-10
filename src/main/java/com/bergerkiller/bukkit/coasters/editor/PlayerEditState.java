@@ -1825,10 +1825,11 @@ public class PlayerEditState implements CoasterWorldComponent {
      * For example: if the circle shape mode is active, then the nodes will be fit to a circle shape.
      *
      * @param history History to record changes to
-     * @param action Action to perform
+     * @param actions Actions to perform. Each action is handled in a new manipulator to reflect the previous
+     *                action's changes.
      * @return True if successful, false if cancelled
      */
-    public boolean performManipulation(HistoryChangeCollection history, ManipulatorAction action) {
+    public boolean performManipulation(HistoryChangeCollection history, ManipulatorAction... actions) {
         this.deselectLockedNodes();
 
         // Check if user was dragging nodes around before, in the middle of this manipulation being performed
@@ -1851,12 +1852,14 @@ public class PlayerEditState implements CoasterWorldComponent {
 
         // Initialize the right manipulator and perform the action
         NodeManipulator.Initializer initializer = getDragManipulatorInitializer();
-        try {
-            NodeManipulator manipulator = initializer.start(this, ManipulatedTrackNode.listOfNodes(this.getEditedNodes()));
-            action.perform(manipulator, history);
-        } catch (ChangeCancelledException ex) {
-            this.clearEditedNodes();
-            return false;
+        for (ManipulatorAction action : actions) {
+            try {
+                NodeManipulator manipulator = initializer.start(this, ManipulatedTrackNode.listOfNodes(this.getEditedNodes()));
+                action.perform(manipulator, history);
+            } catch (ChangeCancelledException ex) {
+                this.clearEditedNodes();
+                return false;
+            }
         }
 
         // If we were dragging before, resume the drag operation with the new node positions
