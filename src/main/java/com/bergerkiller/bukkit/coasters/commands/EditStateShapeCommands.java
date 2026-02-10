@@ -42,11 +42,8 @@ class EditStateShapeCommands {
             final CommandSender sender
     ) {
         HistoryChangeCollection history = state.getHistory().addChangeGroup();
-        if (state.performManipulation(history, NodeManipulator::makeFiner)) {
+        if (state.performManipulation(history, NodeManipulator::makeFiner, NodeManipulator::equalizeNodeSpacing)) {
             sender.sendMessage(ChatColor.GREEN + "Inserted additional node(s) between the selected nodes");
-            if (!state.performManipulation(history, NodeManipulator::equalizeNodeSpacing)) {
-                sender.sendMessage(ChatColor.RED + "The selected nodes could not be evenly spaced");
-            }
         } else {
             sender.sendMessage(ChatColor.RED + "Could not insert additional nodes between the selected nodes");
         }
@@ -61,11 +58,8 @@ class EditStateShapeCommands {
             final CommandSender sender
     ) {
         HistoryChangeCollection history = state.getHistory().addChangeGroup();
-        if (state.performManipulation(history, NodeManipulator::makeCourser)) {
+        if (state.performManipulation(history, NodeManipulator::makeCourser, NodeManipulator::equalizeNodeSpacing)) {
             sender.sendMessage(ChatColor.GREEN + "Removed node(s) between the selected nodes");
-            if (!state.performManipulation(history, NodeManipulator::equalizeNodeSpacing)) {
-                sender.sendMessage(ChatColor.RED + "The selected nodes could not be evenly spaced");
-            }
         } else {
             sender.sendMessage(ChatColor.RED + "Could not remove node(s) between the selected nodes");
         }
