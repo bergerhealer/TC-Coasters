@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * Handles node drag events and manipulates the selected nodes accordingly.
  */
-public interface NodeDragManipulator {
+public interface NodeManipulator {
     /**
      * Minimum distance kept between nodes while dragging to avoid nodes merging.
      * Nodes will move aside to maintain this distance. And the finer operation will
@@ -88,17 +88,17 @@ public interface NodeDragManipulator {
     }
 
     /**
-     * Initializer for creating NodeDragManipulator instances.
+     * Initializer for creating NodeManipulator instances.
      */
     interface Initializer {
         /**
-         * Creates a NodeDragManipulator instance. Implementation can be decided based on the type of selection
+         * Creates a NodeManipulator instance. Implementation can be decided based on the type of selection
          * the user created.
          *
          * @param state Player edit state
-         * @param draggedNodes Edited nodes to be manipulated
-         * @return NodeDragManipulator instance
+         * @param manipulatedNodes Track Nodes to be manipulated, including manipulation metadata
+         * @return NodeManipulator instance
          */
-        NodeDragManipulator start(PlayerEditState state, List<DraggedTrackNode> draggedNodes);
+        NodeManipulator start(PlayerEditState state, List<ManipulatedTrackNode> manipulatedNodes);
     }
 }

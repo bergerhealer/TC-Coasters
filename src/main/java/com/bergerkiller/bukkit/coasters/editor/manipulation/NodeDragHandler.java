@@ -27,7 +27,7 @@ public class NodeDragHandler {
     /** Currently edited nodes. If different, drag manipulations are shifted out. */
     private Collection<TrackNode> editedNodesSaveState = Collections.emptyList();
     /** Current manipulator, or null if not currently dragging */
-    private NodeDragManipulator dragManipulator = null;
+    private NodeManipulator dragManipulator = null;
 
     public NodeDragHandler(PlayerEditInput input) {
         this.input = input;
@@ -59,7 +59,7 @@ public class NodeDragHandler {
      * @param initializer Manipulator initializer. Creates a new manipulator if no manipulation is active yet.
      * @param state PlayerEditState
      */
-    public void drag(NodeDragManipulator.Initializer initializer, PlayerEditState state) throws ChangeCancelledException {
+    public void drag(NodeManipulator.Initializer initializer, PlayerEditState state) throws ChangeCancelledException {
         Set<TrackNode> editedNodes = state.getEditedNodes();
         if (editedNodes.isEmpty()) {
             return;
@@ -88,7 +88,7 @@ public class NodeDragHandler {
             if (!editableNodes.isEmpty()) {
                 NodeDragEvent event = this.nextEvent(true);
                 editedNodesSaveState = new HashSet<>(editedNodes);
-                dragManipulator = initializer.start(state, DraggedTrackNode.listOfNodes(editableNodes));
+                dragManipulator = initializer.start(state, ManipulatedTrackNode.listOfNodes(editableNodes));
                 dragManipulator.onDragStarted(event);
                 dragManipulator.onDragUpdate(event);
             }
@@ -194,9 +194,9 @@ public class NodeDragHandler {
         /** Nodes that could not be edited because the change was cancelled */
         public final List<TrackNode> cancelledNodes;
         /** Manipulator used for this drag operation. Null if no manipulator is active (no nodes to edit). */
-        public final NodeDragManipulator manipulator;
+        public final NodeManipulator manipulator;
 
-        public DragResult(List<TrackNode> cancelledNodes, NodeDragManipulator manipulator) {
+        public DragResult(List<TrackNode> cancelledNodes, NodeManipulator manipulator) {
             this.cancelledNodes = cancelledNodes;
             this.manipulator = manipulator;
         }

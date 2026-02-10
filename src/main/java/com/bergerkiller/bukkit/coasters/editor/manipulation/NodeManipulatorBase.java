@@ -25,31 +25,31 @@ import java.util.stream.Collectors;
  * Base logic for all manipulators. Adds some common logic, such as handling
  * saving the changes on finish into the player's history.
  *
- * @param <N> Type of DraggedTrackNode used
+ * @param <N> Type of ManipulatedTrackNode used
  */
-public abstract class NodeDragManipulatorBase<N extends DraggedTrackNode> implements NodeDragManipulator {
+public abstract class NodeManipulatorBase<N extends ManipulatedTrackNode> implements NodeManipulator {
     protected final PlayerEditState state;
-    protected final List<N> draggedNodes;
+    protected final List<N> manipulatedNodes;
 
-    public NodeDragManipulatorBase(PlayerEditState state, List<DraggedTrackNode> draggedNodes, Function<DraggedTrackNode, N> converter) {
+    public NodeManipulatorBase(PlayerEditState state, List<ManipulatedTrackNode> manipulatedNodes, Function<ManipulatedTrackNode, N> converter) {
         this.state = state;
-        this.draggedNodes = draggedNodes.stream().map(converter).collect(Collectors.toList());
+        this.manipulatedNodes = manipulatedNodes.stream().map(converter).collect(Collectors.toList());
     }
 
-    public NodeDragManipulatorBase(PlayerEditState state, List<N> draggedNodes) {
+    public NodeManipulatorBase(PlayerEditState state, List<N> manipulatedNodes) {
         this.state = state;
-        this.draggedNodes = draggedNodes;
+        this.manipulatedNodes = manipulatedNodes;
     }
 
     /**
      * Moves a single node according to the drag event. This is used in position manipulation mode.
      *
-     * @param draggedNode DraggedTrackNode
+     * @param draggedNode ManipulatedTrackNode
      * @param event Node drag event
      * @param isSingleNode Whether only a single node is dragged. Has special meaning for snapping against blocks.
      * @return Node drag position after move
      */
-    protected NodeDragPosition handleDrag(DraggedTrackNode draggedNode, NodeDragEvent event, boolean isSingleNode) {
+    protected NodeDragPosition handleDrag(ManipulatedTrackNode draggedNode, NodeDragEvent event, boolean isSingleNode) {
         Player player = state.getPlayer();
 
         // Recover null
@@ -102,7 +102,7 @@ public abstract class NodeDragManipulatorBase<N extends DraggedTrackNode> implem
         }
 
         final TrackWorld tracks = state.getWorld().getTracks();
-        final DraggedTrackNode draggedNode = draggedNodes.iterator().next();
+        final ManipulatedTrackNode draggedNode = manipulatedNodes.iterator().next();
 
         // Get all nodes nearby the position, sorted from close to far
         // Pick first (closest) node that is not the node(s) dragged
@@ -198,22 +198,22 @@ public abstract class NodeDragManipulatorBase<N extends DraggedTrackNode> implem
         // cancel the entire move operation for all other nodes, too.
         {
             HistoryChange changes = null;
-            for (DraggedTrackNode draggedNode : draggedNodes) {
+            for (ManipulatedTrackNode manipulatedNode : manipulatedNodes) {
                 try {
                     if (changes == null) {
                         changes = history.addChangeGroup();
                     }
-                    if (!draggedNode.node.isRemoved()) {
-                        changes.addChangeAfterChangingNode(state.getPlayer(), draggedNode.node, draggedNode.startState);
+                    if (!manipulatedNode.node.isRemoved()) {
+                        changes.addChangeAfterChangingNode(state.getPlayer(), manipulatedNode.node, manipulatedNode.startState);
                     }
-                    if (draggedNode.node_zd != null && !draggedNode.node_zd.isRemoved()) {
-                        changes.addChangeAfterChangingNode(state.getPlayer(), draggedNode.node_zd, draggedNode.startState);
+                    if (manipulatedNode.node_zd != null && !manipulatedNode.node_zd.isRemoved()) {
+                        changes.addChangeAfterChangingNode(state.getPlayer(), manipulatedNode.node_zd, manipulatedNode.startState);
                     }
                 } catch (ChangeCancelledException ex) {
                     // Undo all changes that were already executed or are going to be executed for other nodes
                     // Ignore the one that was already cancelled
-                    for (DraggedTrackNode prevModifiedNode : draggedNodes) {
-                        if (prevModifiedNode != draggedNode) {
+                    for (ManipulatedTrackNode prevModifiedNode : manipulatedNodes) {
+                        if (prevModifiedNode != manipulatedNode) {
                             if (!prevModifiedNode.node.isRemoved()) {
                                 prevModifiedNode.node.setState(prevModifiedNode.startState);
                             }
@@ -230,7 +230,7 @@ public abstract class NodeDragManipulatorBase<N extends DraggedTrackNode> implem
         // Update position and orientation of animation state, if one is selected
         String selectedAnimation = state.getSelectedAnimation();
         if (selectedAnimation != null) {
-            for (DraggedTrackNode draggedNode : draggedNodes) {
+            for (ManipulatedTrackNode draggedNode : manipulatedNodes) {
                 TrackNodeAnimationState animState = draggedNode.node.findAnimationState(selectedAnimation);
                 if (animState != null) {
                     draggedNode.node.setAnimationState(animState.name,
@@ -250,7 +250,7 @@ public abstract class NodeDragManipulatorBase<N extends DraggedTrackNode> implem
             this.orientation = orientation;
         }
 
-        public void applyTo(DraggedTrackNode node) {
+        public void applyTo(ManipulatedTrackNode node) {
             node.setPosition(position);
             node.setOrientation(orientation);
         }

@@ -15,26 +15,26 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * A single track node being dragged. If a node is straightened, includes an additional
+ * A single track node being manipulated. If a node is straightened, includes an additional
  * zero-distance neighbour node which should receive the same position/orientation updates.
  */
-public class DraggedTrackNode {
-    /** The track node being dragged */
+public class ManipulatedTrackNode {
+    /** The track node being manipulated */
     public final TrackNode node;
     /** The zero-distance neighbour node, if any */
     public final TrackNode node_zd;
-    /** Tracks the initial state before dragging begun */
+    /** Tracks the initial state before manipulation begun */
     public final TrackNodeState startState;
     /** Tracks the position while dragging */
     public Vector dragPosition = null;
 
-    public DraggedTrackNode(TrackNode node) {
+    public ManipulatedTrackNode(TrackNode node) {
         this.node = node;
         this.node_zd = node.getZeroDistanceNeighbour();
         this.startState = node.getState();
     }
 
-    protected DraggedTrackNode(DraggedTrackNode copy) {
+    protected ManipulatedTrackNode(ManipulatedTrackNode copy) {
         this.node = copy.node;
         this.node_zd = copy.node_zd;
         this.startState = copy.startState;
@@ -137,7 +137,7 @@ public class DraggedTrackNode {
      * @param node Other dragged node to find a connection with
      * @return Connection to the other node, or null if not found
      */
-    public TrackConnection findConnectionWith(DraggedTrackNode node) {
+    public TrackConnection findConnectionWith(ManipulatedTrackNode node) {
         TrackConnection conn = findConnectionWith(node.node);
         if (conn != null) {
             return conn;
@@ -149,46 +149,46 @@ public class DraggedTrackNode {
     }
 
     /**
-     * Creates DraggedTrackNode instances for all provided nodes. De-duplicates nodes that
+     * Creates ManipulatedTrackNode instances for all provided nodes. De-duplicates nodes that
      * are zero-distance neighbours of each other.
      *
      * @param nodes Track Nodes
-     * @return List of DraggedTrackNode instances
+     * @return List of ManipulatedTrackNode instances
      */
-    public static List<DraggedTrackNode> listOfNodes(Collection<TrackNode> nodes) {
+    public static List<ManipulatedTrackNode> listOfNodes(Collection<TrackNode> nodes) {
         if (nodes.isEmpty()) {
             return Collections.emptyList();
         }
 
         Set<TrackNode> processed = new HashSet<>(nodes.size());
-        List<DraggedTrackNode> draggedNodes = new ArrayList<>(nodes.size());
+        List<ManipulatedTrackNode> manipulatedNodes = new ArrayList<>(nodes.size());
         for (TrackNode node : nodes) {
-            DraggedTrackNode dragged = new DraggedTrackNode(node);
-            if (!processed.add(dragged.node)) {
+            ManipulatedTrackNode manipulated = new ManipulatedTrackNode(node);
+            if (!processed.add(manipulated.node)) {
                 continue;
             }
-            if (dragged.node_zd != null && !processed.add(dragged.node_zd)) {
+            if (manipulated.node_zd != null && !processed.add(manipulated.node_zd)) {
                 continue;
             }
-            draggedNodes.add(dragged);
+            manipulatedNodes.add(manipulated);
         }
-        return draggedNodes;
+        return manipulatedNodes;
     }
 
     /**
-     * Converts a list of dragged nodes into a map from TrackNode to DraggedTrackNode.
+     * Converts a list of manipulated nodes into a map from TrackNode to ManipulatedTrackNode.
      * Both the main node and zero-distance neighbour node (if any) are mapped.
      *
-     * @param draggedNodes List of dragged nodes
-     * @param <N> Type of dragged node
-     * @return Map from TrackNode to DraggedTrackNode
+     * @param manipulatedNodes List of manipulated nodes
+     * @param <N> Type of manipulated node
+     * @return Map from TrackNode to ManipulatedTrackNode
      */
-    public static <N extends DraggedTrackNode> Map<TrackNode, N> listToMap(Collection<N> draggedNodes) {
-        Map<TrackNode, N> map = new HashMap<>(draggedNodes.size());
-        for (N draggedNode : draggedNodes) {
-            map.put(draggedNode.node, draggedNode);
-            if (draggedNode.node_zd != null) {
-                map.put(draggedNode.node_zd, draggedNode);
+    public static <N extends ManipulatedTrackNode> Map<TrackNode, N> listToMap(Collection<N> manipulatedNodes) {
+        Map<TrackNode, N> map = new HashMap<>(manipulatedNodes.size());
+        for (N manipulatedNode : manipulatedNodes) {
+            map.put(manipulatedNode.node, manipulatedNode);
+            if (manipulatedNode.node_zd != null) {
+                map.put(manipulatedNode.node_zd, manipulatedNode);
             }
         }
         return map;
