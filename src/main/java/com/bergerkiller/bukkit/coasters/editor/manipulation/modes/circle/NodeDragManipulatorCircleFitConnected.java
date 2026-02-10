@@ -53,10 +53,7 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
         this.middleNodes = this.draggedNodes.stream()
                 .filter(n -> n != this.first && n != this.last)
                 .collect(Collectors.toCollection(ArrayList::new));
-    }
 
-    @Override
-    public void onStarted(NodeDragEvent event) {
         // Compute pinned parameters for the constrained circle fit
         this.startParams = this.pinnedParams = this.computePinnedParams2D();
 
@@ -70,6 +67,19 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
             middleNode.setInitialTheta(calculator.computeTheta(middleNode.node.getPosition()));
         }
         last.setInitialTheta(1.0);
+
+        // Determine the tangent orientation of each node currently and compute the up vector relative to that
+        for (DraggedTrackNodeOnCircleArc draggedNode : this.draggedNodes) {
+            double ang = calculator.computeAngleFromTheta(draggedNode.theta);
+            Vector up = draggedNode.node.getOrientation().clone();
+            calculator.computeTangentOrientation(ang).invTransformPoint(up);
+            draggedNode.up = up;
+        }
+    }
+
+    @Override
+    public void onDragStarted(NodeDragEvent event) {
+        NodeBiSectorThetaCalculator calculator = createNodeThetaCalculator();
 
         // Recompute the list of middle nodes, and sort it by theta value
         // If the list is different, shuffle (re-assign) the theta values accordingly
@@ -86,15 +96,13 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
                 hasSwappedNodes = true;
                 // Only assign initial theta, not theta, so that theta stays valid
                 node.setInitialTheta(sortedNode.theta);
-            }
-        }
 
-        // Determine the tangent orientation of each node currently and compute the up vector relative to that
-        for (DraggedTrackNodeOnCircleArc draggedNode : draggedNodes) {
-            double ang = calculator.computeAngleFromTheta(draggedNode.theta);
-            Vector up = draggedNode.node.getOrientation().clone();
-            calculator.computeTangentOrientation(ang).invTransformPoint(up);
-            draggedNode.up = up;
+                // This also changes the "up" orientation of this node
+                double ang = calculator.computeAngleFromTheta(node.theta);
+                Vector up = node.node.getOrientation().clone();
+                calculator.computeTangentOrientation(ang).invTransformPoint(up);
+                node.up = up;
+            }
         }
 
         TrackNode clickedNodeNode = state.findLookingAt();
@@ -120,7 +128,7 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
     }
 
     @Override
-    public void onUpdate(NodeDragEvent event) {
+    public void onDragUpdate(NodeDragEvent event) {
         // Transform the first node (Test)
         if (clickedNode == first || clickedNode == last) {
             handleDrag(clickedNode, event, true).applyTo(clickedNode);
@@ -152,7 +160,7 @@ class NodeDragManipulatorCircleFitConnected extends NodeDragManipulatorCircleFit
     }
 
     @Override
-    public void onFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException {
+    public void onDragFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException {
         // Merge/record behavior can be copied from other manipulators when implementing finish behavior.
         // For now, do nothing special.
         recordEditedNodesInHistory(history);
