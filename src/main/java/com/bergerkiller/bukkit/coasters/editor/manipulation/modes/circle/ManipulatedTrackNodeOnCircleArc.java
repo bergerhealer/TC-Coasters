@@ -1,20 +1,20 @@
 package com.bergerkiller.bukkit.coasters.editor.manipulation.modes.circle;
 
-import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNode;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.ManipulatedTrackNode;
 import org.bukkit.util.Vector;
 
 /**
- * A dragged track node on a circular arc, tracking theta values
+ * A manipulated track node on a circular arc, tracking theta values
  * along the arc for position updates.
  */
-class DraggedTrackNodeOnCircleArc extends DraggedTrackNode {
+class ManipulatedTrackNodeOnCircleArc extends ManipulatedTrackNode {
     /**
-     * Initial theta value at the time dragging begun.
+     * Initial theta value at the time manipulation begun.
      * Normalized fraction along arc from first->last (can be <0 or >1)
      */
     public double initialTheta;
     /**
-     * Calculated (new) theta value during dragging.
+     * Calculated (new) theta value during manipulation/dragging.
      * Normalized fraction along arc from first->last (can be <0 or >1).
      */
     public double theta;
@@ -23,7 +23,7 @@ class DraggedTrackNodeOnCircleArc extends DraggedTrackNode {
      */
     public Vector up = null;
 
-    public DraggedTrackNodeOnCircleArc(DraggedTrackNode copy) {
+    public ManipulatedTrackNodeOnCircleArc(ManipulatedTrackNode copy) {
         super(copy);
     }
 

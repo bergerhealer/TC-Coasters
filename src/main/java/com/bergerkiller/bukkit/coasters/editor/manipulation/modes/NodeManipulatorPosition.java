@@ -3,10 +3,10 @@ package com.bergerkiller.bukkit.coasters.editor.manipulation.modes;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNode;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.DraggedTrackNodeSpacingEqualizer;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.ManipulatedTrackNode;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.ManipulatedTrackNodeSpacingEqualizer;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragEvent;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragManipulatorBase;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulatorBase;
 
 import java.util.List;
 
@@ -14,12 +14,12 @@ import java.util.List;
  * Node drag manipulator that alters the position of the edited nodes
  * based on where the player is dragging.
  */
-public class NodeDragManipulatorPosition extends NodeDragManipulatorBase<DraggedTrackNode> {
-    public static final Initializer INITIALIZER = NodeDragManipulatorPosition::new;
+public class NodeManipulatorPosition extends NodeManipulatorBase<ManipulatedTrackNode> {
+    public static final Initializer INITIALIZER = NodeManipulatorPosition::new;
 
-    public NodeDragManipulatorPosition(PlayerEditState state, List<DraggedTrackNode> draggedNodes) {
-        super(state, draggedNodes);
-        for (DraggedTrackNode node : draggedNodes) {
+    public NodeManipulatorPosition(PlayerEditState state, List<ManipulatedTrackNode> manipulatedNodes) {
+        super(state, manipulatedNodes);
+        for (ManipulatedTrackNode node : manipulatedNodes) {
             node.dragPosition = node.node.getPosition().clone();
         }
     }
@@ -34,8 +34,8 @@ public class NodeDragManipulatorPosition extends NodeDragManipulatorBase<Dragged
         // Count two zero-connected nodes as one node
         final boolean isSingleNode = state.isEditingSingleNode();
 
-        for (DraggedTrackNode draggedNode : draggedNodes) {
-            handleDrag(draggedNode, event, isSingleNode).applyTo(draggedNode);
+        for (ManipulatedTrackNode manipulatedNode : manipulatedNodes) {
+            handleDrag(manipulatedNode, event, isSingleNode).applyTo(manipulatedNode);
         }
     }
 
@@ -50,7 +50,7 @@ public class NodeDragManipulatorPosition extends NodeDragManipulatorBase<Dragged
 
     @Override
     public void equalizeNodeSpacing(HistoryChangeCollection history) throws ChangeCancelledException {
-        DraggedTrackNodeSpacingEqualizer<DraggedTrackNode> equalizer = new DraggedTrackNodeSpacingEqualizer<>(draggedNodes);
+        ManipulatedTrackNodeSpacingEqualizer<ManipulatedTrackNode> equalizer = new ManipulatedTrackNodeSpacingEqualizer<>(manipulatedNodes);
         equalizer.findChains();
         if (equalizer.chains.isEmpty()) {
             throw new ChangeCancelledException();
@@ -61,7 +61,7 @@ public class NodeDragManipulatorPosition extends NodeDragManipulatorBase<Dragged
 
     @Override
     public void makeFiner(HistoryChangeCollection history) throws ChangeCancelledException {
-        DraggedTrackNodeSpacingEqualizer<DraggedTrackNode> equalizer = new DraggedTrackNodeSpacingEqualizer<>(draggedNodes);
+        ManipulatedTrackNodeSpacingEqualizer<ManipulatedTrackNode> equalizer = new ManipulatedTrackNodeSpacingEqualizer<>(manipulatedNodes);
         equalizer.findChains();
         if (equalizer.chains.isEmpty()) {
             throw new ChangeCancelledException();
@@ -72,7 +72,7 @@ public class NodeDragManipulatorPosition extends NodeDragManipulatorBase<Dragged
 
     @Override
     public void makeCourser(HistoryChangeCollection history) throws ChangeCancelledException {
-        DraggedTrackNodeSpacingEqualizer<DraggedTrackNode> equalizer = new DraggedTrackNodeSpacingEqualizer<>(draggedNodes);
+        ManipulatedTrackNodeSpacingEqualizer<ManipulatedTrackNode> equalizer = new ManipulatedTrackNodeSpacingEqualizer<>(manipulatedNodes);
         equalizer.findChains();
         if (equalizer.chains.isEmpty()) {
             throw new ChangeCancelledException();
