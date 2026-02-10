@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  * @param <N> Dragged Node type
  */
 public abstract class NodeDragManipulatorCircleFit<N extends DraggedTrackNode> extends NodeDragManipulatorBase<N> {
-    public static final Initializer INITIALIZER = (state, draggedNodes, event) -> {
+    public static final Initializer INITIALIZER = (state, draggedNodes) -> {
         // If there's not enough nodes to form a circle, just return a position manipulator instead
         if (draggedNodes.size() <= 2) {
             return new NodeDragManipulatorPosition(state, draggedNodes);

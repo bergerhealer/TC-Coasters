@@ -26,8 +26,8 @@ public class NodeDragHandler {
 
     /** Currently edited nodes. If different, drag manipulations are shifted out. */
     private Collection<TrackNode> editedNodesSaveState = Collections.emptyList();
-    /** Current manipulator, or null if no manipulation is active */
-    private NodeDragManipulator manipulator = null;
+    /** Current manipulator, or null if not currently dragging */
+    private NodeDragManipulator dragManipulator = null;
 
     public NodeDragHandler(PlayerEditInput input) {
         this.input = input;
@@ -39,34 +39,17 @@ public class NodeDragHandler {
      */
     public void reset() {
         this.editStartTransform = null;
-        this.manipulator = null;
+        this.dragManipulator = null;
         this.editedNodesSaveState = Collections.emptyList();
     }
 
     /**
-     * Gets whether a manipulator is currently active.
+     * Gets whether the player is currently dragging using a manipulator
      *
-     * @return True if manipulating
+     * @return True if manipulating by dragging
      */
-    public boolean isManipulating() {
-        return manipulator != null;
-    }
-
-    /**
-     * Finishes the current manipulation if the edited nodes have changed.
-     *
-     * @param state Player edit state to check the edited nodes of
-     * @param history History change collection to commit changes to if the manipulation needs to be finished
-     * @throws ChangeCancelledException If the change is cancelled
-     */
-    public void finishIfSelectionChanged(PlayerEditState state, HistoryChangeCollection history) throws ChangeCancelledException {
-        // If a manipulator is active, verify that the edited nodes are still the same
-        // If not, finish the previous manipulator and resume with a newly created one
-        if (manipulator != null && !areEditedNodesEqual(this.editedNodesSaveState, state.getEditedNodes())) {
-            // This could throw (fail to commit), in which case no drag is started
-            // Caller will reset selected nodes to resolve the problem.
-            this.finish(history);
-        }
+    public boolean isDragging() {
+        return dragManipulator != null;
     }
 
     /**
@@ -75,24 +58,23 @@ public class NodeDragHandler {
      *
      * @param initializer Manipulator initializer. Creates a new manipulator if no manipulation is active yet.
      * @param state PlayerEditState
-     * @return Drag result
      */
-    public DragResult drag(NodeDragManipulator.Initializer initializer, PlayerEditState state) throws ChangeCancelledException {
+    public void drag(NodeDragManipulator.Initializer initializer, PlayerEditState state) throws ChangeCancelledException {
         Set<TrackNode> editedNodes = state.getEditedNodes();
         if (editedNodes.isEmpty()) {
-            return new DragResult(Collections.emptyList(), null);
+            return;
         }
 
-        finishIfSelectionChanged(state, state.getHistory());
+        dragFinishIfSelectionChanged(state, state.getHistory());
 
         // Previous finish() could be changing the selected nodes
         editedNodes = state.getEditedNodes();
         if (editedNodes.isEmpty()) {
-            return new DragResult(Collections.emptyList(), null);
+            return;
         }
 
         // If no manipulator is set yet, create one
-        if (manipulator == null) {
+        if (dragManipulator == null) {
             // Fire start events for all nodes to be edited and keep track of cancelled ones
             List<TrackNode> cancelledNodes = new ArrayList<>();
             List<TrackNode> editableNodes = new ArrayList<>();
@@ -106,17 +88,37 @@ public class NodeDragHandler {
             if (!editableNodes.isEmpty()) {
                 NodeDragEvent event = this.nextEvent(true);
                 editedNodesSaveState = new HashSet<>(editedNodes);
-                manipulator = initializer.start(state, DraggedTrackNode.listOfNodes(editableNodes), event);
-                manipulator.onStarted(event);
-                manipulator.onUpdate(event);
+                dragManipulator = initializer.start(state, DraggedTrackNode.listOfNodes(editableNodes));
+                dragManipulator.onDragStarted(event);
+                dragManipulator.onDragUpdate(event);
             }
 
-            return new DragResult(cancelledNodes, manipulator);
+            for (TrackNode cancelled : cancelledNodes) {
+                state.setEditing(cancelled, false);
+            }
+
+            return;
         }
 
         NodeDragEvent event = this.nextEvent(state.getHeldDownTicks() == 0);
-        manipulator.onUpdate(event);
-        return new DragResult(Collections.emptyList(), manipulator);
+        dragManipulator.onDragUpdate(event);
+    }
+
+    /**
+     * Finishes the current manipulation if the edited nodes have changed.
+     *
+     * @param state Player edit state to check the edited nodes of
+     * @param history History change collection to commit changes to if the manipulation needs to be finished
+     * @throws ChangeCancelledException If the change is cancelled
+     */
+    public void dragFinishIfSelectionChanged(PlayerEditState state, HistoryChangeCollection history) throws ChangeCancelledException {
+        // If a manipulator is active, verify that the edited nodes are still the same
+        // If not, finish the previous manipulator and resume with a newly created one
+        if (isDragging() && !areEditedNodesEqual(this.editedNodesSaveState, state.getEditedNodes())) {
+            // This could throw (fail to commit), in which case no drag is started
+            // Caller will reset selected nodes to resolve the problem.
+            this.dragFinish(history);
+        }
     }
 
     /**
@@ -124,14 +126,14 @@ public class NodeDragHandler {
      *
      * @param history History change collection to commit changes to
      */
-    public void finish(HistoryChangeCollection history) throws ChangeCancelledException {
-        if (!isManipulating()) {
+    public void dragFinish(HistoryChangeCollection history) throws ChangeCancelledException {
+        if (!isDragging()) {
             return;
         }
 
         NodeDragEvent event = this.nextEvent(false);
         try {
-            manipulator.onFinished(history, event);
+            dragManipulator.onDragFinished(history, event);
         } finally {
             this.reset();
         }

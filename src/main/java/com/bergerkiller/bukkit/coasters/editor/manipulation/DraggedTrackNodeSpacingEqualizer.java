@@ -6,6 +6,7 @@ import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -312,15 +313,30 @@ public class DraggedTrackNodeSpacingEqualizer<N extends DraggedTrackNode> {
             movedObjects.sort(Comparator.comparingDouble(a -> a.fullDistance));
 
             // Move all the nodes to their new positions
+            // Fire events and store this change in history, so that it can be undone and redone properly
             for (int i = 0; i < middleNodes.size(); i++) {
                 if (i >= points.size()) {
                     break;
                 }
                 TrackConnection.Point point = points.get(i);
                 N node = middleNodes.get(i);
+
+                // Only fire event for the main node, since we know the zero-distance neighbour occupies the same spot
+                history.handleChangeBefore(state.getPlayer(), node.node);
+                TrackNodeState startState = node.node.getState();
                 node.setPosition(point.position);
                 node.setOrientation(point.orientation.upVector());
                 node.dragPosition = point.position.clone();
+                try {
+                    history.addChangeAfterChangingNode(state.getPlayer(), node.node, startState);
+                } catch (ChangeCancelledException ex) {
+                    // Restore zero-distance neighbour position and orientation too
+                    if (node.node_zd != null) {
+                        node.node_zd.setPosition(startState.position);
+                        node.node_zd.setOrientation(startState.orientation);
+                    }
+                    throw ex;
+                }
             }
 
             // Recompute the connection shapes

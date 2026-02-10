@@ -16,7 +16,7 @@ import java.util.List;
  * based on where the player is looking.
  */
 public class NodeDragManipulatorOrientation extends NodeDragManipulatorBase<DraggedTrackNode> {
-    public static final Initializer INITIALIZER = (state, draggedNodes, event) -> new NodeDragManipulatorOrientation(state, draggedNodes);
+    public static final Initializer INITIALIZER = NodeDragManipulatorOrientation::new;
 
     /** Virtual point of the node handle (lever) being dragged */
     private Vector handlePosition;
@@ -26,7 +26,7 @@ public class NodeDragManipulatorOrientation extends NodeDragManipulatorBase<Drag
     }
 
     @Override
-    public void onStarted(NodeDragEvent event) {
+    public void onDragStarted(NodeDragEvent event) {
         this.handlePosition = event.current().toVector();
 
         // Is used to properly alter the orientation of a node looked at
@@ -39,7 +39,7 @@ public class NodeDragManipulatorOrientation extends NodeDragManipulatorBase<Drag
     }
 
     @Override
-    public void onUpdate(NodeDragEvent event) {
+    public void onDragUpdate(NodeDragEvent event) {
         if (!event.isStart()) {
             event.change().transformPoint(this.handlePosition);
         }
@@ -50,7 +50,7 @@ public class NodeDragManipulatorOrientation extends NodeDragManipulatorBase<Drag
     }
 
     @Override
-    public void onFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException {
+    public void onDragFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException {
         recordEditedNodesInHistory(history);
     }
 }

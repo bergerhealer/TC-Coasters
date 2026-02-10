@@ -15,21 +15,21 @@ import java.util.List;
  * based on where the player is dragging.
  */
 public class NodeDragManipulatorPosition extends NodeDragManipulatorBase<DraggedTrackNode> {
-    public static final Initializer INITIALIZER = (state, draggedNodes, event) -> new NodeDragManipulatorPosition(state, draggedNodes);
+    public static final Initializer INITIALIZER = NodeDragManipulatorPosition::new;
 
     public NodeDragManipulatorPosition(PlayerEditState state, List<DraggedTrackNode> draggedNodes) {
         super(state, draggedNodes);
-    }
-
-    @Override
-    public void onStarted(NodeDragEvent event) {
         for (DraggedTrackNode node : draggedNodes) {
             node.dragPosition = node.node.getPosition().clone();
         }
     }
 
     @Override
-    public void onUpdate(NodeDragEvent event) {
+    public void onDragStarted(NodeDragEvent event) {
+    }
+
+    @Override
+    public void onDragUpdate(NodeDragEvent event) {
         // Check whether the player is moving only a single node or not
         // Count two zero-connected nodes as one node
         final boolean isSingleNode = state.isEditingSingleNode();
@@ -40,7 +40,7 @@ public class NodeDragManipulatorPosition extends NodeDragManipulatorBase<Dragged
     }
 
     @Override
-    public void onFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException {
+    public void onDragFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException {
         if (tryMergeSingleNode(history)) {
             return;
         }

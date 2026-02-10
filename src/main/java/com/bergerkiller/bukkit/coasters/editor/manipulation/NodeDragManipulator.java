@@ -18,28 +18,32 @@ public interface NodeDragManipulator {
     double MINIMUM_CONNECTION_DISTANCE = 0.2;
 
     /**
-     * Called when node dragging is started.
+     * Called when the user initiates drag while this manipulator is active.
+     * Is not called before other manipulation methods, like {@link #equalizeNodeSpacing(HistoryChangeCollection)},
+     * are called.
      *
      * @param event Node drag event
      */
-    void onStarted(NodeDragEvent event);
+    void onDragStarted(NodeDragEvent event);
 
     /**
-     * Called after {@link #onStarted(NodeDragEvent)}
-     * and repeatedly to update manipulation.
+     * Called after {@link #onDragStarted(NodeDragEvent)}
+     * and repeatedly to update manipulation while the user is dragging.
      *
      * @param event Node drag event
      */
-    void onUpdate(NodeDragEvent event);
+    void onDragUpdate(NodeDragEvent event);
 
     /**
      * Called when node dragging has finished (player releases mouse button).
+     * This should record the finalized manipulation changes into the history collection,
+     * so that they can be undone later on if needed.
      *
      * @param history History change collection to record finalized manipulation changes into
      * @param event Node drag event
      * @throws ChangeCancelledException If the change is cancelled
      */
-    void onFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException;
+    void onDragFinished(HistoryChangeCollection history, NodeDragEvent event) throws ChangeCancelledException;
 
     /**
      * Called when the equalize node spacing action is triggered.
@@ -93,9 +97,8 @@ public interface NodeDragManipulator {
          *
          * @param state Player edit state
          * @param draggedNodes Edited nodes to be manipulated
-         * @param event Node drag event
          * @return NodeDragManipulator instance
          */
-        NodeDragManipulator start(PlayerEditState state, List<DraggedTrackNode> draggedNodes, NodeDragEvent event);
+        NodeDragManipulator start(PlayerEditState state, List<DraggedTrackNode> draggedNodes);
     }
 }
