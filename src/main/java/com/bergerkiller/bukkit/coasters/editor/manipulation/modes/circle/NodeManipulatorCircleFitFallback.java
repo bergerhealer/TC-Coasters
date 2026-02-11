@@ -6,6 +6,7 @@ import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeCollection;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.ManipulatedTrackNode;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.ManipulatedTrackNodeSpacingEqualizer;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragEvent;
+import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.math.Vector2;
@@ -106,6 +107,8 @@ class NodeManipulatorCircleFitFallback extends NodeManipulatorCircleFit<Manipula
             throw new ChangeCancelledException();
         }
 
+        NodeAngleCalculator calc = createNodeAngleCalculator();
+
         for (ManipulatedTrackNodeSpacingEqualizer.NodeChainComputation<ManipulatedTrackNodeOnCircle> chain : equalizer.chains) {
             double arcAngle;
             double arcSide = 1.0;
@@ -135,15 +138,26 @@ class NodeManipulatorCircleFitFallback extends NodeManipulatorCircleFit<Manipula
             }
 
             // Compute angles for all nodes in-between first and last
+            List<TrackConnection.Point> middleNodePoints = new ArrayList<>(chain.middleNodes.size());
             double anglePerNode = arcSide * arcAngle / (double) (chain.middleNodes.size() + 1);
             for (int i = 0; i < chain.middleNodes.size(); i++) {
-                ManipulatedTrackNodeOnCircle dn = chain.middleNodes.get(i);
-                dn.angle = chain.first.angle + anglePerNode * (i + 1);
-            }
-        }
+                ManipulatedTrackNodeOnCircle middleNode = chain.middleNodes.get(i);
+                double ang = chain.first.angle + anglePerNode * (i + 1);
+                middleNode.angle = ang;
 
-        // Apply new angles to node positions
-        applyCircleNodesToCircle();
+                // Circle angle -> position and orientation on the circle
+                Vector newPos = calc.computePointAtAngle(ang);
+                Vector newUpVec = middleNode.up.clone();
+                Quaternion tangent = calc.computeTangentOrientation(ang);
+                tangent.transformPoint(newUpVec);
+                Quaternion newUp = Quaternion.fromLookDirection(tangent.forwardVector(), newUpVec);
+
+                // Save
+                middleNodePoints.add(new TrackConnection.Point(newPos, newUp));
+            }
+
+            chain.applyMiddleNodePositions(state, history, middleNodePoints);
+        }
     }
 
     /**
