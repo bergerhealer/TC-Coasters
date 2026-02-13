@@ -5,7 +5,8 @@ dev-url: ${project.url}
 description: Add-on for TrainCarts that adds free-form rollercoaster track
 authors: [bergerkiller]
 api-version: 1.13
-softdepend: [BKCommonLib, Train_Carts, PlotSquared, LightAPI, ViaVersion]
+softdepend: [PlotSquared, LightAPI, ViaVersion]
+depend: [BKCommonLib, Train_Carts]
 
 bstats:
     enabled: true
