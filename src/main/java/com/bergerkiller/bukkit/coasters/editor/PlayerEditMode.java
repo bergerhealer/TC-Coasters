@@ -94,60 +94,131 @@ public enum PlayerEditMode {
     }
 
     private static void createBuilderView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
-        tab.addWidget(new MapWidgetText())
-                .setText("/tcc create")
-                .setColor(MapColorPalette.COLOR_WHITE)
-                .setBounds(11, 10, 34, 13);
+        /** Build track button & state */
+        {
+            final int BASE_Y = 10;
 
-        final MapTexture rightClickTexture = stateSupplier.get().getPlugin().loadTexture("com/bergerkiller/bukkit/coasters/resources/right_click.png");
-        tab.addWidget(new MapWidget() {
-             @Override
-             public void onDraw() {
-                 view.draw(rightClickTexture, 0, 0);
-             }
-        }).setBounds(77, 6, rightClickTexture.getWidth(), rightClickTexture.getHeight());
+            tab.addWidget(new MapWidgetText())
+                    .setText("/tcc create")
+                    .setColor(MapColorPalette.COLOR_WHITE)
+                    .setBounds(11, BASE_Y, 34, 13);
 
-        tab.addWidget(new MapWidgetButton() {
-            @Override
-            public void onAttached() {
-                super.onAttached();
-                updateText();
-            }
-
-            @Override
-            public void onTick() {
-                super.onTick();
-                updateText();
-            }
-
-            @Override
-            public void onActivate() {
-                PlayerEditState state = stateSupplier.get();
-                try {
-                    state.createTrack();
-                } catch (ChangeCancelledException e) {
-                    getDisplay().playSound(SoundEffect.EXTINGUISH);
-                    state.clearEditedNodes();
+            final MapTexture rightClickTexture = stateSupplier.get().getPlugin().loadTexture("com/bergerkiller/bukkit/coasters/resources/right_click.png");
+            tab.addWidget(new MapWidget() {
+                @Override
+                public void onDraw() {
+                    view.draw(rightClickTexture, 0, 0);
                 }
-            }
+            }).setBounds(77, BASE_Y - 4, rightClickTexture.getWidth(), rightClickTexture.getHeight());
 
-            private void updateText() {
-                PlayerEditState.TrackBuilderPlan plan = stateSupplier.get().createTrackBuildPlan();
-                if (plan.spaceOccupied) {
-                    this.setText("Occupied");
-                    this.setEnabled(false);
-                } else if (!plan.connectionsToSplit.isEmpty()) {
-                    this.setText("Split Middle");
-                    this.setEnabled(true);
-                } else if (!plan.nodesToConnect.isEmpty()) {
-                    this.setText("Build & Connect");
-                    this.setEnabled(true);
-                } else {
-                    this.setText("Build Node");
-                    this.setEnabled(true);
+            tab.addWidget(new MapWidgetButton() {
+                @Override
+                public void onAttached() {
+                    super.onAttached();
+                    updateText();
                 }
-            }
-        }).setBounds(11, 20, 96, 13);
+
+                @Override
+                public void onTick() {
+                    super.onTick();
+                    updateText();
+                }
+
+                @Override
+                public void onActivate() {
+                    PlayerEditState state = stateSupplier.get();
+                    try {
+                        state.createTrack();
+                    } catch (ChangeCancelledException e) {
+                        getDisplay().playSound(SoundEffect.EXTINGUISH);
+                        state.clearEditedNodes();
+                    }
+                }
+
+                private void updateText() {
+                    PlayerEditState.TrackBuilderPlan plan = stateSupplier.get().createTrackBuildPlan();
+                    if (plan.spaceOccupied) {
+                        this.setText("Occupied");
+                        this.setEnabled(false);
+                    } else if (!plan.connectionsToSplit.isEmpty()) {
+                        this.setText("Split Middle");
+                        this.setEnabled(true);
+                    } else if (!plan.nodesToConnect.isEmpty()) {
+                        if (plan.isInAir) {
+                            this.setText("Connect");
+                        } else {
+                            this.setText("Build & Connect");
+                        }
+                        this.setEnabled(true);
+                    } else {
+                        this.setText("Build Node");
+                        this.setEnabled(true);
+                    }
+                }
+            }).setBounds(11, BASE_Y + 10, 96, 13);
+        }
+
+        /** Delete track button & state */
+        {
+            final int BASE_Y = 39;
+
+            tab.addWidget(new MapWidgetText())
+                    .setText("/tcc delete")
+                    .setColor(MapColorPalette.COLOR_WHITE)
+                    .setBounds(11, BASE_Y, 34, 13);
+
+            tab.addWidget(new MapWidgetButton() {
+                @Override
+                public void onAttached() {
+                    super.onAttached();
+                    updateText();
+                }
+
+                @Override
+                public void onTick() {
+                    super.onTick();
+                    updateText();
+                }
+
+                @Override
+                public void onActivate() {
+                    PlayerEditState state = stateSupplier.get();
+                    try {
+                        state.deleteTrack();
+                    } catch (ChangeCancelledException e) {
+                        getDisplay().playSound(SoundEffect.EXTINGUISH);
+                        state.clearEditedNodes();
+                    }
+                }
+
+                private void updateText() {
+                    PlayerEditState.TrackDeletionPlan plan = stateSupplier.get().createTrackDeletePlan();
+                    if (plan.isEmpty()) {
+                        this.setText("No Selection");
+                        this.setEnabled(false);
+                    } else if (plan.connectionsDeletedWithoutNodeDeletion == 0 || !plan.nodesToDelete.isEmpty()) {
+                        this.setText("Delete " + formatCount(plan.nodesToDelete.size(), "node"));
+                        this.setEnabled(true);
+                    } else if (plan.connectionsDeletedWithoutNodeDeletion == 1) {
+                        this.setText("Disconnect");
+                        this.setEnabled(true);
+                    } else {
+                        this.setText("Disconnect " + plan.connectionsDeletedWithoutNodeDeletion + "x");
+                        this.setEnabled(true);
+                    }
+                }
+
+                private String formatCount(int count, String singular) {
+                    if (count == 1) {
+                        return count + " " + singular;
+                    } else {
+                        return count + " " + singular + "s";
+                    }
+                }
+            }).setBounds(11, BASE_Y + 10, 96, 13);
+        }
+
+
     }
 
     private static void createPositionView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
