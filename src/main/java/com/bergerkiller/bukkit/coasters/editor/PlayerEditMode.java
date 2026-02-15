@@ -29,17 +29,15 @@ import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetNumberBox;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetSelectionBox;
 
 public enum PlayerEditMode {
-    DISABLED("Disabled (hidden)", 0, 1, PlayerEditMode::createEmptyView, NodeManipulationMode.NONE),
-    CREATE("Create Track", 20, 4, PlayerEditMode::createEmptyView, NodeManipulationMode.CREATE_TRACK),
-    POSITION("Change Position", 0, 1, PlayerEditMode::createPositionView, NodeManipulationMode.POSITION_ORIENTATION),
-    ORIENTATION("Change Orientation", 0, 1, PlayerEditMode::createOrientationView, NodeManipulationMode.POSITION_ORIENTATION),
-    RAILS("Change Rail Block", 0, 1, PlayerEditMode::createRailsView, NodeManipulationMode.SET_RAIL_BLOCK),
-    ANIMATION("Manage Animations", 0, 1, PlayerEditMode::createAnimationsView, NodeManipulationMode.POSITION_ORIENTATION),
-    OBJECT("Track Objects", 10, 3, PlayerEditMode::createTrackObjectsView, NodeManipulationMode.OBJECT),
-    DELETE("Delete Track", 10, 3, PlayerEditMode::createEmptyView, NodeManipulationMode.DELETE_TRACK);
+    DISABLED("Disabled (hidden)", PlayerEditMode::createEmptyView, NodeManipulationMode.NONE),
+    CREATE("Create Track", PlayerEditMode::createEmptyView, NodeManipulationMode.BUILDER),
+    POSITION("Change Position", PlayerEditMode::createPositionView, NodeManipulationMode.POSITION_ORIENTATION),
+    ORIENTATION("Change Orientation", PlayerEditMode::createOrientationView, NodeManipulationMode.POSITION_ORIENTATION),
+    RAILS("Change Rail Block", PlayerEditMode::createRailsView, NodeManipulationMode.SET_RAIL_BLOCK),
+    ANIMATION("Manage Animations", PlayerEditMode::createAnimationsView, NodeManipulationMode.POSITION_ORIENTATION),
+    OBJECT("Track Objects", PlayerEditMode::createTrackObjectsView, NodeManipulationMode.OBJECT),
+    DELETE("Delete Track", PlayerEditMode::createEmptyView, NodeManipulationMode.DELETE_TRACK);
 
-    private final int _autoInterval;
-    private final int _autoDelay;
     private final String _name;
     private final BiConsumer<MapWidgetTabView.Tab, Supplier<PlayerEditState>> _createViewMethod;
     private final NodeManipulationMode _manipulationMode;
@@ -49,21 +47,12 @@ public enum PlayerEditMode {
     // autoInterval: tick interval of activation while holding right-click
     private PlayerEditMode(
             final String name,
-            final int autoDelay,
-            final int autoInterval,
             final BiConsumer<MapWidgetTabView.Tab, Supplier<PlayerEditState>> createViewMethod,
             final NodeManipulationMode manipulationMode
     ) {
         this._name = name;
-        this._autoDelay = autoDelay;
-        this._autoInterval = autoInterval;
         this._createViewMethod = createViewMethod;
         this._manipulationMode = manipulationMode;
-    }
-
-    public boolean autoActivate(int tick) {
-        tick -= this._autoDelay;
-        return tick >= 0 && (_autoInterval <= 0 || (tick % _autoInterval) == 0);
     }
 
     public String getName() {

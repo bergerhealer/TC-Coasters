@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 import com.bergerkiller.bukkit.coasters.editor.history.HistoryChangeConnect;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragHandler;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragManipulator;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulationMode;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeDragManipulatorOrientation;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeDragManipulatorPosition;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.BlockSelectMenu;
@@ -93,6 +94,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     private long lastEditTime = System.currentTimeMillis();
     private PlayerEditMode editMode = PlayerEditMode.DISABLED;
     private PlayerEditMode afterEditMode = null;
+    private NodeManipulationMode nodeManipulationMode = NodeManipulationMode.NONE;
     private int heldDownTicks = 0;
     private boolean changed = false;
     private boolean editedAnimationNamesChanged = false;
@@ -922,8 +924,17 @@ public class PlayerEditState implements CoasterWorldComponent {
             this.markChanged();
             if (this.input.heldDuration() >= EDIT_AUTO_TIMEOUT) {
                 try {
-                    if (this.heldDownTicks == 0 || this.editMode.autoActivate(this.heldDownTicks)) {
-                        this.editMode.getManipulationMode().update(this);
+                    boolean runNow;
+                    if (this.heldDownTicks == 0) {
+                        runNow = true;
+                        this.nodeManipulationMode = this.editMode.getManipulationMode().select(this);
+                    } else {
+                        int tick = this.heldDownTicks - this.nodeManipulationMode.getAutoActivateDelay();
+                        int interval = this.nodeManipulationMode.getAutoActivateInterval();
+                        runNow = tick >= 0 && (interval <= 0 || (tick % interval) == 0);
+                    }
+                    if (runNow) {
+                        this.nodeManipulationMode.update(this);
                     }
                     this.heldDownTicks++;
                 } catch (ChangeCancelledException ex) {
