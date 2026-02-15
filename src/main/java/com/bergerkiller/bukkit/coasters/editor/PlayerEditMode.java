@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
+import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulationMode;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.lod.ItemLODSelectButton;
 import org.bukkit.ChatColor;
 import org.bukkit.block.BlockFace;
@@ -28,28 +29,36 @@ import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetNumberBox;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetSelectionBox;
 
 public enum PlayerEditMode {
-    DISABLED("Disabled (hidden)", 0, 1, PlayerEditMode::createEmptyView),
-    CREATE("Create Track", 20, 4, PlayerEditMode::createEmptyView),
-    POSITION("Change Position", 0, 1, PlayerEditMode::createPositionView),
-    ORIENTATION("Change Orientation", 0, 1, PlayerEditMode::createOrientationView),
-    RAILS("Change Rail Block", 0, 1, PlayerEditMode::createRailsView),
-    ANIMATION("Manage Animations", 0, 1, PlayerEditMode::createAnimationsView),
-    OBJECT("Track Objects", 10, 3, PlayerEditMode::createTrackObjectsView),
-    DELETE("Delete Track", 10, 3, PlayerEditMode::createEmptyView);
+    DISABLED("Disabled (hidden)", 0, 1, PlayerEditMode::createEmptyView, NodeManipulationMode.NONE),
+    CREATE("Create Track", 20, 4, PlayerEditMode::createEmptyView, NodeManipulationMode.CREATE_TRACK),
+    POSITION("Change Position", 0, 1, PlayerEditMode::createPositionView, NodeManipulationMode.POSITION_ORIENTATION),
+    ORIENTATION("Change Orientation", 0, 1, PlayerEditMode::createOrientationView, NodeManipulationMode.POSITION_ORIENTATION),
+    RAILS("Change Rail Block", 0, 1, PlayerEditMode::createRailsView, NodeManipulationMode.SET_RAIL_BLOCK),
+    ANIMATION("Manage Animations", 0, 1, PlayerEditMode::createAnimationsView, NodeManipulationMode.POSITION_ORIENTATION),
+    OBJECT("Track Objects", 10, 3, PlayerEditMode::createTrackObjectsView, NodeManipulationMode.OBJECT),
+    DELETE("Delete Track", 10, 3, PlayerEditMode::createEmptyView, NodeManipulationMode.DELETE_TRACK);
 
     private final int _autoInterval;
     private final int _autoDelay;
     private final String _name;
     private final BiConsumer<MapWidgetTabView.Tab, Supplier<PlayerEditState>> _createViewMethod;
+    private final NodeManipulationMode _manipulationMode;
 
     // name: displayed in the UI
     // autoDelay: how many ticks of holding right-click until continuously activating
     // autoInterval: tick interval of activation while holding right-click
-    private PlayerEditMode(String name, int autoDelay, int autoInterval, BiConsumer<MapWidgetTabView.Tab, Supplier<PlayerEditState>> createViewMethod) {
+    private PlayerEditMode(
+            final String name,
+            final int autoDelay,
+            final int autoInterval,
+            final BiConsumer<MapWidgetTabView.Tab, Supplier<PlayerEditState>> createViewMethod,
+            final NodeManipulationMode manipulationMode
+    ) {
         this._name = name;
         this._autoDelay = autoDelay;
         this._autoInterval = autoInterval;
         this._createViewMethod = createViewMethod;
+        this._manipulationMode = manipulationMode;
     }
 
     public boolean autoActivate(int tick) {
@@ -59,6 +68,16 @@ public enum PlayerEditMode {
 
     public String getName() {
         return this._name;
+    }
+
+    /**
+     * Gets the node manipulation mode active while the Player is in this edit mode.
+     * This controls what happens when the Player presses or holds the right-click button.
+     *
+     * @return NodeManipulationMode
+     */
+    public NodeManipulationMode getManipulationMode() {
+        return this._manipulationMode;
     }
 
     public static PlayerEditMode fromName(String name) {

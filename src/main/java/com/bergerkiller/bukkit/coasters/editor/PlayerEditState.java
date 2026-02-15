@@ -923,7 +923,7 @@ public class PlayerEditState implements CoasterWorldComponent {
             if (this.input.heldDuration() >= EDIT_AUTO_TIMEOUT) {
                 try {
                     if (this.heldDownTicks == 0 || this.editMode.autoActivate(this.heldDownTicks)) {
-                        this.updateEditing();
+                        this.editMode.getManipulationMode().update(this);
                     }
                     this.heldDownTicks++;
                 } catch (ChangeCancelledException ex) {
@@ -949,25 +949,6 @@ public class PlayerEditState implements CoasterWorldComponent {
             this.onEditedAnimationNamedChanged();
         }
         this.getObjects().update();
-    }
-
-    private void updateEditing() throws ChangeCancelledException {
-        if (this.editMode == PlayerEditMode.CREATE) {
-            // Create new tracks
-            createTrack();
-        } else if (this.editMode == PlayerEditMode.DELETE) {
-            // Delete tracks
-            deleteTrack();
-        } else if (this.editMode == PlayerEditMode.RAILS) {
-            // Set rails block to the block clicked
-            setRailBlock();
-        } else if (this.editMode == PlayerEditMode.OBJECT) {
-            // Create track objects on the track
-            this.objectState.createObject();
-        } else {
-            // Position / Orientation logic
-            dragManipulationUpdate();
-        }
     }
 
     /**
