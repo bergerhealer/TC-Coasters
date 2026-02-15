@@ -37,8 +37,7 @@ public enum PlayerEditMode {
     ORIENTATION("Change Orientation", PlayerEditMode::createOrientationView, NodeManipulationMode.POSITION_ORIENTATION),
     RAILS("Change Rail Block", PlayerEditMode::createRailsView, NodeManipulationMode.SET_RAIL_BLOCK),
     ANIMATION("Manage Animations", PlayerEditMode::createAnimationsView, NodeManipulationMode.POSITION_ORIENTATION),
-    OBJECT("Track Objects", PlayerEditMode::createTrackObjectsView, NodeManipulationMode.OBJECT),
-    DELETE("Delete Track", PlayerEditMode::createEmptyView, NodeManipulationMode.DELETE_TRACK);
+    OBJECT("Track Objects", PlayerEditMode::createTrackObjectsView, NodeManipulationMode.OBJECT);
 
     private final String _name;
     private final BiConsumer<MapWidgetTabView.Tab, Supplier<PlayerEditState>> _createViewMethod;
