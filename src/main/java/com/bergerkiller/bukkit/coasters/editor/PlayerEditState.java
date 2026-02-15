@@ -30,6 +30,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
@@ -927,68 +928,145 @@ public class PlayerEditState implements CoasterWorldComponent {
      * to the now-deleted tracks. This allows repeated deletion to 'walk' and delete.
      */
     public void deleteTrack() throws ChangeCancelledException {
-        // Deselect nodes we cannot delete or modify
-        this.deselectLockedNodes();
+        createTrackDeletePlan().execute(this);
+    }
 
-        // Track all changes
-        HistoryChange changes = this.getHistory().addChangeGroup();
+    /**
+     * Creates a plan to delete the selected track nodes, without actually deleting them yet.
+     * This is used to show a preview of what would be deleted, and to select the nodes that would be affected by the deletion.
+     * Call execute(state) to actually delete them.
+     *
+     * @return TrackDeletionPlan
+     */
+    public TrackDeletionPlan createTrackDeletePlan() {
+        // Defensive copy of only those nodes we can delete (not locked coaster)
+        HashSet<TrackNode> toDelete = new HashSet<TrackNode>(this.getEditedNodes().size());
+        for (TrackNode node : this.getEditedNodes()) {
+            if (!node.isLocked()) {
+                toDelete.add(node);
+            }
+        }
 
-        // Defensive copy
-        HashSet<TrackNode> toDelete = new HashSet<TrackNode>(this.getEditedNodes());
+        TrackDeletionPlan plan = new TrackDeletionPlan();
+        if (toDelete.isEmpty()) {
+            return plan; // No-op
+        }
 
-        // Disconnect nodes when adjacent nodes are selected
-        boolean disconnectedNodes = false;
+        // Delete connections when both adjacent nodes are selected
         for (TrackNode node : toDelete) {
             for (TrackConnection connection : node.getConnections()) {
-                TrackNode neigh = connection.getOtherNode(node);
-                if (toDelete.contains(neigh)) {
-                    changes.addChangeBeforeDisconnect(this.player, connection);
-                    getWorld().getTracks().disconnect(node, neigh);
-                    removeConnectionForAnimationStates(node, neigh);
-                    removeConnectionForAnimationStates(neigh, node);
-                    disconnectedNodes = true;
+                if (connection.isZeroLength()) {
+                    continue;
+                }
+
+                if (toDelete.contains(connection.getOtherNode(node))) {
+                    plan.connectionsToDelete.add(connection); // Note: set behavior
                 }
             }
         }
-        if (disconnectedNodes) {
-            // Clean up empty nodes
+
+        // Eliminate zero-distance neighbours to avoid duplicates
+        boolean hadZDNeighbour;
+        do {
+            hadZDNeighbour = false;
             for (TrackNode node : toDelete) {
-                if (node.isUnconnectedNode()) {
-                    this.setEditing(node, false);
-                    changes.addChangeBeforeDeleteNode(this.player, node);
-                    node.remove();
+                TrackNode node_zd = node.getZeroDistanceNeighbour();
+                if (node_zd != null && toDelete.remove(node_zd)) {
+                    hadZDNeighbour = true;
+                    break;
                 }
             }
-            return;
-        }
+        } while (hadZDNeighbour);
 
-        // Backup all nodes to delete, then select all unselected neighbours of those nodes
-        this.clearEditedNodes();
-        for (TrackNode node : toDelete) {
-            for (TrackNode neighbour : node.getNeighbours()) {
-                if (!toDelete.contains(neighbour)) {
-                    TrackNode zeroDist = neighbour.getZeroDistanceNeighbour();
+        if (plan.connectionsToDelete.isEmpty()) {
+            // All these nodes must be deleted
+            // Nodes with a zero-distance neighbour need to be made curved first
+            for (TrackNode node : toDelete) {
+                if (node.getZeroDistanceNeighbour() != null) {
+                    plan.nodesToMakeCurved.add(node);
+                }
+                plan.nodesToDelete.add(node);
 
-                    // If this node has a zero-distance orphan, purge it right away
-                    // Breaks history a little bit. Oh well.
-                    if (zeroDist != null && zeroDist.isZeroDistanceOrphan()) {
-                        zeroDist.remove();
-                        zeroDist = null;
-                    }
-
-                    // If neighbour has a non-orphan zero-distance neighbour, select that one too
-                    if (this.selectNode(neighbour) && zeroDist != null) {
-                        this.setEditing(zeroDist, true); // No select event this time
+                // Select the nodes connected to this node (chain deletion)
+                // We found no connections earlier, so we know they are not being deleted.
+                List<TrackConnection> connections = node.getConnections();
+                TrackNode node_zd = node.getZeroDistanceNeighbour();
+                if (node_zd != null) {
+                    connections = new ArrayList<>(connections);
+                    connections.addAll(node_zd.getConnections());
+                    connections.removeIf(TrackConnection::isZeroLength);
+                }
+                for (TrackConnection conn : connections) {
+                    TrackNode neigh = conn.getOtherNode(node);
+                    if (!toDelete.contains(neigh)) {
+                        plan.nodesToSelect.add(neigh);
+                        TrackNode neigh_zd = neigh.getZeroDistanceNeighbour();
+                        if (neigh_zd != null) {
+                            plan.nodesToSelect.add(neigh_zd);
+                        }
                     }
                 }
             }
+        } else {
+            // If there are connections to delete, also delete all nodes that have no connections after
+            // Straightened nodes with only one connection only need to be made curved to delete the ZD neighbour
+            // Preserve nodes that have connections in animation states
+            for (TrackNode node : toDelete) {
+                TrackNode node_zd = node.getZeroDistanceNeighbour();
+
+                int remainingConnections = 0;
+                for (TrackConnection conn : node.getConnections()) {
+                    if (!plan.connectionsToDelete.contains(conn) && !conn.isZeroLength()) {
+                        remainingConnections++;
+                    }
+                }
+
+                int remainingConnectionZD = 0;
+                if (node_zd != null) {
+                    for (TrackConnection conn : node_zd.getConnections()) {
+                        if (!plan.connectionsToDelete.contains(conn) && !conn.isZeroLength()) {
+                            remainingConnectionZD++;
+                        }
+                    }
+                }
+
+                // Orphan ZD.
+                if (node_zd != null && remainingConnections == 0 || remainingConnectionZD == 0) {
+                    plan.nodesToMakeCurved.add(node);
+                }
+
+                // Keep if there's remaining connections
+                if ((remainingConnections + remainingConnectionZD) > 0) {
+                    plan.nodesToSelect.add(node);
+                    if (node_zd != null) {
+                        plan.nodesToSelect.add(node_zd);
+                    }
+                    continue;
+                }
+
+                // Before we delete the node, do check if this node has animation states with connections
+                // Don't just nuke the node in that case as we'd lose all that then.
+                if (node.hasAnimationStatesWithConnections() || (node_zd != null && node_zd.hasAnimationStatesWithConnections())) {
+                    plan.nodesToSelect.add(node);
+                    if (node_zd != null) {
+                        plan.nodesToSelect.add(node_zd);
+                    }
+                    continue;
+                }
+
+                plan.nodesToDelete.add(node);
+            }
         }
 
-        // Delete all nodes to be deleted
-        for (TrackNode node : toDelete) {
-            changes.addChangeBeforeDeleteNode(this.player, node);
-            node.remove();
+        // Count the connections of which either node they are connected to are not deleted
+        plan.connectionsDeletedWithoutNodeDeletion = 0;
+        for (TrackConnection conn : plan.connectionsToDelete) {
+            if (!plan.isDeletedOrZD(conn.getNodeA()) || !plan.isDeletedOrZD(conn.getNodeB())) {
+                plan.connectionsDeletedWithoutNodeDeletion++;
+            }
         }
+
+        return plan;
     }
 
     /**
@@ -1919,6 +1997,116 @@ public class PlayerEditState implements CoasterWorldComponent {
             // Set all new split-connection nodes we created as editing, too.
             for (TrackNode node : createdConnNodes) {
                 state.setEditing(node, true);
+            }
+        }
+    }
+
+    /**
+     * Plan to execute when deleting track, or disconnecting nodes. What will be done is stored in
+     * this plan, which can then be used for GUI display or execution.
+     */
+    public static final class TrackDeletionPlan {
+        /** All connections to delete prior to actual node deletion occurs */
+        public final Set<TrackConnection> connectionsToDelete = new LinkedHashSet<>();
+        /** Number of connections that are deleted of which nodes are not deleted */
+        public int connectionsDeletedWithoutNodeDeletion = 0;
+        /** Nodes that had a zero-distance neighbour, but are now free-standing.
+         * These need to be made curved again to avoid glitches.
+         * Are made curved after the connections are removed, but before the nodes are deleted. */
+        public final Set<TrackNode> nodesToMakeCurved = new LinkedHashSet<>();
+        /** Nodes to delete. Are deleted after the connections are removed. */
+        public final Set<TrackNode> nodesToDelete = new LinkedHashSet<>();
+        /** Nodes to select after deletion completed */
+        public final Set<TrackNode> nodesToSelect = new LinkedHashSet<>();
+
+        public boolean isEmpty() {
+            return connectionsToDelete.isEmpty() && nodesToMakeCurved.isEmpty() && nodesToDelete.isEmpty();
+        }
+
+        private boolean isDeletedOrZD(TrackNode node) {
+            if (nodesToDelete.contains(node)) {
+                return true;
+            }
+            if (nodesToMakeCurved.contains(node)) {
+                TrackNode node_zd = node.getZeroDistanceNeighbour();
+                if (node_zd != null && nodesToDelete.contains(node_zd)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public void execute(PlayerEditState state) throws ChangeCancelledException {
+            if (isEmpty()) {
+                return; // No-op
+            }
+
+            // Deselect nodes we cannot delete or modify (message to player)
+            // Already filtered out when plan was created.
+            state.deselectLockedNodes();
+
+            HistoryChange changes = state.getHistory().addChangeGroup();
+
+            // Disconnect all connections of which both nodes were selected
+            for (TrackConnection connection : connectionsToDelete) {
+                TrackNode nodeA = connection.getNodeA();
+                TrackNode nodeB = connection.getNodeB();
+                changes.addChangeBeforeDisconnect(state.getPlayer(), connection);
+                connection.remove();
+                state.removeConnectionForAnimationStates(nodeA, nodeB);
+                state.removeConnectionForAnimationStates(nodeB, nodeA);
+            }
+
+            // Make nodes that had a zero-distance neighbour curved again to avoid glitches
+            for (TrackNode node : nodesToMakeCurved) {
+                TrackNode node_zd = node.getZeroDistanceNeighbour();
+                boolean removeAfter = nodesToDelete.contains(node) || nodesToDelete.contains(node_zd);
+                state.makeNodeConnectionsCurved(changes, node);
+
+                // This logic could remove the other node instead of this one
+                nodesToDelete.remove(node);
+                nodesToDelete.remove(node_zd);
+                if (removeAfter) {
+                    if (!node.isRemoved()) {
+                        nodesToDelete.add(node);
+                    }
+                    if (node_zd != null && !node_zd.isRemoved()) {
+                        nodesToDelete.add(node_zd);
+                    }
+                }
+            }
+
+            // Delete all nodes to be deleted
+            for (TrackNode node : nodesToDelete) {
+                changes.addChangeBeforeDeleteNode(state.getPlayer(), node);
+                node.remove();
+            }
+
+            // Update selection
+            state.clearEditedNodes();
+            for (TrackNode node : nodesToSelect) {
+                if (!node.isRemoved()) {
+                    state.selectNode(node);
+                }
+            }
+        }
+
+        public void sendSuccessMessage(CommandSender sender) {
+            if (connectionsDeletedWithoutNodeDeletion == 0) {
+                sender.sendMessage("Deleted " + formatCount(nodesToDelete.size(), "track node") + "!");
+            } else if (nodesToDelete.isEmpty()) {
+                sender.sendMessage("Disconnected " + formatCount(connectionsDeletedWithoutNodeDeletion, "connection") + "!");
+            } else {
+                sender.sendMessage("Disconnected " + formatCount(connectionsDeletedWithoutNodeDeletion, "connection") +
+                        " and deleted " + formatCount(nodesToDelete.size(),"track node") + "!");
+            }
+        }
+
+        private static String formatCount(int count, String singular) {
+            if (count == 1) {
+                return count + " " + singular;
+            } else {
+                return count + " " + singular + "s";
             }
         }
     }

@@ -543,15 +543,21 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
      * @return True if this is an unconnected node
      */
     public final boolean isUnconnectedNode() {
-        if (this._connections.length > 0) {
-            return false;
-        }
+        return this._connections.length == 0 && !hasAnimationStatesWithConnections();
+    }
+
+    /**
+     * Gets whether this node has any animation states that define connections with other nodes.
+     *
+     * @return True if at least one animation state defines connections with other nodes
+     */
+    public final boolean hasAnimationStatesWithConnections() {
         for (TrackNodeAnimationState anim : this._animationStates) {
             if (anim.connections.length > 0) {
-                return false;
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     /**

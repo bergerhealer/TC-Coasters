@@ -84,16 +84,18 @@ class EditStateCommands {
         } else {
             // Tracks
             state.deselectLockedNodes();
-            if (!state.hasEditedNodes()) {
+
+            PlayerEditState.TrackDeletionPlan plan = state.createTrackDeletePlan();
+            if (plan.isEmpty()) {
                 sender.sendMessage("No track nodes selected, nothing has been deleted!");
-            } else {
-                try {
-                    int numDeleted = state.getEditedNodes().size();
-                    state.deleteTrack();
-                    sender.sendMessage("Deleted " + numDeleted + " track nodes!");
-                } catch (ChangeCancelledException e) {
-                    sender.sendMessage(ChatColor.RED + "Failed to delete some of the track nodes!");
-                }
+                return;
+            }
+
+            try {
+                plan.execute(state);
+                plan.sendSuccessMessage(sender);
+            } catch (ChangeCancelledException e) {
+                sender.sendMessage(ChatColor.RED + "Failed to delete some of the track nodes!");
             }
         }
     }
