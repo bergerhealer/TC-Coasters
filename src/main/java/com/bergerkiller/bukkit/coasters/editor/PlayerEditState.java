@@ -1221,32 +1221,13 @@ public class PlayerEditState implements CoasterWorldComponent {
      * The created track node is selected to allow chaining create node calls.
      */
     public void createTrack() throws ChangeCancelledException {
-        // For the first click, check if the player is looking exactly at a particular connection or node
-        // If so, create a node on this connection or node and switch mode to position adjustment
-        // This allows for a kind of click-drag creation design
-        // TODO: Find connection
         TrackWorld tracks = getWorld().getTracks();
         Location eyeLoc = getPlayer().getEyeLocation();
-        boolean dragAfterCreate = false;
         Vector pos = null;
         Vector ori = null;
-        if (this.heldDownTicks == 0 && this.getEditedNodes().size() <= 1) {
-            TrackNode lookingAt = findLookingAt();
-            if (lookingAt != null) {
-                this.clearEditedNodes();
-                this.selectNode(lookingAt);
-                pos = lookingAt.getPosition().clone();
-
-                // Node: introduce a tiny offset to pos, otherwise
-                // the node can not be properly looked up again during undo/redo
-                pos.setY(pos.getY() + 1e-5);
-
-                dragAfterCreate = true;
-            }
-        }
 
         // If targeting a block face, create a node on top of this face
-        if (!dragAfterCreate && this.targetedBlock != null) {
+        if (this.targetedBlock != null) {
             // If the targeted block is a rails block, connect to one end of it
             RailType clickedRailType = RailType.getType(this.targetedBlock);
             if (clickedRailType != RailType.NONE) {
@@ -1293,19 +1274,12 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
 
         // First check no track already exists at this position
-        if (!dragAfterCreate && !tracks.findNodesNear(new ArrayList<TrackNode>(2), pos, 0.1).isEmpty()) {
+        if (!tracks.findNodesNear(new ArrayList<TrackNode>(2), pos, 0.1).isEmpty()) {
             return;
         }
 
         // Create the node and set as editing
         createNewNode(pos, ori, inAir);
-
-        // If drag mode, switch to POSITION mode and initiate the drag
-        if (dragAfterCreate) {
-            this.setMode(PlayerEditMode.POSITION);
-            this.dragHandler.reset();
-            this.setAfterEditMode(PlayerEditMode.BUILDER);
-        }
     }
 
     private Vector getNewNodePos() {
