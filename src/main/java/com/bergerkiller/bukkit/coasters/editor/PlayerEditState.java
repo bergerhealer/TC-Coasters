@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -671,54 +672,12 @@ public class PlayerEditState implements CoasterWorldComponent {
         }
 
         // When holding right-click and clicking left-click in position mode, create a new node and drag that
-        if (this.getMode() == PlayerEditMode.POSITION && this.isHoldingRightClick()) {
-            // Complete moving the original selected node(s), call onEditingFinished
-            try {
-                this.dragManipulationFinish();
-                this.heldDownTicks = 0;
-            } catch (ChangeCancelledException e) {
-                // Couldn't place the node(s) here, the change was aborted
-                // This also aborts creating the new node to keep things sane
-                this.clearEditedNodes();
+        try {
+            if (nodeManipulationMode.leftClick(this)) {
                 return true;
             }
-
-            Vector pos;
-            if (this.getEditedNodes().size() == 1) {
-                pos = this.getEditedNodes().iterator().next().getPosition().clone();
-
-                // We must make minor changes to the position so the node position is 'unique'
-                // The findNodeExact function has an accuracy of 1e-6, increments of 1e-5 will be sufficient
-                // Move the node closer/further from the player perspective, so at least it doesn't translate visibly
-                // Use a poor man's randomness to either bring the point closer or further from the player
-                // That way over the course of many clicks, the position shouldn't drift too badly
-                Vector dir = pos.clone().subtract(this.player.getEyeLocation().toVector());
-                {
-                    double dir_lsq = dir.lengthSquared();
-                    if (dir_lsq < 1e-5) {
-                        dir = this.player.getEyeLocation().getDirection();
-                    } else {
-                        dir.multiply(MathUtil.getNormalizationFactorLS(dir_lsq));
-                    }
-                }
-                if (Math.random() >= 0.5) {
-                    dir.multiply(1e-5);
-                } else {
-                    dir.multiply(-1e-5);
-                }
-                pos.add(dir);
-                while (this.getWorld().getTracks().findNodeExact(pos) != null) {
-                    pos.add(dir);
-                }
-            } else {
-                pos = this.getNewNodePos();
-            }
-            try {
-                this.createNewNode(pos, null, false);
-                this.draggingCreateNewNodeChange = this.getHistory().getLastChange();
-            } catch (ChangeCancelledException e) {
-                // Do nothing, the left click simply didn't do anything.
-            }
+        } catch (ChangeCancelledException ex) {
+            clearEditedNodes();
             return true;
         }
 
@@ -934,7 +893,7 @@ public class PlayerEditState implements CoasterWorldComponent {
                         runNow = tick >= 0 && (interval <= 0 || (tick % interval) == 0);
                     }
                     if (runNow) {
-                        this.nodeManipulationMode.update(this);
+                        this.nodeManipulationMode.rightClick(this);
                     }
                     this.heldDownTicks++;
                 } catch (ChangeCancelledException ex) {
@@ -950,6 +909,7 @@ public class PlayerEditState implements CoasterWorldComponent {
                 }
                 this.heldDownTicks = 0;
                 this.targetedBlock = null;
+                this.nodeManipulationMode = NodeManipulationMode.NONE;
             }
             if (this.afterEditMode != null) {
                 this.setMode(this.afterEditMode);
@@ -1217,33 +1177,128 @@ public class PlayerEditState implements CoasterWorldComponent {
     }
 
     /**
+     * Handles the left-click action while the player is dragging nodes around. Places a new node down
+     * where the player is currently looking/dragging.
+     *
+     * @return True if a node was created, or False if not possible (dragging multiple nodes for example)
+     * @throws ChangeCancelledException If the change was cancelled (permissions), in which case all selected nodes are deselected.
+     */
+    public boolean insertNodeWhileDragging() throws ChangeCancelledException {
+        // Complete moving the original selected node(s), call onEditingFinished
+        // Note: can be cancelled!
+        this.dragManipulationFinish();
+
+        // Guarantee
+        this.deselectLockedNodes();
+
+        // See if we are dragging around exactly one node.
+        // Do take into account that we could have a zero-distance neighbour (straightened)
+        TrackNode singleEditedNode = null;
+        for (TrackNode node : getEditedNodes()) {
+            if (singleEditedNode == null) {
+                singleEditedNode = node;
+            } else if (singleEditedNode == node.getZeroDistanceNeighbour()) {
+                continue; // Allow
+            } else {
+                // Multiple nodes selected
+                singleEditedNode = null;
+                break;
+            }
+        }
+
+        if (singleEditedNode == null) {
+            return false;
+        }
+
+        Vector pos = singleEditedNode.getPosition().clone();
+
+        // We must make minor changes to the position so the node position is 'unique'
+        // The findNodeExact function has an accuracy of 1e-6, increments of 1e-5 will be sufficient
+        // Move the node closer/further from the player perspective, so at least it doesn't translate visibly
+        // Use a poor man's randomness to either bring the point closer or further from the player
+        // That way over the course of many clicks, the position shouldn't drift too badly
+        Vector dir = pos.clone().subtract(this.player.getEyeLocation().toVector());
+        {
+            double dir_lsq = dir.lengthSquared();
+            if (dir_lsq < 1e-5) {
+                dir = this.player.getEyeLocation().getDirection();
+            } else {
+                dir.multiply(MathUtil.getNormalizationFactorLS(dir_lsq));
+            }
+        }
+        if (Math.random() >= 0.5) {
+            dir.multiply(1e-5);
+        } else {
+            dir.multiply(-1e-5);
+        }
+        pos.add(dir);
+        while (this.getWorld().getTracks().findNodeExact(pos) != null) {
+            pos.add(dir);
+        }
+
+        // Reuse the builder plan logic for placing the new node
+        TrackBuilderPlan plan = this.createTrackBuildPlan(pos, null, true);
+        if (plan.spaceOccupied) {
+            return false;
+        }
+        plan.execute(this);
+        this.draggingCreateNewNodeChange = this.getHistory().getLastChange();
+        return true;
+    }
+
+    /**
      * Creates a new track node, connecting with already selected track nodes.
      * The created track node is selected to allow chaining create node calls.
      */
     public void createTrack() throws ChangeCancelledException {
-        TrackWorld tracks = getWorld().getTracks();
+        createTrackBuildPlan().execute(this);
+    }
+
+    /**
+     * Creates a plan for creating a new track node, based on where the player is looking and what they are looking at.
+     * The plan can be executed or used for GUI state display.<br>
+     * <br>
+     * Note: this plan is not long-lived. Execute right after creating the plan, do not store it.
+     * Later Player selection changes will not be reflected.
+     *
+     * @return TrackBuilderPlan
+     */
+    public TrackBuilderPlan createTrackBuildPlan() {
         Location eyeLoc = getPlayer().getEyeLocation();
         Vector pos = null;
         Vector ori = null;
+        boolean inAir = false;
+
+        // If a previous interact event did not already set one, see if the player is looking at a particular block
+        // If so, create the node on that block
+        Block targetedBlock = this.targetedBlock;
+        BlockFace targetedBlockFace = this.targetedBlockFace;
+        if (targetedBlock == null) {
+            TargetedBlockInfo info = TCCoastersUtil.rayTrace(this.player);
+            if (info != null) {
+                targetedBlock = info.block;
+                targetedBlockFace = info.face;
+            }
+        }
 
         // If targeting a block face, create a node on top of this face
-        if (this.targetedBlock != null) {
+        if (targetedBlock != null) {
             // If the targeted block is a rails block, connect to one end of it
-            RailType clickedRailType = RailType.getType(this.targetedBlock);
+            RailType clickedRailType = RailType.getType(targetedBlock);
             if (clickedRailType != RailType.NONE) {
                 // Load the path for the rails clicked
                 RailState state = new RailState();
-                state.setRailPiece(RailPiece.create(clickedRailType, this.targetedBlock));
-                state.position().setLocation(clickedRailType.getSpawnLocation(this.targetedBlock, this.targetedBlockFace));
-                state.position().setMotion(this.targetedBlockFace);
+                state.setRailPiece(RailPiece.create(clickedRailType, targetedBlock));
+                state.position().setLocation(clickedRailType.getSpawnLocation(targetedBlock, targetedBlockFace));
+                state.position().setMotion(targetedBlockFace);
                 state.initEnterDirection();
                 RailPath path = state.loadRailLogic().getPath();
 
                 // Select the best possible path end position
                 RailPath.Position p1 = path.getStartPosition();
                 RailPath.Position p2 = path.getEndPosition();
-                p1.makeAbsolute(this.targetedBlock);
-                p2.makeAbsolute(this.targetedBlock);
+                p1.makeAbsolute(targetedBlock);
+                p2.makeAbsolute(targetedBlock);
                 RailPath.Position closest = (p1.distance(eyeLoc) < p2.distance(eyeLoc)) ? p1 : p2;
                 pos = new Vector(closest.posX, closest.posY, closest.posZ);
             } else {
@@ -1253,180 +1308,106 @@ public class PlayerEditState implements CoasterWorldComponent {
                     // Find position (and correct clicked face if needed)
                     ori = FaceUtil.faceToVector(info.face);
                     pos = new Vector(info.block.getX() + info.position.getX(),
-                                     info.block.getY() + info.position.getY(),
-                                     info.block.getZ() + info.position.getZ());
+                            info.block.getY() + info.position.getY(),
+                            info.block.getZ() + info.position.getZ());
                 } else {
                     // Fallback
                     double f = 0.5 + TCCoastersUtil.OFFSET_TO_SIDE;
-                    ori = FaceUtil.faceToVector(this.targetedBlockFace);
-                    pos = new Vector(this.targetedBlock.getX() + 0.5 + f * this.targetedBlockFace.getModX(),
-                                     this.targetedBlock.getY() + 0.5 + f * this.targetedBlockFace.getModY(),
-                                     this.targetedBlock.getZ() + 0.5 + f * this.targetedBlockFace.getModZ());
+                    ori = FaceUtil.faceToVector(targetedBlockFace);
+                    pos = new Vector(targetedBlock.getX() + 0.5 + f * targetedBlockFace.getModX(),
+                            targetedBlock.getY() + 0.5 + f * targetedBlockFace.getModY(),
+                            targetedBlock.getZ() + 0.5 + f * targetedBlockFace.getModZ());
                 }
             }
         }
 
         // Create in front of the player by default
-        boolean inAir = false;
         if (pos == null) {
             pos = eyeLoc.toVector().add(eyeLoc.getDirection().multiply(0.5));
             inAir = true;
         }
 
         // First check no track already exists at this position
-        if (!tracks.findNodesNear(new ArrayList<TrackNode>(2), pos, 0.1).isEmpty()) {
-            return;
+        if (!getWorld().getTracks().findNodesNear(new ArrayList<TrackNode>(2), pos, 0.1).isEmpty()) {
+            return TrackBuilderPlan.SPACE_OCCUPIED;
         }
 
-        // Create the node and set as editing
-        createNewNode(pos, ori, inAir);
+        return createTrackBuildPlan(pos, ori, inAir);
+    }
+
+    /**
+     * Creates a plan for creating a new track node, using the new node position and orientation specified.
+     * The plan can be executed or used for GUI state display.
+     * Does not check a node already existing at the new node position.<br>
+     * <br>
+     * Note: this plan is not long-lived. Execute right after creating the plan, do not store it.
+     * Later Player selection changes will not be reflected.
+     *
+     * @param newNodePosition The position to create the new node at
+     * @param newNodeOrientation The orientation (up) of the new node, or null to leave it default
+     * @param isInAir Whether the new node is placed in the Air. This subtly changes build behavior.
+     * @return TrackBuilderPlan
+     */
+    public TrackBuilderPlan createTrackBuildPlan(Vector newNodePosition, Vector newNodeOrientation, boolean isInAir) {
+        // Get all selected nodes, except those that are for a locked coaster
+        // Those will be de-selected later when the plan is executed.
+        final Set<TrackNode> selectedNodes = new LinkedHashSet<>(editedNodes.size());
+        for (TrackNode node : getEditedNodes()) {
+            if (!node.isLocked()) {
+                selectedNodes.add(node);
+            }
+        }
+
+        // This plan will be populated
+        TrackBuilderPlan plan = new TrackBuilderPlan(newNodePosition, newNodeOrientation, isInAir);
+        plan.nodesToConnect.addAll(selectedNodes);
+
+        // Find all track connections that have been selected thanks
+        // to both nodes being selected for editing right now.
+        // These will be split with a new node inserted in the middle when the plan is executed.
+        for (TrackNode node : selectedNodes) {
+            for (TrackConnection conn : node.getConnections()) {
+                if (!conn.isZeroLength() && selectedNodes.contains(conn.getOtherNode(node))) {
+                    plan.connectionsToSplit.add(conn);
+
+                    // Do not connect with the nodes of this connection when executing the plan
+                    // The nodes are already forming a new connection, no need to do more
+                    plan.nodesToConnect.remove(conn.getNodeA());
+                    plan.nodesToConnect.remove(conn.getNodeB());
+                    TrackNode zd = conn.getNodeA().getZeroDistanceNeighbour();
+                    if (zd != null) {
+                        plan.nodesToConnect.remove(zd);
+                    }
+                    zd = conn.getNodeB().getZeroDistanceNeighbour();
+                    if (zd != null) {
+                        plan.nodesToConnect.remove(zd);
+                    }
+                }
+            }
+        }
+
+        // For all remaining nodes, eliminate zero-distance neighbours to avoid glitches
+        // Later while executing the plan, if this node turns into a junction this zero-distance
+        // neighbour will be deleted. Or, it will connect to the other node if it happens
+        // to be a zero-distance orphan.
+        boolean foundZDNeighbour;
+        do {
+            foundZDNeighbour = false;
+            for (TrackNode node : plan.nodesToConnect) {
+                TrackNode zero = node.getZeroDistanceNeighbour();
+                if (zero != null && plan.nodesToConnect.remove(zero)) {
+                    foundZDNeighbour = true;
+                    break;
+                }
+            }
+        } while (foundZDNeighbour);
+
+        return plan;
     }
 
     private Vector getNewNodePos() {
         Location eyeLoc = getPlayer().getEyeLocation();
         return eyeLoc.toVector().add(eyeLoc.getDirection().multiply(0.5));
-    }
-
-    private void createNewNode(Vector pos, Vector ori, boolean inAir) throws ChangeCancelledException {
-        TrackWorld tracks = getWorld().getTracks();
-
-        // Deselect nodes that are locked, to prevent modification
-        this.deselectLockedNodes();
-
-        // Not editing any new nodes, create a completely new coaster and node
-        if (!this.hasEditedNodes()) {
-            TrackNode newNode = tracks.createNew(pos).getNodes().get(0);
-            if (ori != null) {
-                newNode.setOrientation(ori);
-            }
-            this.getHistory().addChangeCreateNode(this.player, newNode);
-            this.selectNode(newNode);
-            return;
-        }
-
-        // Before doing anything, make sure all selected nodes do **not** use zero-length neighbours
-        // Bad things happen if this is the case
-        this.makeConnectionsCurved();
-
-        // Track all changes
-        HistoryChange changes = this.getHistory().addChangeGroup();
-
-        // First, find all track connections that have been selected thanks
-        // to both nodes being selected for editing right now.
-        HashSet<TrackConnection> selectedConnections = new HashSet<TrackConnection>();
-        for (TrackNode node : getEditedNodes()) {
-            for (TrackConnection conn : node.getConnections()) {
-                if (this.getEditedNodes().contains(conn.getOtherNode(node))) {
-                    selectedConnections.add(conn);
-                }
-            }
-        }
-
-        // Insert a new node in the middle of all selected connections
-        // Select these created nodes
-        List<TrackNode> createdConnNodes = new ArrayList<TrackNode>();
-        for (TrackConnection conn : selectedConnections) {
-            Vector newNodePos = conn.getPosition(0.5);
-            Vector newNodeOri = conn.getOrientation(0.5);
-
-            this.setEditing(conn.getNodeA(), false);
-            this.setEditing(conn.getNodeB(), false);
-
-            // Save all track objects currently on this connection before removal
-            TrackObject[] objectsToRestore = TrackObject.listToArray(conn.getObjects(), true);
-            double prevTotalDistance = conn.getFullDistance();
-
-            // Remove old connection
-            changes.addChangeBeforeDisconnect(this.player, conn);
-            conn.remove();
-
-            // Create the new middle node
-            TrackNode newNode = conn.getNodeA().getCoaster().createNewNode(newNodePos, newNodeOri);
-            changes.addChangeCreateNode(this.player, newNode);
-
-            // Create the new connections, can be cancelled
-            TrackConnection newConnA = tracks.connect(conn.getNodeA(), newNode);
-            changes.handleEvent(new CoasterCreateConnectionEvent(this.player, newConnA), newConnA::remove);
-            TrackConnection newConnB = tracks.connect(newNode, conn.getNodeB());
-            changes.handleEvent(new CoasterCreateConnectionEvent(this.player, newConnB), newConnB::remove);
-
-            // Compute the full distances of the two newly created connections
-            // They should be half of the full distance of the connection its replacing,
-            // but I'm not sure if we can guarantee that...
-            double newConnALength = newConnA.getFullDistance();
-            double newConnBLength = newConnB.getFullDistance();
-
-            // Place all track objects back onto the newly created two connections
-            for (TrackObject obj : objectsToRestore) {
-                // Normalize
-                double distance = obj.getDistance();
-                if (prevTotalDistance >= 1e-4) {
-                    distance *= (newConnALength + newConnBLength) / prevTotalDistance;
-                }
-
-                // Which one?
-                if (distance >= newConnALength) {
-                    distance -= newConnALength;
-                    distance = Math.min(newConnBLength, distance);
-
-                    obj.setDistanceFlippedSilently(distance, obj.isFlipped());
-                    newConnB.addObject(obj);
-                } else {
-                    obj.setDistanceFlippedSilently(distance, obj.isFlipped());
-                    newConnA.addObject(obj);
-                }
-            }
-
-            // Add to history tracking now that the objects have been added
-            changes.addChange(new HistoryChangeConnect(newConnA));
-            changes.addChange(new HistoryChangeConnect(newConnB));
-            createdConnNodes.add(newNode);
-        }
-
-        // When clicking on a block or when only having one node selected, create a new node
-        // When more than one node is selected and the air is clicked, simply connect the selected nodes together
-        if (this.editedNodes.size() >= 2 && inAir) {
-            // Connect all remaining edited nodes together in the most logical fashion
-            // From previous logic we already know these nodes do not share connections among them
-            // This means a single 'line' must be created that connects all nodes together
-            // While we can figure this out using a clever algorithm, the nodes are already sorted in the
-            // order the player clicked them. Let's give the player some control back, and connect them in the
-            // same order.
-            TrackNode prevNode = null;
-            for (TrackNode node : getEditedNodes()) {
-                if (prevNode != null) {
-                    changes.addChangeAfterConnect(this.player, tracks.connect(prevNode, node));
-                    addConnectionForAnimationStates(prevNode, node);
-                    addConnectionForAnimationStates(node, prevNode);
-                }
-                prevNode = node;
-            }
-        } else {
-            // Add a new node connecting to existing selected nodes
-            TrackNode newNode = null;
-            for (TrackNode node : getEditedNodes()) {
-                if (newNode == null) {
-                    newNode = tracks.addNode(node, pos);
-                    if (ori != null) {
-                        newNode.setOrientation(ori);
-                    }
-                    changes.addChangeCreateNode(this.player, newNode);
-                    changes.addChangeAfterConnect(this.player, newNode, node);
-                } else {
-                    changes.addChangeAfterConnect(this.player, tracks.connect(node, newNode));
-                }
-                addConnectionForAnimationStates(node, newNode);
-            }
-            clearEditedNodes();
-            if (newNode != null) {
-                setEditing(newNode, true);
-            }
-        }
-
-        // Set all new nodes we created as editing, too.
-        for (TrackNode node : createdConnNodes) {
-            setEditing(node, true);
-        }
     }
 
     /**
@@ -1748,6 +1729,197 @@ public class PlayerEditState implements CoasterWorldComponent {
             this.rail = rail;
             this.nodes = nodes;
             this.distance = distance;
+        }
+    }
+
+    /**
+     * Plan for building a track, used by the track builder tool. Stores all information about the track to be built,
+     * such as what connections will be made or what nodes will be created. This builder plan can be executed,
+     * or its information can be used to refresh GUI screens.
+     */
+    public static final class TrackBuilderPlan {
+        public static final TrackBuilderPlan SPACE_OCCUPIED = new TrackBuilderPlan();
+
+        /** If true this is the SPACE_OCCUPIED constant, and no new node can be created there */
+        public final boolean spaceOccupied;
+        /** New node position */
+        public final Vector newNodePosition;
+        /** New node orientation. If null, leave default */
+        public final Vector newNodeOrientation;
+        /** Whether the node was placed in the air versus on the ground */
+        public final boolean isInAir;
+        /** Connections that will be split with a new node inserted in the middle */
+        public final Set<TrackConnection> connectionsToSplit = new HashSet<>();
+        /** Remainder of nodes that will be connected together if in air, or to a new node if placed on ground */
+        public final Set<TrackNode> nodesToConnect = new LinkedHashSet<>();
+
+        // Space occupied, can't build here
+        private TrackBuilderPlan() {
+            this.spaceOccupied = true;
+            this.isInAir = true;
+            this.newNodePosition = null;
+            this.newNodeOrientation = null;
+        }
+
+        public TrackBuilderPlan(Vector newNodePosition, Vector newNodeOrientation, boolean isInAir) {
+            this.spaceOccupied = false;
+            this.newNodePosition = newNodePosition;
+            this.newNodeOrientation = newNodeOrientation;
+            this.isInAir = isInAir;
+        }
+
+        public void execute(PlayerEditState state) throws ChangeCancelledException {
+            if (spaceOccupied) {
+                return; // No-op
+            }
+
+            TrackWorld tracks = state.getWorld().getTracks();
+
+            // Deselect nodes that are locked (also tell player that they are locked)
+            // The plan already filtered those before.
+            state.deselectLockedNodes();
+
+            // Not editing any new nodes, create a completely new coaster and node
+            if (connectionsToSplit.isEmpty() && nodesToConnect.isEmpty()) {
+                TrackNode newNode = tracks.createNew(newNodePosition).getNodes().get(0);
+                if (newNodeOrientation != null) {
+                    newNode.setOrientation(newNodeOrientation);
+                }
+                state.getHistory().addChangeCreateNode(state.getPlayer(), newNode);
+                state.selectNode(newNode);
+                return;
+            }
+
+            // Track all changes
+            HistoryChange changes = state.getHistory().addChangeGroup();
+
+            // Insert a new node in the middle of all selected connections
+            // Select these created nodes
+            List<TrackNode> createdConnNodes = new ArrayList<TrackNode>();
+            for (TrackConnection conn : connectionsToSplit) {
+                Vector newNodePos = conn.getPosition(0.5);
+                Vector newNodeOri = conn.getOrientation(0.5);
+
+                state.setEditing(conn.getNodeA(), false);
+                state.setEditing(conn.getNodeB(), false);
+
+                // Save all track objects currently on this connection before removal
+                TrackObject[] objectsToRestore = TrackObject.listToArray(conn.getObjects(), true);
+                double prevTotalDistance = conn.getFullDistance();
+
+                // Remove old connection
+                changes.addChangeBeforeDisconnect(state.getPlayer(), conn);
+                conn.remove();
+
+                // Create the new middle node
+                TrackNode newNode = conn.getNodeA().getCoaster().createNewNode(newNodePos, newNodeOri);
+                changes.addChangeCreateNode(state.getPlayer(), newNode);
+
+                // Create the new connections, can be cancelled
+                TrackConnection newConnA = tracks.connect(conn.getNodeA(), newNode);
+                changes.handleEvent(new CoasterCreateConnectionEvent(state.getPlayer(), newConnA), newConnA::remove);
+                TrackConnection newConnB = tracks.connect(newNode, conn.getNodeB());
+                changes.handleEvent(new CoasterCreateConnectionEvent(state.getPlayer(), newConnB), newConnB::remove);
+
+                // Compute the full distances of the two newly created connections
+                // They should be half of the full distance of the connection its replacing,
+                // but I'm not sure if we can guarantee that...
+                double newConnALength = newConnA.getFullDistance();
+                double newConnBLength = newConnB.getFullDistance();
+
+                // Place all track objects back onto the newly created two connections
+                for (TrackObject obj : objectsToRestore) {
+                    // Normalize
+                    double distance = obj.getDistance();
+                    if (prevTotalDistance >= 1e-4) {
+                        distance *= (newConnALength + newConnBLength) / prevTotalDistance;
+                    }
+
+                    // Which one?
+                    if (distance >= newConnALength) {
+                        distance -= newConnALength;
+                        distance = Math.min(newConnBLength, distance);
+
+                        obj.setDistanceFlippedSilently(distance, obj.isFlipped());
+                        newConnB.addObject(obj);
+                    } else {
+                        obj.setDistanceFlippedSilently(distance, obj.isFlipped());
+                        newConnA.addObject(obj);
+                    }
+                }
+
+                // Add to history tracking now that the objects have been added
+                changes.addChange(new HistoryChangeConnect(newConnA));
+                changes.addChange(new HistoryChangeConnect(newConnB));
+                createdConnNodes.add(newNode);
+            }
+
+            // For all nodes to connect, handle them having a zero-distance neighbour
+            // If connected to two other nodes already, then it turns into a junction (remove the zd)
+            // If not, select the zero-distance neighbour if it has no other connections (straight mode)
+            List<TrackNode> nodesToConnectFixed = new ArrayList<>(nodesToConnect.size());
+            for (TrackNode node : this.nodesToConnect) {
+                TrackNode zd = node.getZeroDistanceNeighbour();
+                if (zd == null || zd.getConnections().size() == 1) {
+                    nodesToConnectFixed.add(node);
+                } else if (node.getConnections().size() == 1) {
+                    nodesToConnectFixed.add(zd);
+                } else {
+                    // Both have multiple connections, the node will turn into a junction.
+                    // Make the node curved, which effectively removes the zero-distance neighbour.
+                    state.makeNodeConnectionsCurved(changes, node);
+                    if (!node.isRemoved()) {
+                        nodesToConnectFixed.add(node);
+                    } else if (!zd.isRemoved()) {
+                        nodesToConnectFixed.add(zd);
+                    }
+                }
+            }
+
+            // When clicking on a block or when only having one node selected, create a new node
+            // When more than one node is selected and the air is clicked, simply connect the selected nodes together
+            if (nodesToConnectFixed.size() >= 2 && isInAir) {
+                // Connect all remaining edited nodes together in the most logical fashion
+                // From previous logic we already know these nodes do not share connections among them
+                // This means a single 'line' must be created that connects all nodes together
+                // While we can figure this out using a clever algorithm, the nodes are already sorted in the
+                // order the player clicked them. Let's give the player some control back, and connect them in the
+                // same order.
+                TrackNode prevNode = null;
+                for (TrackNode node : nodesToConnectFixed) {
+                    if (prevNode != null) {
+                        changes.addChangeAfterConnect(state.getPlayer(), tracks.connect(prevNode, node));
+                        state.addConnectionForAnimationStates(prevNode, node);
+                        state.addConnectionForAnimationStates(node, prevNode);
+                    }
+                    prevNode = node;
+                }
+            } else {
+                // Add a new node connecting to existing selected nodes
+                TrackNode newNode = null;
+                for (TrackNode node : nodesToConnectFixed) {
+                    if (newNode == null) {
+                        newNode = tracks.addNode(node, newNodePosition);
+                        if (newNodeOrientation != null) {
+                            newNode.setOrientation(newNodeOrientation);
+                        }
+                        changes.addChangeCreateNode(state.getPlayer(), newNode);
+                        changes.addChangeAfterConnect(state.getPlayer(), newNode, node);
+                    } else {
+                        changes.addChangeAfterConnect(state.getPlayer(), tracks.connect(node, newNode));
+                    }
+                    state.addConnectionForAnimationStates(node, newNode);
+                }
+                state.clearEditedNodes();
+                if (newNode != null) {
+                    state.setEditing(newNode, true);
+                }
+            }
+
+            // Set all new split-connection nodes we created as editing, too.
+            for (TrackNode node : createdConnNodes) {
+                state.setEditing(node, true);
+            }
         }
     }
 }

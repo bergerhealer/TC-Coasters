@@ -10,10 +10,20 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 @FunctionalInterface
 public interface NodeManipulationMode {
     NodeManipulationMode NONE = state -> {};
-    NodeManipulationMode POSITION_ORIENTATION = PlayerEditState::dragManipulationUpdate;
+    NodeManipulationMode POSITION_ORIENTATION = new NodeManipulationMode() {
+        @Override
+        public void rightClick(PlayerEditState state) throws ChangeCancelledException {
+            state.dragManipulationUpdate();
+        }
+
+        @Override
+        public boolean leftClick(PlayerEditState state) throws ChangeCancelledException {
+            return state.insertNodeWhileDragging();
+        }
+    };
     NodeManipulationMode CREATE_TRACK = new NodeManipulationMode() {
         @Override
-        public void update(PlayerEditState state) throws ChangeCancelledException {
+        public void rightClick(PlayerEditState state) throws ChangeCancelledException {
             state.createTrack();
         }
 
@@ -29,7 +39,7 @@ public interface NodeManipulationMode {
     };
     NodeManipulationMode DELETE_TRACK =  new NodeManipulationMode() {
         @Override
-        public void update(PlayerEditState state) throws ChangeCancelledException {
+        public void rightClick(PlayerEditState state) throws ChangeCancelledException {
             state.deleteTrack();
         }
 
@@ -46,7 +56,7 @@ public interface NodeManipulationMode {
     NodeManipulationMode SET_RAIL_BLOCK = PlayerEditState::setRailBlock;
     NodeManipulationMode OBJECT = new NodeManipulationMode() {
         @Override
-        public void update(PlayerEditState state) throws ChangeCancelledException {
+        public void rightClick(PlayerEditState state) throws ChangeCancelledException {
             state.getObjects().createObject();
         }
 
@@ -62,8 +72,13 @@ public interface NodeManipulationMode {
     };
     NodeManipulationMode BUILDER = new NodeManipulationMode() {
         @Override
-        public void update(PlayerEditState state) throws ChangeCancelledException {
-            select(state).update(state);
+        public void rightClick(PlayerEditState state) throws ChangeCancelledException {
+            select(state).rightClick(state);
+        }
+
+        @Override
+        public boolean leftClick(PlayerEditState state) throws ChangeCancelledException {
+            return select(state).leftClick(state);
         }
 
         @Override
@@ -87,7 +102,20 @@ public interface NodeManipulationMode {
      * @throws ChangeCancelledException When the manipulation failed (permissions) and was cancelled.
      *                                  De-selects all selected nodes when thrown.
      */
-    void update(PlayerEditState state) throws ChangeCancelledException;
+    void rightClick(PlayerEditState state) throws ChangeCancelledException;
+
+    /**
+     * Called when the player presses down left-click while also holding right-click with this
+     * manipulation mode active. In node dragging mode this inserts an additional node.
+     *
+     * @param state PlayerEditState
+     * @return True if the left-click was handled, and normal node selection should be skipped
+     * @throws ChangeCancelledException When the manipulation failed (permissions) and was cancelled.
+     *                                  De-selects all selected nodes when thrown.
+     */
+    default boolean leftClick(PlayerEditState state) throws ChangeCancelledException {
+        return false;
+    }
 
     /**
      * Looks at the player edit state and selects what manipulation mode should be active.

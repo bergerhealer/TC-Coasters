@@ -8,6 +8,8 @@ import java.util.function.Supplier;
 
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulationMode;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.lod.ItemLODSelectButton;
+import com.bergerkiller.bukkit.common.map.MapTexture;
+import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import org.bukkit.ChatColor;
 import org.bukkit.block.BlockFace;
 
@@ -92,7 +94,60 @@ public enum PlayerEditMode {
     }
 
     private static void createBuilderView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
-        
+        tab.addWidget(new MapWidgetText())
+                .setText("/tcc create")
+                .setColor(MapColorPalette.COLOR_WHITE)
+                .setBounds(11, 10, 34, 13);
+
+        final MapTexture rightClickTexture = stateSupplier.get().getPlugin().loadTexture("com/bergerkiller/bukkit/coasters/resources/right_click.png");
+        tab.addWidget(new MapWidget() {
+             @Override
+             public void onDraw() {
+                 view.draw(rightClickTexture, 0, 0);
+             }
+        }).setBounds(77, 6, rightClickTexture.getWidth(), rightClickTexture.getHeight());
+
+        tab.addWidget(new MapWidgetButton() {
+            @Override
+            public void onAttached() {
+                super.onAttached();
+                updateText();
+            }
+
+            @Override
+            public void onTick() {
+                super.onTick();
+                updateText();
+            }
+
+            @Override
+            public void onActivate() {
+                PlayerEditState state = stateSupplier.get();
+                try {
+                    state.createTrack();
+                } catch (ChangeCancelledException e) {
+                    getDisplay().playSound(SoundEffect.EXTINGUISH);
+                    state.clearEditedNodes();
+                }
+            }
+
+            private void updateText() {
+                PlayerEditState.TrackBuilderPlan plan = stateSupplier.get().createTrackBuildPlan();
+                if (plan.spaceOccupied) {
+                    this.setText("Occupied");
+                    this.setEnabled(false);
+                } else if (!plan.connectionsToSplit.isEmpty()) {
+                    this.setText("Split Middle");
+                    this.setEnabled(true);
+                } else if (!plan.nodesToConnect.isEmpty()) {
+                    this.setText("Build & Connect");
+                    this.setEnabled(true);
+                } else {
+                    this.setText("Build Node");
+                    this.setEnabled(true);
+                }
+            }
+        }).setBounds(11, 20, 96, 13);
     }
 
     private static void createPositionView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
