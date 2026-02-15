@@ -30,7 +30,7 @@ import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetSelectionBox;
 
 public enum PlayerEditMode {
     DISABLED("Disabled (hidden)", PlayerEditMode::createEmptyView, NodeManipulationMode.NONE),
-    CREATE("Create Track", PlayerEditMode::createEmptyView, NodeManipulationMode.BUILDER),
+    BUILDER("Build Track", PlayerEditMode::createBuilderView, NodeManipulationMode.BUILDER),
     POSITION("Change Position", PlayerEditMode::createPositionView, NodeManipulationMode.POSITION_ORIENTATION),
     ORIENTATION("Change Orientation", PlayerEditMode::createOrientationView, NodeManipulationMode.POSITION_ORIENTATION),
     RAILS("Change Rail Block", PlayerEditMode::createRailsView, NodeManipulationMode.SET_RAIL_BLOCK),
@@ -75,7 +75,7 @@ public enum PlayerEditMode {
                 return mode;
             }
         }
-        return CREATE;
+        return BUILDER;
     }
 
     /**
@@ -89,6 +89,10 @@ public enum PlayerEditMode {
     }
 
     private static void createEmptyView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
+    }
+
+    private static void createBuilderView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
+        
     }
 
     private static void createPositionView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {

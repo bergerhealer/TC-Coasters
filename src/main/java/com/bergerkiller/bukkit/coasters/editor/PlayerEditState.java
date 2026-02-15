@@ -1304,7 +1304,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         if (dragAfterCreate) {
             this.setMode(PlayerEditMode.POSITION);
             this.dragHandler.reset();
-            this.setAfterEditMode(PlayerEditMode.CREATE);
+            this.setAfterEditMode(PlayerEditMode.BUILDER);
         }
     }
 
