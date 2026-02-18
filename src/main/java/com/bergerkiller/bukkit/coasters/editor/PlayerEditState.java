@@ -1847,6 +1847,22 @@ public class PlayerEditState implements CoasterWorldComponent {
      * The type of manipulator that runs the action depends on what menu the user has activated.
      * For example: if the circle shape mode is active, then the nodes will be fit to a circle shape.
      *
+     * @param actions Actions to perform. Each action is handled in a new manipulator to reflect the previous
+     *                action's changes.
+     * @return True if successful, false if cancelled
+     */
+    public boolean performManipulation(ManipulatorAction... actions) {
+        return performManipulation(this.getHistory().addChangeGroup(), actions);
+    }
+
+    /**
+     * Performs a manipulation action using the drag manipulator. This can perform batch operations
+     * on nodes, like equalizing spacing or adding/removing nodes in a common selected 'shape'.
+     * Returns false if the change could not be (fully) applied, or true if successful.<br>
+     * <br>
+     * The type of manipulator that runs the action depends on what menu the user has activated.
+     * For example: if the circle shape mode is active, then the nodes will be fit to a circle shape.
+     *
      * @param history History to record changes to
      * @param actions Actions to perform. Each action is handled in a new manipulator to reflect the previous
      *                action's changes.
