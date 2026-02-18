@@ -240,8 +240,11 @@ public enum PlayerEditMode {
                 @Override
                 public void onAttached() {
                     super.onAttached();
-                    for (PlayerEditShaperMode mode : PlayerEditShaperMode.values()) {
-                        this.addItem(mode.getDisplayName());
+
+                    if (this.getItemCount() == 0) {
+                        for (PlayerEditShaperMode mode : PlayerEditShaperMode.values()) {
+                            this.addItem(mode.getDisplayName());
+                        }
                     }
                     this.setSelectedIndex(stateSupplier.get().getShaperMode().ordinal());
 
