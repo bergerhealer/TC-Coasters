@@ -224,33 +224,38 @@ public enum PlayerEditMode {
         final int ADJ_BTN_WIDTH = 24;
         final int ADJ_BTN_HEIGHT = 12;
         final int ADJ_BTN_OFFSET = ADJ_BTN_WIDTH + 3;
+
         int y = 5;
-        for (final char axis : new char[] { 'x', 'y', 'z'} ) {
+
+        // Switch between different shaper modes
+        {
             tab.addWidget(new MapWidgetText())
-                .setText("Align " + axis)
+                .setText("Shape")
                 .setColor(MapColorPalette.COLOR_WHITE)
-                .setBounds(0, y + 1, 34, ADJ_BTN_HEIGHT);
+                .setBounds(43, y + 1, 40, ADJ_BTN_HEIGHT);
+            y += ADJ_BTN_HEIGHT;
 
-            tab.addWidget(new MapWidgetButton() {
+            tab.addWidget(new MapWidgetSelectionBox() {
                 @Override
-                public void onActivate() {
-                    alignPosition(stateSupplier, axis, 0.0625);
-                }
-            }).setText("Min").setBounds(38 + 0*ADJ_BTN_OFFSET, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
+                public void onAttached() {
+                    super.onAttached();
+                    for (PlayerEditShaperMode mode : PlayerEditShaperMode.values()) {
+                        this.addItem(mode.getDisplayName());
+                    }
+                    this.setSelectedIndex(stateSupplier.get().getShaperMode().ordinal());
 
-            tab.addWidget(new MapWidgetButton() {
-                @Override
-                public void onActivate() {
-                    alignPosition(stateSupplier, axis, 0.5);
+                    // New TC API might not exist
+                    try {
+                        MapWidgetSelectionBox.class.getMethod("setLoopAround", boolean.class).invoke(this, true);
+                    } catch (Throwable t) { /* ignore */ }
                 }
-            }).setText("Mid").setBounds(38 + 1*ADJ_BTN_OFFSET, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
 
-            tab.addWidget(new MapWidgetButton() {
                 @Override
-                public void onActivate() {
-                    alignPosition(stateSupplier, axis, 1.0 - 0.0625);
+                public void onSelectedItemChanged() {
+                    PlayerEditShaperMode selectedMode = PlayerEditShaperMode.values()[this.getSelectedIndex()];
+                    stateSupplier.get().setShaperMode(selectedMode);
                 }
-            }).setText("Max").setBounds(38 + 2*ADJ_BTN_OFFSET, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
+            }).setBounds(10, y, 96, ADJ_BTN_HEIGHT);
 
             y += 16;
         }
@@ -258,7 +263,7 @@ public enum PlayerEditMode {
         // Make the line straight or curved with simple buttons
         // Also done using /tcc straighten and /tcc curved
         {
-            y += 3; // Space between
+            y += 4;
 
             tab.addWidget(new MapWidgetText())
                 .setText("Connection Style")

@@ -19,8 +19,7 @@ import com.bergerkiller.bukkit.coasters.editor.manipulation.ManipulatedTrackNode
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragHandler;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulationMode;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulator;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.circle.NodeManipulatorCircleFit;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeManipulatorPosition;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeManipulatorOrientation;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.BlockSelectMenu;
 import com.bergerkiller.bukkit.coasters.events.CoasterCreateConnectionEvent;
 import com.bergerkiller.bukkit.common.Common;
@@ -94,6 +93,7 @@ public class PlayerEditState implements CoasterWorldComponent {
     private TrackNode lastEdited = null;
     private long lastEditTime = System.currentTimeMillis();
     private PlayerEditMode editMode = PlayerEditMode.DISABLED;
+    private PlayerEditShaperMode shaperMode = PlayerEditShaperMode.FREEFORM;
     private PlayerEditMode afterEditMode = null;
     private NodeManipulationMode nodeManipulationMode = NodeManipulationMode.NONE;
     private int heldDownTicks = 0;
@@ -145,6 +145,7 @@ public class PlayerEditState implements CoasterWorldComponent {
             config.load();
 
             this.editMode = config.get("mode", PlayerEditMode.DISABLED);
+            this.shaperMode = config.get("shaperMode", PlayerEditShaperMode.FREEFORM);
             this.selectedAnimation = config.get("selectedAnimation", String.class, null);
             this.particleViewRangeOverride = Util.getConfigOptional(config, "particleViewRange", Integer.class).orElse(null);
             this.getObjects().load(config);
@@ -188,6 +189,7 @@ public class PlayerEditState implements CoasterWorldComponent {
         this.changed = false;
         FileConfiguration config = this.plugin.getPlayerConfig(this.player);
         config.set("mode", this.editMode);
+        config.set("shaperMode", this.shaperMode);
         List<String> editedNodeNames = new ArrayList<String>(this.editedNodes.size());
         for (TrackNode node : this.getEditedNodes()) {
             Vector p = node.getPosition();
@@ -573,6 +575,27 @@ public class PlayerEditState implements CoasterWorldComponent {
             // Tell object state too
             this.getObjects().onModeChanged();
         }
+    }
+
+    /**
+     * Sets the shaper mode, which determines how nodes are moved when dragging them with right-click.
+     *
+     * @param mode Shaper mode
+     */
+    public void setShaperMode(PlayerEditShaperMode mode) {
+        if (this.shaperMode != mode) {
+            this.shaperMode = mode;
+            this.markChanged();
+        }
+    }
+
+    /**
+     * Gets the current shaper mode, which determines how nodes are moved when dragging them with right-click.
+     *
+     * @return shaper mode
+     */
+    public PlayerEditShaperMode getShaperMode() {
+        return this.shaperMode;
     }
 
     /**
@@ -1927,10 +1950,9 @@ public class PlayerEditState implements CoasterWorldComponent {
      */
     private NodeManipulator.Initializer getDragManipulatorInitializer() {
         if (this.getMode() == PlayerEditMode.ORIENTATION) {
-            return NodeManipulatorCircleFit.INITIALIZER;
-            //return NodeManipulatorOrientation.INITIALIZER;
+            return NodeManipulatorOrientation.INITIALIZER;
         } else {
-            return NodeManipulatorPosition.INITIALIZER;
+            return this.shaperMode.getManipulatorInitializer();
         }
     }
 
