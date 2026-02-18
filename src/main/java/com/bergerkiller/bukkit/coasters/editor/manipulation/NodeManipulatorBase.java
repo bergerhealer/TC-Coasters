@@ -71,21 +71,25 @@ public abstract class NodeManipulatorBase<N extends ManipulatedTrackNode> implem
         // When sneaking, disable this functionality
         // When more than 1 node is selected, only do this for nodes with 1 or less connections
         // This is to avoid severe performance problems when moving a lot of track at once
+        boolean snappedToBlock = false;
+        boolean snappedToRails = false;
         if (!state.isSneaking() && (isSingleNode || draggedNode.node.getConnections().size() <= 1)) {
             Vector eyePos = player.getEyeLocation().toVector();
-            TCCoastersUtil.snapToBlock(state.getBukkitWorld(), eyePos, position, orientation);
+            snappedToBlock = TCCoastersUtil.snapToBlock(state.getBukkitWorld(), eyePos, position, orientation);
 
             if (TCCoastersUtil.snapToCoasterRails(draggedNode.node, position, orientation, n -> !state.isEditing(n))) {
                 // Play particle effects to indicate we are snapping to the coaster rails
                 PlayerUtil.spawnDustParticles(player, position, Color.RED);
+                snappedToRails = true;
             } else if (TCCoastersUtil.snapToRails(state.getBukkitWorld(), draggedNode.node.getRailBlock(true), position, direction, orientation)) {
                 // Play particle effects to indicate we are snapping to the rails
                 PlayerUtil.spawnDustParticles(player, position, Color.PURPLE);
+                snappedToRails = true;
             }
         }
 
         // Return result
-        return new NodeDragPosition(position, orientation);
+        return new NodeDragPosition(position, orientation, snappedToBlock, snappedToRails);
     }
 
     /**
@@ -244,10 +248,14 @@ public abstract class NodeManipulatorBase<N extends ManipulatedTrackNode> implem
     protected static class NodeDragPosition {
         public final Vector position;
         public final Vector orientation;
+        public final boolean snappedToBlock;
+        public final boolean snappedToRails;
 
-        public NodeDragPosition(Vector position, Vector orientation) {
+        public NodeDragPosition(Vector position, Vector orientation, boolean snappedToBlock, boolean snappedToRails) {
             this.position = position;
             this.orientation = orientation;
+            this.snappedToBlock = snappedToBlock;
+            this.snappedToRails = snappedToRails;
         }
 
         public void applyTo(ManipulatedTrackNode node) {

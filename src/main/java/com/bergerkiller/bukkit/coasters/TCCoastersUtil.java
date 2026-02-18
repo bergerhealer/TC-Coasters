@@ -64,7 +64,7 @@ public class TCCoastersUtil {
         return v.getX() + v.getY() + v.getZ();
     }
 
-    public static void snapToBlock(World world, Vector eyePos, Vector position, Vector orientation) {
+    public static boolean snapToBlock(World world, Vector eyePos, Vector position, Vector orientation) {
         // Direction vector to move into to find a free air block
         double wX = eyePos.getX() - position.getX();
         double wY = eyePos.getY() - position.getY();
@@ -82,7 +82,7 @@ public class TCCoastersUtil {
         Vector curPos = new Vector(position.getX() - curBlock.getX(),
                                    position.getY() - curBlock.getY(),
                                    position.getZ() - curBlock.getZ());
-        boolean foundFreeSpace = true;
+        boolean foundSolidBlock = true;
         while (true) {
             AxisAlignedBBHandle bounds = BlockUtil.getBoundingBox(curBlock);
             if (bounds == null) {
@@ -96,7 +96,7 @@ public class TCCoastersUtil {
             }
 
             if (totalDistance > 5.0) {
-                foundFreeSpace = false;
+                foundSolidBlock = false;
                 break; // Abort
             }
             
@@ -160,7 +160,7 @@ public class TCCoastersUtil {
             curBlock = curBlock.getRelative(dx, dy, dz);
             totalDistance += minDist;
         }
-        if (foundFreeSpace) {
+        if (foundSolidBlock) {
             position.setX(curPos.getX() + curBlock.getX());
             position.setY(curPos.getY() + curBlock.getY());
             position.setZ(curPos.getZ() + curBlock.getZ());
@@ -168,6 +168,7 @@ public class TCCoastersUtil {
             orientation.setY(curFace.getModY());
             orientation.setZ(curFace.getModZ());
         }
+        return foundSolidBlock;
     }
 
     public static boolean snapToCoasterRails(TrackNode selfNode, Vector position, Vector orientation) {
