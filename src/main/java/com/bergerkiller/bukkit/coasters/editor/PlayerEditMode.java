@@ -33,7 +33,7 @@ import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetSelectionBox;
 public enum PlayerEditMode {
     DISABLED("Disabled (hidden)", PlayerEditMode::createEmptyView, NodeManipulationMode.NONE),
     BUILDER("Build Track", PlayerEditMode::createBuilderView, NodeManipulationMode.BUILDER),
-    POSITION("Change Position", PlayerEditMode::createPositionView, NodeManipulationMode.POSITION_ORIENTATION),
+    POSITION("Adjust Track", PlayerEditMode::createPositionView, NodeManipulationMode.POSITION_ORIENTATION),
     ORIENTATION("Change Orientation", PlayerEditMode::createOrientationView, NodeManipulationMode.POSITION_ORIENTATION),
     RAILS("Change Rail Block", PlayerEditMode::createRailsView, NodeManipulationMode.SET_RAIL_BLOCK),
     ANIMATION("Manage Animations", PlayerEditMode::createAnimationsView, NodeManipulationMode.POSITION_ORIENTATION),
