@@ -7,6 +7,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulationMode;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulator;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.lod.ItemLODSelectButton;
 import com.bergerkiller.bukkit.common.map.MapTexture;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
@@ -221,9 +222,9 @@ public enum PlayerEditMode {
     }
 
     private static void createPositionView(MapWidgetTabView.Tab tab, Supplier<PlayerEditState> stateSupplier) {
-        final int ADJ_BTN_WIDTH = 24;
+        final int ADJ_BTN_WIDTH = 96;
         final int ADJ_BTN_HEIGHT = 12;
-        final int ADJ_BTN_OFFSET = ADJ_BTN_WIDTH + 3;
+        final int OPTION_ROW_STEP = 16;
 
         int y = 5;
 
@@ -255,9 +256,62 @@ public enum PlayerEditMode {
                     PlayerEditShaperMode selectedMode = PlayerEditShaperMode.values()[this.getSelectedIndex()];
                     stateSupplier.get().setShaperMode(selectedMode);
                 }
-            }).setBounds(10, y, 96, ADJ_BTN_HEIGHT);
+            }).setBounds(10, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
 
-            y += 16;
+            y += OPTION_ROW_STEP;
+        }
+
+        // Options to increase or decrease the node count, or the even the spacing between the nodes
+        {
+            y += 4;
+
+            final int ROW_SPACING = 4;
+            final int FINE_COURSE_WIDTH = 18;
+            final int EVEN_WIDTH = ADJ_BTN_WIDTH - 2 * FINE_COURSE_WIDTH - 2 * ROW_SPACING;
+
+            tab.addWidget(new MapWidgetText())
+                .setText("Node Resolution")
+                .setColor(MapColorPalette.COLOR_WHITE)
+                .setBounds(20, y + 1, 74, ADJ_BTN_HEIGHT);
+            y += ADJ_BTN_HEIGHT;
+
+            tab.addWidget(new MapWidgetButton() {
+                @Override
+                public void onActivate() {
+                    if (stateSupplier.get().performManipulation(NodeManipulator::makeCourser, NodeManipulator::equalizeNodeSpacing)) {
+                        getDisplay().playSound(SoundEffect.CLICK);
+                    } else {
+                        getDisplay().playSound(SoundEffect.EXTINGUISH);
+                    }
+                }
+            }).setText("-1")
+              .setBounds(10, y, FINE_COURSE_WIDTH, ADJ_BTN_HEIGHT);
+
+            tab.addWidget(new MapWidgetButton() {
+                @Override
+                public void onActivate() {
+                    if (stateSupplier.get().performManipulation(NodeManipulator::equalizeNodeSpacing)) {
+                        getDisplay().playSound(SoundEffect.CLICK);
+                    } else {
+                        getDisplay().playSound(SoundEffect.EXTINGUISH);
+                    }
+                }
+            }).setText("Even")
+              .setBounds(10 + FINE_COURSE_WIDTH + ROW_SPACING, y, EVEN_WIDTH, ADJ_BTN_HEIGHT);
+
+            tab.addWidget(new MapWidgetButton() {
+                    @Override
+                    public void onActivate() {
+                        if (stateSupplier.get().performManipulation(NodeManipulator::makeFiner, NodeManipulator::equalizeNodeSpacing)) {
+                            getDisplay().playSound(SoundEffect.CLICK);
+                        } else {
+                            getDisplay().playSound(SoundEffect.EXTINGUISH);
+                        }
+                    }
+            }).setText("+1")
+              .setBounds(10 + FINE_COURSE_WIDTH + 2 * ROW_SPACING + EVEN_WIDTH , y, FINE_COURSE_WIDTH, ADJ_BTN_HEIGHT);
+
+            y += OPTION_ROW_STEP;
         }
 
         // Make the line straight or curved with simple buttons
@@ -351,9 +405,9 @@ public enum PlayerEditMode {
                         this.setText("No Selection");
                     }
                 }
-            }).setBounds(10, y, 96, ADJ_BTN_HEIGHT);
+            }).setBounds(10, y, ADJ_BTN_WIDTH, ADJ_BTN_HEIGHT);
 
-            y += 16;
+            y += OPTION_ROW_STEP;
         }
     }
 
