@@ -19,7 +19,7 @@ import com.bergerkiller.bukkit.coasters.editor.manipulation.ManipulatedTrackNode
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragHandler;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulationMode;
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulator;
-import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.NodeManipulatorOrientation;
+import com.bergerkiller.bukkit.coasters.editor.manipulation.modes.orientation.NodeManipulatorOrientation;
 import com.bergerkiller.bukkit.coasters.editor.object.ui.BlockSelectMenu;
 import com.bergerkiller.bukkit.coasters.events.CoasterCreateConnectionEvent;
 import com.bergerkiller.bukkit.common.Common;

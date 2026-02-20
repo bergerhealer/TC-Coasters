@@ -141,6 +141,11 @@ public class ManipulatedTrackNodeSpacingEqualizer<N extends ManipulatedTrackNode
         }
 
         comp.last = curr.to;
+
+        comp.nodes.add(comp.first);
+        comp.nodes.addAll(comp.middleNodes);
+        comp.nodes.add(comp.last);
+
         chains.add(comp);
     }
 
@@ -216,6 +221,10 @@ public class ManipulatedTrackNodeSpacingEqualizer<N extends ManipulatedTrackNode
 
         comp.last = (prevPath == null) ? comp.first : prevPath.to;
 
+        comp.nodes.add(comp.first);
+        comp.nodes.addAll(comp.middleNodes);
+        comp.nodes.add(comp.last);
+
         return comp;
     }
 
@@ -231,6 +240,11 @@ public class ManipulatedTrackNodeSpacingEqualizer<N extends ManipulatedTrackNode
         public N first;
         /** Last node. Pinned in place. */
         public N last;
+        /**
+         * List of nodes in the same order as the path connections.
+         * Includes the first/last node of the sequence.
+         */
+        public final List<N> nodes = new ArrayList<>();
         /**
          * List of nodes in the same order as the path connections.
          * Does not include the first/last node of the sequence, which is
@@ -448,6 +462,21 @@ public class ManipulatedTrackNodeSpacingEqualizer<N extends ManipulatedTrackNode
             }
 
             state.mergeRemoveNode(nodeWithShortestPaths, history);
+        }
+
+        /**
+         * Finds the manipulated node corresponding to the given track node, if it is part of this chain. Returns null if not found.
+         *
+         * @param node TrackNode
+         * @return Manipulated node corresponding to the given track node, or null if not found
+         */
+        public N findNode(TrackNode node) {
+            for (N mNode : nodes) {
+                if (mNode.node == node || mNode.node_zd == node) {
+                    return mNode;
+                }
+            }
+            return null;
         }
     }
 

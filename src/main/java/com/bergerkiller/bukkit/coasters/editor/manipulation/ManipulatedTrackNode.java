@@ -148,6 +148,30 @@ public class ManipulatedTrackNode {
         return null;
     }
 
+    public Vector getDirectionTo(ManipulatedTrackNode other) {
+        // Figure out which of the nodes are connected
+        TrackConnection conn = findConnectionWith(other);
+        if (conn == null) {
+            return node.getDirection();
+        } else if (node == conn.getNodeA() || node_zd == conn.getNodeA()) {
+            return conn.getNodeA().getDirectionTo(conn.getNodeB());
+        } else {
+            return conn.getNodeA().getDirectionFrom(conn.getNodeB());
+        }
+    }
+
+    public Vector getDirectionFrom(ManipulatedTrackNode other) {
+        // Figure out which of the nodes are connected
+        TrackConnection conn = findConnectionWith(other);
+        if (conn == null) {
+            return node.getDirection();
+        } else if (node == conn.getNodeA() || node_zd == conn.getNodeA()) {
+            return conn.getNodeA().getDirectionFrom(conn.getNodeB());
+        } else {
+            return conn.getNodeA().getDirectionTo(conn.getNodeB());
+        }
+    }
+
     /**
      * Creates ManipulatedTrackNode instances for all provided nodes. De-duplicates nodes that
      * are zero-distance neighbours of each other.
