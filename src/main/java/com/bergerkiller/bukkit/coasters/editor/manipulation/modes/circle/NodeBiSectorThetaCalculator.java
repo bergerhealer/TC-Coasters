@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.editor.manipulation.modes.circle;
 
+import com.bergerkiller.bukkit.coasters.util.PlaneBasis;
 import org.bukkit.util.Vector;
 
 /**

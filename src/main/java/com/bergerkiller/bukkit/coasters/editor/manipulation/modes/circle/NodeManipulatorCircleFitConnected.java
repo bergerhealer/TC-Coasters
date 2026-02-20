@@ -8,6 +8,7 @@ import com.bergerkiller.bukkit.coasters.editor.manipulation.ManipulatedTrackNode
 import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeDragEvent;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.coasters.util.PlaneBasis;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.math.Vector2;
 import com.bergerkiller.bukkit.common.utils.MathUtil;

@@ -1,4 +1,4 @@
-package com.bergerkiller.bukkit.coasters.editor.manipulation.modes.circle;
+package com.bergerkiller.bukkit.coasters.util;
 
 import org.bukkit.util.Vector;
 
@@ -7,13 +7,13 @@ import java.util.List;
 /**
  * Represents the 3D transformation at which a 2D plane circle is positioned
  */
-class PlaneBasis {
+public class PlaneBasis {
     public final Vector centroid;
     public final Vector ex;
     public final Vector ey;
     public final Vector normal;
 
-    PlaneBasis(Vector centroid, Vector ex, Vector ey, Vector normal) {
+    public PlaneBasis(Vector centroid, Vector ex, Vector ey, Vector normal) {
         this.centroid = centroid;
         this.ex = ex;
         this.ey = ey;
@@ -105,6 +105,36 @@ class PlaneBasis {
         Vector ey = normal.clone().getCrossProduct(ex).normalize();
 
         return new PlaneBasis(centroid, ex, ey, normal);
+    }
+
+    /**
+     * Transforms a point from world coordinates into the plane's local coordinate space.
+     * The returned vector's components are the coordinates along (ex, ey, normal) respectively.
+     * Note: this method ignores the centroid (no translation) and only projects into the basis.
+     *
+     * @param point Point in world coordinates
+     * @return Point in plane-local coordinates (x along ex, y along ey, z along normal)
+     */
+    public Vector toPlane(Vector point) {
+        double x = point.dot(ex);
+        double y = point.dot(ey);
+        double z = point.dot(normal);
+        return new Vector(x, y, z);
+    }
+
+    /**
+     * Transforms a point from plane-local coordinates (components along ex, ey, normal)
+     * back into world coordinates. This does not add the centroid; it only composes the
+     * basis vectors scaled by the provided components.
+     *
+     * @param local Point in plane-local coordinates (x along ex, y along ey, z along normal)
+     * @return Point in world coordinates
+     */
+    public Vector fromPlane(Vector local) {
+        Vector out = ex.clone().multiply(local.getX());
+        out.add(ey.clone().multiply(local.getY()));
+        out.add(normal.clone().multiply(local.getZ()));
+        return out;
     }
 
     // Return any vector perpendicular to v (not necessarily normalized)
