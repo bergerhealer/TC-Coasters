@@ -54,10 +54,17 @@ public class PlaneBasis {
         points.forEach(centroid::add);
         centroid.multiply(1.0 / points.size());
 
+        // compute covariance matrix (population covariance)
+        CovarianceMatrix M = CovarianceMatrix.computeFromPoints(points, centroid);
+
+        // get largest eigenvector v1
+        Vector v1 = M.powerIter(new Vector(1, 0, 0));
+        Vector vv1 = v1.clone().normalize();
+
         // First try to fit the points to a single line instead of a plane
         // If we find that this succeeds with a small orthogonal error, we can treat the points as colinear and
         // pick any plane containing that line. Constrain the plane by input upOrientation if so.
-        LineFitResult lineFit = fitLine(centroid, points);
+        LineFitResult lineFit = fitLine(centroid, vv1, points);
         if (lineFit.isColinear(1e-2)) {
             // Assume 0,1,0 if omitted
             if (upOrientation == null) {
@@ -67,12 +74,6 @@ public class PlaneBasis {
             Quaternion q = Quaternion.fromLookDirection(lineFit.direction, upOrientation);
             return new PlaneBasis(lineFit.centroid, q.rightVector(), q.forwardVector(), q.upVector());
         }
-
-        // compute covariance matrix (population covariance)
-        CovarianceMatrix M = CovarianceMatrix.computeFromPoints(points, centroid);
-
-        // get largest eigenvector v1
-        Vector v1 = M.powerIter(new Vector(1, 0, 0));
 
         // deflate
         CovarianceMatrix M2 = M.deflate(v1);
@@ -85,7 +86,6 @@ public class PlaneBasis {
         double v2n = v2.length();
         if (v2n < 1e-12) {
             // fallback: pick any vector orthogonal to v1
-            Vector vv1 = v1.clone().normalize();
             Vector perp = perpendicular(vv1);
             v2 = perp;
             double vv = v2.length();
@@ -98,10 +98,9 @@ public class PlaneBasis {
         } else {
             v2.multiply(1.0 / v2n);
         }
+        Vector vv2 = v2.clone().normalize();
 
         // normal = v1 x v2
-        Vector vv1 = v1.clone().normalize();
-        Vector vv2 = v2.clone().normalize();
         Vector normal = vv1.clone().crossProduct(vv2);
         if (normal.lengthSquared() < 1e-12) {
             // fallback
@@ -170,26 +169,15 @@ public class PlaneBasis {
      * min/max projection scalars, max orthogonal distance and RMS orthogonal distance.
      *
      * @param centroid Centroid of the points (precomputed)
+     * @param dir Direction vector. Largest eigenvector of the covariance matrix, normalized. (precomputed)
      * @param points Points to fit a line to
      */
-    private static LineFitResult fitLine(Vector centroid, List<Vector> points) {
+    private static LineFitResult fitLine(Vector centroid, Vector dir, List<Vector> points) {
         int n = points.size();
         if (n == 0) {
-            Vector dir = new Vector(1, 0, 0);
+            dir = new Vector(1, 0, 0);
             return new LineFitResult(centroid, dir, 0, 0, 0, 0, 0);
         }
-
-        // Use the existing CovarianceMatrix helper to compute covariance and dominant direction
-        CovarianceMatrix M = CovarianceMatrix.computeFromPoints(points, centroid);
-        Vector v1 = M.powerIter(new Vector(1, 0, 0));
-
-        // If power iteration failed or returned near-zero, fall back immediately
-        if (v1.lengthSquared() < 1e-18) {
-            // fallback to farthest-point heuristic (points identical or numerical issue)
-            return fallbackFarthestLine(points, centroid, n);
-        }
-
-        Vector dir = v1.clone().normalize();
 
         // project points and compute orthogonal residuals
         double minT = Double.POSITIVE_INFINITY, maxT = Double.NEGATIVE_INFINITY;
