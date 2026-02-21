@@ -76,13 +76,13 @@ public class TCCoastersUtil {
             wX *= wN; wY *= wN; wZ *= wN;
         }
 
-        double totalDistance = 0.0;
+        double totalSolidDistance = 0.0;
         BlockFace curFace = BlockFace.SELF;
         Block curBlock = world.getBlockAt(position.getBlockX(), position.getBlockY(), position.getBlockZ());
         Vector curPos = new Vector(position.getX() - curBlock.getX(),
                                    position.getY() - curBlock.getY(),
                                    position.getZ() - curBlock.getZ());
-        boolean foundSolidBlock = true;
+        boolean isFullySolid = false; /** All blocks between eye and position are solid blocks */
         while (true) {
             AxisAlignedBBHandle bounds = BlockUtil.getBoundingBox(curBlock);
             if (bounds == null) {
@@ -95,8 +95,8 @@ public class TCCoastersUtil {
                 break; // Found nonblocking; stop
             }
 
-            if (totalDistance > 5.0) {
-                foundSolidBlock = false;
+            if (totalSolidDistance > 5.0) {
+                isFullySolid = true;
                 break; // Abort
             }
             
@@ -158,9 +158,9 @@ public class TCCoastersUtil {
             curPos.setY(curPos.getY() - dy);
             curPos.setZ(curPos.getZ() - dz);
             curBlock = curBlock.getRelative(dx, dy, dz);
-            totalDistance += minDist;
+            totalSolidDistance += minDist;
         }
-        if (foundSolidBlock) {
+        if (!isFullySolid) {
             position.setX(curPos.getX() + curBlock.getX());
             position.setY(curPos.getY() + curBlock.getY());
             position.setZ(curPos.getZ() + curBlock.getZ());
@@ -168,7 +168,7 @@ public class TCCoastersUtil {
             orientation.setY(curFace.getModY());
             orientation.setZ(curFace.getModZ());
         }
-        return foundSolidBlock;
+        return totalSolidDistance > 0.0;
     }
 
     public static boolean snapToCoasterRails(TrackNode selfNode, Vector position, Vector orientation) {
