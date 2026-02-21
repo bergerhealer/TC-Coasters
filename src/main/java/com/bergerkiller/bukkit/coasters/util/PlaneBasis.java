@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.util;
 
+import com.bergerkiller.bukkit.common.math.Quaternion;
 import org.bukkit.util.Vector;
 
 import java.util.List;
@@ -52,6 +53,20 @@ public class PlaneBasis {
         Vector centroid = new Vector(0, 0, 0);
         points.forEach(centroid::add);
         centroid.multiply(1.0 / points.size());
+
+        // First try to fit the points to a single line instead of a plane
+        // If we find that this succeeds with a small orthogonal error, we can treat the points as colinear and
+        // pick any plane containing that line. Constrain the plane by input upOrientation if so.
+        LineFitResult lineFit = fitLine(centroid, points);
+        if (lineFit.isColinear(1e-2)) {
+            // Assume 0,1,0 if omitted
+            if (upOrientation == null) {
+                upOrientation = new Vector(0.0, 1.0, 0.0);
+            }
+
+            Quaternion q = Quaternion.fromLookDirection(lineFit.direction, upOrientation);
+            return new PlaneBasis(lineFit.centroid, q.rightVector(), q.forwardVector(), q.upVector());
+        }
 
         // compute covariance matrix (population covariance)
         CovarianceMatrix M = CovarianceMatrix.computeFromPoints(points, centroid);
@@ -147,6 +162,161 @@ public class PlaneBasis {
             return new Vector(-v.getZ(), 0, v.getX());
         } else {
             return new Vector(-v.getY(), v.getX(), 0);
+        }
+    }
+
+    /**
+     * Fit a line to points. Returns LineFitResult containing centroid, unit direction,
+     * min/max projection scalars, max orthogonal distance and RMS orthogonal distance.
+     *
+     * @param centroid Centroid of the points (precomputed)
+     * @param points Points to fit a line to
+     */
+    private static LineFitResult fitLine(Vector centroid, List<Vector> points) {
+        int n = points.size();
+        if (n == 0) {
+            Vector dir = new Vector(1, 0, 0);
+            return new LineFitResult(centroid, dir, 0, 0, 0, 0, 0);
+        }
+
+        // Use the existing CovarianceMatrix helper to compute covariance and dominant direction
+        CovarianceMatrix M = CovarianceMatrix.computeFromPoints(points, centroid);
+        Vector v1 = M.powerIter(new Vector(1, 0, 0));
+
+        // If power iteration failed or returned near-zero, fall back immediately
+        if (v1.lengthSquared() < 1e-18) {
+            // fallback to farthest-point heuristic (points identical or numerical issue)
+            return fallbackFarthestLine(points, centroid, n);
+        }
+
+        Vector dir = v1.clone().normalize();
+
+        // project points and compute orthogonal residuals
+        double minT = Double.POSITIVE_INFINITY, maxT = Double.NEGATIVE_INFINITY;
+        double maxOrth = 0.0;
+        double sumSqOrth = 0.0;
+        for (Vector p : points) {
+            Vector d = p.clone().subtract(centroid);
+            double t = d.dot(dir);
+            if (t < minT) minT = t;
+            if (t > maxT) maxT = t;
+            Vector proj = dir.clone().multiply(t);
+            Vector orth = d.clone().subtract(proj);
+            double orthLen = orth.length();
+            if (orthLen > maxOrth) maxOrth = orthLen;
+            sumSqOrth += orthLen * orthLen;
+        }
+        double rms = Math.sqrt(sumSqOrth / n);
+
+        // If the projection spread is effectively zero, PCA likely produced an orthogonal/degenerate vector.
+        if ((maxT - minT) <= 1e-12) {
+            return fallbackFarthestLine(points, centroid, n);
+        }
+
+        return new LineFitResult(centroid, dir, minT, maxT, maxOrth, rms, n);
+    }
+
+    // Helper fallback that implements the farthest-point heuristic used previously
+    private static LineFitResult fallbackFarthestLine(List<Vector> points, Vector centroid, int n) {
+        // pick an arbitrary reference point
+        Vector p0 = points.get(0);
+        // find point farthest from p0
+        Vector p1 = p0;
+        double bestDist = -1.0;
+        for (Vector p : points) {
+            double d2 = p.clone().subtract(p0).lengthSquared();
+            if (d2 > bestDist) { bestDist = d2; p1 = p; }
+        }
+        // find point farthest from p1
+        Vector p2 = p1;
+        bestDist = -1.0;
+        for (Vector p : points) {
+            double d2 = p.clone().subtract(p1).lengthSquared();
+            if (d2 > bestDist) { bestDist = d2; p2 = p; }
+        }
+        Vector fallback = p2.clone().subtract(p1);
+        double flen = fallback.length();
+        if (flen < 1e-12) {
+            // all points nearly identical -> zero spread
+            return new LineFitResult(centroid, new Vector(1,0,0), 0, 0, 0, 0, n);
+        }
+        Vector dir = fallback.multiply(1.0 / flen);
+
+        // recompute projections with fallback dir
+        double minT = Double.POSITIVE_INFINITY; double maxT = Double.NEGATIVE_INFINITY;
+        double maxOrth = 0.0; double sumSqOrth = 0.0;
+        for (Vector p : points) {
+            Vector d = p.clone().subtract(centroid);
+            double t = d.dot(dir);
+            if (t < minT) minT = t;
+            if (t > maxT) maxT = t;
+            Vector proj = dir.clone().multiply(t);
+            Vector orth = d.clone().subtract(proj);
+            double orthLen = orth.length();
+            if (orthLen > maxOrth) maxOrth = orthLen;
+            sumSqOrth += orthLen * orthLen;
+        }
+        double rms = Math.sqrt(sumSqOrth / n);
+        return new LineFitResult(centroid, dir, minT, maxT, maxOrth, rms, n);
+    }
+
+    /**
+     * Result of fitting a line to points: centroid, unit direction, along-range and orthogonal errors.
+     */
+    private static class LineFitResult {
+        public final Vector centroid;
+        public final Vector direction; // unit
+        public final double minT;
+        public final double maxT;
+        public final double maxOrthogonalDist;
+        public final double rmsOrthogonalDist;
+        public final int count;
+
+        public LineFitResult(Vector centroid, Vector direction, double minT, double maxT,
+                             double maxOrthogonalDist, double rmsOrthogonalDist, int count) {
+            this.centroid = centroid;
+            this.direction = direction;
+            this.minT = minT;
+            this.maxT = maxT;
+            this.maxOrthogonalDist = maxOrthogonalDist;
+            this.rmsOrthogonalDist = rmsOrthogonalDist;
+            this.count = count;
+        }
+
+        /**
+         * Spread along the fitted line (scalar projection range).
+         */
+        public double alongSpread() {
+            return maxT - minT;
+        }
+
+        /**
+         * Returns true if the points are sufficiently colinear based on the maximum orthogonal distance
+         * and the spread along the line. If the spread is very small as well, returns
+         * false so any random arbitrary plane can be created instead.
+         *
+         * @param epsilonOrthogonal Maximum allowed ratio of max orthogonal distance to along spread for points to be considered colinear
+         * @return True if points are sufficiently colinear, false otherwise
+         */
+        public boolean isColinear(double epsilonOrthogonal) {
+            double spread = alongSpread();
+            if (spread <= 1e-4) return false; // too small spread, plane is not well-defined
+
+            // Evaluate the max deviation (point outlier) from center compared to line length (spread)
+            return (maxOrthogonalDist / spread) <= epsilonOrthogonal;
+        }
+
+        @Override
+        public String toString() {
+            return "LineFitResult{" +
+                    "centroid=" + centroid +
+                    ", direction=" + direction +
+                    ", minT=" + minT +
+                    ", maxT=" + maxT +
+                    ", maxOrthogonalDist=" + maxOrthogonalDist +
+                    ", rmsOrthogonalDist=" + rmsOrthogonalDist +
+                    ", count=" + count +
+                    '}';
         }
     }
 

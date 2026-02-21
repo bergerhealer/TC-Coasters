@@ -1,13 +1,17 @@
 package com.bergerkiller.bukkit.coasters;
 
 import com.bergerkiller.bukkit.coasters.util.PlaneBasis;
+import com.bergerkiller.bukkit.common.math.Quaternion;
+import com.bergerkiller.bukkit.common.utils.MathUtil;
 import org.bukkit.util.Vector;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
+import java.util.stream.Collectors;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class PlaneBasisTest {
 
@@ -39,6 +43,47 @@ public class PlaneBasisTest {
 
         assertEquals(new Vector(0.75, 1.0, -0.75), basis.centroid);
         assertEquals(new Vector(0.0, 1.0, 0.0), basis.ey);
+    }
+
+    @Test
+    public void testFromPointsOnLine() {
+        // Create points that are all on a single line (flat Y)
+        List<Vector> pointsSource = Arrays.asList(
+                new Vector(4.0, 0.0, 0.0),
+                new Vector(4.0, 0.0, 3.0),
+                new Vector(4.0, 0.0, 6.0),
+                new Vector(4.0, 0.0, 22.0)
+        );
+
+        // Test at many different rotation and introduce a small amount of random deviation
+        final double RANDOM_NOISE_AMOUNT = 0.01;
+        Random r = new Random();
+        for (final boolean randomNoise : new boolean[] {false, true}) {
+            for (double yawAngle = 5.0; yawAngle <= 360.0; yawAngle += 15.0) {
+                Quaternion q = Quaternion.fromYawPitchRoll(0.0, yawAngle, 0.0);
+                List<Vector> points = pointsSource.stream()
+                        .map(p -> {
+                            p = p.clone();
+                            if (randomNoise) {
+                                // Add small random deviation
+                                MathUtil.addToVector(p,
+                                        r.nextDouble(RANDOM_NOISE_AMOUNT),
+                                        r.nextDouble(RANDOM_NOISE_AMOUNT),
+                                        r.nextDouble(RANDOM_NOISE_AMOUNT));
+                            }
+                            q.transformPoint(p);
+                            return p;
+                        })
+                        .collect(Collectors.toList());
+                PlaneBasis basis = PlaneBasis.estimateFromPoints(points, new Vector(0.0, 1.0, 0.0));
+
+                assertEquals(0.0, basis.ex.getY(), RANDOM_NOISE_AMOUNT);
+                assertEquals(0.0, basis.ey.getY(), RANDOM_NOISE_AMOUNT);
+                assertEquals(0.0, basis.normal.getX(), RANDOM_NOISE_AMOUNT);
+                assertEquals(1.0, basis.normal.getY(), RANDOM_NOISE_AMOUNT);
+                assertEquals(0.0, basis.normal.getZ(), RANDOM_NOISE_AMOUNT);
+            }
+        }
     }
 
     @Test
