@@ -132,7 +132,36 @@ class NodeManipulatorCircleFitConnected extends NodeManipulatorCircleFit<Manipul
     public void onDragUpdate(NodeDragEvent event) {
         // Transform the first node (Test)
         if (clickedNode == first || clickedNode == last) {
+            // Move the first/last node
             handleDrag(clickedNode, event, true).applyTo(clickedNode);
+
+            // Figure out the optimal radius
+            // Try to compute a preferred radius based on the preferred tangent direction at the endpoints.
+            // Use whichever endpoint provides a finite solution, or pick the one closer to the current radius.
+            PlaneBasis basis = buildPlaneBasisFromPins();
+            PinnedParams prefFirst = computePreferredPinnedParams(basis, first);
+            PinnedParams prefLast = computePreferredPinnedParams(basis, last);
+            if (prefFirst != null && prefLast != null) {
+                // Find an average of both, unless they differ in minor-major arc logic
+                if (prefFirst.minorArc == prefLast.minorArc && prefFirst.side == prefLast.side) {
+                    pinnedParams = new PinnedParams(
+                            0.5 * (prefFirst.radius + prefLast.radius),
+                            pinnedParams.up, // Keep the current up vector, as that is what the nodes are currently using
+                            prefFirst.side, // Both candidates have the same side, so just use that
+                            prefFirst.minorArc // Both candidates have the same minor-arc logic, so just use that
+                    );
+                } else {
+                    // Prefer the candidate whose normalized radius is closest to the current pinned radius
+                    double d1 = Math.abs(prefFirst.radius - pinnedParams.radius);
+                    double d2 = Math.abs(prefLast.radius - pinnedParams.radius);
+                    pinnedParams = (d1 <= d2) ? prefFirst : prefLast;
+                }
+            } else if (prefFirst != null) {
+                pinnedParams = prefFirst;
+            } else if (prefLast != null) {
+                pinnedParams = prefLast;
+            }
+
             applyNodesToCircle();
         } else if (clickedNode != null) {
             // Drag the middle node around
@@ -367,6 +396,124 @@ class NodeManipulatorCircleFitConnected extends NodeManipulatorCircleFit<Manipul
 
         // Update pinned params (keep orientation/up)
         pinnedParams = new PinnedParams(normalizedRadius, pinnedParams.up, pinnedParams.side, cy >= 0.0);
+    }
+
+    private PinnedParams computePreferredPinnedParams(PlaneBasis basis, ManipulatedTrackNodeOnCircleArc node) {
+        Vector dir = computePreferredDirection(node);
+        if (dir == null) {
+            return null;
+        }
+
+        // half chord length in world units
+        double h = 0.5 * first.node.getPosition().distance(last.node.getPosition());
+        if (h < 1e-12) {
+            return null;
+        }
+
+        double dx = dir.dot(basis.ex);
+        double dy = dir.dot(basis.ey);
+
+        // First or last node?
+        boolean isFirst = (node == first);
+
+        // Compute whether to take the minor or the major arc. This depends on the tangent direction versus
+        // the chord direction.
+        boolean isMinorArc = (dx <= 0.0) != isFirst;
+
+        Vector ex = computeBiSectorDirection();
+
+        Quaternion upQuat = pinnedParams.up.clone();
+        upQuat.multiply(Quaternion.fromToRotation(upQuat.forwardVector(), ex, upQuat.upVector()));
+        Vector up = upQuat.upVector();
+
+        if (Math.abs(ex.dot(up)) > 0.9999) {
+            Vector alt = new Vector(1, 0, 0);
+            if (Math.abs(ex.dot(alt)) > 0.9999) alt = new Vector(0, 0, 1);
+            up = alt;
+        }
+
+        Vector ey = up.getCrossProduct(ex);
+        double eyLen = ey.length();
+        if (eyLen < 1e-8) {
+            ey = new Vector(0, 1, 0).crossProduct(ex);
+            if (ey.lengthSquared() < 1e-12) {
+                ey = new Vector(0, 0, 1).crossProduct(ex);
+            }
+        } else {
+            ey.multiply(1.0 / eyLen);
+        }
+
+        // Ensure pointing towards where the other nodes are (use existing pinned side)
+        if ((ey.dot(upQuat.rightVector()) * pinnedParams.side) < 0.0) {
+            ey.multiply(-1.0);
+        }
+
+        // For minor arc candidate, invert ey like the normal buildPlaneBasisFromPins does
+        if (isMinorArc) ey.multiply(-1.0);
+
+        // Project preferred tangent direction into this basis
+        double dlen = Math.hypot(dx, dy);
+        if (dlen < 1e-8) return null;
+        double pdx = dx / dlen, pdy = dy / dlen;
+        if (Math.abs(pdy) < 1e-8) return null;
+
+        // Compute cy,R. If pdy is well-conditioned use analytic formula, otherwise recover via bounded ternary search.
+        double cy = isFirst ? -h * (pdx / pdy) : h * (pdx / pdy);
+        double R = Math.hypot(cy, h);
+
+        // Compute center offset cy that yields a radius whose tangent matches direction
+        if (h > 1e-12) R = Math.max(R, h + 1e-6);
+        double normalized = R / h;
+
+        // Compute center direction in 3D space and side sign consistent with computePinnedParams2D
+        // This stuff appears broken: radius is correct but side is sometimes wrong
+        // Use the temporary local ey (already adjusted above, including minor-arc inversion)
+        Vector centerDir3 = ey.clone().multiply(cy);
+        // Use the temporary upQuat (aligned to ex) to determine which side the center points to.
+        double side = (upQuat.rightVector().dot(centerDir3) < 0.0) ? -1.0 : 1.0;
+        if (isMinorArc) {
+            side = -side;
+        }
+
+        // When changing minor/major arc compared to before, this has a big impact on the plane basis
+        // that is used to compute the side. Invert the side when the minor/major arc choice differs from before, to compensate for this.
+        if (isMinorArc != pinnedParams.minorArc) {
+            side = -side;
+        }
+
+        return new PinnedParams(normalized, pinnedParams.up, side, isMinorArc);
+    }
+
+    /**
+     * Computes the preferred direction vector for the provided node based on its connections to other nodes.
+     * Returns null if the node has no neighbour node that constrains the direction.
+     *
+     * @param node Node
+     * @return Preferred direction vector, or null if no preferred direction could be determined
+     */
+    private Vector computePreferredDirection(ManipulatedTrackNodeOnCircleArc node) {
+        // Look at all connections of this node, and figure out the preferred direction vector
+        // based on the other node in the connection. We want to strive for straight connections
+        // leaving the circle, so this is a good heuristic for the preferred direction.
+        Vector preferredDir = null;
+        for (TrackNode neighbour : node.getNeighbours()) {
+            // Ignore neighbours that are part of the middle nodes
+            if (middleNodes.stream().anyMatch(n -> n.isNode(neighbour))) {
+                continue;
+            }
+
+            // Junctions are not supported
+            if (preferredDir != null) {
+                return null;
+            }
+
+            preferredDir = node.node.getPosition().clone().subtract(neighbour.getPosition());
+            double len = preferredDir.length();
+            if (len > 1e-4) {
+                preferredDir.multiply(1.0 / len);
+            }
+        }
+        return preferredDir;
     }
 
     /**
