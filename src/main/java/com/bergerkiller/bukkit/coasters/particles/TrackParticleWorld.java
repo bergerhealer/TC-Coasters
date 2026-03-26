@@ -295,7 +295,7 @@ public class TrackParticleWorld implements CoasterWorldComponent {
     public void update(Player viewer) {
         if (viewer.getWorld() == this.getBukkitWorld()) {
             // Get whether view is in edit mode or not
-            boolean isInEditMode = this.getPlugin().getEditState(viewer).getMode() != PlayerEditMode.DISABLED;
+            boolean isInEditMode = this.getPlugin().getEditState(viewer).getMode() != PlayerEditMode.DISABLED && this.getPlugin().hasUsePermission(viewer);
             boolean canViewAllParticles = isInEditMode || this.visibleToEveryone;
 
             // Get state
