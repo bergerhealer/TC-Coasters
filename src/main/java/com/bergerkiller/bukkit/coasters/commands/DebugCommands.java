@@ -3,6 +3,8 @@ package com.bergerkiller.bukkit.coasters.commands;
 import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.coasters.TCCoastersPermissions;
+import com.bergerkiller.bukkit.common.internal.CommonPlugin;
+import com.bergerkiller.bukkit.common.internal.permissions.PermissionHandler;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
@@ -101,5 +103,21 @@ class DebugCommands {
                 sender.sendMessage(ChatColor.YELLOW + "Coasters are no longer visible to all players");
             }
         }
+    }
+
+    @Command("player_edit_state")
+    @CommandDescription("Displays TCC player edit state and capabilities")
+    public void commandDisplayPlayerState(
+            final PlayerEditState state,
+            final CommandSender sender
+    ) {
+        PermissionHandler handler = CommonPlugin.getInstance().getPermissionHandler();
+        sender.sendMessage(ChatColor.YELLOW + "Permission Handler: " +
+                ((handler == null) ? ChatColor.RED + "None" : ChatColor.WHITE + handler.getClass().getName()));
+        sender.sendMessage(ChatColor.YELLOW + "Permission [train.coasters.use]: " +
+                (TCCoastersPermissions.USE.has(sender) ? ChatColor.GREEN + "Yes" : ChatColor.RED + "No"));
+        sender.sendMessage(ChatColor.YELLOW + "Permission [train.coasters.plotsquared.use]: " +
+                (TCCoastersPermissions.PLOTSQUARED_USE.has(sender) ? ChatColor.GREEN + "Yes" : ChatColor.RED + "No"));
+        sender.sendMessage(ChatColor.YELLOW + "Selected Mode: " + state.getMode().getName());
     }
 }
