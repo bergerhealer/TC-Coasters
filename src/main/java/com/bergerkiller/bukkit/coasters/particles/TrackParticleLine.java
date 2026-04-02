@@ -16,16 +16,16 @@ import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutAttachEntityHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityDestroyHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityEquipmentHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityTeleportHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityLivingHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundSetEntityLinkPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundSetEquipmentPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundAddMobPacketHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.EntityHandle;
-import com.bergerkiller.generated.net.minecraft.world.entity.EntityInsentientHandle;
-import com.bergerkiller.generated.net.minecraft.world.entity.EntityLivingHandle;
-import com.bergerkiller.generated.net.minecraft.world.entity.ambient.EntityBatHandle;
-import com.bergerkiller.generated.net.minecraft.world.entity.decoration.EntityArmorStandHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.MobHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.LivingEntityHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.ambient.BatHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.decoration.ArmorStandHandle;
 
 /**
  * A particle consisting of a line created using a leash between two invisible entities
@@ -56,17 +56,17 @@ public class TrackParticleLine extends TrackParticle {
     private static final DataWatcher.Prototype BAT_MOUNT_METADATA = DataWatcher.Prototype.build()
             .setByte(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING)
             .set(EntityHandle.DATA_SILENT, true)
-            .setByte(EntityInsentientHandle.DATA_INSENTIENT_FLAGS, EntityInsentientHandle.DATA_INSENTIENT_FLAG_NOAI)
-            .set(EntityLivingHandle.DATA_NO_GRAVITY, true)
-            .setByte(EntityBatHandle.DATA_BAT_FLAGS, 0)
+            .setByte(MobHandle.DATA_INSENTIENT_FLAGS, MobHandle.DATA_INSENTIENT_FLAG_NOAI)
+            .set(LivingEntityHandle.DATA_NO_GRAVITY, true)
+            .setByte(BatHandle.DATA_BAT_FLAGS, 0)
             .create();
 
     private static final DataWatcher.Prototype LEASH_FIX_ARMORSTAND_METADATA = DataWatcher.Prototype.build()
             .setByte(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING)
             .set(EntityHandle.DATA_SILENT, true)
-            .set(EntityLivingHandle.DATA_NO_GRAVITY, true)
-            .setByte(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, EntityArmorStandHandle.DATA_FLAG_NO_BASEPLATE)
-            .set(EntityArmorStandHandle.DATA_POSE_ARM_RIGHT, UNGLITCH_AS_POSE)
+            .set(LivingEntityHandle.DATA_NO_GRAVITY, true)
+            .setByte(ArmorStandHandle.DATA_ARMORSTAND_FLAGS, ArmorStandHandle.DATA_FLAG_NO_BASEPLATE)
+            .set(ArmorStandHandle.DATA_POSE_ARM_RIGHT, UNGLITCH_AS_POSE)
             .create();
 
     private DoubleOctree.Entry<TrackParticle> p1, p2;
@@ -160,7 +160,7 @@ public class TrackParticleLine extends TrackParticle {
             for (Player viewer : this.getViewers()) {
                 LineOffsets offsets = getOffsets(viewer);
                 if (this.e1 != -1) {
-                    PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+                    ClientboundEntityPositionSyncPacketHandle tpPacket = ClientboundEntityPositionSyncPacketHandle.createNew(
                             this.e1,
                             this.p1.getX() + offsets.p1x,
                             this.p1.getY() + offsets.p1y,
@@ -169,7 +169,7 @@ public class TrackParticleLine extends TrackParticle {
                     PacketUtil.sendPacket(viewer, tpPacket);
                 }
                 if (this.e2 != -1) {
-                    PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+                    ClientboundEntityPositionSyncPacketHandle tpPacket = ClientboundEntityPositionSyncPacketHandle.createNew(
                             this.e2,
                             this.p2.getX() + offsets.p2x,
                             this.p2.getY() + offsets.p2y,
@@ -180,7 +180,7 @@ public class TrackParticleLine extends TrackParticle {
 
                 boolean fixLeashGlitch = offsets.fixLeashGlitch(this.world);
                 if (fixLeashGlitch && this.e3 != -1) {
-                    PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+                    ClientboundEntityPositionSyncPacketHandle tpPacket = ClientboundEntityPositionSyncPacketHandle.createNew(
                             this.e3,
                             this.p2.getX() + UNGLITCH_AS_OFFSETS.getX(),
                             this.p2.getY() + UNGLITCH_AS_OFFSETS.getY(),
@@ -195,13 +195,13 @@ public class TrackParticleLine extends TrackParticle {
     @Override
     public void makeHiddenFor(Player viewer) {
         if (this.e1 != -1) {
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.e1));
+            PacketUtil.sendPacket(viewer, ClientboundRemoveEntitiesPacketHandle.createNewSingle(this.e1));
         }
         if (this.e2 != -1) {
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.e2));
+            PacketUtil.sendPacket(viewer, ClientboundRemoveEntitiesPacketHandle.createNewSingle(this.e2));
         }
         if (this.e3 != -1) {
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.e3));
+            PacketUtil.sendPacket(viewer, ClientboundRemoveEntitiesPacketHandle.createNewSingle(this.e3));
         }
     }
 
@@ -218,7 +218,7 @@ public class TrackParticleLine extends TrackParticle {
             this.e3 = EntityUtil.getUniqueEntityId();
         }
 
-        PacketPlayOutSpawnEntityLivingHandle p1 = PacketPlayOutSpawnEntityLivingHandle.createNew();
+        ClientboundAddMobPacketHandle p1 = ClientboundAddMobPacketHandle.createNew();
         DataWatcher p1_meta = BAT_MOUNT_METADATA.create();
         p1.setEntityId(this.e1);
         p1.setEntityUUID(UUID.randomUUID());
@@ -227,7 +227,7 @@ public class TrackParticleLine extends TrackParticle {
         p1.setPosZ(this.p1.getZ() + offsets.p1z);
         p1.setEntityType(EntityType.BAT);
 
-        PacketPlayOutSpawnEntityLivingHandle p2 = PacketPlayOutSpawnEntityLivingHandle.createNew();
+        ClientboundAddMobPacketHandle p2 = ClientboundAddMobPacketHandle.createNew();
         DataWatcher p2_meta = p1_meta; // Identical...
         p2.setEntityId(this.e2);
         p2.setEntityUUID(UUID.randomUUID());
@@ -237,7 +237,7 @@ public class TrackParticleLine extends TrackParticle {
         p2.setEntityType(EntityType.BAT);
 
         if (fixLeashGlitch) {
-            PacketPlayOutSpawnEntityLivingHandle p3 = PacketPlayOutSpawnEntityLivingHandle.createNew();
+            ClientboundAddMobPacketHandle p3 = ClientboundAddMobPacketHandle.createNew();
             DataWatcher p3_meta = LEASH_FIX_ARMORSTAND_METADATA.create();
             p3.setEntityId(this.e3);
             p3.setEntityUUID(UUID.randomUUID());
@@ -247,12 +247,12 @@ public class TrackParticleLine extends TrackParticle {
             p3.setYaw(UNGITCH_AS_YAW);
             p3.setEntityType(EntityType.ARMOR_STAND);
             PacketUtil.sendEntityLivingSpawnPacket(viewer, p3, p3_meta);
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityEquipmentHandle.createNew(this.e3, EquipmentSlot.HAND, UNGLITCH_AS_ITEM));
+            PacketUtil.sendPacket(viewer, ClientboundSetEquipmentPacketHandle.createNew(this.e3, EquipmentSlot.HAND, UNGLITCH_AS_ITEM));
         }
 
         PacketUtil.sendEntityLivingSpawnPacket(viewer, p1, p1_meta);
         PacketUtil.sendEntityLivingSpawnPacket(viewer, p2, p2_meta);
-        PacketUtil.sendPacket(viewer, PacketPlayOutAttachEntityHandle.createNewLeash(this.e2, this.e1));
+        PacketUtil.sendPacket(viewer, ClientboundSetEntityLinkPacketHandle.createNewLeash(this.e2, this.e1));
     }
 
     @Override

@@ -27,9 +27,9 @@ import com.bergerkiller.bukkit.tc.controller.components.RailState;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogic;
 import com.bergerkiller.bukkit.tc.rails.logic.RailLogicHorizontal;
 import com.bergerkiller.bukkit.tc.rails.type.RailType;
-import com.bergerkiller.generated.net.minecraft.world.level.WorldHandle;
-import com.bergerkiller.generated.net.minecraft.world.phys.AxisAlignedBBHandle;
-import com.bergerkiller.generated.net.minecraft.world.phys.MovingObjectPositionHandle;
+import com.bergerkiller.generated.net.minecraft.world.level.LevelHandle;
+import com.bergerkiller.generated.net.minecraft.world.phys.AABBHandle;
+import com.bergerkiller.generated.net.minecraft.world.phys.HitResultHandle;
 import com.bergerkiller.mountiplex.reflection.declarations.ClassResolver;
 import com.bergerkiller.mountiplex.reflection.declarations.MethodDeclaration;
 import com.bergerkiller.mountiplex.reflection.util.FastMethod;
@@ -84,7 +84,7 @@ public class TCCoastersUtil {
                                    position.getZ() - curBlock.getZ());
         boolean isFullySolid = false; /** All blocks between eye and position are solid blocks */
         while (true) {
-            AxisAlignedBBHandle bounds = BlockUtil.getBoundingBox(curBlock);
+            AABBHandle bounds = BlockUtil.getBoundingBox(curBlock);
             if (bounds == null) {
                 break; // Found nonblocking; stop
             }
@@ -319,7 +319,7 @@ public class TCCoastersUtil {
         Vector dir = loc.getDirection();
         Vector start = loc.toVector();
         Vector end = dir.clone().multiply(5.0).add(start);
-        MovingObjectPositionHandle mop = WorldHandle.fromBukkit(loc.getWorld()).rayTrace(start, end);
+        HitResultHandle mop = LevelHandle.fromBukkit(loc.getWorld()).rayTrace(start, end);
         if (mop == null) {
             return null;
         }

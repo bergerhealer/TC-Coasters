@@ -11,7 +11,7 @@ import com.bergerkiller.bukkit.coasters.editor.manipulation.NodeManipulatorBase;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
-import com.bergerkiller.generated.net.minecraft.world.phys.AxisAlignedBBHandle;
+import com.bergerkiller.generated.net.minecraft.world.phys.AABBHandle;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
@@ -195,9 +195,9 @@ public class NodeManipulatorGridPosition extends NodeManipulatorBase<Manipulated
 
     private static class ObstructingBlock {
         public final Block block;
-        public final AxisAlignedBBHandle bbox;
+        public final AABBHandle bbox;
 
-        private ObstructingBlock(Block block, AxisAlignedBBHandle bbox) {
+        private ObstructingBlock(Block block, AABBHandle bbox) {
             this.block = block;
             this.bbox = bbox;
         }
@@ -235,7 +235,7 @@ public class NodeManipulatorGridPosition extends NodeManipulatorBase<Manipulated
         }
 
         public static ObstructingBlock of(Block block) {
-            AxisAlignedBBHandle bbox = BlockUtil.getBoundingBox(block);
+            AABBHandle bbox = BlockUtil.getBoundingBox(block);
             if (bbox == null) {
                 return null;
             } else {

@@ -10,12 +10,12 @@ import com.bergerkiller.bukkit.common.collections.octree.DoubleOctree;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityDestroyHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityMetadataHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityTeleportHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundSetEntityDataPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundAddEntityPacketHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.EntityHandle;
-import com.bergerkiller.generated.net.minecraft.world.entity.item.EntityItemHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.item.ItemEntityHandle;
 
 /**
  * A particle consisting of a floating item
@@ -30,7 +30,7 @@ public class TrackParticleItem extends TrackParticle {
     private UUID entityUUID = null;
 
     private static final DataWatcher.Prototype ITEM_METADATA = DataWatcher.Prototype.build()
-            .setClientDefault(EntityItemHandle.DATA_ITEM, null)
+            .setClientDefault(ItemEntityHandle.DATA_ITEM, null)
             .create();
     private static final DataWatcher.Prototype ITEM_SPAWN_METADATA = ITEM_METADATA.modify()
             .set(EntityHandle.DATA_NO_GRAVITY, true)
@@ -75,7 +75,7 @@ public class TrackParticleItem extends TrackParticle {
     @Override
     public void updateAppearance() {
         if (this.clearFlag(FLAG_POSITION_CHANGED) && this.entityId != -1) {
-            PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+            ClientboundEntityPositionSyncPacketHandle tpPacket = ClientboundEntityPositionSyncPacketHandle.createNew(
                     this.entityId,
                     this.position.getX() + OFFSET.getX(),
                     this.position.getY() + OFFSET.getY(),
@@ -86,8 +86,8 @@ public class TrackParticleItem extends TrackParticle {
         if (this.clearFlag(FLAG_ITEM_CHANGED) && this.entityId != -1) {
             for (Player viewer : this.getViewers()) {
                 DataWatcher metadata = new DataWatcher();
-                metadata.set(EntityItemHandle.DATA_ITEM, this.itemType.getItem(this.getState(viewer)));
-                PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
+                metadata.set(ItemEntityHandle.DATA_ITEM, this.itemType.getItem(this.getState(viewer)));
+                ClientboundSetEntityDataPacketHandle metaPacket = ClientboundSetEntityDataPacketHandle.createNew(this.entityId, metadata, true);
                 PacketUtil.sendPacket(viewer, metaPacket);
             }
         }
@@ -98,8 +98,8 @@ public class TrackParticleItem extends TrackParticle {
         super.onStateUpdated(viewer);
 
         DataWatcher metadata = ITEM_METADATA.create();
-        metadata.set(EntityItemHandle.DATA_ITEM, this.itemType.getItem(this.getState(viewer)));
-        PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
+        metadata.set(ItemEntityHandle.DATA_ITEM, this.itemType.getItem(this.getState(viewer)));
+        ClientboundSetEntityDataPacketHandle metaPacket = ClientboundSetEntityDataPacketHandle.createNew(this.entityId, metadata, true);
         PacketUtil.sendPacket(viewer, metaPacket);
     }
 
@@ -110,7 +110,7 @@ public class TrackParticleItem extends TrackParticle {
             this.entityUUID = UUID.randomUUID();
         }
 
-        PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.createNew();
+        ClientboundAddEntityPacketHandle spawnPacket = ClientboundAddEntityPacketHandle.createNew();
         spawnPacket.setEntityId(this.entityId);
         spawnPacket.setEntityUUID(this.entityUUID);
         spawnPacket.setEntityType(EntityType.DROPPED_ITEM);
@@ -125,15 +125,15 @@ public class TrackParticleItem extends TrackParticle {
         PacketUtil.sendPacket(viewer, spawnPacket);
 
         DataWatcher metadata = ITEM_SPAWN_METADATA.create();
-        metadata.set(EntityItemHandle.DATA_ITEM, this.itemType.getItem(this.getState(viewer)));
-        PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
+        metadata.set(ItemEntityHandle.DATA_ITEM, this.itemType.getItem(this.getState(viewer)));
+        ClientboundSetEntityDataPacketHandle metaPacket = ClientboundSetEntityDataPacketHandle.createNew(this.entityId, metadata, true);
         PacketUtil.sendPacket(viewer, metaPacket);
     }
 
     @Override
     public void makeHiddenFor(Player viewer) {
         if (this.entityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.entityId));
+            PacketUtil.sendPacket(viewer, ClientboundRemoveEntitiesPacketHandle.createNewSingle(this.entityId));
         }
     }
 

@@ -33,12 +33,11 @@ import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.common.wrappers.HumanHand;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayInArmAnimationHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayInBlockDigHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayInBlockPlaceHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayInUseEntityHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayInUseItemHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayInBlockDigHandle.EnumPlayerDigTypeHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ServerboundSwingPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ServerboundPlayerActionPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ServerboundUseItemPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ServerboundInteractPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ServerboundUseItemOnPacketHandle;
 
 /**
  * This packet listener detects when players click on the invisible entities for virtual rails,
@@ -162,7 +161,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
                     suggestedHand = otherHand;
                 }
             } else {
-                PacketPlayInUseItemHandle packet = PacketPlayInUseItemHandle.createHandle(event.getPacket().getHandle());
+                ServerboundUseItemOnPacketHandle packet = ServerboundUseItemOnPacketHandle.createHandle(event.getPacket().getHandle());
 
                 // Use item is used - is the item we interact with null (empty?)
                 // And is the item in the other hand not empty? This is a strong indicator.
@@ -216,13 +215,13 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
                 }
             } else {
                 // Attempt using the other hand instead that has an item
-                PacketPlayInUseItemHandle packet = PacketPlayInUseItemHandle.createHandle(event.getPacket().getHandle());
+                ServerboundUseItemOnPacketHandle packet = ServerboundUseItemOnPacketHandle.createHandle(event.getPacket().getHandle());
                 packet.setHand(event.getPlayer(), suggestedHand);
             }
         }
 
         if (event.getType() == PacketType.IN_USE_ENTITY) {
-            PacketPlayInUseEntityHandle packet = PacketPlayInUseEntityHandle.createHandle(event.getPacket().getHandle());
+            ServerboundInteractPacketHandle packet = ServerboundInteractPacketHandle.createHandle(event.getPacket().getHandle());
 
             int entityId = packet.getUsedEntityId();
             if (!state.getWorld().getParticles().isParticle(event.getPlayer(), entityId)) {
@@ -269,7 +268,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
     }
 
     // Since 1.21 yaw/pitch must be set, but bkcl might not support that api
-    private static final BiConsumer<Player, PacketPlayInBlockPlaceHandle> APPLY_ROTATION_TO_BLOCK_PLACE_PACKET =
+    private static final BiConsumer<Player, ServerboundUseItemPacketHandle> APPLY_ROTATION_TO_BLOCK_PLACE_PACKET =
             Common.hasCapability("Common:PacketPlayInBlockPlace:RotationApi")
             ? (player, packet) -> {
                 Location eye = player.getEyeLocation();
@@ -284,7 +283,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
                 this.ignoreInteractPacket = true;
 
                 // Block Place is used when not clicking on any block
-                PacketPlayInBlockPlaceHandle packet = PacketPlayInBlockPlaceHandle.T.newHandleNull();
+                ServerboundUseItemPacketHandle packet = ServerboundUseItemPacketHandle.T.newHandleNull();
                 packet.setTimestamp(System.currentTimeMillis());
                 packet.setHand(player, fixHand(player, hand));
                 APPLY_ROTATION_TO_BLOCK_PLACE_PACKET.accept(player, packet);
@@ -293,7 +292,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
                 createMeta(player).blockPlaceTime = Long.valueOf(System.currentTimeMillis());
 
                 // Send the actual packet
-                PacketPlayInUseItemHandle packet = PacketPlayInUseItemHandle.T.newHandleNull();
+                ServerboundUseItemOnPacketHandle packet = ServerboundUseItemOnPacketHandle.T.newHandleNull();
                 packet.setTimestamp(System.currentTimeMillis());
                 packet.setHand(player, hand);
                 packet.setDirection(clickInfo.face);
@@ -311,17 +310,17 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
     private void fakeBlockDestroy(Player player, TargetedBlockInfo clickInfo, HumanHand hand) {
         if (clickInfo == null) {
             // Player arm animation is used to left-click the air
-            PacketPlayInArmAnimationHandle packet = PacketPlayInArmAnimationHandle.T.newHandleNull();
+            ServerboundSwingPacketHandle packet = ServerboundSwingPacketHandle.T.newHandleNull();
             packet.setHand(player, hand);
             PacketUtil.receivePacket(player, packet);
         } else {
             createMeta(player).blockBreakTime = Long.valueOf(System.currentTimeMillis());
 
             // Block dig is used for left-click interaction
-            PacketPlayInBlockDigHandle packet = PacketPlayInBlockDigHandle.T.newHandleNull();
+            ServerboundPlayerActionPacketHandle packet = ServerboundPlayerActionPacketHandle.T.newHandleNull();
             packet.setDirection(clickInfo.face);
             packet.setPosition(new IntVector3(clickInfo.block));
-            packet.setDigType(EnumPlayerDigTypeHandle.START_DESTROY_BLOCK);
+            packet.setDigType(ServerboundPlayerActionPacketHandle.ActionHandle.START_DESTROY_BLOCK);
             PacketUtil.receivePacket(player, packet);
         }
     }

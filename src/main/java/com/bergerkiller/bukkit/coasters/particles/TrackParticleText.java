@@ -18,14 +18,14 @@ import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.common.wrappers.ChatText;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityDestroyHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityMetadataHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityTeleportHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityVelocityHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityLivingHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundSetEntityDataPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundAddEntityPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundAddMobPacketHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.EntityHandle;
-import com.bergerkiller.generated.net.minecraft.world.entity.item.EntityItemHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.item.ItemEntityHandle;
 
 /**
  * A particle consisting of a floating text balloon that always faces the viewer, with
@@ -100,7 +100,7 @@ public class TrackParticleText extends TrackParticle {
 
         if (this.getFlag(FLAG_SHOW_ITEM)) {
             // Spawns a hovering item entity
-            PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.createNew();
+            ClientboundAddEntityPacketHandle spawnPacket = ClientboundAddEntityPacketHandle.createNew();
             spawnPacket.setEntityId(this.entityId);
             spawnPacket.setEntityUUID(UUID.randomUUID());
             spawnPacket.setEntityType(EntityType.DROPPED_ITEM);
@@ -115,17 +115,17 @@ public class TrackParticleText extends TrackParticle {
             PacketUtil.sendPacket(viewer, spawnPacket);
 
             // Send velocity 0 0 0 packet otherwise items fly away on 1.14+
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityVelocityHandle.createNew(this.entityId, 0.0, 0.0, 0.0));
+            PacketUtil.sendPacket(viewer, ClientboundSetEntityMotionPacketHandle.createNew(this.entityId, 0.0, 0.0, 0.0));
 
-            metadata.set(EntityItemHandle.DATA_ITEM, getItem(this.textColor));
-            PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
+            metadata.set(ItemEntityHandle.DATA_ITEM, getItem(this.textColor));
+            ClientboundSetEntityDataPacketHandle metaPacket = ClientboundSetEntityDataPacketHandle.createNew(this.entityId, metadata, true);
             PacketUtil.sendPacket(viewer, metaPacket);
         } else {
             // Armorstand itself should be invisible
             metadata.set(EntityHandle.DATA_FLAGS, (byte) EntityHandle.DATA_FLAG_INVISIBLE);
 
             // Spawns an invisible armorstand, which displays only the nametag
-            PacketPlayOutSpawnEntityLivingHandle spawnPacket = PacketPlayOutSpawnEntityLivingHandle.createNew();
+            ClientboundAddMobPacketHandle spawnPacket = ClientboundAddMobPacketHandle.createNew();
             spawnPacket.setEntityId(this.entityId);
             spawnPacket.setEntityUUID(UUID.randomUUID());
             spawnPacket.setEntityType(EntityType.ARMOR_STAND);
@@ -144,14 +144,14 @@ public class TrackParticleText extends TrackParticle {
     @Override
     public void makeHiddenFor(Player viewer) {
         if (this.entityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.entityId));
+            PacketUtil.sendPacket(viewer, ClientboundRemoveEntitiesPacketHandle.createNewSingle(this.entityId));
         }
     }
 
     @Override
     public void updateAppearance() {
         if (this.clearFlag(FLAG_POSITION_CHANGED) && this.entityId != -1) {
-            PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+            ClientboundEntityPositionSyncPacketHandle tpPacket = ClientboundEntityPositionSyncPacketHandle.createNew(
                     this.entityId,
                     this.position.getX() + ITEM_OFFSET.getX(),
                     this.position.getY() + ITEM_OFFSET.getY(),
@@ -161,11 +161,11 @@ public class TrackParticleText extends TrackParticle {
         }
         if (this.clearFlag(FLAG_TEXT_CHANGED) && this.entityId != -1) {
             DataWatcher metadata = new DataWatcher();
-            metadata.set(EntityItemHandle.DATA_CUSTOM_NAME, ChatText.fromMessage(this.text));
+            metadata.set(ItemEntityHandle.DATA_CUSTOM_NAME, ChatText.fromMessage(this.text));
             if (this.getFlag(FLAG_SHOW_ITEM) && this.clearFlag(FLAG_TEXT_COLOR_CHANGED)) {
-                metadata.set(EntityItemHandle.DATA_ITEM, getItem(this.textColor));
+                metadata.set(ItemEntityHandle.DATA_ITEM, getItem(this.textColor));
             }
-            PacketPlayOutEntityMetadataHandle metaPacket = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
+            ClientboundSetEntityDataPacketHandle metaPacket = ClientboundSetEntityDataPacketHandle.createNew(this.entityId, metadata, true);
             broadcastPacket(metaPacket);
         }
     }

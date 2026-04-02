@@ -10,16 +10,16 @@ import com.bergerkiller.bukkit.common.wrappers.Brightness;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
 import com.bergerkiller.bukkit.common.wrappers.ItemDisplayMode;
 import com.bergerkiller.bukkit.tc.Util;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityDestroyHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityMetadataHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityTeleportHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutMountHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityLivingHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundSetEntityDataPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundSetPassengersPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundAddEntityPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundAddMobPacketHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.DisplayHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.EntityHandle;
-import com.bergerkiller.generated.net.minecraft.world.entity.EntityLivingHandle;
-import com.bergerkiller.generated.net.minecraft.world.entity.decoration.EntityArmorStandHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.LivingEntityHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.decoration.ArmorStandHandle;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -141,7 +141,7 @@ public class VirtualDisplayEntity {
     public VirtualDisplayEntity updatePosition(Player viewer) {
         if (this.holderEntityId == -1) {
             // Teleport the display entity itself
-            PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+            ClientboundEntityPositionSyncPacketHandle tpPacket = ClientboundEntityPositionSyncPacketHandle.createNew(
                     this.entityId,
                     this.posX,
                     this.posY,
@@ -150,7 +150,7 @@ public class VirtualDisplayEntity {
             PacketUtil.sendPacket(viewer, tpPacket);
         } else {
             // Teleport the armorstand holder
-            PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+            ClientboundEntityPositionSyncPacketHandle tpPacket = ClientboundEntityPositionSyncPacketHandle.createNew(
                     this.holderEntityId,
                     this.posX,
                     this.posY,
@@ -164,17 +164,17 @@ public class VirtualDisplayEntity {
 
     public VirtualDisplayEntity destroy(Player viewer) {
         if (this.holderEntityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId));
+            PacketUtil.sendPacket(viewer, ClientboundRemoveEntitiesPacketHandle.createNewSingle(this.holderEntityId));
         }
         if (this.entityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.entityId));
+            PacketUtil.sendPacket(viewer, ClientboundRemoveEntitiesPacketHandle.createNewSingle(this.entityId));
         }
         return this;
     }
 
     public VirtualDisplayEntity destroyHolder(Iterable<Player> viewers) {
         if (this.holderEntityId != -1) {
-            PacketPlayOutEntityDestroyHandle packet = PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId);
+            ClientboundRemoveEntitiesPacketHandle packet = ClientboundRemoveEntitiesPacketHandle.createNewSingle(this.holderEntityId);
             for (Player viewer : viewers) {
                 PacketUtil.sendPacket(viewer, packet);
             }
@@ -241,7 +241,7 @@ public class VirtualDisplayEntity {
         if (this.entityId != -1) {
             DataWatcher metadata = new DataWatcher();
             applyProperties(metadata);
-            PacketPlayOutEntityMetadataHandle packet = PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true);
+            ClientboundSetEntityDataPacketHandle packet = ClientboundSetEntityDataPacketHandle.createNew(this.entityId, metadata, true);
             for (Player viewer : viewers) {
                 PacketUtil.sendPacket(viewer, packet);
             }
@@ -253,13 +253,13 @@ public class VirtualDisplayEntity {
         if (this.entityId != -1) {
             DataWatcher metadata = new DataWatcher();
             applyProperties(metadata);
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true));
+            PacketUtil.sendPacket(viewer, ClientboundSetEntityDataPacketHandle.createNew(this.entityId, metadata, true));
         }
         return this;
     }
 
     public VirtualDisplayEntity spawn(Player viewer) {
-        PacketPlayOutSpawnEntityHandle spawnPacket = PacketPlayOutSpawnEntityHandle.createNew();
+        ClientboundAddEntityPacketHandle spawnPacket = ClientboundAddEntityPacketHandle.createNew();
 
         DataWatcher metadata = new DataWatcher();
         metadata.set(DisplayHandle.DATA_INTERPOLATION_DURATION, 3);
@@ -285,7 +285,7 @@ public class VirtualDisplayEntity {
         spawnPacket.setYaw(0.0f);
         spawnPacket.setPitch(0.0f);
         PacketUtil.sendPacket(viewer, spawnPacket);
-        PacketUtil.sendPacket(viewer, PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true));
+        PacketUtil.sendPacket(viewer, ClientboundSetEntityDataPacketHandle.createNew(this.entityId, metadata, true));
 
         // Put in a mount when we've allocated a holder entity ID
         // Not doing so can cause the object to not move when viewers respawn
@@ -304,7 +304,7 @@ public class VirtualDisplayEntity {
         // Spawn an invisible bat and attach it to that
         // Also used on newer mc versions when smooth movement is required
         // Smooth movement is desirable when animations are going to be played
-        PacketPlayOutSpawnEntityLivingHandle holderPacket = PacketPlayOutSpawnEntityLivingHandle.createNew();
+        ClientboundAddMobPacketHandle holderPacket = ClientboundAddMobPacketHandle.createNew();
         DataWatcher holder_meta = new DataWatcher();
         holderPacket.setEntityId(this.holderEntityId);
         holderPacket.setEntityUUID(UUID.randomUUID());
@@ -314,9 +314,9 @@ public class VirtualDisplayEntity {
         holderPacket.setEntityType(EntityType.ARMOR_STAND);
         holder_meta.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
         holder_meta.set(EntityHandle.DATA_SILENT, true);
-        holder_meta.set(EntityArmorStandHandle.DATA_ARMORSTAND_FLAGS, (byte) (EntityArmorStandHandle.DATA_FLAG_NO_BASEPLATE | EntityArmorStandHandle.DATA_FLAG_SET_MARKER));
-        holder_meta.set(EntityLivingHandle.DATA_NO_GRAVITY, true);
+        holder_meta.set(ArmorStandHandle.DATA_ARMORSTAND_FLAGS, (byte) (ArmorStandHandle.DATA_FLAG_NO_BASEPLATE | ArmorStandHandle.DATA_FLAG_SET_MARKER));
+        holder_meta.set(LivingEntityHandle.DATA_NO_GRAVITY, true);
         PacketUtil.sendEntityLivingSpawnPacket(viewer, holderPacket, holder_meta);
-        PacketUtil.sendPacket(viewer, PacketPlayOutMountHandle.createNew(this.holderEntityId, new int[] {this.entityId}));
+        PacketUtil.sendPacket(viewer, ClientboundSetPassengersPacketHandle.createNew(this.holderEntityId, new int[] {this.entityId}));
     }
 }

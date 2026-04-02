@@ -12,17 +12,17 @@ import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
 import com.bergerkiller.bukkit.common.wrappers.DataWatcher;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutAttachEntityHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityDestroyHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityMetadataHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutEntityTeleportHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutMountHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityHandle;
-import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutSpawnEntityLivingHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundSetEntityLinkPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundSetEntityDataPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundSetPassengersPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundAddEntityPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ClientboundAddMobPacketHandle;
 import com.bergerkiller.generated.net.minecraft.world.entity.EntityHandle;
-import com.bergerkiller.generated.net.minecraft.world.entity.EntityInsentientHandle;
-import com.bergerkiller.generated.net.minecraft.world.entity.EntityLivingHandle;
-import com.bergerkiller.generated.net.minecraft.world.entity.ambient.EntityBatHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.MobHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.LivingEntityHandle;
+import com.bergerkiller.generated.net.minecraft.world.entity.ambient.BatHandle;
 
 /**
  * Helper class for spawning and updating a virtual falling block.
@@ -102,11 +102,11 @@ public class VirtualFallingBlock {
         } else if (this.holderEntityId != -1) {
             if (this.respawn) {
                 for (Player viewer : viewers) {
-                    PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId));
+                    PacketUtil.sendPacket(viewer, ClientboundRemoveEntitiesPacketHandle.createNewSingle(this.holderEntityId));
                     this.spawnHolder(viewer);
                 }
             } else {
-                PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+                ClientboundEntityPositionSyncPacketHandle tpPacket = ClientboundEntityPositionSyncPacketHandle.createNew(
                         this.holderEntityId,
                         this.posX,
                         this.posY - BAT_HOLDER_OFFSET,
@@ -117,7 +117,7 @@ public class VirtualFallingBlock {
                 }
             }
         } else if (this.entityId != -1) {
-            PacketPlayOutEntityTeleportHandle tpPacket = PacketPlayOutEntityTeleportHandle.createNew(
+            ClientboundEntityPositionSyncPacketHandle tpPacket = ClientboundEntityPositionSyncPacketHandle.createNew(
                     this.entityId,
                     this.posX, this.posY, this.posZ,
                     0.0f, 0.0f, false);
@@ -134,24 +134,24 @@ public class VirtualFallingBlock {
             metadata.set(EntityHandle.DATA_FLAGS, (byte) 0);
             metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_GLOWING, this.glowing);
             metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_ON_FIRE, this.glowing && CAN_FIRE_LIT);
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true));
+            PacketUtil.sendPacket(viewer, ClientboundSetEntityDataPacketHandle.createNew(this.entityId, metadata, true));
         }
         return this;
     }
 
     public VirtualFallingBlock destroy(Player viewer) {
         if (this.holderEntityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId));
+            PacketUtil.sendPacket(viewer, ClientboundRemoveEntitiesPacketHandle.createNewSingle(this.holderEntityId));
         }
         if (this.entityId != -1) {
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityDestroyHandle.createNewSingle(this.entityId));
+            PacketUtil.sendPacket(viewer, ClientboundRemoveEntitiesPacketHandle.createNewSingle(this.entityId));
         }
         return this;
     }
 
     public VirtualFallingBlock destroyHolder(Iterable<Player> viewers) {
         if (this.holderEntityId != -1 && CAN_DISABLE_GRAVITY) {
-            PacketPlayOutEntityDestroyHandle packet = PacketPlayOutEntityDestroyHandle.createNewSingle(this.holderEntityId);
+            ClientboundRemoveEntitiesPacketHandle packet = ClientboundRemoveEntitiesPacketHandle.createNewSingle(this.holderEntityId);
             for (Player viewer : viewers) {
                 PacketUtil.sendPacket(viewer, packet);
             }
@@ -170,7 +170,7 @@ public class VirtualFallingBlock {
             this.holderEntityId = EntityUtil.getUniqueEntityId();
         }
 
-        PacketPlayOutSpawnEntityHandle packet = PacketPlayOutSpawnEntityHandle.createNew();
+        ClientboundAddEntityPacketHandle packet = ClientboundAddEntityPacketHandle.createNew();
         packet.setEntityId(this.entityId);
         packet.setEntityUUID(UUID.randomUUID());
         packet.setPosX(this.posX);
@@ -187,14 +187,14 @@ public class VirtualFallingBlock {
                 metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_GLOWING, true);
                 metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_ON_FIRE, CAN_FIRE_LIT);
             }
-            PacketUtil.sendPacket(viewer, PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true));
+            PacketUtil.sendPacket(viewer, ClientboundSetEntityDataPacketHandle.createNew(this.entityId, metadata, true));
         } else {
             // If glowing, send glowing metadata as well
             if (this.glowing && CAN_GLOW) {
                 DataWatcher metadata = new DataWatcher();
                 metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_GLOWING, true);
                 metadata.setFlag(EntityHandle.DATA_FLAGS, EntityHandle.DATA_FLAG_ON_FIRE, CAN_FIRE_LIT);
-                PacketUtil.sendPacket(viewer, PacketPlayOutEntityMetadataHandle.createNew(this.entityId, metadata, true));
+                PacketUtil.sendPacket(viewer, ClientboundSetEntityDataPacketHandle.createNew(this.entityId, metadata, true));
             }
 
             // Spawn and mount into a holder entity
@@ -212,7 +212,7 @@ public class VirtualFallingBlock {
         // Spawn an invisible bat and attach it to that
         // Also used on newer mc versions when smooth movement is required
         // Smooth movement is desirable when animations are going to be played
-        PacketPlayOutSpawnEntityLivingHandle holderPacket = PacketPlayOutSpawnEntityLivingHandle.createNew();
+        ClientboundAddMobPacketHandle holderPacket = ClientboundAddMobPacketHandle.createNew();
         DataWatcher holder_meta = new DataWatcher();
         holderPacket.setEntityId(this.holderEntityId);
         holderPacket.setEntityUUID(UUID.randomUUID());
@@ -222,15 +222,15 @@ public class VirtualFallingBlock {
         holderPacket.setEntityType(EntityType.BAT);
         holder_meta.set(EntityHandle.DATA_FLAGS, (byte) (EntityHandle.DATA_FLAG_INVISIBLE | EntityHandle.DATA_FLAG_FLYING));
         holder_meta.set(EntityHandle.DATA_SILENT, true);
-        holder_meta.set(EntityInsentientHandle.DATA_INSENTIENT_FLAGS, (byte) EntityInsentientHandle.DATA_INSENTIENT_FLAG_NOAI);
-        holder_meta.set(EntityLivingHandle.DATA_NO_GRAVITY, true);
-        holder_meta.set(EntityBatHandle.DATA_BAT_FLAGS, (byte) 0);
+        holder_meta.set(MobHandle.DATA_INSENTIENT_FLAGS, (byte) MobHandle.DATA_INSENTIENT_FLAG_NOAI);
+        holder_meta.set(LivingEntityHandle.DATA_NO_GRAVITY, true);
+        holder_meta.set(BatHandle.DATA_BAT_FLAGS, (byte) 0);
         PacketUtil.sendEntityLivingSpawnPacket(viewer, holderPacket, holder_meta);
 
-        if (PacketPlayOutMountHandle.T.isAvailable()) {
-            PacketUtil.sendPacket(viewer, PacketPlayOutMountHandle.createNew(this.holderEntityId, new int[] {this.entityId}));
+        if (ClientboundSetPassengersPacketHandle.T.isAvailable()) {
+            PacketUtil.sendPacket(viewer, ClientboundSetPassengersPacketHandle.createNew(this.holderEntityId, new int[] {this.entityId}));
         } else {
-            PacketUtil.sendPacket(viewer, PacketPlayOutAttachEntityHandle.createNewMount(this.entityId, this.holderEntityId));
+            PacketUtil.sendPacket(viewer, ClientboundSetEntityLinkPacketHandle.createNewMount(this.entityId, this.holderEntityId));
         }
     }
 }
