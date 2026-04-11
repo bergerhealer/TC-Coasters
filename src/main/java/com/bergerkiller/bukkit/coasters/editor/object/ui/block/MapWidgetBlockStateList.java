@@ -1,14 +1,12 @@
 package com.bergerkiller.bukkit.coasters.editor.object.ui.block;
 
 import java.awt.Dimension;
-import java.util.Map;
 
 import com.bergerkiller.bukkit.common.map.MapColorPalette;
 import com.bergerkiller.bukkit.common.map.MapFont;
 import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
-import com.bergerkiller.bukkit.common.wrappers.BlockDataStateKey;
-import com.bergerkiller.bukkit.common.wrappers.BlockState;
+import com.bergerkiller.bukkit.common.wrappers.BlockProperty;
 
 public class MapWidgetBlockStateList extends MapWidget {
     private static final int ROW_HEIGHT = 8;
@@ -25,7 +23,7 @@ public class MapWidgetBlockStateList extends MapWidget {
             this.block = block;
             if (this.block != null) {
                 this.setSize(this.getWidth(),
-                        NAME_STATE_GAP + (1 + this.block.getStates().size()) * ROW_HEIGHT);
+                        NAME_STATE_GAP + (1 + this.block.getProperties().size()) * ROW_HEIGHT);
             }
             this.invalidate();
         }
@@ -41,8 +39,8 @@ public class MapWidgetBlockStateList extends MapWidget {
         // Block name
         drawText(y, this.block.getBlockName());
         y += ROW_HEIGHT + NAME_STATE_GAP;
-        for (Map.Entry<BlockDataStateKey<?>, Comparable<?>> entry : this.block.getStates().entrySet()) {
-            String text = entry.getKey().name() + " = " + entry.getKey().valueName(entry.getValue());
+        for (BlockProperty<?> property : this.block.getProperties()) {
+            String text = property.name() + " = " + property.valueName(this.block.getProperty(property));
             drawText(y, text);
             y += ROW_HEIGHT;
         }

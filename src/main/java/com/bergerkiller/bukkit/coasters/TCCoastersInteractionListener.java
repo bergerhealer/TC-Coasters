@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 import com.bergerkiller.bukkit.common.Common;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ServerboundAttackPacketHandle;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -49,10 +50,11 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
     private static final long MIN_ARM_SWING_INTERVAL_MS = 100;
     private static final long MIN_BLOCK_BREAK_EFFECT_TIME_MS = 100;
     public static final PacketType[] PACKET_TYPES = {
-            PacketType.IN_USE_ENTITY,
+            PacketType.IN_INTERACT,
+            PacketType.IN_ATTACK,
             PacketType.IN_USE_ITEM,
-            PacketType.IN_BLOCK_PLACE,
-            PacketType.IN_ENTITY_ANIMATION
+            PacketType.IN_USE_ITEM_ON,
+            PacketType.IN_SWING
     };
 
     private final TCCoasters plugin;
@@ -122,7 +124,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
         PlayerEditState state = this.plugin.getEditState(event.getPlayer());
 
         // Limit arm swing animations to a certain amount per time frame
-        if (event.getType() == PacketType.IN_ENTITY_ANIMATION) {
+        if (event.getType() == PacketType.IN_SWING) {
             long time_new = System.currentTimeMillis();
             Metadata meta = createMeta(event.getPlayer());
             if (meta.isArmSwingActive(time_new)) {
@@ -136,7 +138,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
         // to switch to the other hand, or outright fire a BlockPlace instead. Detect when this happens,
         // and verify placement truly is impossible before letting it slip. Basically, we must correct
         // for the 'this spot is occupied' check on the client side before it happens.
-        if (event.getType() == PacketType.IN_USE_ITEM || event.getType() == PacketType.IN_BLOCK_PLACE) {
+        if (event.getType() == PacketType.IN_USE_ITEM || event.getType() == PacketType.IN_USE_ITEM_ON) {
             // Avoids expensive rayTrace call for no reason
             if (ignoreInteractPacket) {
                 return;
@@ -145,13 +147,13 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
             boolean needsCheck = false;
             TargetedBlockInfo clickInfo = null;
             HumanHand suggestedHand = HumanHand.LEFT;
-            if (event.getType() == PacketType.IN_BLOCK_PLACE) {
+            if (event.getType() == PacketType.IN_USE_ITEM) {
                 // Block place is used when we cannot place with either hand - always check
                 // We don't know the specifics so perform some ray tracing
                 needsCheck = true;
                 clickInfo = TCCoastersUtil.rayTrace(event.getPlayer());
 
-                suggestedHand = PacketType.IN_BLOCK_PLACE.getHand(event.getPacket(), event.getPlayer());
+                suggestedHand = PacketType.IN_USE_ITEM.getHand(event.getPacket(), event.getPlayer());
                 if (!ItemUtil.isEmpty(HumanHand.getHeldItem(event.getPlayer(), suggestedHand))) {
                     return; // Player holds an item, ignore
                 }
@@ -204,10 +206,10 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
             }
 
             // Fix it
-            if (event.getType() == PacketType.IN_BLOCK_PLACE) {
+            if (event.getType() == PacketType.IN_USE_ITEM) {
                 if (clickInfo == null) {
                     // Switch hand as needed
-                    PacketType.IN_BLOCK_PLACE.setHand(event.getPacket(), event.getPlayer(), suggestedHand);
+                    PacketType.IN_USE_ITEM.setHand(event.getPacket(), event.getPlayer(), suggestedHand);
                 } else {
                     // Cancel old event and fire item placement instead
                     event.setCancelled(true);
@@ -220,7 +222,25 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
             }
         }
 
-        if (event.getType() == PacketType.IN_USE_ENTITY) {
+        if (event.getType() == PacketType.IN_ATTACK) {
+            ServerboundAttackPacketHandle packet = ServerboundAttackPacketHandle.createHandle(event.getPacket().getHandle());
+
+            int entityId = packet.getEntityId();
+            if (!state.getWorld().getParticles().isParticle(event.getPlayer(), entityId)) {
+                return; // Not one of our own entities
+            }
+
+            // This is ours, cancel it.
+            event.setCancelled(true);
+
+            // Find the block interacted with
+            // When the player is in edit mode, skip this expensive lookup and always fire an interaction with block air
+            // Due to a bug we can only do this for 'right click' (interact) actions
+            TargetedBlockInfo clickInfo = TCCoastersUtil.rayTrace(event.getPlayer());
+
+            // Fake the interaction with the blocks
+            fakeBlockDestroy(event.getPlayer(), clickInfo, HumanHand.getMainHand(event.getPlayer()));
+        } else if (event.getType() == PacketType.IN_INTERACT) {
             ServerboundInteractPacketHandle packet = ServerboundInteractPacketHandle.createHandle(event.getPacket().getHandle());
 
             int entityId = packet.getUsedEntityId();
@@ -232,25 +252,18 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
             event.setCancelled(true);
 
             // Hand (handle, raw)
-            HumanHand hand = packet.getInteractHand(event.getPlayer());
-
-            // Turn the event into a block interaction event
-            boolean isInteractEvent = packet.isInteract() || packet.isInteractAt();
+            HumanHand hand = packet.getHand(event.getPlayer());
 
             // Find the block interacted with
             // When the player is in edit mode, skip this expensive lookup and always fire an interaction with block air
             // Due to a bug we can only do this for 'right click' (interact) actions
             TargetedBlockInfo clickInfo = null;
-            if (!this.plugin.getHeldTool(event.getPlayer()).isNodeSelector() || !isInteractEvent) {
+            if (!this.plugin.getHeldTool(event.getPlayer()).isNodeSelector()) {
                 clickInfo = TCCoastersUtil.rayTrace(event.getPlayer());
             }
 
             // Fake the interaction with the blocks
-            if (isInteractEvent) {
-                fakeItemPlacement(event.getPlayer(), clickInfo, hand);
-            } else {
-                fakeBlockDestroy(event.getPlayer(), clickInfo, hand);
-            }
+            fakeItemPlacement(event.getPlayer(), clickInfo, hand);
         }
     }
 

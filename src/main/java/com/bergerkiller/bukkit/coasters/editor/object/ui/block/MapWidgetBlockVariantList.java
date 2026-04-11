@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters.editor.object.ui.block;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.bergerkiller.bukkit.common.wrappers.BlockProperty;
 import org.bukkit.Material;
 import org.bukkit.block.BlockFace;
 
@@ -16,7 +17,6 @@ import com.bergerkiller.bukkit.common.map.widgets.MapWidget;
 import com.bergerkiller.bukkit.common.resources.SoundEffect;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.wrappers.BlockData;
-import com.bergerkiller.bukkit.common.wrappers.BlockState;
 import com.bergerkiller.bukkit.tc.TrainCarts;
 import com.bergerkiller.bukkit.tc.attachments.ui.MapWidgetArrow;
 import com.bergerkiller.bukkit.tc.attachments.ui.SetValueTarget;
@@ -71,13 +71,13 @@ public abstract class MapWidgetBlockVariantList extends MapWidget implements Set
         // Find all block data variants
         this.variants.clear();
         this.variants.add(block);
-        for (BlockState<?> state : block.getStates().keySet()) {
+        for (BlockProperty<?> property : block.getProperties()) {
             List<BlockData> tmp = new ArrayList<BlockData>(this.variants);
             this.variants.clear();
-            for (Comparable<?> value : state.values()) {
+            for (Comparable<?> value : property.values()) {
                 for (BlockData original : tmp) {
                     try {
-                        this.variants.add(original.setState(state, value));
+                        this.variants.add(original.setProperty(property, value));
                     } catch (Throwable t) {} // meh!
                 }
             }
