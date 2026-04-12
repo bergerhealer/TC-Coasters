@@ -9,10 +9,12 @@ import java.util.Set;
  * Helper class for finding the shortest path from a node to another selected node
  */
 public class TrackNodeSearchPath {
+    private static final double MAX_SEARCH_DISTANCE = 8000; // 50 chunks
+
     public final HashSet<TrackNode> path = new HashSet<TrackNode>();
     public final List<TrackConnection> pathConnections = new ArrayList<TrackConnection>();
     public TrackNode current = null;
-    private double cost = 0.0;
+    private double searchDistance = 0.0;
     private boolean foundSelection = false;
     private boolean foundEnd = false;
 
@@ -20,7 +22,7 @@ public class TrackNodeSearchPath {
         this.path.addAll(base.path);
         this.pathConnections.addAll(base.pathConnections);
         this.current = base.current;
-        this.cost = base.cost;
+        this.searchDistance = base.searchDistance;
         this.foundSelection = base.foundSelection;
         this.foundEnd = base.foundEnd;
     }
@@ -33,7 +35,7 @@ public class TrackNodeSearchPath {
     public void next(TrackNode node, TrackConnection connection) {
         this.path.add(node);
         this.pathConnections.add(connection);
-        this.cost += node.getPosition().distanceSquared(this.current.getPosition());
+        this.searchDistance += node.getPosition().distance(this.current.getPosition());
         this.current = node;
     }
 
@@ -69,7 +71,13 @@ public class TrackNodeSearchPath {
                 }
 
                 // Stop working on branches exceeding the best cost we've already found
-                if (bestPath != null && path.cost >= bestPath.cost) {
+                if (bestPath != null && path.searchDistance >= bestPath.searchDistance) {
+                    path.foundEnd = true;
+                    continue;
+                }
+
+                // Abort the search if the path exceeds the maximum permitted distance
+                if (path.searchDistance >= MAX_SEARCH_DISTANCE) {
                     path.foundEnd = true;
                     continue;
                 }
@@ -97,7 +105,7 @@ public class TrackNodeSearchPath {
                         branch.next(neighbour, connection);
                         if (selected.contains(neighbour)) {
                             branch.foundEnd = branch.foundSelection = true;
-                            if (bestPath == null || bestPath.cost > branch.cost) {
+                            if (bestPath == null || bestPath.searchDistance > branch.searchDistance) {
                                 bestPath = branch;
                             }
                         }
@@ -111,7 +119,7 @@ public class TrackNodeSearchPath {
                     path.next(nextNode, nextConnection);
                     if (selected.contains(nextNode)) {
                         path.foundEnd = path.foundSelection = true;
-                        if (bestPath == null || bestPath.cost > path.cost) {
+                        if (bestPath == null || bestPath.searchDistance > path.searchDistance) {
                             bestPath = path;
                         }
                     }
