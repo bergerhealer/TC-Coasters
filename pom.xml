@@ -49,6 +49,21 @@
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/groups/public/</url>
         </repository>
+
+        <repository>
+            <id>sonatype-maven-snapshots</id>
+            <name>Sonatype OSS Snapshots</name>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+            <!-- Used for org.incendo / cloud-minecraft snapshot artifacts. -->
+            <!-- Note: Maven doesn't support per-group include rules like Gradle's content.includeGroup, -->
+            <!-- so we expose this repository only for snapshots and disable releases. -->
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
     </repositories>
 
     <dependencyManagement>
