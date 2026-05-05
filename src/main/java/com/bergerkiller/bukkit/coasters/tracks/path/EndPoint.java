@@ -100,6 +100,12 @@ public abstract class EndPoint {
         return this.strength < 1e-20;
     }
 
+    @Override
+    public String toString() {
+        return String.format("EndPoint{pos=%s, dir=%s, strength=%.2f}",
+                getNodePosition(), getNodeDirection(), getStrength());
+    }
+
     public static EndPoint create(Vector nodePosition, Vector nodeDirection, Vector otherPosition, Vector otherDirection) {
         return new EndPointImpl(nodePosition, nodeDirection, new Vector(0.0, 1.0, 0.0), otherPosition, otherDirection);
     }

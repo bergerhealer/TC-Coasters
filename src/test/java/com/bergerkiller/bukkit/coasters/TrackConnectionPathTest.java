@@ -260,16 +260,127 @@ public class TrackConnectionPathTest {
             path.getEndA().initNormal();
             path.getEndB().initInverted();
 
-            double distance = path.computeDistance(0.0, 1.0);
-            double distanceEval = computeDistanceEval(path, 0.0, 1.0);
+            final double t0 = 0.0;
+            final double t1 = 1.0;
+            double distance = path.computeDistance(t0, t1);
+            double distanceEval = computeDistanceEval(path, t0, t1);
 
             // System.out.println("dist=" + distance + "\texp=" + distanceEval);
 
             // Difference between the two should be below 2e-4, which is about the resolution of
             // Minecraft's entity position network synchronization.
-            assertEquals(distance, distanceEval, 2e-4);
+            assertEquals(distanceEval, distance, 2e-4);
+
+            // Old Discrete algo
+            //assertEquals(distanceEval, path.computeDistanceDiscrete(t0, t1), 1e-4);
         }
     }
+
+    @Test
+    public void testFindPointThetaAtDistance() {
+        // Pick some random values, can feed a seed into it, raise iterations, etc.
+        // Mostly for testing the proof of concept, there might be edge cases that fall through
+        Random rand = new Random();
+        for (int i = 0; i < 1000; i++) {
+            TrackConnectionPath path = TrackConnectionPath.create(new Vector(20.0, 30.0, -502.0), randDirection(rand),
+                                                                  new Vector(25.0, 25.0, -490.0), randDirection(rand));
+            path.getEndA().initNormal();
+            path.getEndB().initInverted();
+
+            final double tTarget = 0.01 + 0.9 * rand.nextDouble();
+
+            // We assume from testComputeDistance() that path.computeDistance() is correct.
+            double distance = path.computeDistance(0.0, tTarget);
+
+            // Distance should be the same in reverse
+            assertEquals(tTarget, path.findPointThetaAtDistance(distance), 1e-5);
+
+            // Old Discrete algo
+            //assertEquals(tTarget, path.findPointThetaAtDistanceDiscrete(distance), 1e-3);
+        }
+    }
+
+    @Test
+    @Ignore
+    public void testBenchmarkComputeDistance() {
+        // Pick some random values, can feed a seed into it, raise iterations, etc.
+        // Mostly for testing the proof of concept, there might be edge cases that fall through
+        Random rand = new Random();
+        final long steps = 2000;
+        long totalA = 0;
+        long totalB = 0;
+        for (int i = 0; i < 100; i++) {
+            TrackConnectionPath path = TrackConnectionPath.create(new Vector(20.0, 30.0, -502.0), randDirection(rand),
+                    new Vector(25.0, 25.0, -490.0), randDirection(rand));
+            path.getEndA().initNormal();
+            path.getEndB().initInverted();
+
+            double distanceEval = computeDistanceEval(path, 0.0, 1.0);
+
+            {
+                long startTime = System.nanoTime();
+                for (int n = 0; n < steps; n++) {
+                    assertEquals(distanceEval, path.computeDistanceDiscrete(0.0, 1.0), 2e-4);
+                }
+                long endTime = System.nanoTime();
+                totalA += (endTime - startTime);
+            }
+
+            {
+                long startTime = System.nanoTime();
+                for (int n = 0; n < steps; n++) {
+                    assertEquals(distanceEval, path.computeDistance(0.0, 1.0), 2e-4);
+                }
+                long endTime = System.nanoTime();
+                totalB += (endTime - startTime);
+            }
+        }
+
+        System.out.println("Old algorithm time: " + totalA);
+        System.out.println("New algorithm time: " + totalB);
+    }
+
+    @Test
+    @Ignore
+    public void testBenchmarkFindPointThetaAtDistance() {
+        // Pick some random values, can feed a seed into it, raise iterations, etc.
+        // Mostly for testing the proof of concept, there might be edge cases that fall through
+        Random rand = new Random();
+        final long steps = 1000;
+        long totalA = 0;
+        long totalB = 0;
+        for (int i = 0; i < 100; i++) {
+            TrackConnectionPath path = TrackConnectionPath.create(new Vector(20.0, 30.0, -502.0), randDirection(rand),
+                    new Vector(25.0, 25.0, -490.0), randDirection(rand));
+            path.getEndA().initNormal();
+            path.getEndB().initInverted();
+
+            final double tTarget = 0.01 + 0.9 * rand.nextDouble();
+            double distance = path.computeDistance(0.0, tTarget);
+
+            {
+                long startTime = System.nanoTime();
+                for (int n = 0; n < steps; n++) {
+                    assertEquals(tTarget, path.findPointThetaAtDistanceDiscrete(distance), 1e-3);
+                }
+                long endTime = System.nanoTime();
+                totalA += (endTime - startTime);
+            }
+
+            {
+                long startTime = System.nanoTime();
+                for (int n = 0; n < steps; n++) {
+                    assertEquals(tTarget, path.findPointThetaAtDistance(distance), 1e-4);
+                }
+                long endTime = System.nanoTime();
+                totalB += (endTime - startTime);
+            }
+        }
+
+        System.out.println("Old algorithm time: " + totalA);
+        System.out.println("New algorithm time: " + totalB);
+    }
+
 
     // Computes distance very slowly but guarantees accuracy to within a precision
     private double computeDistanceEval(TrackConnectionPath path, double t0, double t1) {
