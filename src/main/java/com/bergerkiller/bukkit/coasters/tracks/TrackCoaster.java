@@ -34,6 +34,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
     private List<TrackNode> _nodes;
     private boolean _changed = false;
     private boolean _locked = false;
+    private final CoasterLoadMetrics _loadMetrics = new CoasterLoadMetrics();
 
     protected TrackCoaster(CoasterWorld world, String name) {
         this._world = world;
@@ -214,7 +215,14 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
      * @return CoasterLoadFinalizeAction Action to be run once all coasters are loaded in
      */
     public CoasterLoadFinalizeAction loadBase() {
+        // Reset metrics
+        _loadMetrics.loadTimeSeconds = 0.0;
+        _loadMetrics.finalizeTimeSeconds = 0.0;
+
         CoasterLoadFinalizeAction finalizeAction = () -> {};
+
+        // Start timestamp to load the coaster from disk
+        long startTimeNanos = System.nanoTime();
 
         // Load the save file. If the save file is not found, but a .tmp file version of it does exist,
         // this indicates saving failed previously inbetween deleting and renaming the .tmp to .csv.
@@ -231,6 +239,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
             } else {
                 this.getPlugin().getLogger().log(Level.SEVERE,
                         "Coaster " + this.getName() + " could not be loaded: missing file");
+                _loadMetrics.loadTimeSeconds = (double) (System.nanoTime() - startTimeNanos) / 1000000000.0;
                 return finalizeAction;
             }
         }
@@ -266,7 +275,27 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
         // Coaster loaded. Any post-ops?
         this.markUnchanged();
 
-        return finalizeAction;
+        // Record time
+        _loadMetrics.loadTimeSeconds = (double) (System.nanoTime() - startTimeNanos) / 1000000000.0;
+
+        // Record the time it took to finalize
+        final CoasterLoadFinalizeAction finalizeActionFinal = finalizeAction;
+        return () -> {
+            long finalizeStartNanos = System.nanoTime();
+            finalizeActionFinal.finishCoaster();
+            _loadMetrics.finalizeTimeSeconds = (double) (System.nanoTime() - finalizeStartNanos) / 1000000000.0;
+        };
+    }
+
+    /**
+     * Gets the time it took to load this coaster from disk
+     *
+     * @return CoasterLoadMetrics
+     * @see #load()
+     * @see #loadBase()
+     */
+    public CoasterLoadMetrics getLoadMetrics() {
+        return this._loadMetrics;
     }
 
     /**
@@ -387,6 +416,20 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
 
         public CoasterLoadException(String message, Throwable cause) {
             super(message, cause);
+        }
+    }
+
+    /**
+     * Metrics collected about loading this coaster from disk
+     */
+    public static class CoasterLoadMetrics {
+        /** Time it took in seconds to load the nodes/connections within the coaster */
+        public double loadTimeSeconds;
+        /** Time it took in seconds to finalize building connections with other coasters */
+        public double finalizeTimeSeconds;
+
+        public double totalTime() {
+            return loadTimeSeconds + finalizeTimeSeconds;
         }
     }
 

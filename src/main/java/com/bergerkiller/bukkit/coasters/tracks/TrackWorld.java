@@ -33,6 +33,7 @@ public class TrackWorld implements CoasterWorldComponent {
     private final List<TrackCoaster> _coasters;
     private final NodeUpdateList _changedNodes = new NodeUpdateList();
     private final NodeUpdateList _changedNodesPriority = new NodeUpdateList();
+    private final LoadMetrics _loadMetrics = new LoadMetrics();
 
     public TrackWorld(CoasterWorld world) {
         this._world = world;
@@ -702,6 +703,8 @@ public class TrackWorld implements CoasterWorldComponent {
     public void load() {
         this.clear();
 
+        long startTimeNanos = System.nanoTime();
+
         // List all coasters saved on disk. List both .csv and .csv.tmp coasters.
         HashSet<String> coasterNames = new HashSet<String>();
         File[] filesInFolder = this.getWorld().getConfigFolder().listFiles();
@@ -733,21 +736,33 @@ public class TrackWorld implements CoasterWorldComponent {
             coaster.markUnchanged();
         }
 
+        _loadMetrics.loadTimeSeconds = (double) (System.nanoTime() - startTimeNanos) / 1000000000.0;
+
         // Apply pending node changes and rebuild all track-rail information
         rebuild();
     }
 
     /**
      * Updates all nodes that have changed and rebuilds all track information
-     * of {@link TrackRailsWorld}
+     * of {@link TrackRailsWorld}. Metrics collected in this operation can be retrieved
+     * using {@link #getLoadMetrics()}.
      */
     public void rebuild() {
+        // Reset
+        _loadMetrics.updateTimeSeconds = 0.0;
+        _loadMetrics.rebuildTimeSeconds = 0.0;
+
+        long startTimeNanos = System.nanoTime();
+
         // Ensure all updates have been notified/completed
         this._changedNodesPriority.clear(); // At this stage this shouldn't even contain elements
         runAllUpdates(this._changedNodes, false);
 
+        long afterUpdateTimeNanos = System.nanoTime();
+        _loadMetrics.updateTimeSeconds = (double) (afterUpdateTimeNanos - startTimeNanos) / 1000000000.0;
+
         // Rebuild all rail-tracked information of all nodes on this world
-        {
+        try {
             TrackRailsWorld rails = getWorld().getRails();
             rails.clear();
 
@@ -771,7 +786,18 @@ public class TrackWorld implements CoasterWorldComponent {
                     }
                 }
             }
+        } finally {
+            _loadMetrics.rebuildTimeSeconds = (double) (System.nanoTime() - afterUpdateTimeNanos) / 1000000000.0;
         }
+    }
+
+    /**
+     * Gets metrics about the last time {@link #load()} and/or {@link #rebuild()} was called.
+     *
+     * @return Load metrics
+     */
+    public LoadMetrics getLoadMetrics() {
+        return _loadMetrics;
     }
 
     private boolean isRandomizeRebuildEnabled() {
@@ -943,6 +969,23 @@ public class TrackWorld implements CoasterWorldComponent {
 
         /* Connection not found */
         return false;
+    }
+
+    /**
+     * Metrics collected about the last time {@link #rebuild()} was called. This happens through commands and
+     * on plugin startup.
+     */
+    public static class LoadMetrics {
+        /** Time spent loading the coasters from disk in seconds */
+        public double loadTimeSeconds;
+        /** Time spent in seconds processing track updates before the actual rebuilding */
+        public double updateTimeSeconds;
+        /** Time spent building the track in seconds */
+        public double rebuildTimeSeconds;
+
+        public double totalTime() {
+            return loadTimeSeconds + updateTimeSeconds + rebuildTimeSeconds;
+        }
     }
 
     private static final class NodeUpdateList {
