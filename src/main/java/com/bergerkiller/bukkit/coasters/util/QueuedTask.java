@@ -1,8 +1,8 @@
 package com.bergerkiller.bukkit.coasters.util;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.IdentityHashMap;
 import java.util.function.Consumer;
 
 import com.bergerkiller.bukkit.common.collections.ImplicitlySharedSet;
@@ -21,8 +21,8 @@ public class QueuedTask<T> {
     private final int delay;
     private final Precondition<T> precondition;
     private final Consumer<T> function;
-    private final List<Entry<T>> queue = new ArrayList<Entry<T>>();
-    private int queueStart = 0;
+    private IdentityHashMap<T, Entry<T>> queuedByObject = new IdentityHashMap<>();
+    private final Deque<Entry<T>> queue = new ArrayDeque<Entry<T>>();
 
     /**
      * Constructs a new delayed Queued Task function
@@ -66,21 +66,30 @@ public class QueuedTask<T> {
      * @param object Object to schedule execution
      */
     public void schedule(T object) {
-        int time = CommonUtil.getServerTicks() + delay;
-        for (int i = queueStart; i < queue.size(); i++) {
-            Entry<T> entry = queue.get(i);
-            if (entry.object == object) {
+        final int time = CommonUtil.getServerTicks() + delay;
+
+        // Add a new entry if for this object, no task was scheduled yet.
+        // Also add it to an ordered queue, so that scheduled tasks are executed in the same order they are scheduled.
+        // Remove (cancel) an already scheduled task whose time is different from the requested time
+        // If the time is unchanged (already scheduled), ignore and keep the existing (earlier) entry.
+        // To avoid having to scan the entire queue to remove the old entry, mark it cancelled instead.
+        queuedByObject.compute(object, (obj, entry) -> {
+            if (entry != null && entry.state == EntryState.SCHEDULED) {
                 if (entry.time == time) {
-                    queue.set(i, new Entry<T>(object, time));
-                    return;
+                    return entry; // Already scheduled, same time. Unchanged.
                 } else {
-                    queue.remove(i);
-                    break;
+                    entry.state = EntryState.CANCELLED; // Cancel old entry. New entry will be re-added at the end.
                 }
             }
-        }
-        queue.add(new Entry<T>(object, time));
-        scheduled.add(this);
+
+            boolean isFirstScheduledEntry = queue.isEmpty();
+            entry = new Entry<>(obj, time);
+            queue.add(entry);
+            if (isFirstScheduledEntry) {
+                scheduled.add(QueuedTask.this);
+            }
+            return entry;
+        });
     }
 
     /**
@@ -91,36 +100,56 @@ public class QueuedTask<T> {
      * @return True if scheduled
      */
     public boolean isScheduled(T object) {
-        for (int i = queueStart; i < queue.size(); i++) {
-            if (queue.get(i).object == object) {
-                return true;
-            }
-        }
-        return false;
+        Entry<T> e = queuedByObject.get(object);
+        return e != null && e.state == EntryState.SCHEDULED;
     }
 
     // Called by runAll() to run this one task
     private void run(int time) {
-        // Figure out the number of tasks from 0 we can run right now
-        queueStart = 0;
-        while (queueStart < queue.size() && time >= queue.get(queueStart).time) {
-            queueStart++;
-        }
-        if (queueStart == 0) {
-            return;
-        }
+        // Take all items from the queue which need to run right now and process them.
+        // We do not mutate the identity hashmap item by item as the remove() shrink operation is far too slow.
+        // Instead, we do this shrinking with a rebuild after the fact.
+        boolean hasRunTasks = false;
+        for (Entry<T> e; (e = queue.poll()) != null;) {
+            // Ignore cancelled or already-run entries
+            if (e.state != EntryState.SCHEDULED) {
+                continue;
+            }
 
-        // Run all these
-        for (int i = 0; i < queueStart; i++) {
-            T object = queue.get(i).object;
+            // When reaching an entry that still has a pending delay, re-add and stop processing.
+            if (time < e.time) {
+                queue.addFirst(e);
+                break;
+            }
+
+            // Mark to be run, so if a concurrent schedule happens, a new entry is added again
+            e.state = EntryState.ALREADY_RUN;
+
+            // Run the task
+            T object = e.object;
             if (precondition.canExecute(object)) {
                 function.accept(object);
             }
+
+            // Something has run, so it's worth compressing the queuedByObject map
+            hasRunTasks = true;
         }
 
-        // Clear from queue
-        queue.subList(0, queueStart).clear();
-        queueStart = 0;
+        // Rebuild the identity hashmap to omit entries that have already been run (if not empty)
+        // Only do this when we mutated something interesting or the queue is emptied.
+        if (queue.isEmpty()) {
+            if (!queuedByObject.isEmpty()) {
+                queuedByObject = new IdentityHashMap<>();
+            }
+        } else if (hasRunTasks) {
+            IdentityHashMap<T, Entry<T>> newQueuedByObject = new IdentityHashMap<>(queue.size());
+            queue.forEach(e -> {
+                if (e.state == EntryState.SCHEDULED) {
+                    newQueuedByObject.put(e.object, e);
+                }
+            });
+            queuedByObject = newQueuedByObject;
+        }
     }
 
     /**
@@ -135,12 +164,8 @@ public class QueuedTask<T> {
             }
 
             // Remove tasks from the scheduled set that have no tasks queued up
-            Iterator<QueuedTask<?>> iter = scheduled.iterator();
-            while (iter.hasNext()) {
-                if (iter.next().queue.isEmpty()) {
-                    iter.remove();
-                }
-            }
+            // It will be re-added the very next time a new task is scheduled.
+            scheduled.removeIf(queuedTask -> queuedTask.queue.isEmpty());
         }
     }
 
@@ -152,11 +177,22 @@ public class QueuedTask<T> {
     private static final class Entry<T> {
         public final T object;
         public final int time;
+        public EntryState state;
 
         public Entry(T object, int time) {
             this.object = object;
             this.time = time;
+            this.state = EntryState.SCHEDULED;
         }
+    }
+
+    private enum EntryState {
+        /** Entry is scheduled to run later */
+        SCHEDULED,
+        /** Entry was cancelled and will be removed later */
+        CANCELLED,
+        /** Entry has already run, and will be cleaned up later */
+        ALREADY_RUN
     }
 
     /**
