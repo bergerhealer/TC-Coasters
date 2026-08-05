@@ -40,6 +40,27 @@ public class SignEditState {
         this.editState = editState;
     }
 
+    /**
+     * Gets the sign the player is editing. This is the last sign of the last selected node.
+     *
+     * @return Last edited sign, or null if no sign is selected for editing
+     */
+    public TrackNodeSign getEditedSign() {
+        TrackNode lastEdited = editState.getLastEditedNode();
+        TrackNodeSign[] signs;
+        if (lastEdited != null && (signs = lastEdited.getSigns()).length > 0) {
+            return signs[signs.length - 1];
+        }
+
+        for (TrackNode node : editState.getEditedNodes()) {
+            if ((signs = node.getSigns()).length > 0) {
+                return signs[signs.length - 1];
+            }
+        }
+
+        return null;
+    }
+
     private boolean handlePreClick(TrackNode node) {
         int ticks = CommonUtil.getServerTicks();
         if (lastTickClicked > ticks) {

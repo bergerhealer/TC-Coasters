@@ -211,6 +211,19 @@ public class PlayerEditClipboard {
     }
 
     /**
+     * Copies the last selected sign of the currently edited node. This is a separately tracked
+     * list of signs. Use {@link #isSignsFilled()} to check whether any signs were copied at all.
+     */
+    public void copySelectedSign() {
+        this._copiedSigns.clear();
+
+        TrackNodeSign sign = _state.getSigns().getEditedSign();
+        if (sign != null) {
+            this._copiedSigns.add(sign.clone());
+        }
+    }
+
+    /**
      * Pastes all the signs of the last-copied node onto all the selected nodes.
      *
      * @param replaceExistingSigns Whether to replace pre-existing signs on the nodes (true) or to

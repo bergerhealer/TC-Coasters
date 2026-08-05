@@ -17,7 +17,6 @@ import com.bergerkiller.bukkit.coasters.commands.annotations.CommandRequiresTCCP
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.signs.power.NamedPowerChannel;
-import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.common.block.SignEditDialog;
 
@@ -36,11 +35,20 @@ class EditStateSignCommands {
     @CommandDescription("Copies the signs of all selected nodes to the clipboard")
     public void commandCopy(
             final PlayerEditState state,
-            final CommandSender sender
+            final CommandSender sender,
+            final @Flag("selected") boolean selectedSignOnly
     ) {
-        state.getClipboard().copySigns();
+        if (selectedSignOnly) {
+            state.getClipboard().copySelectedSign();
+        } else {
+            state.getClipboard().copySigns();
+        }
         if (state.getClipboard().isSignsFilled()) {
-            sender.sendMessage(state.getClipboard().getSignCount() + " signs copied to the clipboard!");
+            if (selectedSignOnly) {
+                sender.sendMessage("Selected sign is copied to the clipboard!");
+            } else {
+                sender.sendMessage(state.getClipboard().getSignCount() + " signs copied to the clipboard!");
+            }
         } else {
             sender.sendMessage("No nodes with signs selected, clipboard cleared!");
         }
@@ -52,13 +60,29 @@ class EditStateSignCommands {
     @CommandDescription("Copies all currently selected nodes to the clipboard and deletes them")
     public void commandCut(
             final PlayerEditState state,
-            final CommandSender sender
+            final CommandSender sender,
+            final @Flag("selected") boolean selectedSignOnly
     ) {
-        state.getClipboard().copySigns();
+        // Copy selected sign or all signs of selected nodes
+        if (selectedSignOnly) {
+            state.getClipboard().copySelectedSign();
+        } else {
+            state.getClipboard().copySigns();
+        }
+
         if (state.getClipboard().isSignsFilled()) {
             try {
-                state.getSigns().clearSigns();
-                sender.sendMessage(state.getClipboard().getSignCount() + " signs cut from the selected nodes and saved to the clipboard!");
+                // Remove what we copied
+                if (selectedSignOnly) {
+                    state.getSigns().removeLastSign();
+                } else {
+                    state.getSigns().clearSigns();
+                }
+                if (selectedSignOnly && state.getClipboard().getSignCount() == 1) {
+                    sender.sendMessage("Selected sign is cut from the node and copied to the clipboard!");
+                } else {
+                    sender.sendMessage(state.getClipboard().getSignCount() + " signs cut from the selected nodes and saved to the clipboard!");
+                }
             } catch (ChangeCancelledException e) {
                 sender.sendMessage(ChatColor.RED + "Some signs could not be removed from the selected nodes!");
             }
@@ -145,15 +169,18 @@ class EditStateSignCommands {
             final PlayerEditState state,
             final Player sender
     ) {
-        final TrackNodeSign toEdit = findSignToEdit(state);
-        if (toEdit != null) {
-            new SignEditDialog() {
-                @Override
-                public void onClosed(Player player, String[] lines) {
-                    commandEditWithLines(state, player, toEdit, lines);
-                }
-            }.open(sender, toEdit.getLines());
+        final TrackNodeSign toEdit = state.getSigns().getEditedSign();
+        if (toEdit == null) {
+            TCCoastersLocalization.SIGN_MISSING.message(state.getPlayer());
+            return;
         }
+
+        new SignEditDialog() {
+            @Override
+            public void onClosed(Player player, String[] lines) {
+                commandEditWithLines(state, player, toEdit, lines);
+            }
+        }.open(sender, toEdit.getLines());
     }
 
     @CommandRequiresTCCPermission
@@ -171,10 +198,13 @@ class EditStateSignCommands {
             return;
         }
 
-        TrackNodeSign toEdit = findSignToEdit(state);
-        if (toEdit != null) {
-            commandEditWithLines(state, sender, toEdit, parser.getLinesArray());
+        TrackNodeSign toEdit = state.getSigns().getEditedSign();
+        if (toEdit == null) {
+            TCCoastersLocalization.SIGN_MISSING.message(state.getPlayer());
+            return;
         }
+
+        commandEditWithLines(state, sender, toEdit, parser.getLinesArray());
     }
 
     private void commandEditWithLines(
@@ -197,23 +227,6 @@ class EditStateSignCommands {
         } catch (ChangeCancelledException e) {
             TCCoastersLocalization.SIGN_ADD_MANY_FAILED.message(sender);
         }
-    }
-
-    private static TrackNodeSign findSignToEdit(PlayerEditState state) {
-        TrackNode lastEdited = state.getLastEditedNode();
-        TrackNodeSign[] signs;
-        if (lastEdited != null && (signs = lastEdited.getSigns()).length > 0) {
-            return signs[signs.length - 1];
-        }
-
-        for (TrackNode node : state.getEditedNodes()) {
-            if ((signs = node.getSigns()).length > 0) {
-                return signs[signs.length - 1];
-            }
-        }
-
-        TCCoastersLocalization.SIGN_MISSING.message(state.getPlayer());
-        return null;
     }
 
     @CommandRequiresTCCPermission
