@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.bergerkiller.bukkit.coasters.commands.parsers.QuotedLinesParser;
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditClipboard;
 import org.bukkit.ChatColor;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
@@ -28,6 +29,66 @@ import org.incendo.cloud.annotations.Flag;
 
 @Command("tccoasters|tcc sign|signs")
 class EditStateSignCommands {
+
+    @CommandRequiresTCCPermission
+    @CommandRequiresSelectedNodes
+    @Command("copy")
+    @CommandDescription("Copies the signs of all selected nodes to the clipboard")
+    public void commandCopy(
+            final PlayerEditState state,
+            final CommandSender sender
+    ) {
+        state.getClipboard().copySigns();
+        if (state.getClipboard().isSignsFilled()) {
+            sender.sendMessage(state.getClipboard().getSignCount() + " signs copied to the clipboard!");
+        } else {
+            sender.sendMessage("No nodes with signs selected, clipboard cleared!");
+        }
+    }
+
+    @CommandRequiresTCCPermission
+    @CommandRequiresSelectedNodes
+    @Command("cut")
+    @CommandDescription("Copies all currently selected nodes to the clipboard and deletes them")
+    public void commandCut(
+            final PlayerEditState state,
+            final CommandSender sender
+    ) {
+        state.getClipboard().copySigns();
+        if (state.getClipboard().isSignsFilled()) {
+            try {
+                state.getSigns().clearSigns();
+                sender.sendMessage(state.getClipboard().getSignCount() + " signs cut from the selected nodes and saved to the clipboard!");
+            } catch (ChangeCancelledException e) {
+                sender.sendMessage(ChatColor.RED + "Some signs could not be removed from the selected nodes!");
+            }
+        } else {
+            sender.sendMessage("No nodes with signs selected, clipboard cleared!");
+        }
+    }
+
+    @CommandRequiresTCCPermission
+    @CommandRequiresSelectedNodes
+    @Command("paste")
+    @CommandDescription("Pastes the current sign contents of the clipboard onto the selected nodes")
+    public void commandPaste(
+            final PlayerEditState state,
+            final CommandSender sender,
+            final @Flag("replace") boolean replaceExistingSigns
+    ) {
+        final PlayerEditClipboard clipboard = state.getClipboard();
+
+        if (!clipboard.isSignsFilled()) {
+            sender.sendMessage("Sign clipboard is empty, nothing has been pasted!");
+            return;
+        }
+
+        try {
+            clipboard.pasteSigns(replaceExistingSigns);
+        } catch (ChangeCancelledException e) {
+            sender.sendMessage(ChatColor.RED + "The signs could not be pasted here");
+        }
+    }
 
     @CommandRequiresTCCPermission
     @CommandRequiresSelectedNodes

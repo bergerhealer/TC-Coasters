@@ -111,7 +111,7 @@ public class SignEditState {
                         TCCoastersLocalization.SIGN_ADD_APPEND.message(player);
                     } else {
                         // Add a new sign to the node
-                        addSignToNode(editState.getHistory(), node, new TrackNodeSign(lines), true);
+                        addSignToNode(editState.getHistory(), node, new TrackNodeSign(lines), true, true);
                         TCCoastersLocalization.SIGN_ADD_SUCCESS.message(player);
                     }
                 } catch (ChangeCancelledException e) {
@@ -482,6 +482,41 @@ public class SignEditState {
     }
 
     public void addSign(TrackNodeSign sign) throws ChangeCancelledException {
+        addOrSetSign(sign, false);
+    }
+
+    /**
+     * Adds or sets a sign on all selected nodes. If addSign is true, the sign is added to the previous signs on the node.
+     * If addSign is false, the previous signs are cleared first. The input sign is cloned before setting, so there is no risk
+     * of multiple nodes referencing the same sign.
+     *
+     * @param sign TrackNodeSign
+     * @param replaceExistingSigns True to clear and set the sign, false to add the sign and keep previous signs
+     * @throws ChangeCancelledException If permission issues occur
+     */
+    public void addOrSetSign(TrackNodeSign sign, boolean replaceExistingSigns) throws ChangeCancelledException {
+        // Deselect nodes we cannot edit
+        editState.deselectLockedNodes();
+
+        // Failure if no nodes are selected
+        if (!editState.hasEditedNodes()) {
+            return;
+        }
+
+        addOrSetSign(sign, editState.getHistory().addChangeGroup(), replaceExistingSigns);
+    }
+
+    /**
+     * Adds or sets a sign on all selected nodes. If addSign is true, the sign is added to the previous signs on the node.
+     * If addSign is false, the previous signs are cleared first. The input sign is cloned before setting, so there is no risk
+     * of multiple nodes referencing the same sign.
+     *
+     * @param sign TrackNodeSign
+     * @param changes HistoryChange to record the operation into (for undo)
+     * @param replaceExistingSigns True to clear and set the sign, false to add the sign and keep previous signs
+     * @throws ChangeCancelledException If permission issues occur
+     */
+    public void addOrSetSign(TrackNodeSign sign, HistoryChange changes, boolean replaceExistingSigns) throws ChangeCancelledException {
         // Deselect nodes we cannot edit
         editState.deselectLockedNodes();
 
@@ -491,9 +526,8 @@ public class SignEditState {
         }
 
         boolean firedEvent = false;
-        HistoryChange changes = editState.getHistory().addChangeGroup();
         for (TrackNode node : editState.getEditedNodes()) {
-            addSignToNode(changes, node, sign, !firedEvent);
+            addSignToNode(changes, node, sign.clone(), !firedEvent, replaceExistingSigns);
             firedEvent = true;
         }
     }
@@ -506,12 +540,17 @@ public class SignEditState {
      * @param sign Sign that was added
      * @param interactive Whether this is an interactive build. If true, a successful build message is sent.
      *                    If false, only permission/error related messages are sent.
-     * @throws ChangeCancelledException
+     * @param replaceExistingSigns True to clear and set the sign, false to add the sign and keep previous signs
+     * @throws ChangeCancelledException If the player lacks permission and the change was canceled
      */
-    private void addSignToNode(HistoryChangeCollection changes, TrackNode node, TrackNodeSign sign, boolean interactive) throws ChangeCancelledException {
+    private void addSignToNode(HistoryChangeCollection changes, TrackNode node, TrackNodeSign sign, boolean interactive, boolean replaceExistingSigns) throws ChangeCancelledException {
         TrackNodeSign node_sign = sign.clone();
         TrackNodeSign[] old_signs = node.getSigns();
-        setSignsForNode(changes, node, LogicUtil.appendArrayElement(node.getSigns(), node_sign));
+        if (replaceExistingSigns) {
+            setSignsForNode(changes, node, new TrackNodeSign[] { node_sign });
+        } else {
+            setSignsForNode(changes, node, LogicUtil.appendArrayElement(node.getSigns(), node_sign));
+        }
 
         // Fire a sign build event with the sign's custom sign
         if (!node_sign.fireBuildEvent(editState.getPlayer(), interactive)) {

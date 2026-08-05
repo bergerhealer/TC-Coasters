@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+import com.bergerkiller.bukkit.coasters.editor.PlayerEditClipboard;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -158,18 +159,20 @@ class EditStateCommands {
     @CommandDescription("Pastes the current contents of the clipboard at the current position")
     public void commandPaste(
             final PlayerEditState state,
-            final CommandSender sender,
-            final TCCoasters plugin
+            final CommandSender sender
     ) {
-        if (state.getClipboard().isFilled()) {
-            try {
-                state.getClipboard().paste();
-                sender.sendMessage(state.getClipboard().getNodeCount() + " track nodes pasted from the clipboard at your position!");
-            } catch (ChangeCancelledException e) {
-                sender.sendMessage(ChatColor.RED + "The track nodes could not be pasted here");
-            }
-        } else {
+        final PlayerEditClipboard clipboard = state.getClipboard();
+
+        if (!clipboard.isFilled()) {
             sender.sendMessage("Clipboard is empty, nothing has been pasted!");
+            return;
+        }
+
+        try {
+            clipboard.paste();
+            sender.sendMessage(state.getClipboard().getNodeCount() + " track nodes pasted from the clipboard at your position!");
+        } catch (ChangeCancelledException e) {
+            sender.sendMessage(ChatColor.RED + "The track nodes could not be pasted here");
         }
     }
 

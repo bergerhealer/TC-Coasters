@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSign;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSignKey;
 import org.bukkit.entity.Player;
 
@@ -33,6 +34,7 @@ public class PlayerEditClipboard {
     private final List<TrackNodeState> _nodes = new ArrayList<TrackNodeState>();
     private final Set<TrackConnectionState> _connections = new HashSet<TrackConnectionState>();
     private final Map<TrackNodeState, TrackNodeAnimationState[]> _animations = new HashMap<>();
+    private final List<TrackNodeSign> _copiedSigns = new ArrayList<>();
 
     protected PlayerEditClipboard(PlayerEditState state) {
         this._state = state;
@@ -52,12 +54,32 @@ public class PlayerEditClipboard {
     }
 
     /**
+     * Gets whether any signs were last copied onto this clipboard using
+     * {@link #copySigns()}}
+     *
+     * @return True if signs were filled in this clipboard
+     */
+    public boolean isSignsFilled() {
+        return !this._copiedSigns.isEmpty();
+    }
+
+    /**
      * Gets the number of nodes on the clipboard
      * 
      * @return node count
      */
     public int getNodeCount() {
         return this._nodes.size();
+    }
+
+    /**
+     * Gets the number of signs on the clipboard. Not the number of signs in the
+     * nodes on the clipboard.
+     *
+     * @return sign count
+     */
+    public int getSignCount() {
+        return this._copiedSigns.size();
     }
 
     /**
@@ -98,10 +120,13 @@ public class PlayerEditClipboard {
     /**
      * Creates a new coaster at the current position of the player using the
      * nodes last copied. If no nodes were copied, this function does nothing.
+     *
+     * @throws ChangeCancelledException If the paste could not be performed
+     * @throws IllegalStateException If this clipboard is not {@link #isFilled() filled}
      */
     public void paste() throws ChangeCancelledException {
         if (!this.isFilled()) {
-            return;
+            throw new IllegalStateException("Clipboard is not filled");
         }
 
         // Before pasting, randomize the UUID keys of all signs included
@@ -169,6 +194,48 @@ public class PlayerEditClipboard {
             this._state.getHistory().removeChange(history);
             tracks.removeCoaster(coaster);
             throw ex;
+        }
+    }
+
+    /**
+     * Copies the signs of all selected nodes as a sequential List. This is a separately tracked
+     * list of signs. Use {@link #isSignsFilled()} to check whether any signs were copied at all.
+     */
+    public void copySigns() {
+        this._copiedSigns.clear();
+        for (TrackNode node : _state.getEditedNodes()) {
+            for (TrackNodeSign sign : node.getSigns()) {
+                this._copiedSigns.add(sign.clone());
+            }
+        }
+    }
+
+    /**
+     * Pastes all the signs of the last-copied node onto all the selected nodes.
+     *
+     * @param replaceExistingSigns Whether to replace pre-existing signs on the nodes (true) or to
+     *                 keep all previous signs and adding to it (false).
+     * @throws ChangeCancelledException If the paste could not be performed
+     * @throws IllegalStateException If this clipboard is not {@link #isSignsFilled() filled} or
+     *                 player has no nodes selected
+     */
+    public void pasteSigns(boolean replaceExistingSigns) throws ChangeCancelledException {
+        if (!this.isSignsFilled()) {
+            throw new IllegalStateException("Clipboard is not filled with signs");
+        } else if (!this._state.hasEditedNodes()) {
+            throw new IllegalStateException("Player has no nodes selected");
+        }
+
+        // Start history entry
+        HistoryChange history = this._state.getHistory().addChangeGroup();
+
+        // Modify the signs on all the nodes
+        boolean replaceExistingSignsNow = replaceExistingSigns;
+        for (TrackNodeSign sign : this._copiedSigns) {
+            this._state.getSigns().addOrSetSign(sign, history, replaceExistingSignsNow);
+
+            // Only the first sign should clear previous signs, if replaceExistingSignsNow is true
+            replaceExistingSignsNow = false;
         }
     }
 }
