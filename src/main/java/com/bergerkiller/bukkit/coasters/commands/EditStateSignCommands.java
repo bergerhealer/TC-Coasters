@@ -36,18 +36,18 @@ class EditStateSignCommands {
     public void commandCopy(
             final PlayerEditState state,
             final CommandSender sender,
-            final @Flag("selected") boolean selectedSignOnly
+            final @Flag("all") boolean copyAllSigns
     ) {
-        if (selectedSignOnly) {
-            state.getClipboard().copySelectedSign();
-        } else {
+        if (copyAllSigns) {
             state.getClipboard().copySigns();
+        } else {
+            state.getClipboard().copySelectedSign();
         }
         if (state.getClipboard().isSignsFilled()) {
-            if (selectedSignOnly) {
-                sender.sendMessage("Selected sign is copied to the clipboard!");
-            } else {
+            if (copyAllSigns) {
                 sender.sendMessage(state.getClipboard().getSignCount() + " signs copied to the clipboard!");
+            } else {
+                sender.sendMessage("Selected sign is copied to the clipboard!");
             }
         } else {
             sender.sendMessage("No nodes with signs selected, clipboard cleared!");
@@ -61,24 +61,24 @@ class EditStateSignCommands {
     public void commandCut(
             final PlayerEditState state,
             final CommandSender sender,
-            final @Flag("selected") boolean selectedSignOnly
+            final @Flag("all") boolean cutAllSigns
     ) {
         // Copy selected sign or all signs of selected nodes
-        if (selectedSignOnly) {
-            state.getClipboard().copySelectedSign();
-        } else {
+        if (cutAllSigns) {
             state.getClipboard().copySigns();
+        } else {
+            state.getClipboard().copySelectedSign();
         }
 
         if (state.getClipboard().isSignsFilled()) {
             try {
                 // Remove what we copied
-                if (selectedSignOnly) {
-                    state.getSigns().removeLastSign();
-                } else {
+                if (cutAllSigns) {
                     state.getSigns().clearSigns();
+                } else {
+                    state.getSigns().removeLastSign();
                 }
-                if (selectedSignOnly && state.getClipboard().getSignCount() == 1) {
+                if (!cutAllSigns && state.getClipboard().getSignCount() == 1) {
                     sender.sendMessage("Selected sign is cut from the node and copied to the clipboard!");
                 } else {
                     sender.sendMessage(state.getClipboard().getSignCount() + " signs cut from the selected nodes and saved to the clipboard!");
