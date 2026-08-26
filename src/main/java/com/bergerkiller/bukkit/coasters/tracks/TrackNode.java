@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.function.Function;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.tc.attachments.animation.AnimationEasing;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
@@ -766,6 +767,28 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                     getWorld().getAnimations().animate(name, this, animState.state, animState.connections, duration);
                 } else {
                     getWorld().getAnimations().animate(name, this, animState.state, null, duration);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Animates this node's position towards a target state with easing, by name.
+     *
+     * @param name      The name of the state to animate towards
+     * @param duration  The duration in seconds the animation should take, 0 for instant
+     * @param easing    The easing used to animate
+     * @return True if the animation state by this name exists, and the animation is now playing
+     */
+    public boolean playAnimation(String name, double duration, AnimationEasing easing) {
+        for (TrackNodeAnimationState animState : this._animationStates) {
+            if (animState.name.equals(name)) {
+                if (this.doAnimationStatesChangeConnections()) {
+                    getWorld().getAnimations().animate(name, this, animState.state, animState.connections, duration, easing);
+                } else {
+                    getWorld().getAnimations().animate(name, this, animState.state, null, duration, easing);
                 }
                 return true;
             }
