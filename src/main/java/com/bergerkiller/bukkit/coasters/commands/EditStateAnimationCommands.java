@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.coasters.commands;
 
 import java.util.stream.Collectors;
 
+import com.bergerkiller.bukkit.tc.attachments.animation.AnimationEasing;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
@@ -15,6 +16,7 @@ import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.CommandDescription;
 import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.Flag;
 
 /**
  * Commands that alter or play track animations
@@ -132,7 +134,7 @@ class EditStateAnimationCommands {
             final CommandSender sender,
             final @Quoted @Argument(value="name", suggestions="animation_names") String animName
     ) {
-        commandPlayAnimation(state, sender, animName, 0.0);
+        commandPlayAnimation(state, sender, animName, 0.0, null);
     }
 
     @CommandRequiresTCCPermission
@@ -143,11 +145,20 @@ class EditStateAnimationCommands {
             final PlayerEditState state,
             final CommandSender sender,
             final @Quoted @Argument(value="name", suggestions="animation_names") String animName,
-            final @Argument("duration") double duration
+            final @Argument("duration") double duration,
+            final @Flag(value="easing", suggestions="easing_types") String easingText
     ) {
+        // AnimationEasing.LINEAR if easingText is null
+        // null if easingText is invalid
+        // Handles error messaging to sender
+        AnimationEasing easing = parseEasing(sender, easingText);
+        if (easing == null) { // easingText not null, but invalid
+            return;
+        }
+
         int playingCount = 0;
         for (TrackNode node : state.getEditedNodes()) {
-            if (node.playAnimation(animName, duration)) {
+            if (node.playAnimation(animName, duration, easing)) {
                 playingCount++;
             }
         }
@@ -155,6 +166,58 @@ class EditStateAnimationCommands {
             sender.sendMessage(ChatColor.RED + "Animation '" + animName + "' was not added to the selected nodes!");
         } else {
             sender.sendMessage("Animation '" + animName + "' is now playing for " + playingCount + " nodes!");
+        }
+    }
+
+    private static AnimationEasing parseEasing(
+            CommandSender sender,
+            String input
+    ) {
+        if (input == null || input.isEmpty()) {
+            return AnimationEasing.LINEAR;
+        }
+
+        // Presets
+        try {
+            AnimationEasing.EasingType type = AnimationEasing.EasingType.valueOf(input.toUpperCase());
+            if (type == AnimationEasing.EasingType.CUSTOM) {
+                sender.sendMessage(ChatColor.RED +
+                        "CUSTOM is not a valid easing type here.");
+                return null;
+            }
+            return type.getEasing();
+        } catch (IllegalArgumentException ignored) {}
+
+        // Custom bezier
+        String[] parts = input.split(",");
+        if (parts.length != 4) {
+            sender.sendMessage(ChatColor.RED +
+                    "Expected either an easing preset or x1,y1,x2,y2");
+            return null;
+        }
+
+        try {
+            double x1 = Double.parseDouble(parts[0]);
+            double y1 = Double.parseDouble(parts[1]);
+            double x2 = Double.parseDouble(parts[2]);
+            double y2 = Double.parseDouble(parts[3]);
+
+            validateRange(x1, "x1");
+            validateRange(y1, "y1");
+            validateRange(x2, "x2");
+            validateRange(y2, "y2");
+
+            return new AnimationEasing(x1, y1, x2, y2);
+        } catch (IllegalArgumentException ex) {
+            sender.sendMessage(ChatColor.RED + ex.getMessage());
+            return null;
+        }
+    }
+
+    private static void validateRange(double value, String name) {
+        if (value < 0.0 || value > 1.0) {
+            throw new IllegalArgumentException(
+                    name + " must be between 0 and 1");
         }
     }
 }

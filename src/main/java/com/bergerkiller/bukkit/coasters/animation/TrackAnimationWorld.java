@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.bergerkiller.bukkit.coasters.signs.actions.TrackAnimationListener;
+import com.bergerkiller.bukkit.tc.attachments.animation.AnimationEasing;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
 import com.bergerkiller.bukkit.tc.events.SignActionEvent;
 import com.bergerkiller.bukkit.tc.signactions.SignAction;
@@ -59,6 +60,10 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
 
     public void animate(String animationName, TrackNode node, TrackNodeState target, TrackConnectionState[] connections, double duration) {
         _animations.put(node, new TrackAnimation(animationName, node, target, connections, MathUtil.floor(duration * 20.0)));
+    }
+
+    public void animate(String animationName, TrackNode node, TrackNodeState target, TrackConnectionState[] connections, double duration, AnimationEasing easing) {
+        _animations.put(node, new TrackAnimation(animationName, node, target, connections, MathUtil.floor(duration * 20.0), easing));
     }
 
     @Override
@@ -135,11 +140,15 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
             } else {
                 // Update using lerp
                 double theta = (double) anim.ticks / (double) anim.ticks_total;
-                Vector pos = MathUtil.lerp(anim.start.position, anim.target.position, theta);
+
+                AnimationEasing easing = anim.getEasing();
+                double easedTheta = easing.evaluate(theta);
+
+                Vector pos = MathUtil.lerp(anim.start.position, anim.target.position, easedTheta);
 
                 Quaternion q0 = Quaternion.fromLookDirection(anim.node.getDirection(), anim.start.orientation);
                 Quaternion q1 = Quaternion.fromLookDirection(anim.node.getDirection(), anim.target.orientation);
-                Vector up = Quaternion.slerp(q0, q1, theta).upVector();
+                Vector up = Quaternion.slerp(q0, q1, easedTheta).upVector();
 
                 anim.node.setPosition(pos);
                 anim.node.setOrientation(up);

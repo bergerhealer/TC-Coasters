@@ -4,6 +4,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackConnection;
 import com.bergerkiller.bukkit.coasters.tracks.TrackConnectionState;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeState;
+import com.bergerkiller.bukkit.tc.attachments.animation.AnimationEasing;
 
 public class TrackAnimation {
     /** Name of the animation being played. Can be empty String if omitted. */
@@ -14,6 +15,7 @@ public class TrackAnimation {
     public final TrackConnectionState[] connections;
     public final int ticks_total;
     public int ticks;
+    public AnimationEasing easing = AnimationEasing.LINEAR;
 
     public TrackAnimation(String name, TrackNode node, TrackNodeState target, TrackConnectionState[] connections, int ticks_total) {
         this.name = name;
@@ -25,12 +27,27 @@ public class TrackAnimation {
         this.ticks = 1;
     }
 
+    public TrackAnimation(String name, TrackNode node, TrackNodeState target, TrackConnectionState[] connections, int ticks_total, AnimationEasing easing) {
+        this.name = name;
+        this.node = node;
+        this.start = node.getState();
+        this.target = target;
+        this.connections = connections;
+        this.ticks_total = ticks_total;
+        this.ticks = 1;
+        this.easing = easing;
+    }
+
     public boolean isAtStart() {
         return this.ticks == 1;
     }
 
     public boolean isAtEnd() {
         return this.ticks >= this.ticks_total;
+    }
+
+    public AnimationEasing getEasing() {
+        return easing;
     }
 
     /**

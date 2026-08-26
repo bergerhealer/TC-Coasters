@@ -10,6 +10,7 @@ import com.bergerkiller.bukkit.coasters.commands.suggestions.SelectedSignsInputP
 import com.bergerkiller.bukkit.coasters.commands.suggestions.SelectedSignsOutputPowerChannelSuggestionProvider;
 import com.bergerkiller.bukkit.common.cloud.CloudLocalizedException;
 
+import com.bergerkiller.bukkit.tc.attachments.animation.AnimationEasing;
 import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
@@ -76,6 +77,13 @@ public class TCCoastersCommands {
                 return Collections.emptyList();
             }
         });
+
+        cloud.suggest("easing_types", (context, commandInput) ->
+                Arrays.stream(AnimationEasing.EasingType.values())
+                        .filter(AnimationEasing.EasingType::isPreset)
+                        .map(Enum::name)
+                        .collect(Collectors.toList())
+        );
 
         // Makes PlayerEditState available as a command argument
         cloud.injector(PlayerEditState.class, (context, annotations) -> {
