@@ -132,7 +132,7 @@ public class SignEditState {
                         TCCoastersLocalization.SIGN_ADD_APPEND.message(player);
                     } else {
                         // Add a new sign to the node
-                        addSignToNode(editState.getHistory(), node, new TrackNodeSign(lines), true, true);
+                        addSignToNode(editState.getHistory(), node, new TrackNodeSign(lines), true, false);
                         TCCoastersLocalization.SIGN_ADD_SUCCESS.message(player);
                     }
                 } catch (ChangeCancelledException e) {
