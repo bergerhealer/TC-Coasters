@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.coasters;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
@@ -382,5 +383,45 @@ public class TCCoastersUtil {
     public static boolean isPlayerConnected(Player player) {
         //TODO: Use BKCommonLib PlayerInstancePhase API instead
         return player.isValid() || Bukkit.getPlayer(player.getUniqueId()) == player;
+    }
+
+    /**
+     * Writes the items of an array to a StringBuilder, making use of the append function to encode each item.
+     * Writes it as [item, item, item].
+     *
+     * @param str StringBuilder to write to
+     * @param items Array of items to encode
+     * @param appendFunc Function to encode each item into the StringBuilder
+     * @param <T> Item Type
+     */
+    public static <T> void stringifyArrayItems(StringBuilder str, T[] items, BiConsumer<StringBuilder, T> appendFunc) {
+        stringifyArrayItems(str, Arrays.asList(items), appendFunc);
+    }
+
+    /**
+     * Writes the items of an array to a StringBuilder, making use of the append function to encode each item.
+     * Writes it as [item, item, item].
+     *
+     * @param str StringBuilder to write to
+     * @param items Iterable of items to encode
+     * @param appendFunc Function to encode each item into the StringBuilder
+     * @param <T> Item Type
+     */
+    public static <T> void stringifyArrayItems(StringBuilder str, Iterable<T> items, BiConsumer<StringBuilder, T> appendFunc) {
+        str.append('[');
+        boolean first = true;
+        for (T item : items) {
+            if (first) {
+                first = false;
+            } else {
+                str.append(", ");
+            }
+            if (item == null) {
+                str.append("NULL");
+            } else {
+                appendFunc.accept(str, item);
+            }
+        }
+        str.append(']');
     }
 }

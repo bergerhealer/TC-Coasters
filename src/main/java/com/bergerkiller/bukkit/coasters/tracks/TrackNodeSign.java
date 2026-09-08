@@ -6,6 +6,7 @@ import java.util.function.Predicate;
 import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
 import com.bergerkiller.bukkit.common.offline.OfflineBlock;
 import com.bergerkiller.bukkit.tc.events.SignBuildEvent;
 import com.bergerkiller.bukkit.tc.rails.RailLookup;
@@ -691,6 +692,20 @@ public class TrackNodeSign implements Cloneable {
         clone.inputPowerChannels = LogicUtil.cloneAll(this.inputPowerChannels, NamedPowerChannel::clone);
         clone.outputPowerChannels = LogicUtil.cloneAll(this.outputPowerChannels, NamedPowerChannel::clone);
         return clone;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder str = new StringBuilder();
+        str.append("TrackNodeSign{");
+        str.append("lines=");
+        TCCoastersUtil.stringifyArrayItems(str, lines, (s, l) -> s.append('\"').append(l).append('\"'));
+        str.append(", inputs=");
+        TCCoastersUtil.stringifyArrayItems(str, inputPowerChannels, (s, l) -> s.append(l.toString()));
+        str.append(", outputs=");
+        TCCoastersUtil.stringifyArrayItems(str, outputPowerChannels, (s, l) -> s.append(l.toString()));
+        str.append('}');
+        return str.toString();
     }
 
     /**
