@@ -59,6 +59,7 @@ import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
 import com.bergerkiller.bukkit.common.map.MapPlayerInput;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
+import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
@@ -1210,12 +1211,14 @@ public class PlayerEditState implements CoasterWorldComponent {
     }
 
     /**
-     * Transforms the position of all selected nodes using a transformation function
-     * 
-     * @param manipulator The function that transforms the input Vector
+     * Transforms all selected nodes using a transformation function.
+     * Also updates the selected animation state of every transformed node with both
+     * position and orientation.
+     *
+     * @param manipulator The function that transforms an input TrackNode
      * @throws ChangeCancelledException
      */
-    public void transformPosition(Consumer<Vector> manipulator) throws ChangeCancelledException {
+    public void transform(Consumer<TrackNode> manipulator) throws ChangeCancelledException {
         // Deselect locked nodes that we cannot edit
         this.deselectLockedNodes();
 
@@ -1227,17 +1230,63 @@ public class PlayerEditState implements CoasterWorldComponent {
 
             changes.handleChangeBefore(this.player, node);
             TrackNodeState startState = node.getState();
-            Vector pos = node.getPosition().clone();
-            manipulator.accept(pos);
-            node.setPosition(pos);
+            manipulator.accept(node);
             changes.addChangeAfterChangingNode(this.player, node, startState);
 
             // Refresh selected animation state of node too, if one is selected for this node
             TrackNodeAnimationState animState = node.findAnimationState(this.selectedAnimation);
             if (animState != null) {
-                node.setAnimationState(animState.name, animState.state.changePosition(pos), animState.connections);
+                node.setAnimationState(
+                        animState.name,
+                        animState.state.changePosition(node.getPosition()).changeOrientation(node.getOrientation()),
+                        animState.connections);
             }
         }
+    }
+
+    /**
+     * Transforms the position of all selected nodes using a transformation function
+     * 
+     * @param manipulator The function that transforms the input Vector
+     * @throws ChangeCancelledException
+     */
+    public void transformPosition(Consumer<Vector> manipulator) throws ChangeCancelledException {
+        transform(node -> {
+            Vector pos = node.getPosition().clone();
+            manipulator.accept(pos);
+            node.setPosition(pos);
+        });
+    }
+
+    /**
+     * Rotates the position and orientation of all selected nodes around their center.
+     *
+     * @param rotation Rotation to apply
+     * @throws ChangeCancelledException
+     */
+    public void transformRotate(Quaternion rotation) throws ChangeCancelledException {
+        this.deselectLockedNodes();
+        if (this.editedNodes.isEmpty()) {
+            return;
+        }
+
+        Vector center = new Vector();
+        for (TrackNode node : this.editedNodes) {
+            center.add(node.getPosition());
+        }
+        center.multiply(1.0 / (double) this.editedNodes.size());
+
+        transform(node -> {
+            Vector pos = node.getPosition().clone().subtract(center);
+            rotation.transformPoint(pos);
+            pos.add(center);
+
+            Vector orientation = node.getOrientation().clone();
+            rotation.transformPoint(orientation);
+
+            node.setPosition(pos);
+            node.setOrientation(orientation);
+        });
     }
 
     /**

@@ -9,6 +9,7 @@ import com.bergerkiller.bukkit.coasters.commands.arguments.TrackPositionAxis;
 import com.bergerkiller.bukkit.coasters.editor.PlayerEditState;
 import com.bergerkiller.bukkit.coasters.editor.history.ChangeCancelledException;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
+import com.bergerkiller.bukkit.common.math.Quaternion;
 
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.CommandDescription;
@@ -42,9 +43,10 @@ class EditStatePositionCommands {
         }
 
         // Help
-        sender.sendMessage(ChatColor.RED + "/tcc set " + axis.getName() + " <new_value>");
-        sender.sendMessage(ChatColor.RED + "/tcc set " + axis.getName() + " (add/align) <value>");
-        sender.sendMessage(ChatColor.RED + "/tcc set " + axis.getName() + " average");
+        sender.sendMessage(ChatColor.RED + "/tcc position " + axis.getName() + " <new_value>");
+        sender.sendMessage(ChatColor.RED + "/tcc position " + axis.getName() + " (add/align) <value>");
+        sender.sendMessage(ChatColor.RED + "/tcc position " + axis.getName() + " average");
+        sender.sendMessage(ChatColor.RED + "/tcc position " + axis.getName() + " rotate <angle>");
     }
 
     @CommandRequiresTCCPermission
@@ -134,6 +136,43 @@ class EditStatePositionCommands {
                     " relative to the node block coordinates!");
         } catch (ChangeCancelledException ex) {
             sender.sendMessage(ChatColor.RED + "The position of one or more nodes could not be changed");
+        }
+    }
+
+    @CommandRequiresTCCPermission
+    @CommandRequiresSelectedNodes
+    @Command("<axis> rotate <angle>")
+    @CommandDescription("Rotates all selected nodes around an axis, including orientation")
+    public void commandRotatePosition(
+            final PlayerEditState state,
+            final CommandSender sender,
+            final @Argument("axis") TrackPositionAxis axis,
+            final @Argument("angle") double angle
+    ) {
+        try {
+            Quaternion rotation = new Quaternion();
+            switch (axis) {
+                case X:
+                case X_INV:
+                    rotation.rotateX(angle);
+                    break;
+                case Y:
+                case Y_INV:
+                    rotation.rotateY(angle);
+                    break;
+                case Z:
+                case Z_INV:
+                    rotation.rotateZ(angle);
+                    break;
+                default:
+                    rotation.rotateY(angle);
+                    break;
+            }
+            state.transformRotate(rotation);
+            sender.sendMessage(ChatColor.GREEN + "All selected nodes were rotated by " + angle +
+                    " degrees around the " + axis.getName().toUpperCase() + "-axis!");
+        } catch (ChangeCancelledException ex) {
+            sender.sendMessage(ChatColor.RED + "The position or orientation of one or more nodes could not be changed");
         }
     }
 
