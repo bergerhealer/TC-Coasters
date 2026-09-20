@@ -498,6 +498,11 @@ public class TCCoasters extends PluginBase {
 
     @Override
     public void enable() {
+        // Check before enabling
+        if (!Common.hasCapability("Common:Packet:InteractionPacketsImmutable")) {
+            throw new RuntimeException("BKCommonLib is too old! Please update to the latest version.");
+        }
+
         this.listener.enable();
         this.interactionListener.enable();
 
