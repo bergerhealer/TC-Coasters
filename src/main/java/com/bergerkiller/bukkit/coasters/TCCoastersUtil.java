@@ -7,6 +7,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
+import com.bergerkiller.generated.net.minecraft.world.phys.BlockHitResultHandle;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -309,6 +310,22 @@ public class TCCoastersUtil {
     }
 
     /**
+     * Performs raytracing from the player's field of view, calling the BKCommonLib
+     * rayTrace API with it. Returns the raw server result.
+     *
+     * @param player
+     * @return raytrace results, null if not looking at a block
+     */
+    public static BlockHitResultHandle bkclRayTrace(Player player) {
+        Location loc = player.getEyeLocation();
+        Vector dir = loc.getDirection();
+        Vector start = loc.toVector();
+        Vector end = dir.clone().multiply(5.0).add(start);
+        HitResultHandle hitResult = LevelHandle.fromBukkit(loc.getWorld()).rayTrace(start, end);
+        return hitResult instanceof BlockHitResultHandle ? (BlockHitResultHandle) hitResult : null;
+    }
+
+    /**
      * Performs raytracing from the player's field of view, providing information
      * about the block clicked and where on the block was clicked
      * 
@@ -320,14 +337,14 @@ public class TCCoastersUtil {
         Vector dir = loc.getDirection();
         Vector start = loc.toVector();
         Vector end = dir.clone().multiply(5.0).add(start);
-        HitResultHandle mop = LevelHandle.fromBukkit(loc.getWorld()).rayTrace(start, end);
-        if (mop == null) {
+        BlockHitResultHandle block = bkclRayTrace(player);
+        if (block == null) {
             return null;
         }
 
         TargetedBlockInfo info = new TargetedBlockInfo();
-        info.position = mop.getPos();
-        info.face = mop.getDirection();
+        info.position = block.getLocation();
+        info.face = block.getDirection();
         Vector blockCoordPos = info.position.clone().add(dir.clone().multiply(1e-5));
         int x = blockCoordPos.getBlockX();
         int y = blockCoordPos.getBlockY();
