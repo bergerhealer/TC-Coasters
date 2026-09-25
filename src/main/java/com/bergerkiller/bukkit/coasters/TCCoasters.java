@@ -20,7 +20,9 @@ import java.util.logging.Level;
 import com.bergerkiller.bukkit.coasters.editor.PlayerRegionViewRange;
 import com.bergerkiller.bukkit.coasters.editor.TCCoastersDisplay;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSignLookup;
+import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.map.MapDisplay;
+import com.bergerkiller.bukkit.tc.rails.WorldRailLookup;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
@@ -501,6 +503,13 @@ public class TCCoasters extends PluginBase {
         // Check before enabling
         if (!Common.hasCapability("Common:Packet:InteractionPacketsImmutable")) {
             throw new RuntimeException("BKCommonLib is too old! Please update to the latest version.");
+        }
+
+        // Annoying little hack, this is the best way to avoid complete horrible breakage for people...
+        try {
+            WorldRailLookup.class.getMethod("redetectRailsAtBlock", IntVector3.class);
+        } catch (NoSuchMethodException ex) {
+            throw new RuntimeException("TrainCarts is too old! Please update to the latest version.");
         }
 
         this.listener.enable();
