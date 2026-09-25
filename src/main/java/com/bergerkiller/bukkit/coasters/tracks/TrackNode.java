@@ -8,7 +8,9 @@ import java.util.List;
 import java.util.function.Function;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
+import com.bergerkiller.bukkit.common.offline.OfflineBlock;
 import com.bergerkiller.bukkit.tc.controller.components.RailPiece;
+import com.bergerkiller.bukkit.tc.rails.RailLookup;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -1183,6 +1185,17 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         return RailPiece.create(
                 getPlugin().getRailType(),
                 this.getRailBlock(true).toBlock(this.getBukkitWorld()));
+    }
+
+    /**
+     * Gets the TrainCarts-managed rail piece, if one is presently cached for this track
+     *
+     * @return CachedRailPiece, or {@link RailLookup.CachedRailPiece#NONE} if not cached
+     * @see RailLookup.CachedRailPiece#isNone()
+     */
+    public RailLookup.CachedRailPiece getCachedRailPiece() {
+        OfflineBlock block = getOfflineWorld().getBlockAt(this.getRailBlock(true));
+        return RailLookup.lookupCachedRailPieceIfCached(block, getPlugin().getRailType());
     }
 
     /**

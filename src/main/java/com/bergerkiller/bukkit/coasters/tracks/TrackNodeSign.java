@@ -7,7 +7,6 @@ import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.coasters.TCCoastersUtil;
-import com.bergerkiller.bukkit.common.offline.OfflineBlock;
 import com.bergerkiller.bukkit.tc.events.SignBuildEvent;
 import com.bergerkiller.bukkit.tc.rails.RailLookup;
 import org.bukkit.ChatColor;
@@ -105,8 +104,7 @@ public class TrackNodeSign implements Cloneable {
     }
 
     private static void invalidateCachedSignsOfNode(TrackNode node) {
-        OfflineBlock railBlock = node.getOfflineWorld().getBlockAt(node.getRailBlock(true));
-        RailLookup.CachedRailPiece piece = RailLookup.lookupCachedRailPieceIfCached(railBlock, node.getPlugin().getRailType());
+        RailLookup.CachedRailPiece piece = node.getCachedRailPiece();
         if (!piece.isNone()) {
             piece.forceCacheVerification();
         }

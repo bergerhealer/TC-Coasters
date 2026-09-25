@@ -10,13 +10,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
-import com.bergerkiller.bukkit.coasters.tracks.TrackWorld;
 import org.bukkit.block.Block;
 
 import com.bergerkiller.bukkit.coasters.rails.multiple.TrackRailsSectionMultipleList;
 import com.bergerkiller.bukkit.coasters.rails.single.TrackRailsSingleNodeElement;
-import com.bergerkiller.bukkit.coasters.tracks.TrackCoaster;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorld;
 import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
@@ -152,7 +151,26 @@ public class TrackRailsWorld implements CoasterWorldComponent {
         }
     }
 
+    /**
+     * Stores the track segment information represented by a single node. Merges with other segments
+     * sharing the same block / rail. Does not offer tracking of what blocks are changed, so only
+     * suitable for startup / rebuild initialization.
+     *
+     * @param node TrackNode
+     */
     public void store(TrackNode node) {
+        store(node, (b) -> {});
+    }
+
+    /**
+     * Stores the track segment information represented by a single node. Merges with other segments
+     * sharing the same block / rail.
+     *
+     * @param node TrackNode
+     * @param blockVisitor Callback called for every block the node occupies. Important for invalidating
+     *                     TrainCarts own rail lookup cache (rails-at-block caching)
+     */
+    public void store(TrackNode node, Consumer<IntVector3> blockVisitor) {
         try {
             TrackRailsSingleNodeElement nodeSection = TrackRailsSingleNodeElement.create(node);
             if (nodeSection == null) {
@@ -161,6 +179,7 @@ public class TrackRailsWorld implements CoasterWorldComponent {
 
             // Map this section to all block position blocks where it is active
             nodeSection.forEachBlockPosition(block -> {
+                blockVisitor.accept(block);
                 if (sectionsByBlock.addSection(block, nodeSection)) {
                     tmpNodeBlocks.computeIfAbsent(node, u -> ObjectCache.newHashSet()).get().add(block);
                 }

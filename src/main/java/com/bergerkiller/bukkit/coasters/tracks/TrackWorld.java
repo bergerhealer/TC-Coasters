@@ -13,6 +13,10 @@ import java.util.stream.Collectors;
 
 import com.bergerkiller.bukkit.coasters.objects.TrackObject;
 import com.bergerkiller.bukkit.coasters.rails.TrackRailsWorld;
+import com.bergerkiller.bukkit.common.bases.IntVector3;
+import com.bergerkiller.bukkit.common.offline.OfflineWorld;
+import com.bergerkiller.bukkit.tc.rails.RailLookup;
+import com.bergerkiller.bukkit.tc.rails.WorldRailLookup;
 import com.google.common.collect.Iterables;
 import org.bukkit.Location;
 import org.bukkit.util.Vector;
@@ -761,6 +765,11 @@ public class TrackWorld implements CoasterWorldComponent {
         long afterUpdateTimeNanos = System.nanoTime();
         _loadMetrics.updateTimeSeconds = (double) (afterUpdateTimeNanos - startTimeNanos) / 1000000000.0;
 
+        // Before we rebuild, wipe the traincarts rail cache by forcing verification
+        // Avoids massive overhead when we clear later, and we also don't have to
+        // commit every changed block on initial store. With a rebuild, that's a lot of blocks!
+        RailLookup.forceRecalculation();
+
         // Rebuild all rail-tracked information of all nodes on this world
         try {
             TrackRailsWorld rails = getWorld().getRails();
@@ -863,9 +872,17 @@ public class TrackWorld implements CoasterWorldComponent {
                 this.getWorld().getRails().purge(nodesToUpdate);
 
                 // Re-create all the cached rail information for the changed nodes
+                // Keep track of what blocks saw a change in track behavior
+                final Set<IntVector3> changedBlocks = new HashSet<>();
+                final OfflineWorld world = getOfflineWorld();
                 for (TrackNode changedNode : nodesToUpdate) {
-                    this.getWorld().getRails().store(changedNode);
+                    this.getWorld().getRails().store(changedNode, changedBlocks::add);
                 }
+
+                // For all blocks that had changes, invalidate the rail lookup cache there
+                // Otherwise information may stay stuck getting stored, breaking train pathing
+                final WorldRailLookup lookup = RailLookup.forWorld(getBukkitWorld());
+                changedBlocks.forEach(lookup::redetectRailsAtBlock);
             }
             updates.clear();
         }
