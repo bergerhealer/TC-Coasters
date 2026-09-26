@@ -6,6 +6,7 @@ import java.util.Map;
 
 import com.bergerkiller.bukkit.common.wrappers.HumanHandRole;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.ServerboundAttackPacketHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.ServerboundPunchPacketHandle;
 import com.bergerkiller.generated.net.minecraft.world.phys.BlockHitResultHandle;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -54,7 +55,8 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
             PacketType.IN_ATTACK,
             PacketType.IN_USE_ITEM,
             PacketType.IN_USE_ITEM_ON,
-            PacketType.IN_SWING
+            PacketType.IN_SWING,
+            PacketType.IN_PUNCH
     };
 
     private final TCCoasters plugin;
@@ -124,7 +126,7 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
         PlayerEditState state = this.plugin.getEditState(event.getPlayer());
 
         // Limit arm swing animations to a certain amount per time frame
-        if (event.getType() == PacketType.IN_SWING) {
+        if (event.getType() == PacketType.IN_SWING || event.getType() == PacketType.IN_PUNCH) {
             long time_new = System.currentTimeMillis();
             Metadata meta = createMeta(event.getPlayer());
             if (meta.isArmSwingActive(time_new)) {
@@ -312,10 +314,16 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
 
     private void fakeBlockDestroy(Player player, TargetedBlockInfo clickInfo, HumanHand hand) {
         if (clickInfo == null) {
-            // Player arm animation is used to left-click the air
-            ServerboundSwingPacketHandle packet = ServerboundSwingPacketHandle.T.newHandleNull();
-            packet.setHand(player, hand);
-            PacketUtil.receivePacket(player, packet);
+            if (ServerboundPunchPacketHandle.T.isAvailable()) {
+                // Player punch is used to left-click the air (26.3+)
+                ServerboundPunchPacketHandle packet = ServerboundPunchPacketHandle.T.newHandleNull();
+                PacketUtil.receivePacket(player, packet);
+            } else {
+                // Player arm animation is used to left-click the air
+                ServerboundSwingPacketHandle packet = ServerboundSwingPacketHandle.T.newHandleNull();
+                packet.setHand(player, hand);
+                PacketUtil.receivePacket(player, packet);
+            }
         } else {
             createMeta(player).blockBreakTime = Long.valueOf(System.currentTimeMillis());
 

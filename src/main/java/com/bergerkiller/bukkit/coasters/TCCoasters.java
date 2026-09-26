@@ -501,8 +501,8 @@ public class TCCoasters extends PluginBase {
     @Override
     public void enable() {
         // Check before enabling
-        if (!Common.hasCapability("Common:Packet:InteractionPacketsImmutable")) {
-            throw new RuntimeException("BKCommonLib is too old! Please update to the latest version.");
+        if (!Common.hasCapability("Common:MapDisplay:CustomItemType")) {
+            throw new RuntimeException("BKCommonLib is too old! Please update BKCommonLib!");
         }
 
         // Annoying little hack, this is the best way to avoid complete horrible breakage for people...

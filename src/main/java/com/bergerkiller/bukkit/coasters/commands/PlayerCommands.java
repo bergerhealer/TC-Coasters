@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.coasters.commands;
 
+import com.bergerkiller.bukkit.common.inventory.CommonItemMaterials;
 import com.bergerkiller.bukkit.common.inventory.CommonItemStack;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
@@ -39,7 +40,7 @@ class PlayerCommands {
                     .toBukkit());
             player.sendMessage("Gave you a track editor stick!");
         } else {
-            player.getInventory().addItem(CommonItemStack.of(MapDisplay.createMapItem(TCCoastersDisplay.class))
+            player.getInventory().addItem(MapDisplay.createMapCommonItem(TCCoastersDisplay.class, CommonItemMaterials.Maps.OCEAN_MONUMENT)
                     .setCustomNameMessage("Track Editor")
                     .addLoreMessage("TC-Coasters")
                     .setFilledMapColor(0x0000FF)
