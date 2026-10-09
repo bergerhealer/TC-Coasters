@@ -648,22 +648,32 @@ public class PlayerEditState implements CoasterWorldComponent {
             changed = this.editedNodes.remove(node);
         }
         if (changed) {
-            // Can be caused by the node being removed, handle that here
-            if (!node.isRemoved()) {
-                node.onStateUpdated(this.player);
-                for (TrackNodeAnimationState state : node.getAnimationStates()) {
-                    Set<TrackNode> values = this.editedNodesByAnimationName.get(state.name);
-                    if (editing && values.add(node)) {
-                        this.editedAnimationNamesChanged |= (values.size() == 1);
-                    } else if (!editing && values.remove(node)) {
-                        this.editedAnimationNamesChanged |= values.isEmpty();
-                    }
+            // When a node is removed, editing is set to false and editedNodesByAnimationName needs a cleanup
+            // When starting to edit an extra node that shares an animation name the user had selected, the
+            // map needs to be updated also.
+            for (TrackNodeAnimationState state : node.getAnimationStates()) {
+                Set<TrackNode> values = this.editedNodesByAnimationName.get(state.name);
+                if (editing && values.add(node)) {
+                    this.editedAnimationNamesChanged |= (values.size() == 1);
+                } else if (!editing && values.remove(node)) {
+                    this.editedAnimationNamesChanged |= values.isEmpty();
                 }
+            }
+
+            // Update what node was last edited by the player
+            // Null out when the node is de-selected or was removed
+            if (editing) {
                 this.lastEdited = node;
                 this.lastEditTime = System.currentTimeMillis();
             } else if (this.lastEdited == node) {
                 this.lastEdited = null;
             }
+
+            // Can be caused by the node being removed, check for it to avoid errors
+            if (!node.isRemoved()) {
+                node.onStateUpdated(this.player);
+            }
+
             this.onEditedNodesChanged();
         }
     }

@@ -1150,7 +1150,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     protected void onRemoved() {
-        final TCCoasters plugin = getPlugin();
+        final TCCoasters plugin = getPlugin(); // Throws on double-removal!
 
         destroyParticles();
         updateSignBindings(plugin, this._signs, TrackNodeSign.EMPTY_ARR, TrackNodeBinding.forNode(this));
@@ -1158,6 +1158,10 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             updateSignBindings(plugin, animState.state.signs, TrackNodeSign.EMPTY_ARR, TrackNodeBinding.forNodeAnimationStates(this));
         }
         _coaster = null; // mark removed by breaking reference to coaster
+
+        // Now the node is removed, make sure this node is cleaned up from all active player edit states
+        // Note that getPlugin() now throws, so use the plugin we retrieved earlier
+        plugin.forAllEditStates(editState -> editState.setEditing(this, false));
     }
 
     public void destroyParticles() {
