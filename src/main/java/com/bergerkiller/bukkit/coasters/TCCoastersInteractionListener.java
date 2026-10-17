@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.wrappers.HumanHandRole;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.ServerboundAttackPacketHandle;
 import com.bergerkiller.generated.net.minecraft.network.protocol.game.ServerboundPunchPacketHandle;
@@ -50,12 +51,13 @@ import com.bergerkiller.generated.net.minecraft.network.protocol.game.Serverboun
 public class TCCoastersInteractionListener implements PacketListener, Listener {
     private static final long MIN_ARM_SWING_INTERVAL_MS = 100;
     private static final long MIN_BLOCK_BREAK_EFFECT_TIME_MS = 100;
+    private static final boolean BKCL_PUNCH_PACKET_MERGE = Common.hasCapability("Packets:SwingIsNowPunchPacket");
     public static final PacketType[] PACKET_TYPES = {
             PacketType.IN_INTERACT,
             PacketType.IN_ATTACK,
             PacketType.IN_USE_ITEM,
             PacketType.IN_USE_ITEM_ON,
-            PacketType.IN_SWING,
+            PacketType.IN_SWING, // Remove once BKCL 2.0.5 is a hard-dep
             PacketType.IN_PUNCH
     };
 
@@ -126,7 +128,14 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
         PlayerEditState state = this.plugin.getEditState(event.getPlayer());
 
         // Limit arm swing animations to a certain amount per time frame
-        if (event.getType() == PacketType.IN_SWING || event.getType() == PacketType.IN_PUNCH) {
+        boolean isPunchPacket;
+        if (BKCL_PUNCH_PACKET_MERGE) {
+            isPunchPacket = event.getType() == PacketType.IN_PUNCH;
+        } else {
+            // Older BKCL. Can remove all of this when BKCommonLib 2.0.5 or later is a hard-dep.
+            isPunchPacket = event.getType() == PacketType.IN_PUNCH || event.getType() == PacketType.IN_SWING;
+        }
+        if (isPunchPacket) {
             long time_new = System.currentTimeMillis();
             Metadata meta = createMeta(event.getPlayer());
             if (meta.isArmSwingActive(time_new)) {
@@ -314,11 +323,12 @@ public class TCCoastersInteractionListener implements PacketListener, Listener {
 
     private void fakeBlockDestroy(Player player, TargetedBlockInfo clickInfo, HumanHand hand) {
         if (clickInfo == null) {
-            if (ServerboundPunchPacketHandle.T.isAvailable()) {
-                // Player punch is used to left-click the air (26.3+)
+            if (BKCL_PUNCH_PACKET_MERGE || ServerboundPunchPacketHandle.T.isAvailable()) {
+                // Player punch is used to left-click the air (26.3+), < 26.3 on BKCL 2.0.5 and later
                 ServerboundPunchPacketHandle packet = ServerboundPunchPacketHandle.T.newHandleNull();
                 PacketUtil.receivePacket(player, packet);
             } else {
+                // Old legacy code. Remove once BKCommonLib 2.0.5 is a hard-dependency
                 // Player arm animation is used to left-click the air
                 ServerboundSwingPacketHandle packet = ServerboundSwingPacketHandle.T.newHandleNull();
                 packet.setHand(player, hand);
