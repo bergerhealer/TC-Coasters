@@ -10,7 +10,7 @@ import com.bergerkiller.bukkit.coasters.tracks.TrackNode;
 @FunctionalInterface
 public interface NodeManipulationMode {
     NodeManipulationMode NONE = state -> {};
-    NodeManipulationMode POSITION_ORIENTATION = new NodeManipulationMode() {
+    NodeManipulationMode POSITION = new NodeManipulationMode() {
         @Override
         public void rightClick(PlayerEditState state) throws ChangeCancelledException {
             state.dragManipulationUpdate();
@@ -19,6 +19,12 @@ public interface NodeManipulationMode {
         @Override
         public boolean leftClick(PlayerEditState state) throws ChangeCancelledException {
             return state.insertNodeWhileDragging();
+        }
+    };
+    NodeManipulationMode ORIENTATION = new NodeManipulationMode() {
+        @Override
+        public void rightClick(PlayerEditState state) throws ChangeCancelledException {
+            state.dragManipulationUpdate();
         }
     };
     NodeManipulationMode CREATE_TRACK = new NodeManipulationMode() {
@@ -88,7 +94,7 @@ public interface NodeManipulationMode {
             // If not, do normal track creation (place a node down)
             TrackNode lookingAt = state.findLookingAt();
             if (lookingAt != null && state.isEditing(lookingAt)) {
-                return POSITION_ORIENTATION;
+                return POSITION;
             } else {
                 return CREATE_TRACK;
             }
