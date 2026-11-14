@@ -27,6 +27,7 @@ import com.bergerkiller.bukkit.coasters.world.CoasterWorldComponent;
 import com.bergerkiller.bukkit.common.math.Matrix4x4;
 import com.bergerkiller.bukkit.common.math.Quaternion;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
+import com.bergerkiller.bukkit.common.utils.MathUtil;
 
 /**
  * Stores all the track groups and the special connections between track nodes.
@@ -478,32 +479,34 @@ public class TrackWorld implements CoasterWorldComponent {
                 return connect((TrackNode) state.node_a, (TrackNode) state.node_b);
             }
 
-            // Try to find an existing connection with node_b reference
+            // Resolve exact node_b first. Node references can be position-based, and if two nodes
+            // occupy that same position then we must not merge by position at this stage.
             nodeA = (TrackNode) state.node_a;
-            TrackConnection existing = nodeA.findConnectionWithReference(state.node_b);
-            if (existing != null) {
-                return existing;
+            if ((nodeB = findNodeForConnection(state.node_b, nodeA, nodeA)) == null) {
+                return null;
             }
 
-            // Find node_b, if not found, fail
-            if ((nodeB = state.node_b.findOnWorld(this, nodeA)) == null) {
-                return null;
+            // Try to find an existing connection with this exact node
+            TrackConnection existing = nodeA.findConnectionWithNode(nodeB);
+            if (existing != null) {
+                return existing;
             }
         } else if (state.node_b.isExistingNode()) {
-            // Try to find an existing connection with node_a reference
+            // Resolve exact node_a first. Node references can be position-based, and if two nodes
+            // occupy that same position then we must not merge by position at this stage.
             nodeB = (TrackNode) state.node_b;
-            TrackConnection existing = nodeB.findConnectionWithReference(state.node_a);
+            if ((nodeA = findNodeForConnection(state.node_a, nodeB, nodeB)) == null) {
+                return null;
+            }
+
+            // Try to find an existing connection with this exact node
+            TrackConnection existing = nodeB.findConnectionWithNode(nodeA);
             if (existing != null) {
                 return existing;
             }
-
-            // Find node_a, if not found, fail
-            if ((nodeA = state.node_a.findOnWorld(this, nodeB)) == null) {
-                return null;
-            }
         } else {
-            nodeA = state.node_a.findOnWorld(this, null);
-            nodeB = state.node_b.findOnWorld(this, nodeA);
+            nodeA = findNodeForConnection(state.node_a, null, null);
+            nodeB = findNodeForConnection(state.node_b, nodeA, nodeA);
 
             // Either node not found, fail
             if (nodeA == null || nodeB == null) {
@@ -525,6 +528,69 @@ public class TrackWorld implements CoasterWorldComponent {
 
         // Create a new connection
         return this.addConnection(nodeA, nodeB);
+    }
+
+    /**
+     * Looks up a node by a previously saved node reference (position). Has special handling of straightened nodes, where two
+     * nodes can occupy the same position. Then it matches the node with the best-matching up-orientation.
+     *
+     * @param nodeRef Node reference to look up
+     * @param excludedNode If multiple track nodes exist at a position, makes sure to
+     *                     exclude this node. Ignored if null.
+     * @param otherNode If multiple track nodes exist at a position, makes sure to select the node that has the best-matching up-orientation with this node. Ignored if null.
+     * @return node at the position, null if not found
+     */
+    private TrackNode findNodeForConnection(TrackNodeReference nodeRef, TrackNode excludedNode, TrackNode otherNode) {
+        TrackNode node = nodeRef.findOnWorld(this, excludedNode);
+        if (node == null || otherNode == null || nodeRef.isExistingNode()) {
+            return node;
+        }
+
+        TrackNode zeroNeighbour = node.getZeroDistanceNeighbour();
+        if (zeroNeighbour == null || zeroNeighbour == excludedNode) {
+            return node;
+        }
+
+        if (scoreConnectionNode(node, otherNode) <= scoreConnectionNode(zeroNeighbour, otherNode)) {
+            return node;
+        } else {
+            return zeroNeighbour;
+        }
+    }
+
+    /**
+     * Creates a score for how well a node is connected to another node. The lower the score, the better the connection.
+     * This is called when connecting one node to another node that has a straightened orphan node at the same position.
+     * Then we want to connect to the node that has the best-matching orientation.
+     *
+     * @param candidateNode Node to score
+     * @param otherNode Node to score against
+     * @return score, lower is better
+     */
+    private static double scoreConnectionNode(TrackNode candidateNode, TrackNode otherNode) {
+        Vector direction = candidateNode.getPosition().clone().subtract(otherNode.getPosition());
+        double directionLenSq = direction.lengthSquared();
+        if (directionLenSq <= 1e-20) {
+            return Double.MAX_VALUE;
+        }
+        direction.multiply(MathUtil.getNormalizationFactorLS(directionLenSq));
+
+        Vector otherUp = otherNode.getOrientation().clone();
+        Vector candidateUp = candidateNode.getOrientation().clone();
+        otherUp.subtract(direction.clone().multiply(otherUp.dot(direction)));
+        candidateUp.subtract(direction.clone().multiply(candidateUp.dot(direction)));
+
+        double otherUpLenSq = otherUp.lengthSquared();
+        if (otherUpLenSq > 1e-20) {
+            otherUp.multiply(MathUtil.getNormalizationFactorLS(otherUpLenSq));
+        }
+
+        double candidateUpLenSq = candidateUp.lengthSquared();
+        if (candidateUpLenSq > 1e-20) {
+            candidateUp.multiply(MathUtil.getNormalizationFactorLS(candidateUpLenSq));
+        }
+
+        return -otherUp.dot(candidateUp);
     }
 
     /**
