@@ -309,7 +309,7 @@ public class StringArrayBuffer implements Iterator<String> {
      * Gets the next Double value
      * 
      * @return next Double value
-     * @throws SyntaxException if the value is not an Double
+     * @throws SyntaxException if the value is not a Double or is NaN
      */
     public double nextDouble() throws SyntaxException {
         String value = next();
@@ -317,7 +317,11 @@ public class StringArrayBuffer implements Iterator<String> {
             throw createSyntaxException("Empty value, number expected");
         }
         try {
-            return Double.parseDouble(value);
+            double parsed = Double.parseDouble(value);
+            if (Double.isNaN(parsed)) {
+                throw createSyntaxException("Value is not a number: " + value).setColumn(this.index);
+            }
+            return parsed;
         } catch (NumberFormatException ex) {
             // TCC Bug - wrote out 1,555.23 as a number sometimes
             // Fixed by trimming out the ,. Gets fixed as it re-saves.

@@ -30,6 +30,39 @@ import com.bergerkiller.bukkit.common.internal.CommonBootstrap;
 public class CoasterCSVReaderTest {
 
     @Test
+    public void testNaNCoordinatesRejected() throws IOException {
+        for (int coordinate = 0; coordinate < 6; coordinate++) {
+            String[] fields = {"ROOT", "1.0", "2.0", "3.0", "0.0", "1.0", "0.0"};
+            fields[coordinate + 1] = "NaN";
+            try (TrackCSVReader reader = openReader(
+                    "\"ORIGIN\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"\n" +
+                    String.join(",", fields))) {
+                assertNotNull(reader.readNextEntry());
+                try {
+                    reader.readNextEntry();
+                    fail("Expected NaN coordinate to be rejected");
+                } catch (SyntaxException ex) {
+                    assertEquals(2, ex.getLine());
+                    assertEquals(coordinate + 2, ex.getColumn());
+                    assertTrue(ex.getMessage().contains("Value is not a number: NaN"));
+                }
+            } catch (SyntaxException ex) {
+                throw new AssertionError("Valid origin was rejected", ex);
+            }
+        }
+    }
+
+    @Test
+    public void testDoubleParsingCompatibility() throws SyntaxException {
+        StringArrayBuffer buffer = new StringArrayBuffer();
+        buffer.load(new String[] {"1.25", "-2.5", "1e3", "1,555.23"});
+        assertEquals(1.25, buffer.nextDouble(), 0.0);
+        assertEquals(-2.5, buffer.nextDouble(), 0.0);
+        assertEquals(1000.0, buffer.nextDouble(), 0.0);
+        assertEquals(1555.23, buffer.nextDouble(), 0.0);
+    }
+
+    @Test
     public void testTCCFormat() throws Throwable {
         // Standards TC-Coasters CSV files
         CSVEntry e;
