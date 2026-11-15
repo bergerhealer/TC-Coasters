@@ -61,6 +61,8 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     protected TrackNode(TrackCoaster group, TrackNodeState state) {
+        TCCoastersUtil.checkVectorValid(state.position, "position");
+        TCCoastersUtil.checkVectorValid(state.orientation, "orientation");
         this._railBlock = state.railBlock;
         this._coaster = group;
         this._pos = state.position;
@@ -137,6 +139,8 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     public void setState(TrackNodeState state) {
+        TCCoastersUtil.checkVectorValid(state.position, "position");
+        TCCoastersUtil.checkVectorValid(state.orientation, "orientation");
         this.setPosition(state.position);
         this.setOrientation(state.orientation);
         this.setRailBlock(state.railBlock);
@@ -164,6 +168,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     public void setPosition(Vector position) {
+        TCCoastersUtil.checkVectorValid(position, "position");
         Vector curr = this._pos;
         if (curr.getX() != position.getX() || curr.getY() != position.getY() || curr.getZ() != position.getZ()) {
             this._pos = position.clone();
@@ -321,10 +326,12 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     public void setOrientation(Vector up) {
+        TCCoastersUtil.checkVectorValid(up, "orientation");
         // Assign up vector, normalize it to length 1
         double up_n = MathUtil.getNormalizationFactor(up);
         if (!Double.isInfinite(up_n)) {
             up = up.clone().multiply(up_n);
+            TCCoastersUtil.checkVectorValid(up, "orientation");
             Vector up_curr = this._up;
             if (up_curr.getX() != up.getX() || up_curr.getY() != up.getY() || up_curr.getZ() != up.getZ()) {
                 this._up = up;

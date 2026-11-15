@@ -48,6 +48,15 @@ public class TCCoastersUtil {
     /** Threshold for Position vector equals() */
     private static final double POSITION_EPSILON = 1e-6;
 
+    public static void checkVectorValid(Vector vector, String name) {
+        if (vector == null) {
+            throw new IllegalArgumentException(name + " vector is null");
+        }
+        if (Double.isNaN(vector.getX()) || Double.isNaN(vector.getY()) || Double.isNaN(vector.getZ())) {
+            throw new IllegalArgumentException(name + " vector contains NaN: " + vector);
+        }
+    }
+
     public static int[] getBlockDeltas(double value) {
         if (value > 1e-10) {
             return BLOCK_DELTAS_POS;

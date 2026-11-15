@@ -21,12 +21,8 @@ public final class TrackNodeState {
     public final TrackNodeSign[] signs;
 
     private TrackNodeState(Vector position, Vector orientation, IntVector3 railBlock, TrackNodeSign[] signs) {
-        if (position == null) {
-            throw new IllegalArgumentException("position vector is null");
-        }
-        if (orientation == null) {
-            throw new IllegalArgumentException("orientation vector is null");
-        }
+        TCCoastersUtil.checkVectorValid(position, "position");
+        TCCoastersUtil.checkVectorValid(orientation, "orientation");
         this.position = position;
         this.orientation = orientation;
         this.railBlock = railBlock;
