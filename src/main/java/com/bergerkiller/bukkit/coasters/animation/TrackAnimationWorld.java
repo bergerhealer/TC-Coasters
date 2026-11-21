@@ -158,6 +158,7 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
                 endedAnimations.add(anim);
 
                 if (anim.connections != null) {
+                    List<TrackConnection> stateOrder = new ArrayList<>(anim.connections.length);
                     for (TrackConnectionState connection : anim.connections) {
                         //TODO: Why is this even happening?
                         if (connection.node_a.isReference(connection.node_b)) {
@@ -168,8 +169,18 @@ public class TrackAnimationWorld implements CoasterWorldComponent {
                             TrackConnection tc = getWorld().getTracks().connect(connection, false);
                             if (tc != null) {
                                 _finishedConnections.put(tc, connection);
+                                stateOrder.add(tc);
                             }
                         }
+                    }
+
+                    // Connections kept from before the animation stay at their old index and new ones
+                    // are appended, so on a junction node (3+ connections) the active path
+                    // (connections 0 and 1) would depend on the previous state. Put the connections in
+                    // the order the animation state lists them, as builds before "Don't re-create
+                    // connections that don't change" did by re-creating them all.
+                    for (int i = stateOrder.size() - 1; i >= 0; i--) {
+                        anim.node.switchJunction(stateOrder.get(i));
                     }
                 }
                 anim_iter.remove();
