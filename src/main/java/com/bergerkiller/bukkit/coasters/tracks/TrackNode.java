@@ -792,7 +792,8 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                 for (int j = i; j < this._animationStates.length; j++) {
                     this._animationStates[j].updateIndex(j);
                 }
-                updateSignBindings(plugin, state.state.signs, TrackNodeSign.EMPTY_ARR, TrackNodeBinding.forNodeAnimationStates(this));
+                updateSignBindings(plugin, state.state.signs, TrackNodeSign.EMPTY_ARR,
+                        TrackNodeBinding.forNodeAnimationStates(this), TrackNodeBinding.ChangeContext.DEFAULT);
                 plugin.forAllEditStates(editState -> editState.notifyNodeAnimationRemoved(TrackNode.this, name));
                 return true;
             }
@@ -905,7 +906,9 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                 old_state.destroyParticles();
                 this._animationStates[i] = state;
                 state.spawnParticles(this, i);
-                updateSignBindings(plugin, old_state.state.signs, state.state.signs, TrackNodeBinding.forNodeAnimationStates(this));
+                updateSignBindings(plugin, old_state.state.signs, state.state.signs,
+                        TrackNodeBinding.forNodeAnimationStates(this),
+                        TrackNodeBinding.ChangeContext.DEFAULT);
                 return;
             }
         }
@@ -918,7 +921,9 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         // Add new
         this._animationStates = LogicUtil.appendArrayElement(this._animationStates, state);
         state.spawnParticles(this, this._animationStates.length - 1);
-        updateSignBindings(plugin, TrackNodeSign.EMPTY_ARR, state.state.signs, TrackNodeBinding.forNodeAnimationStates(this));
+        updateSignBindings(plugin, TrackNodeSign.EMPTY_ARR, state.state.signs,
+                TrackNodeBinding.forNodeAnimationStates(this),
+                TrackNodeBinding.ChangeContext.DEFAULT);
 
         // Refresh any player edit states so they become aware of this animation
         plugin.forAllEditStates(editState -> editState.notifyNodeAnimationAdded(this, state.name));
@@ -964,7 +969,9 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                     old_state.destroyParticles();
                     this._animationStates[i] = new_state;
                     new_state.spawnParticles(this, i);
-                    updateSignBindings(plugin, old_state.state.signs, new_state.state.signs, TrackNodeBinding.forNodeAnimationStates(this));
+                    updateSignBindings(plugin, old_state.state.signs, new_state.state.signs,
+                            TrackNodeBinding.forNodeAnimationStates(this),
+                            TrackNodeBinding.ChangeContext.DEFAULT);
                     this.markChanged();
                 }
             }
@@ -986,7 +993,9 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                 TrackNodeBinding prevBinding = sign.getBinding();
                 try {
                     // Must be addedAsAnimation=false otherwise errors occur (=not a sign)
-                    sign.updateBinding(this.getPlugin(), TrackNodeBinding.forNode(this));
+                    sign.updateBinding(this.getPlugin(),
+                            TrackNodeBinding.forNode(this),
+                            TrackNodeBinding.ChangeContext.DEFAULT);
 
                     // Check
                     if (!filter.canAddSign(this, sign)) {
@@ -994,7 +1003,9 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
                     }
                 } finally {
                     // Restore
-                    sign.updateBinding(this.getPlugin(), prevBinding);
+                    sign.updateBinding(this.getPlugin(),
+                            prevBinding,
+                            TrackNodeBinding.ChangeContext.DEFAULT);
                 }
             }
 
@@ -1160,9 +1171,13 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         final TCCoasters plugin = getPlugin(); // Throws on double-removal!
 
         destroyParticles();
-        updateSignBindings(plugin, this._signs, TrackNodeSign.EMPTY_ARR, TrackNodeBinding.forNode(this));
+        updateSignBindings(plugin, this._signs, TrackNodeSign.EMPTY_ARR,
+                TrackNodeBinding.forNode(this),
+                TrackNodeBinding.ChangeContext.DEFAULT);
         for (TrackNodeAnimationState animState : this._animationStates) {
-            updateSignBindings(plugin, animState.state.signs, TrackNodeSign.EMPTY_ARR, TrackNodeBinding.forNodeAnimationStates(this));
+            updateSignBindings(plugin, animState.state.signs, TrackNodeSign.EMPTY_ARR,
+                    TrackNodeBinding.forNodeAnimationStates(this),
+                    TrackNodeBinding.ChangeContext.DEFAULT);
         }
         _coaster = null; // mark removed by breaking reference to coaster
 
@@ -1261,14 +1276,16 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     private void setSignsWithoutMarkChanged(TrackNodeSign[] new_signs) {
         TrackNodeSign[] prev_signs = this._signs;
         this._signs = new_signs;
-        updateSignBindings(getPlugin(), prev_signs, new_signs, TrackNodeBinding.forNode(this));
+        updateSignBindings(getPlugin(), prev_signs, new_signs,
+                TrackNodeBinding.forNode(this),
+                TrackNodeBinding.ChangeContext.DEFAULT);
         updateSignParticle();
     }
 
     /**
      * Adds a single fake sign
      *
-     * @param sign
+     * @param sign TrackNodeSign to add
      */
     public void addSign(TrackNodeSign sign) {
         addSign(sign, null);
@@ -1277,21 +1294,34 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     /**
      * Adds a single fake sign
      *
-     * @param sign
+     * @param sign TrackNodeSign to add
      * @param filter Optional predicate to check whether adding the sign is allowed.
      *               Can be null to ignore.
      */
     public void addSign(TrackNodeSign sign, AddSignPredicate filter) {
+        addSign(sign, filter, TrackNodeBinding.ChangeContext.DEFAULT);
+    }
+
+    /**
+     * Adds a single fake sign
+     *
+     * @param sign TrackNodeSign to add
+     * @param filter Optional predicate to check whether adding the sign is allowed.
+     *               Can be null to ignore.
+     * @param changeContext The change context to use when updating the sign's binding. Use this to control
+     *                      whether or not sign action events should be fired for adding the sign.
+     */
+    public void addSign(TrackNodeSign sign, AddSignPredicate filter, TrackNodeBinding.ChangeContext changeContext) {
         // Remember old state to restore if adding is not allowed
         TrackNodeSign[] oldSigns = this._signs;
         TrackNodeBinding prevBinding = sign.getBinding();
 
         this._signs = LogicUtil.appendArrayElement(this._signs, sign);
-        sign.updateBinding(this.getPlugin(), TrackNodeBinding.forNode(this));
+        sign.updateBinding(this.getPlugin(), TrackNodeBinding.forNode(this), changeContext);
 
         if (filter != null && !filter.canAddSign(this, sign)) {
             this._signs = oldSigns;
-            sign.updateBinding(this.getPlugin(), prevBinding);
+            sign.updateBinding(this.getPlugin(), prevBinding, changeContext);
             return;
         }
 
@@ -1299,36 +1329,65 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         markChanged();
     }
 
-    private static void updateSignBindings(TCCoasters plugin, TrackNodeSign[] prev_signs, TrackNodeSign[] new_signs, TrackNodeBinding newBinding) {
+    private static void updateSignBindings(
+            TCCoasters plugin,
+            TrackNodeSign[] prev_signs,
+            TrackNodeSign[] new_signs,
+            TrackNodeBinding newBinding,
+            TrackNodeBinding.ChangeContext changeContext
+    ) {
         if (prev_signs.length == 0) {
             // Adding stuff only
             for (TrackNodeSign sign : new_signs) {
-                sign.updateBinding(plugin, newBinding);
+                sign.updateBinding(plugin, newBinding, changeContext);
             }
         } else if (new_signs.length == 0) {
             // Removing stuff only
             for (TrackNodeSign sign : prev_signs) {
-                sign.updateBinding(plugin, TrackNodeBinding.NONE);
+                sign.updateBinding(plugin, TrackNodeBinding.NONE, changeContext);
             }
         } else {
-            List<TrackNodeSign> prev_signs_list = Arrays.asList(prev_signs);
-            List<TrackNodeSign> new_signs_list = Arrays.asList(new_signs);
+            // When animation states are applied, the TrackNodeSign instance is swapped out,
+            // but the actual sign contents do not change. Avoid firing sign action events for these
+            // signs by using a change context of SILENT.
 
             // Add the new signs first. This makes sure named state common to old and
-            // new signs is preserved.
+            // new signs is preserved. If a new sign instance with same text replaces an old one,
+            // don't fire sign action events for it.
             for (TrackNodeSign sign : new_signs) {
-                if (!prev_signs_list.contains(sign)) {
-                    sign.updateBinding(plugin, newBinding);
+                TrackNodeSign prevSign = findSameSign(prev_signs, sign);
+                if (sign != prevSign) {
+                    sign.updateBinding(plugin, newBinding, prevSign == null
+                            ? changeContext
+                            : TrackNodeBinding.ChangeContext.SILENT
+                    );
                 }
             }
 
             // Remove signs that no longer exist
-            for (TrackNodeSign sign : prev_signs_list) {
-                if (!new_signs_list.contains(sign)) {
-                    sign.updateBinding(plugin, TrackNodeBinding.NONE);
+            // If a new sign instance with same text replaces it, don't fire sign action events for it.
+            for (TrackNodeSign sign : prev_signs) {
+                TrackNodeSign newSign = findSameSign(new_signs, sign);
+                if (sign != newSign) {
+                    sign.updateBinding(plugin,  TrackNodeBinding.NONE, newSign == null
+                            ? changeContext
+                            : TrackNodeBinding.ChangeContext.SILENT
+                    );
                 }
             }
         }
+    }
+
+    private static TrackNodeSign findSameSign(TrackNodeSign[] signs, TrackNodeSign sign) {
+        TrackNodeSign sameSign = null;
+        for (TrackNodeSign s : signs) {
+            if (s == sign) {
+                return s;
+            } else if (s.isSameSign(sign)) {
+                sameSign = s;
+            }
+        }
+        return sameSign;
     }
 
     void updateSignParticle() {

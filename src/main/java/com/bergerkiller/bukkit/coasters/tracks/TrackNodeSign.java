@@ -56,13 +56,22 @@ public class TrackNodeSign implements Cloneable {
         setLines(lines);
     }
 
-    void updateBinding(TCCoasters plugin, TrackNodeBinding newBinding) {
+    /**
+     * Updates the binding of this sign with a node or animation state. Refreshes active power channels
+     * if assigned to a node and active, and fires appropriate load/destroy events.
+     *
+     * @param plugin TCCoasters plugin instance
+     * @param newBinding New binding to assign
+     * @param changeContext Context for why the sign bindings changed. This controls whether load/destroy events are fired.
+     */
+    void updateBinding(TCCoasters plugin, TrackNodeBinding newBinding, TrackNodeBinding.ChangeContext changeContext) {
         if (!newBinding.isActive()) {
             this.cachedFakeSign = null; // Forces re-validation
             plugin.getSignLookup().remove(this); // Remove from lookup
         }
 
-        if (this.binding.isActive() != newBinding.isActive()) {
+        final boolean wasActive = this.binding.isActive();
+        if (wasActive != newBinding.isActive()) {
             // Register/un-register the power states of this sign
             NamedPowerChannel[] inputChannels = this.inputPowerChannels;
             NamedPowerChannel[] outputChannels = this.outputPowerChannels;
@@ -91,7 +100,11 @@ public class TrackNodeSign implements Cloneable {
 
             // Fire destroy event when removed
             if (!newBinding.isActive()) {
-                fireDestroyEvent();
+                if (changeContext == TrackNodeBinding.ChangeContext.DEFAULT) {
+                    fireDestroyEvent();
+                } else if (changeContext == TrackNodeBinding.ChangeContext.UNLOAD) {
+                    this.handleLoadChange(false);
+                }
             }
         }
 
@@ -100,6 +113,11 @@ public class TrackNodeSign implements Cloneable {
         // Store in by-key mapping
         if (newBinding.isActive()) {
             plugin.getSignLookup().store(this);
+        }
+
+        // Fire load event when added (after binding is updated / sign is stored in lookup)
+        if (!wasActive && newBinding.isActive() && changeContext != TrackNodeBinding.ChangeContext.SILENT) {
+            this.handleLoadChange(true);
         }
     }
 
@@ -160,6 +178,18 @@ public class TrackNodeSign implements Cloneable {
      */
     public boolean hasSameLines(TrackNodeSign sign) {
         return Arrays.equals(this.getLines(), sign.getLines());
+    }
+
+    /**
+     * Gets whether this sign and another sign represent the same sign: they have
+     * the same {@link #getKey() key} and the same lines. This is the case when a sign
+     * is cloned into or out of an animation state.
+     *
+     * @param sign TrackNodeSign
+     * @return True if the sign has the same key and lines
+     */
+    public boolean isSameSign(TrackNodeSign sign) {
+        return this.key.equals(sign.key) && hasSameLines(sign);
     }
 
     /**

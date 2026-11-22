@@ -181,4 +181,23 @@ public interface TrackNodeBinding {
             return "TrackNodeBinding{" + (addedAsAnimation ? "ANIMATION " : "NODE ") + node + "}";
         }
     }
+
+    /**
+     * Context for why the sign bindings changed. Influences what events are fired while handling the changes.
+     */
+    enum ChangeContext {
+        /** Default mode, fires all the normal loaded-change / destroy events. */
+        DEFAULT,
+        /**
+         * Used when the sign is simply being unloaded (world unloaded), not actually removed.
+         * Skips the firing of the destroy event and handles a loaded change false instead.
+         */
+        UNLOAD,
+        /**
+         * Used when the sign is being swapped out for a new sign with the exact same text,
+         * or when other events were already fired for building the sign prior (by a player).
+         * Skips the firing of destroy and load-change events.
+         */
+        SILENT
+    }
 }

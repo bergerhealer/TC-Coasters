@@ -16,6 +16,7 @@ import com.bergerkiller.bukkit.coasters.events.CoasterBeforeUpdateAnimationState
 import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayBlock;
 import com.bergerkiller.bukkit.coasters.objects.display.TrackObjectTypeDisplayItemStack;
 import com.bergerkiller.bukkit.coasters.objects.lod.LODItemStack;
+import com.bergerkiller.bukkit.coasters.tracks.TrackNodeBinding;
 import com.bergerkiller.bukkit.coasters.tracks.TrackNodeSignKey;
 import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
 import org.bukkit.block.BlockFace;
@@ -964,12 +965,10 @@ public class TrackCSV {
                 return;
             } else {
                 // Add to the node itself
-                state.prevNode.addSign(sign, state.addNodeSignPredicate);
-
-                // Fire load event if not built by a Player
-                if (state.player == null) {
-                    sign.handleLoadChange(true);
-                }
+                TrackNodeBinding.ChangeContext changeContext = (state.player != null)
+                        ? TrackNodeBinding.ChangeContext.SILENT /* We already fire load change in the build-by-player event */
+                        : TrackNodeBinding.ChangeContext.DEFAULT;
+                state.prevNode.addSign(sign, state.addNodeSignPredicate, changeContext);
             }
         }
     }
