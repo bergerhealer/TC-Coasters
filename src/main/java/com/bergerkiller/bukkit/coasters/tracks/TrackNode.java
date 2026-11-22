@@ -1167,17 +1167,19 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         return Math.sqrt(TCCoastersUtil.distanceSquaredXY(pos)) / lim;
     }
 
-    protected void onRemoved() {
+    protected void onRemoved(boolean unloaded) {
         final TCCoasters plugin = getPlugin(); // Throws on double-removal!
+
+        TrackNodeBinding.ChangeContext changeContext = unloaded
+                ? TrackNodeBinding.ChangeContext.UNLOAD
+                : TrackNodeBinding.ChangeContext.DEFAULT;
 
         destroyParticles();
         updateSignBindings(plugin, this._signs, TrackNodeSign.EMPTY_ARR,
-                TrackNodeBinding.forNode(this),
-                TrackNodeBinding.ChangeContext.DEFAULT);
+                TrackNodeBinding.forNode(this), changeContext);
         for (TrackNodeAnimationState animState : this._animationStates) {
             updateSignBindings(plugin, animState.state.signs, TrackNodeSign.EMPTY_ARR,
-                    TrackNodeBinding.forNodeAnimationStates(this),
-                    TrackNodeBinding.ChangeContext.DEFAULT);
+                    TrackNodeBinding.forNodeAnimationStates(this), changeContext);
         }
         _coaster = null; // mark removed by breaking reference to coaster
 

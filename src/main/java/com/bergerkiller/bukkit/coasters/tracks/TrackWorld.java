@@ -754,12 +754,13 @@ public class TrackWorld implements CoasterWorldComponent {
     }
 
     /**
-     * Deletes all coasters from this world
+     * Deletes all coasters from this world and unloads all track information.
+     * This is called when the world is unloaded.
      */
-    public void clear() {
+    public void unload() {
         // Perform clearing logic
         for (TrackCoaster coaster : this._coasters) {
-            coaster.clear();
+            coaster.clear(true);
         }
         this._coasters.clear();
         this._changedNodes.clear();
@@ -771,7 +772,7 @@ public class TrackWorld implements CoasterWorldComponent {
      * Resets and loads all coasters from file
      */
     public void load() {
-        this.clear();
+        this.unload();
 
         long startTimeNanos = System.nanoTime();
 

@@ -97,7 +97,7 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
             this.getWorld().getTracks().disconnectAll(node, true);
             this.getWorld().getTracks().cancelNodeRefresh(node);
             this.getWorld().getRails().purge(node);
-            node.onRemoved();
+            node.onRemoved(false);
             this.markChanged();
         }
     }
@@ -164,10 +164,20 @@ public class TrackCoaster implements CoasterWorldComponent, Lockable {
      * Removes all nodes and connections of this coaster
      */
     public void clear() {
+        clear(false);
+    }
+
+    /**
+     * Removes all nodes and connections of this coaster
+     *
+     * @param unloaded True if the coaster is only unloaded (world unload, plugin disable
+     *                 or reload) and not deleted. Signs then aren't destroyed.
+     */
+    void clear(boolean unloaded) {
         getWorld().getRails().purge(this._nodes);
         for (TrackNode node : this._nodes) {
             this.getWorld().getTracks().disconnectAll(node, true);
-            node.onRemoved();
+            node.onRemoved(unloaded);
         }
         this._nodes.clear();
     }

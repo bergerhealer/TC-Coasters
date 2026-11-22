@@ -90,7 +90,7 @@ public class CoasterWorldImpl implements CoasterWorld {
         {
             TrackWorld tracks = getTracks();
             tracks.saveChanges();
-            tracks.clear();
+            tracks.unload();
         }
         {
             TrackParticleWorld particles = getParticles();
