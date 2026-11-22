@@ -754,12 +754,14 @@ public class TrackWorld implements CoasterWorldComponent {
     }
 
     /**
-     * Deletes all coasters from this world
+     * Unloads all coasters from this world. This is used when the world unloads, the
+     * plugin disables or the coasters are reloaded from disk, so the signs on the nodes
+     * are unloaded and not destroyed.
      */
     public void clear() {
         // Perform clearing logic
         for (TrackCoaster coaster : this._coasters) {
-            coaster.clear();
+            coaster.clear(true);
         }
         this._coasters.clear();
         this._changedNodes.clear();

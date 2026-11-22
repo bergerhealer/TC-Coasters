@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
+import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.coasters.TCCoasters;
 import com.bergerkiller.bukkit.common.offline.OfflineBlock;
@@ -1157,12 +1158,33 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     protected void onRemoved() {
+        onRemoved(false);
+    }
+
+    /**
+     * Called when this node is removed from its coaster
+     *
+     * @param unloaded True if the node is only unloaded (world unload, plugin disable or
+     *                 reload) and not deleted. The signs then receive an unload event
+     *                 instead of a destroy event, so that state TrainCarts keeps for them
+     *                 (path finding destinations and switchers) survives a restart.
+     */
+    protected void onRemoved(boolean unloaded) {
         final TCCoasters plugin = getPlugin(); // Throws on double-removal!
 
         destroyParticles();
-        updateSignBindings(plugin, this._signs, TrackNodeSign.EMPTY_ARR, TrackNodeBinding.forNode(this));
+        if (unloaded) {
+            for (TrackNodeSign sign : this._signs) {
+                try {
+                    sign.handleLoadChange(false);
+                } catch (Throwable t) {
+                    plugin.getLogger().log(Level.SEVERE, "Failed to handle sign unload", t);
+                }
+            }
+        }
+        updateSignBindings(plugin, this._signs, TrackNodeSign.EMPTY_ARR, TrackNodeBinding.forNode(this), !unloaded);
         for (TrackNodeAnimationState animState : this._animationStates) {
-            updateSignBindings(plugin, animState.state.signs, TrackNodeSign.EMPTY_ARR, TrackNodeBinding.forNodeAnimationStates(this));
+            updateSignBindings(plugin, animState.state.signs, TrackNodeSign.EMPTY_ARR, TrackNodeBinding.forNodeAnimationStates(this), !unloaded);
         }
         _coaster = null; // mark removed by breaking reference to coaster
 
@@ -1300,6 +1322,10 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
     }
 
     private static void updateSignBindings(TCCoasters plugin, TrackNodeSign[] prev_signs, TrackNodeSign[] new_signs, TrackNodeBinding newBinding) {
+        updateSignBindings(plugin, prev_signs, new_signs, newBinding, true);
+    }
+
+    private static void updateSignBindings(TCCoasters plugin, TrackNodeSign[] prev_signs, TrackNodeSign[] new_signs, TrackNodeBinding newBinding, boolean fireDestroy) {
         if (prev_signs.length == 0) {
             // Adding stuff only
             for (TrackNodeSign sign : new_signs) {
@@ -1308,7 +1334,7 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
         } else if (new_signs.length == 0) {
             // Removing stuff only
             for (TrackNodeSign sign : prev_signs) {
-                sign.updateBinding(plugin, TrackNodeBinding.NONE);
+                sign.updateBinding(plugin, TrackNodeBinding.NONE, fireDestroy);
             }
         } else {
             List<TrackNodeSign> prev_signs_list = Arrays.asList(prev_signs);
@@ -1323,9 +1349,19 @@ public class TrackNode implements TrackNodeReference, CoasterWorldComponent, Loc
             }
 
             // Remove signs that no longer exist
+            // If a sign with the same key and lines is still there (e.g. a clone made when an
+            // animation state is applied), the sign is not really removed, and no destroy event
+            // should be fired. Otherwise things like path finding destinations are lost.
             for (TrackNodeSign sign : prev_signs_list) {
                 if (!new_signs_list.contains(sign)) {
-                    sign.updateBinding(plugin, TrackNodeBinding.NONE);
+                    boolean stillExists = false;
+                    for (TrackNodeSign new_sign : new_signs) {
+                        if (sign.isSameSign(new_sign)) {
+                            stillExists = true;
+                            break;
+                        }
+                    }
+                    sign.updateBinding(plugin, TrackNodeBinding.NONE, fireDestroy && !stillExists);
                 }
             }
         }
