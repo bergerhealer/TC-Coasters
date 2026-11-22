@@ -57,6 +57,20 @@ public class TrackNodeSign implements Cloneable {
     }
 
     void updateBinding(TCCoasters plugin, TrackNodeBinding newBinding) {
+        updateBinding(plugin, newBinding, true);
+    }
+
+    /**
+     * Updates the binding of this sign
+     *
+     * @param plugin TCCoasters plugin instance
+     * @param newBinding New binding
+     * @param fireDestroy Whether to fire a sign destroy event when this sign goes from
+     *                    active to inactive. Set to false when the same sign (same key and
+     *                    lines) stays active on the node through a replacement instance, such
+     *                    as when an animation state is applied.
+     */
+    void updateBinding(TCCoasters plugin, TrackNodeBinding newBinding, boolean fireDestroy) {
         if (!newBinding.isActive()) {
             this.cachedFakeSign = null; // Forces re-validation
             plugin.getSignLookup().remove(this); // Remove from lookup
@@ -90,7 +104,7 @@ public class TrackNodeSign implements Cloneable {
             }
 
             // Fire destroy event when removed
-            if (!newBinding.isActive()) {
+            if (!newBinding.isActive() && fireDestroy) {
                 fireDestroyEvent();
             }
         }
@@ -160,6 +174,18 @@ public class TrackNodeSign implements Cloneable {
      */
     public boolean hasSameLines(TrackNodeSign sign) {
         return Arrays.equals(this.getLines(), sign.getLines());
+    }
+
+    /**
+     * Gets whether this sign and another sign represent the same sign: they have
+     * the same {@link #getKey() key} and the same lines. This is the case when a sign
+     * is cloned into or out of an animation state.
+     *
+     * @param sign
+     * @return True if the sign has the same key and lines
+     */
+    public boolean isSameSign(TrackNodeSign sign) {
+        return this.key.equals(sign.key) && hasSameLines(sign);
     }
 
     /**
